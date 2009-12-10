@@ -1,0 +1,49 @@
+/* "coffhead.ask" */
+
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+void COFF_header()
+{
+	DB(0x4c, 0x01);
+	DW(0x02 /* sections */);
+	DD(0); /* time & date */
+	asmout("DD COFF_symboltable");
+	asmout("DD (COFF_stringtable-COFF_symboltable)/18");
+	DW(0); /* no optional header */
+	DW(0); /* flags */
+
+	/* total 20bytes */
+}
+
+void COFF_seched_text()
+{
+	asmout("DD '.text'"); /* name */
+	asmout("DD COFF_section_text - COFF_section_text"); /* paddr */
+	DD(0); /* vaddr */
+	asmout("DD COFF_section_data - COFF_section_text"); /* size */
+	asmout("DD COFF_section_text");
+	asmout("DD COFF_reloctab_text");
+	DD(0); /* line number */
+	asmout("DW (COFF_reloctab_data-COFF_reloctab_text)/10"); /* reloc. entries */
+	DW(0); /* line-num. entries */
+	DB(0x20 /* code */, 0x00, TEXT_ALIGN, 0x60);
+
+	/* total 40bytes */
+}
+
+void COFF_seched_data()
+{
+	asmout("DD '.data'");
+	asmout("DD COFF_section_data - COFF_section_text"); /* paddr */
+	DD(0); /* vaddr */
+	asmout("DD COFF_reloctab_text - COFF_section_data"); /* size */
+	asmout("DD COFF_section_data");
+	asmout("DD COFF_reloctab_data");
+	DD(0); /* line number */
+	asmout("DW (COFF_symboltable-COFF_reloctab_data)/10"); /* reloc. entries */
+	DW(0); /* line-num. entries */
+	DB(0x40 /* data */, 0x00, DATA_ALIGN, 0xc0);
+
+	/* total 40bytes */
+}
