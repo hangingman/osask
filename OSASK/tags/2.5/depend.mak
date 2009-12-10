@@ -1,0 +1,2 @@
+ARCH = pcat
+#TMENU = y
