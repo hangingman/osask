@@ -1,27 +1,27 @@
-// "pioneer0":ぐいぐいの標準ライブラリ ver.1.0
-//  copyright(C) 2001 H.Kawai (川合秀実)
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.1
+    copyright(C) 2001 H.Kawai (川合秀実) */
 
-// これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
-// 結局のところ、処理をshellcallに取り次いでいるだけ。
-// shellcallの仕様は流動的なので、このライブラリがその変化を吸収しているともいえる。
+/* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
+   結局のところ、処理をshellcallに取り次いでいるだけ。
+   shellcallの仕様は流動的なので、このライブラリがその変化を吸収しているともいえる。 */
 
-// スタックは1KBくらいあれば問題は無いだろう。
+/* スタックは1KBくらいあれば問題は無いだろう。 */
 
 segment PioneerMdl(USE32, PARA);
 default(code == PioneerMdl);
 
-struct WORK { // 256bytes
+struct WORK { /* 256bytes */
 	char signature[8]; int children_back, children_next;
 	int softint_EIP, softint_CS, nest /* user用 */, read_ptr /* system用 */;
-	int softint_ret_buf[16], softint_mask_buf[16]; // system用
+	int softint_ret_buf[16], softint_mask_buf[16]; /* system用 */
 	int signalbox_read_free, signalbox_eos, signalbox_rewind, signaldw /* user用 */;
 	int signalbox_write_free, signalbox_write_ptr,
-		signalbox_write_ptr0, signalbox_write_ptr1; // user用
+		signalbox_write_ptr0, signalbox_write_ptr1; /* user用 */
 	char signalbox_status, [15];
-	// 空きは144バイト
+	/* 空きは144バイト */
 };
 
-struct WINDOW {	// 128bytes
+struct WINDOW {	/* 128bytes */
 	char signature[8];
 	int chain_back, chain_next;
 	int children_back, children_next;
@@ -29,21 +29,21 @@ struct WINDOW {	// 128bytes
 	int slot;
 	unsigned char mode0, draw_enable, siglen, sigflag;
 	int signalhead[16];
-	// 空きは64バイト
+	/* 空きは64バイト */
 };
 
-struct TEXTBOX { // 64bytes
+struct TEXTBOX { /* 64bytes */
 	char signature[8];
 	int chain_back, chain_next;
 	int x_size, y_size, x0, y0;
 	int option, backcolor, charset, window;
-	void [16]; // 空きは16バイト
+	void [16]; /* 空きは16バイト */
 	int buffer[0];
 };
 
 void near drawcomponent();
 void near drawwindow();
-void near textbox_drawback(); // テキストボックスの背景描画ルーチン
+void near textbox_drawback(); /* テキストボックスの背景描画ルーチン */
 
 /*
 	スロットの使用状況
@@ -54,9 +54,9 @@ void near textbox_drawback(); // テキストボックスの背景描画ルーチン
 */
 
 void far pioneer0()
-// Lv3のライブラリー
-// セグメントは、DS == FS == SSである事を仮定している。
-// コマンドはDS:EBX以降に格納されている。
+/* Lv3のライブラリー
+   セグメントは、DS == FS == SSである事を仮定している。
+   コマンドはDS:EBX以降に格納されている。 */
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
@@ -65,38 +65,38 @@ void far pioneer0()
 	PUSHAD();
 	(offset) cmd = EBX;
 	if ((unsigned) cmd[0] != 0x0004) {
-		// 最初のコマンドが初期化コマンドではない。
+		/* 最初のコマンドが初期化コマンドではない */
 
 		EBX = 0xffffffff;
-		EAX = 0x0004; // read user-slot command
-		ECX = 0x01f0; // スロット番号(pioneerワークスロット)
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		EAX = 0x0004; /* read user-slot command */
+		ECX = 0x01f0; /* スロット番号(pioneerワークスロット) */
+		DB(0x9a); DD(0); DW(0x0017); /* shell-call */
 		(offset) work = EDX;
 
-		// softint禁止
-		LEA(EBX, work->softint_mask_buf[0]); // add_nest
-	//	work->softint_mask_buf[ 8] = 0xff80; // (Llv変更しない)
+		/* softint禁止 */
+		LEA(EBX, work->softint_mask_buf[0]); /* add_nest */
+	//	work->softint_mask_buf[ 8] = 0xff80; /* (Llv変更しない) */
 		(int) [DS:EBX + 8] = 0xff80;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call(softint抑制)
+		DB(0x9a); DD(0); DW(0x0017); /* shell-call(softint抑制) */
 	}
 
 asmout("nextcmd:");
 	EAX = cmd[0];
-	if ((unsigned) EAX < 0x0090) {
+	if ((unsigned) EAX < 0x00e0) {
 		TEST(EAX, 0x03);
 		if (== 0)
 			asmout("JMP DWORD PTR CS:[EAX+#cmd_jumptable]");
 	}
 
-	// コマンド番号エラー
-	// EAX    受理されなかったコマンド番号
-	// DS:ESI そのコマンドへのポインタ
+	/* コマンド番号エラー
+	   EAX    受理されなかったコマンド番号
+	   DS:ESI そのコマンドへのポインタ */
 
 cmderr:
-	LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更しない)
-	DB(0x9a); DD(0); DW(0x0017); // shell-call(softint許可)
+	LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更しない) */
+	DB(0x9a); DD(0); DW(0x0017); /* shell-call(softint許可) */
 	(int) [SS:ESP + 16 /* EBX */] = (offset) cmd;
-INT(0x03); // コマンドエラーは許さない
+INT(0x03); /* コマンドエラーは許さない */
 //	TEST(ESP, ESP); // ZF = 0
 	POPAD();
 	return;
@@ -112,34 +112,40 @@ cmd_jumptable:
 	asmout("DD OFFSET cmd060,  OFFSET #cmderr, OFFSET cmd068,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd070,  OFFSET cmd074,  OFFSET cmd078,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd080,  OFFSET cmd084,  OFFSET #cmderr, OFFSET cmd08c ");
+	asmout("DD OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
+	asmout("DD OFFSET cmd0a0,  OFFSET #cmderr, OFFSET cmd0a8,  OFFSET cmd0ac ");
+	asmout("DD OFFSET cmd0b0,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
+	asmout("DD OFFSET cmd0c0,  OFFSET cmd0c4,  OFFSET cmd0c8,  OFFSET #cmderr");
+	asmout("DD OFFSET cmd0d0,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
+
 }
 
 void far cmd000()
-// 終了コマンド
+/* 終了コマンド */
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
 
-	// 待機中の割り込みを検査
-	if (work->nest == 0) { // 割り込みはマスクされていない
-		if (work->signalbox_read_free != 0) { // バッファにシグナルがある
-			PUSH(EAX); // ESP -= 4;の代わり
+	/* 待機中の割り込みを検査 */
+	if (work->nest == 0) { /* 割り込みはマスクされていない */
+		if (work->signalbox_read_free != 0) { /* バッファにシグナルがある */
+			PUSH(EAX); /* ESP -= 4;の代わり */
 			if ((unsigned) (int) [SS:ESP + 16 /* ESP */] != 1) {
-				// ハンドラからの帰還要求は出ていない
+				/* ハンドラからの帰還要求は出ていない */
 
-				// 新規割り込み
-				// スタックの積み替え
+				/* 新規割り込み
+				   スタックの積み替え
 
-				// <積み替え後のスタック構成>
-				//   +0 ～  +31 : PUSHADイメージ
-				//  +32 ～  +43 : EIP, CS, EFLAGS
-				//  +44 ～  +59 : ES, DS, FS, GS
-				//  +60 ～  +91 : PUSHADイメージ
-				//  +92 ～ +103 : EIP, CS, EFLAGS
+				 <積み替え後のスタック構成>
+				   +0 ～  +31 : PUSHADイメージ
+				  +32 ～  +43 : EIP, CS, EFLAGS
+				  +44 ～  +59 : ES, DS, FS, GS
+				  +60 ～  +91 : PUSHADイメージ
+				  +92 ～ +103 : EIP, CS, EFLAGS
 
-				//   +0 ～  +43は、shellcallルーチンのために用意する
-				//			(読み込まれると取り去られる)
-				//  +44 ～ +103は、ハンドラが参照するために用意される
+				   +0 ～  +43は、shellcallルーチンのために用意する
+							(読み込まれると取り去られる)
+				  +44 ～ +103は、ハンドラが参照するために用意される */
 
 				PUSH(GS);
 				PUSH(FS);
@@ -168,63 +174,63 @@ void far cmd000()
 				EAX = (int) [SS:ESP + 40]; // EFLAGS
 				(int) [SS:ESP + 100] = EAX;
 			} else {
-				// ハンドラからの帰還要求が出ている
+				/* ハンドラからの帰還要求が出ている */
 
-				// スタックの上位(+44 ～ +103)は完成している
-				// 下位(+0 ～ +43)を作り直す
+				/* スタックの上位(+44 ～ +103)は完成している
+				   下位(+0 ～ +43)を作り直す */
 				EAX = (int) [SS:ESP + 100]; // EFLAGS
 				(int) [SS:ESP + 40] = EAX;
 			}
-			EAX = work->softint_EIP; // ハンドラへのベクタ
+			EAX = work->softint_EIP; /* ハンドラへのベクタ */
 			ECX = work->softint_CS;
 			(int) [SS:ESP + 32] = EAX;
 			(int) [SS:ESP + 36] = ECX;
-			(int) [SS:ESP + 12] = 2; // リターン時のLlv
-			work->nest--; // 割り込んだので、マスクカウントを減少
+			(int) [SS:ESP + 12] = 2; /* リターン時のLlv */
+			work->nest--; /* 割り込んだので、マスクカウントを減少 */
 			PUSH(FS);
 			LEA(EBX, work->softint_ret_buf[0]);
 			work->softint_ret_buf[ 4] = 0;
-			work->softint_ret_buf[ 8] = 0x0080; // 割り込み抑制解除
-			DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-			INT(0x03); // エラーが無い限り、ここにはこない
+			work->softint_ret_buf[ 8] = 0x0080; /* 割り込み抑制解除 */
+			DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+			INT(0x03); /* エラーが無い限り、ここにはこない */
 		}
 	}
 
-	// ハンドラへの分岐はない
+	/* ハンドラへの分岐はない */
 	if ((unsigned) (int) [SS:ESP + 12] == 1) {
-		// 帰還
-		ESP += 40; // いらない部分を捨てる(EDI～EAX, CS:EIP)
+		/* 帰還 */
+		ESP += 40; /* いらない部分を捨てる(EDI～EAX, CS:EIP) */
 		POP(ES);
 		POP(DS);
-		POP(EAX); // FS直接ロードせずに、EAXに入れておく
+		POP(EAX); /* FSへ直接ロードせずに、EAXに入れておく */
 		POP(GS);
-		(int) [SS:ESP + 12] = 2; // リターン時のLlv
-		PUSH(EAX); // ここで復帰後のFSを積む
+		(int) [SS:ESP + 12] = 2; /* リターン時のLlv */
+		PUSH(EAX); /* ここで復帰後のFSを積む */
 		LEA(EBX, work->softint_ret_buf[0]);
 		work->softint_ret_buf[ 4] = 0;
-		work->softint_ret_buf[ 8] = 0x0080; // 割り込み抑制解除
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-		INT(0x03); // エラーが無い限り、ここにはこない
+		work->softint_ret_buf[ 8] = 0x0080; /* 割り込み抑制解除 */
+		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+		INT(0x03); /* エラーが無い限り、ここにはこない */
 	}
 
-	// 何もないので、普通の正常終了
-	LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更しない)
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	/* 何もないので、普通の正常終了 */
+	LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更しない) */
+	DB(0x9a); DD(0); DW(0x0017); /* shell-call */
 	(int) [SS:ESP + 16 /* EBX */] = (offset) cmd;
-	CMP(EAX, EAX); // ZF = 1, CF = 0
+	CMP(EAX, EAX); /* ZF = 1, CF = 0 */
 	POPAD();
 	return;
 }
 
 void near cmd004()
-// pioneer0ライブラリ初期化コマンド
+/* pioneer0ライブラリ初期化コマンド */
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
 
-	// work初期化(256bytes)
-	// optionフィールドをもつ(malloc領域などのため)
-	// malloc領域などの設定は、別のコマンドであとからやる。
+	/* work初期化(256bytes)
+	   optionフィールドをもつ(malloc領域などのため)
+	   malloc領域などの設定は、別のコマンドであとからやる。 */
 	(offset) work = cmd[4] /* opt */;
 	(offset) cmd += 8;
 	(int) work->signature[0] = 0x6e6f6970 ; /* pion */
@@ -243,49 +249,49 @@ void near cmd004()
 	work->softint_mask_buf[12] = 0x0000;
 	work->signaldw = 0;
 	work->signalbox_write_ptr = 0xfffffffe;
-	// ベクタ初期化
+	/* ベクタ初期化 */
 	AX = CS;
 	PUSH(FS);
 	FS = AX;
 	asmout("MOV EBX,OFFSET #cmd0004_cmd");
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	DB(0x9a); DD(0); DW(0x0017); /* shell-call */
 	POP(FS);
-	// slot 0x01f0に(offset) workを書き込み
+	/* slot 0x01f0に(offset) workを書き込み */
 	PUSH((int) 0);
 	PUSH((offset) work);
 	ESP -= 8;
-	PUSH((int) 0x01f0); // slot-no.
-	PUSH((int) 0x0080); // write user-slot
+	PUSH((int) 0x01f0); /* slot-no. */
+	PUSH((int) 0x0080); /* write user-slot */
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	/* ユーザー割り込み抑制 */
+	DB(0x9a); DD(0); DW(0x0017); /* shell-call */
 	ESP += 24;
-//	// ユーザー割り込み抑制
 	asmout("JMP nextcmd");
 	ALIGN(4);
 cmd0004_cmd:
-	asmout("DD 0200H, OFFSET pioneer_softint, 010000C7H, 0201H"); // softint_vector
-	asmout("DD 0204H, 0, 0281H"); // to Llv2(nestを80に)
-	asmout("DD 0300H, 01C0H"); // 獲得(この時、インターバルモードが解除される)
+	asmout("DD 0200H, OFFSET pioneer_softint, 010000C7H, 0201H"); /* softint_vector */
+	asmout("DD 0204H, 0, 0281H"); /* to Llv2(nestを80に) */
+	asmout("DD 0300H, 01C0H"); /* 獲得(この時、インターバルモードが解除される) */
 asmout("cmd004_cmd2:");
-	asmout("DD 0310H, 01C0H"); // 現在時刻設定
-	asmout("DD 0318H, 01C0H, 0140H, 1, 0080H"); // メッセージ設定
+	asmout("DD 0310H, 01C0H"); /* 現在時刻設定 */
+	asmout("DD 0318H, 01C0H, 0140H, 1, 0080H"); /* メッセージ設定 */
 	DD(0x0000);
 }
 
 void near cmd008()
-// pioneer0ライブラリの終了
-// オプションで、アプリ自体も終了するか、それともアプリは終了しないかを選べる
-// 現在は、オプションを確認することもなく、終了
+/* pioneer0ライブラリの終了
+   オプションで、アプリ自体も終了するか、それともアプリは終了しないかを選べる
+   現在は、オプションを確認することもなく、終了 */
 {
 	PUSH((int) 0);
 	PUSH((int) 0); // reserve
-	PUSH((int) 0x0040); // タスク終了
+	PUSH((int) 0x0040); /* タスク終了 */
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
 }
 
 void near cmd010()
-// softintベクタ設定
+/* softintベクタ設定 */
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
@@ -299,7 +305,7 @@ void near cmd010()
 }
 
 void near cmd018()
-// wait signal
+/* wait signal */
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
@@ -309,28 +315,28 @@ void near cmd018()
 	work->signalbox_write_free += EAX;
 	work->signalbox_read_free -= EAX;
 	if ((unsigned) < 0) {
-		// 書き込んだ以上に、読み込んだと報告された。
-		// これは許しがたいエラーである。
+		/* 書き込んだ以上に、読み込んだと報告された。
+		   これは許しがたいエラーである。 */
 
-		INT(0x03); // エラー処理未完成
+		INT(0x03); /* エラー処理未完成 */
 	}
 	ECX = work->signalbox_write_ptr;
 	TEST(CL, 0x01);
 	if (!= 0) {
 		if (EAX != 0) {
-			// シグナルフルだったので、それを解除
+			/* シグナルフルだったので、それを解除 */
 			work->signalbox_write_ptr &= 0xfffffffc;
 			PUSH((int) 0x0000); // eoc
 			PUSH((int) 0xff02); // nest
 			PUSH((int) 0); // signals
 			PUSH((int) 0x0204); // add nest
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+			DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
 			ESP += 16;
 		}
 	}
 	if (EDI == 0x0080) {
-		// 帰還要求を表すために、スタック内のESP値を1にする。
+		/* 帰還要求を表すために、スタック内のESP値を1にする。 */
 		(int) [SS:ESP + 12 /* ESP */] = 1;
 	}
 	EAX = cmd[12]; // nest
@@ -351,55 +357,55 @@ void near cmd018()
 		// set now time
 		PUSH((int) 0x0000);
 		PUSH((int) /* 0x01c0 */ slot);
-		PUSH((int) 0x0310); // 現在時刻設定
+		PUSH((int) 0x0310); /* 現在時刻設定 */
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		DB(0x9a); DD(0); DW(0x0017); /* shell-call */
 		ESP += 12;
 	}
 
 	TEST(EDI, 0x04);
 	if (!= 0) {
-		// add time
-		// 本来なら最低加算時間のチェックがある
+		/* add time */
+		/* 本来なら最低加算時間のチェックがある */
 		PUSH((int) 0x0000);
 		PUSH(cmd[8]);
 		PUSH(cmd[4]);
 		PUSH(cmd[0]);
 		(offset) cmd += 12;
 		PUSH((int) /* 0x01c0 */ slot);
-		PUSH((int) 0x0314); // 時刻加算
+		PUSH((int) 0x0314); /* 時刻加算 */
 		EBX = ESP;
 		DB(0x9a); DD(0); DW(0x0017); // shell-call
 		ESP += 24;
 	}
 
-	// 以下はシグナルが溜まっていないときだけ有効
+	/* 以下はシグナルが溜まっていないときだけ有効 */
 	if (work->signalbox_read_free == 0) {
 		TEST(EDI, 0x02);
 		if (!= 0) {
 			// regist timer
 			PUSH((int) 0x0000);
 			PUSH((int) /* 0x01c0 */ slot);
-			PUSH((int) 0x0308); // タイマー登録
+			PUSH((int) 0x0308); /* タイマー登録 */
 			EBX = ESP;
 			DB(0x9a); DD(0); DW(0x0017); // shell-call
 			ESP += 12;
 		}
 		TEST(EDI, 0x01);
 		if (!= 0) {
-			// sleep
-			LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更する)
+			/* sleep */
+			LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更する) */
 			work->softint_mask_buf[ 8] = 0x0080;
 			DB(0x9a); DD(0); DW(0x0017); // shell-call
 
-			LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更しない)
+			LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更しない) */
 			work->softint_mask_buf[ 8] = 0xff80;
-				// ライブラリルーチン内に再入したので、割り込みマスク
+				/* ライブラリルーチン内に再入したので、割り込みマスク */
 			DB(0x9a); DD(0); DW(0x0017); // shell-call
 		}
 		TEST(EDI, 0x02);
 		if (!= 0) {
-			// cancel timer
+			/* cancel timer */
 			PUSH((int) 0x0000);
 			PUSH((int) /* 0x01c0 */ slot);
 			PUSH((int) 0x030c); // タイマー解約
@@ -412,10 +418,10 @@ void near cmd018()
 }
 
 void near cmd020()
-// create new window.
-// slotのbit0 : ユーザーシグナルハンドリング
-// slotのbit1 : position offset指定
-// 今のところ、シグナル長1のみサポート
+/* create new window.
+   slotのbit0 : ユーザーシグナルハンドリング
+   slotのbit1 : position offset指定
+   今のところ、シグナル長1のみサポート */
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
@@ -445,24 +451,24 @@ void near cmd020()
 		// シグナルハンドリング
 		EBX = cmd[0];
 		(short) cmd0020_win->siglen = BX;
-		// シグナル長(bit0-3), ハンドリング範囲(bit8-15)
-		// 値0 : ハンドリングしない
-		// bit0 : enable(0)/disable(1)/redraw(2)/redraw2(3)
-		// bit1 : move(4)
-		// bit2 : setmode(5)
-		// bit3 : close(6)
-		// bit7は加算量scale(0はx1、1はx4)
-		// 残りの4bitはリザーブ
-		// 最小化はdisableで処理されるので、検知できない
-		// clickやresizeは拡張系(8, 9)
+		/* シグナル長(bit0-3), ハンドリング範囲(bit8-15)
+		   値0 : ハンドリングしない
+		   bit0 : enable(0)/disable(1)/redraw(2)/redraw2(3)
+		   bit1 : move(4)
+		   bit2 : setmode(5)
+		   bit3 : close(6)
+		   bit7は加算量scale(0はx1、1はx4)
+		   残りの4bitはリザーブ
+		   最小化はdisableで処理されるので、検知できない
+		   clickやresizeは拡張系(8, 9) */
 		EBX = cmd[4];
 		(offset) cmd += 8;
 		cmd0020_win->signalhead[0] = EBX;
 	}
 	TEST(AL, 0x02);
 	if (== 0) {
-		ECX += 8 + 8; // 左右に8dotずつ確保
-		EDX += 29 + 8; // 上に29dot、下に8dot確保
+		ECX += 8 + 8; /* 左右に8dotずつ確保 */
+		EDX += 29 + 8; /* 上に29dot、下に8dot確保 */
 		cmd0020_win->x_ofs =  8;
 		cmd0020_win->y_ofs = 29;
 	} else {
@@ -493,8 +499,8 @@ void near cmd020()
 }
 
 void near cmd024()
-// windowクローズ
-// これにつながっていた全てのコンポーネントも使えなくなる
+/* windowクローズ */
+/* これにつながっていた全てのコンポーネントも使えなくなる */
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
@@ -1156,11 +1162,217 @@ void near cmd03c()
 	asmout("JMP nextcmd");
 }
 
+void near cmd0a0()
+/* ファイルハンドル初期化 */
+{
+	int *cmd == DS:ESI;
+	PUSH((int) 0);
+	PUSH(cmd[ 8] /* slot */);
+	PUSH(cmd[ 4] /* opt */);
+	PUSH((int) 0x0700);
+	(offset) cmd += 12;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 16;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0a8()
+/* コピーハンドル */
+/* cmd, opt, slot(dest), slot(src) */
+{
+	int *cmd == DS:ESI;
+	PUSH((int) 0);
+	PUSH(cmd[12] /* slot(src) */);
+	PUSH(cmd[ 8] /* slot(dest) */);
+	PUSH(cmd[ 4] /* opt */);
+	PUSH((int) 0x0708);
+	(offset) cmd += 16;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 20;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0ac()
+/* ディレクトリ移動 */
+/* cmd, opt, slot, tag0, tag1, ..., -1 */
+{
+	int *cmd == DS:ESI;
+	ESP -= 512;
+	(int) [SS:ESP] = 0x070c; /* cmd */
+	EAX = cmd[ 4]; /* opt */
+	ECX = cmd[ 8]; /* slot */
+	[SS:ESP + 508] = EBP;
+	[SS:ESP + 504] = EAX;
+	[SS:ESP + 500] = (offset) cmd;
+	(offset) cmd += 12;
+	LEA(EBP, [SS:ESP + 12]);
+	[SS:ESP +   4] = EAX;	
+	[SS:ESP +   8] = ECX;
+	EAX = cmd[0];
+	do {
+		ECX = cmd[4];
+		(offset) cmd += 8;
+		[SS:EBP    ] = EAX;
+		[SS:EBP + 4] = ECX;
+		EBP += 8;
+		ECX -= 8;
+		if (!= 0) {
+			do {
+				EAX = *cmd;
+				(offset) cmd += 4;
+				[SS:EBP] = EAX;
+				EBP += 4;
+				ECX -= 4;
+			} while (!= 0);
+		}
+		EAX = cmd[0];
+	} while (EAX != 0xffffffff);
+	(offset) cmd += 4;
+	(int) [SS:EBP    ] = EAX;
+	(int) [SS:EBP + 4] = 0;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	asmout("TEST BYTE PTR SS:[ESP+504],01H");
+	if (!= 0) {
+		EBX = [SS:ESP + 500]; /* old cmd */
+		EAX = [SS:ESP +   4];
+		[DS:EBX + 4] = EAX;
+	}
+	EBP = [SS:ESP + 508];
+	ESP += 512;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0b0()
+/* create new module */
+/* cmd, opt, slot(dir), slot(module), tag-dir alloc-size, tag0, tag1, ..., -1 */
+{
+	int *cmd == DS:ESI;
+	ESP -= 512;
+	EAX = cmd[ 4];
+	ECX = cmd[ 8];
+	[SS:ESP + 508] = EBP;
+	EBP = ESP;
+	EDX = cmd[12];
+	EBX = cmd[16];
+	(offset) cmd += 20;
+	(int) [SS:EBP +  0] = 0x0710;
+	[SS:EBP +  4] = EAX;
+	[SS:EBP +  8] = ECX;
+	[SS:EBP + 12] = EDX;
+	[SS:EBP + 16] = EBX;
+	EBP += 20;
+	EAX = cmd[0];
+	do {
+		ECX = cmd[4];
+		(offset) cmd += 8;
+		[SS:EBP    ] = EAX;
+		[SS:EBP + 4] = ECX;
+		EBP += 8;
+		ECX -= 8;
+		if (!= 0) {
+			do {
+				EAX = *cmd;
+				(offset) cmd += 4;
+				[SS:EBP] = EAX;
+				EBP += 4;
+				ECX -= 4;
+			} while (!= 0);
+		}
+		EAX = cmd[0];
+	} while (EAX != 0xffffffff);
+	(offset) cmd += 4;
+	(int) [SS:EBP    ] = EAX;
+	(int) [SS:EBP + 4] = 0;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	EBP = [SS:ESP + 508];
+	ESP += 512;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0c0()
+/* モジュールのメモリマッピング */
+{
+	int *cmd == DS:ESI;
+	PUSH((int) 0);
+	PUSH(cmd[20] /* ofs & attr */);
+	PUSH(cmd[16] /* addr */);
+	PUSH(cmd[12] /* size */);
+	PUSH(cmd[ 8] /* slot */);
+	PUSH(cmd[ 4] /* opt */);
+	PUSH((int) 0x0720);
+	(offset) cmd += 24;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 28;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0c4()
+/* モジュールのアンマッピング */
+{
+	int *cmd == DS:ESI;
+//	PUSH((int) 0);
+//	PUSH(cmd[12] /* addr */);
+//	PUSH(cmd[ 8] /* size */);
+//	PUSH(cmd[ 4] /* opt */);
+//	PUSH((int) 0x0720);
+	(offset) cmd += 16;
+//	EBX = ESP;
+//	DB(0x9a); DD(0); DW(0x0017); // shell-call
+//	ESP += 28;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0c8()
+/* tag read */
+/* cmd, opt, slot, bufsize, bufptr(near) */
+/* opt == 0xffffff01 : module type code(8bytes) */
+/* opt == 0xffffff03 : module size(16bytes) */
+/* directoryに対してモジュールサイズを要求することはできない */
+{
+	int *cmd == DS:ESI;
+	PUSH((int) 0);
+	PUSH(DS /* bufptr(sel) */);
+	PUSH(cmd[16] /* bufptr(ofs) */);
+	PUSH(cmd[12] /* bufsize */);
+	PUSH(cmd[ 8] /* slot */);
+	PUSH(cmd[ 4] /* opt */);
+	PUSH((int) 0x0728);
+	(offset) cmd += 20;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 28;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0d0()
+/* tag listing */
+/* opt == 0xffffff00 : module name */
+{
+	int *cmd == DS:ESI;
+	PUSH((int) 0);
+	PUSH(DS /* bufptr(sel) */);
+	PUSH(cmd[16] /* bufptr(ofs) */);
+	PUSH(cmd[12] /* bufsize */);
+	PUSH(cmd[ 8] /* slot */);
+	PUSH(cmd[ 4] /* opt */);
+	PUSH((int) 0x0730);
+	(offset) cmd += 20;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 28;
+	asmout("JMP nextcmd");
+}
+
+
 void near sendusersignal()
 // ES:EDIからのECX[dw]を送信
 // ESI, EBP以外のレジスタは破壊される
-// 送信に失敗したら、・・・今のところは例外が起きる
-// 将来はフラグで伝達(ZF == 0はエラー)
+// 送信に失敗したら、フラグで伝達(ZF == 0はエラー)
 {
 	WORK *work == SS:EBP;
 	EDX = work->signalbox_write_ptr;
@@ -1168,8 +1380,8 @@ void near sendusersignal()
 	if (== 0) {
 		LEA(EAX, [EDX + ECX * 4]);
 		if ((unsigned) EAX >= work->signalbox_write_ptr1 /* 書き込み上限アドレス */) {
-			// 先頭に戻す
-			// 捨てるdw数を計算
+			/* 先頭に戻す */
+			/* 捨てるdw数を計算 */
 			EAX = work->signalbox_write_ptr1;
 			EAX -= EDX;
 			EAX /= 4; // EAX == 先頭に戻すことによって消費するサイズ(dw単位)

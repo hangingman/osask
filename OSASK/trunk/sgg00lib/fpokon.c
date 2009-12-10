@@ -22,6 +22,8 @@ const int sgg_getfilelist(const int size, struct SGG_FILELIST *fp, const int res
 	return fp - fp0;
 }
 
+#if 0
+
 void sgg_loadfile(const int mdl_ent, const int file_id, const int fin_sig)
 {
 	static struct {
@@ -60,6 +62,8 @@ void sgg_createtask(const int mdl_ent, const int fin_sig)
 
 	// このコマンドが別タスクで処理されていることは、効率の悪いことだ。
 }
+
+#endif
 
 void sgg_settasklocallevel(const int task, const int local, const int global, const int inner)
 {
@@ -103,6 +107,8 @@ void sgg_runtask(const int task, const int local)
 	// このコマンドが別タスクで処理されていることは、効率の悪いことだ。
 }
 
+#if 0
+
 void sgg_freememory(const int mdl_ent)
 {
 	static struct {
@@ -121,6 +127,8 @@ void sgg_freememory(const int mdl_ent)
 
 	// このコマンドが別タスクで処理されていることは、効率の悪いことだ。
 }
+
+#endif
 
 void sgg_format(const int sub_cmd, const int sig)
 {
@@ -160,8 +168,8 @@ void sgg_wm0s_sendto2_winman0(const int signal, const int param)
 		int data[4];
 		int eoc;
 	} command = { 0x0020, 0x80000000 + 4, { 0x3240 + 3, 0x7f000002, 0, 0 }, 0x0000 };
-	command.data[1] = signal;
-	command.data[2] = param;
+	command.data[2] = signal;
+	command.data[3] = param;
 
 	sgg_execcmd(&command);
 	return;

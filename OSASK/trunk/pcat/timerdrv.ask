@@ -1,5 +1,5 @@
 /*	"timerdrv.aska"
-	OSASK/AT用のタイマールーチン(type-A ver. 0.8)
+	OSASK/AT用のタイマールーチン(type-A ver. 0.9)
 	Copyright(C) 2000 川合秀実(川合堂)		*/
 
 //	古いチップセットには対応していない。なぜなら、連続アクセスの際にウェイトが入っていないから。
@@ -983,7 +983,7 @@ void near TimerInit()
 
 	TimerNode *tnode == DS:ESI, *tback == DS:EBX, *tnext == DS:EDI;
 
-	EAX = 50;
+	EAX = 50 + 64;
 //	(offset) tback = (offset) &work->freenode - sizeof (TimerNode);
 //	(offset) tnode = (offset) &work->freenode;
 //	(offset) tnext = (offset) &work->freenode + sizeof (TimerNode);
