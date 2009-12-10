@@ -1,4 +1,4 @@
-/* "init.ask" ver.1.30 copyright(C) 2001 H.Kawai(川合秀実) */
+/* "init.ask" ver.1.40 copyright(C) 2001 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -54,6 +54,9 @@ void near delete_directory();
 void near delete_binmodule();
 void near memcopy16();
 void near disable_diskcache();
+void near get_virtual();
+void near free_virtual();
+void near free_memory64();
 
 struct area_man_struct_sub {
 	unsigned int size;
@@ -100,9 +103,7 @@ struct GUIGUI_work { /* SS:0xffffd000; */
 	unsigned int cmd0100_buf[64];
 	unsigned int timer_freq;
 	/* 0xffffe000～0xfffff200 */
-	area_man_struct mem32_man[1024];
-	area_man_struct mem24_man[512];
-	area_man_struct mem20_man[512];
+	area_man_struct virtual_man[2048];
 	GUIGUI_window_struct winlist[1024], [1024], [512];
 };
 
@@ -191,6 +192,7 @@ struct TAPI_TSS {
 	FPUレジスタイメージ	108bytes
 	システム管理用		 20bytes (+748)
 	  tskdir, stack0_size, stack0_addr, stack3_size, stack3_addr
+		↑これらは、リニアアドレスをはがすために記憶している。今は一続きなのでstack3は使っていない。
 	未使用(SSE用)		0.25KB
 	(残りの3KB)
 	msgbuf				0.50KB
@@ -228,7 +230,7 @@ void far Init()
 	unsigned int tapi_sel     == 12 * 8, tapiwork_sel  == 13 * 8;
 	unsigned int pdepte_sel   == 14 * 8, idtgdt_sel    == 15 * 8;
 	unsigned int root_sel     == 16 * 8, tmp_sel       == 17 * 8;
-	unsigned int papi_sel     == 18 * 8;
+	unsigned int papi_sel     == 18 * 8, papiwork_sel  == 19 * 8;
 	unsigned int decode_sel   == 22 * 8, decowork_sel  == 23 * 8;
 	unsigned int fdcdrive_sel == 28 * 8, fdcwork_sel   == 29 * 8;
 	unsigned int diskbuf_sel  == 30 * 8, textbuf_sel   == 31 * 8;
@@ -254,7 +256,7 @@ void far Init()
 	unsigned int tapiwork_ent  ==  7 * 16 + alloclist;
 	unsigned int decowork_ent  ==  8 * 16 + alloclist;
 	unsigned int fdcwork_ent   ==  9 * 16 + alloclist;
-//	unsigned int diskbuf_ent   == 10 * 16 + alloclist;
+	unsigned int papiwork_ent  == 10 * 16 + alloclist;
 //	unsigned int textbuf_ent   == 11 * 16 + alloclist;
 //	unsigned int userbin_ent   == 12 * 16 + alloclist;
 	unsigned int empty_ent     == 13 * 16 + alloclist;
@@ -345,32 +347,47 @@ void far Init()
 		asmout("MOV DR7,EAX");
 	#endif
 
+	#if 0
+		EAX = 0x480000 + 0x2d20 + 28;
+		asmout("MOV DR0,EAX");
+		EAX = 0;
+		asmout("MOV DR6,EAX");
+		asmout("MOV EAX,1000000010B+1101B*10000H");
+			/* GE = G0 = 1; LEN0 = 3 (DW); RW0 = 01 (write only); */
+		asmout("MOV DR7,EAX");
+	#endif
+
 
 	/* スタックも切り替わっていない。 */
 	/* システムスタックを押し上げて、メモリ、TAPIwork、GDTの管理ブロックを作る。 */
 
 	POP(ECX); /* 再初期化のための値 */
 
-	EAX = stack_sel; SS = AX; ESP = /* (offset) stack_ESP0 */ 0xffffd000; /* スタックの初期化 */
-	(int) stack_ESP0->ring0_count = 0xffffff80;
-	(int) stack_ESP0->cli_count   = 0xffffff80;
+	EAX = stack_sel;
+	EDX = 0;
+	SS = AX;
+	ESP = /* (offset) stack_ESP0 */ 0xffffd000; /* スタックの初期化 */
+	EDX -= 0x80; /* EDX = 0xffffff80; */
+	(int) stack_ESP0->ring0_count = EDX /* 0xffffff80 */;
+	(int) stack_ESP0->cli_count   = EDX /* 0xffffff80 */;
 
 	PUSH(ECX); /* 再初期化のための値 */
 
 	GUIGUI_work *work == SS:0xffffd000;
 	area_man_struct *areastrEBP == SS:EBP;
-	EDX = 0;
+//	EDX = 0;
 	EAX = 0;
-	EDX--;
-	/* EBP = (offset) work->mem32_man; */ LEA(EBP, (int) work->mem32_man);
-	ECX = 1024 - 40;
+//	EDX--;
+	EDX += 0x7f; /* EDX = 0xffffffff; */
+	/* EBP = (offset) work->virtual_man; */ LEA(EBP, (int) work->virtual_man);
+	ECX = 2048 - 40;
 	init_areastr();
-	/* EBP = (offset) work->mem24_man; */ LEA(EBP, (int) work->mem24_man);
-	ECX = 512 - 40;
-	init_areastr();
-	/* EBP = (offset) work->mem20_man; */ LEA(EBP, (int) work->mem20_man);
+//	/* EBP = (offset) work->mem24_man; */ LEA(EBP, (int) work->mem24_man);
 //	ECX = 512 - 40;
-	init_areastr();
+//	init_areastr();
+//	/* EBP = (offset) work->mem20_man; */ LEA(EBP, (int) work->mem20_man);
+///	ECX = 512 - 40;
+//	init_areastr();
 	/* EBP = (offset) work->linear_man; */ LEA(EBP, (int) work->linear_man);
 	ECX = 1024 - 40;
 	init_areastr();
@@ -413,6 +430,16 @@ void far Init()
 	ESI = 0x0108;
 	FS = AX;
 
+	/* PAPI初期化 */
+	PUSH((int) ECX /* eoc */);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH(0x0100 /* init cmd */);
+	EBX = ESP;
+	CALLFAR0(papi_sel);
+	ESP += 20 - 4;
+
 	#if (defined(PCAT))
 		EAX = 0x07 /* present, R/W, user */;
 		TEST(DL, 0x04);
@@ -420,7 +447,7 @@ void far Init()
 			EAX |= 0x10 /* VRAMはキャッシュしない(PCD=1) */;
 
 	//	ECX = 0;
-		PUSH((int) ECX /* eoc */);
+	//	PUSH((int) ECX /* eoc */);
 
 		/* mapping BIOS (for VESA call) (0x000c0000～0x000fffff) */
 		/* mapping high memory (0x00100000～0x002fffff) */
@@ -464,7 +491,7 @@ void far Init()
 			EAX |= 0x10 /* VRAMはキャッシュしない(PCD=1) */;
 
 	//	ECX = 0;
-		PUSH((int) ECX /* eoc */);
+	//	PUSH((int) ECX /* eoc */);
 
 		/* mapping VRAM (0x80100000～0x80180000) */
 
@@ -548,6 +575,11 @@ void far Init()
 		EBP += 4;
 		ECX -= 4;
 	} while (!= 0);
+
+	EAX = 0x80000000;
+	ECX = 0x7ffffffe; /* 8TB弱 */
+	/* ESI = (offset) work->virtual_man; */ LEA(ESI, (int) work->virtual_man);
+	free_area();
 
 	EAX = 0x00400000;
 	ECX = 0x01000000; /* 16MB */
@@ -678,6 +710,23 @@ void far Init()
 	CALLFAR0(keyint_sel);
 	ESP += 16 - 4;
 
+	/* Page Fault Handler */
+
+//	PUSH((int) 0); /* eoc */
+	PUSH(EAX);
+	PUSH(EAX);
+	PUSH((int) 0x0104 /* Keydecode_Mainへのベクタ取得 */);
+	EBX = ESP;
+	CALLFAR0(papi_sel);
+	POP(EAX);
+	POP(EAX /*  */);
+	POP(EBX);
+	(short) [GS:0x0070 /* int0e */ + 0] = AX;
+	(unsigned int) EAX >>= 16;
+	(short) [GS:0x0070 /* int0e */ + 2] = BX;
+	(short) [GS:0x0070 /* int0e */ + 4] = 0x8e00;
+	(short) [GS:0x0070 /* int0e */ + 6] = AX;
+
 	/* PIC初期化 */
 
 	#if (defined(PCAT))
@@ -734,6 +783,23 @@ void far Init()
 	#endif
 
 	STI(); // IF = 1;
+
+	/* フォントロード for debug */
+	#if 1
+		PUSH((int) 0x0000);
+		PUSH((int) 7 * 8 /* ankfont-sel */);
+		PUSH((int) 0x0000 /* offset */);
+		PUSH((int) 0x1000 /* to */);
+		PUSH((int) 0x0100 /* len */);
+		PUSH((int) 0x0001 /* type */);
+		PUSH((int) 0x0000 /* opt */);
+		PUSH((int) 0x0104 /* loadfont(gapi cmd) */);
+		BX = SS;
+		FS = BX;
+		EBX = ESP;
+		CALLFAR0(GAPI_sel);
+		ESP += 32;
+	#endif
 
 	/* キーボード初期化とプロテクトメモリ初期化をやる */
 	/* 平行して、FDD初期化もできる。 */
@@ -967,12 +1033,16 @@ void far Init()
 
 	/* 自分自身のタスク情報を構築する */
 	EDX = 0;
+	PUSH((int) EDX);
 	PUSH((int) EDX /* stack3の物理アドレス(確保していなければ0xffffffff) */);
 	PUSH((int) EDX /* stack3のサイズ */);
+	PUSH((int) EDX /* stack0の物理アドレス(high) */);
 	PUSH((int) [GS:32 + stack_ent + 0x0c] /* stack0の物理アドレス(確保していなければ0xffffffff) */);
 	PUSH((int) [GS:32 + stack_ent + 0x08] /* stack_ent.size */ /* stack0のサイズ */);
-	PUSH((int) 0xffffffff /* タスクディレクトリ */);
+	PUSH((int) 0xffffffff /* タスクディレクトリ(high) */);
+	PUSH((int) 0xffffffff /* タスクディレクトリ(low) */);
 	ESP -= 8;
+	PUSH(EDX);
 	PUSH(EDX);
 	PUSH(EDX);
 	PUSH((int) [GS:32 + init_ent + 12]);
@@ -983,8 +1053,13 @@ void far Init()
 	/* そのあとの4バイトはtskdir。linear領域に付いては、連続一枚にする。 */
 	/* code, stack0, stack3 */
 	/* stack0は必ず必要。stack3はヘッダパラメーターを読めば必要かどうかが判断できる */
+	/*	{
+			int codesize, codeaddr[8], header[8], reserve[8];
+			int tskdir[8], stack0size, stack0addr[8], stack3size, stack3addr[8];
+		}; // total 60bytes
+	*/
 	create_task();
-	ESP += 44;
+	ESP += 60;
 
 	/* このタスクのLlvを定義し、TskPointerを設定し、TRへ代入する。 */
 
@@ -1033,6 +1108,12 @@ void far Init()
 //	glevel[26 * 64].MaxIlv = 0xffffffff;
 	glevel[26 * 64].flags = 0x02; /* 時分割抑制モード */
 
+//	glevel[27 * 64].pointer = 0; /* sleep level */
+//	glevel[27 * 64].tasks = 0;
+//	glevel[27 * 64].MinIlv = 0;
+//	glevel[27 * 64].MaxIlv = 0xffffffff;
+	glevel[27 * 64].flags = 0x02; /* 時分割抑制モード */
+
 	/* 自分自身のsoftint設定 */
 	(offset) tss = [DS:0x000c /* TskPointer */];
 //	LEA(EAX, [(offset) tss + 0x0120 /* Llv1 */]);
@@ -1043,20 +1124,26 @@ void far Init()
 //	GUIGUI_task_struct *tasklist == SS:EBP;
 
 	/* アイドルタスク生成 */
+	EAX = 0;
 	EDX = 0;
+	EAX--;
+	PUSH((int) EDX);
 	PUSH((int) EDX /* stack3の物理アドレス(確保していなければ0xffffffff) */);
 	PUSH((int) EDX /* stack3のサイズ */);
-	PUSH((int) 0xffffffff /* stack0の物理アドレス(確保していなければ0xffffffff) */);
-	PUSH((int) 0xffffffff /* stack0のサイズ(自動設定なら0xffffffff) */);
-	PUSH((int) 0xffffffff /* タスクディレクトリ */);
+	PUSH((int) EAX);
+	PUSH((int) EAX /* stack0の物理アドレス(確保していなければ0xffffffff) */);
+	PUSH((int) EAX /* stack0のサイズ(自動設定なら0xffffffff) */);
+	PUSH((int) EAX);
+	PUSH((int) EAX /* タスクディレクトリ */);
 	ESP -= 8;
+	PUSH(EDX);
 	PUSH(EDX);
 	PUSH(EDX);
 	PUSH((int) [GS:32 + init_ent + 12]);
 	PUSH((int) [GS:32 + init_ent +  8]);
 	EBX = ESP;
 	create_task();
-	ESP += 44;
+	ESP += 60;
 //	EAX = tapiwork_sel;
 	(offset) tss = EBP;
 //	DS = AX;
@@ -1093,31 +1180,36 @@ void far Init()
 	ECX = all_sel;
 	DS = CX;
 	EAX = 0;
+	EBX = [GS:32 + winman0_ent + 12];
 	EAX--;
+	PUSH(EAX);
 	PUSH(EAX /* (int) 0xffffffff */ /* stack3の物理アドレス(確保していなければ0xffffffff) */);
 	PUSH(EAX /* (int) 0xffffffff */ /* stack3のサイズ(自動設定なら0xffffffff) */);
+	PUSH(EAX);
 	PUSH(EAX /* (int) 0xffffffff */ /* stack0の物理アドレス(確保していなければ0xffffffff) */);
 	PUSH(EAX /* (int) 0xffffffff */ /* stack0のサイズ(自動設定なら0xffffffff) */);
+	PUSH(EAX);
 	PUSH(EAX /* (int) 0xffffffff */ /* タスクディレクトリ */);
 	ESP -= 8;
-	EAX = [GS:32 + winman0_ent + 12];
-	PUSH((int) [DS:EAX + 20]);
-	PUSH((int) [DS:EAX + 16]);
-	PUSH((int) EAX);
+	PUSH((int) [DS:EBX + 20]);
+	PUSH((int) [DS:EBX + 16]);
+	PUSH((int) 0);
+	PUSH((int) EBX);
 	PUSH((int) [GS:32 + winman0_ent +  8]);
 	EBX = ESP;
 	create_task(); /* 0x3000 */
-	ESP += 44;
+	ESP += 60;
 	EAX = tapiwork_sel;
 	(offset) tss = EBP /* tasklist->tskptr */;
 	DS = AX;
+	EBX = 0;
 	tss_Llv1->Glv = /* (offset) glevel[4 * 64] */ 0x0200;
 	(char) tss_Llv1->short_run[11] = 0xff;
-	tss_Llv1->Ilv = 0;
+	tss_Llv1->Ilv = /* 0 */ EBX;
 	tss_Llv2->Glv = /* (offset) glevel[4 * 64] */ 0x0200;
 	(char) tss_Llv2->short_run[11] = 0xff;
-	tss_Llv2->Ilv = 0;
-	PUSH((int) 0);
+	tss_Llv2->Ilv = /* 0 */ EBX;
+	PUSH((int) /* 0 */ EBX);
 	PUSH((int) 1 /* Llv */);
 	PUSH((offset) tss);
 	PUSH((int) 0x0104 /* TAPI_RegisterTask_ChangeLlv */);
@@ -1130,21 +1222,25 @@ void far Init()
 	EAX = 0;
 	DS = CX;
 	EAX--;
+	PUSH(EAX);
 	PUSH(EAX /* (int) 0xffffffff */ /* stack3の物理アドレス(確保していなければ0xffffffff) */);
 	PUSH(EAX /* (int) 0xffffffff */ /* stack3のサイズ(自動設定なら0xffffffff) */);
+	PUSH(EAX);
 	PUSH(EAX /* (int) 0xffffffff */ /* stack0の物理アドレス(確保していなければ0xffffffff) */);
 	PUSH(EAX /* (int) 0xffffffff */ /* stack0のサイズ(自動設定なら0xffffffff) */);
+	PUSH(EAX);
 	PUSH(EAX /* (int) 0xffffffff */ /* タスクディレクトリ */);
 	ESP -= 8;
 //	EBX = 32 + pokon0_ent + 8;
 	EAX = [GS:32 + pokon0_ent + 12];
 	PUSH((int) [DS:EAX + 20]);
 	PUSH((int) [DS:EAX + 16]);
+	PUSH((int) 0);
 	PUSH(EAX);
 	PUSH((int) [GS:32 + pokon0_ent +  8]);
 	EBX = ESP;
 	create_task(); /* 0x4000 */
-	ESP += 44;
+	ESP += 60;
 	EAX = tapiwork_sel;
 	(offset) tss = EBP;
 	DS = AX;
@@ -1165,19 +1261,40 @@ void far Init()
 	#if (defined(PCAT))
 		/* v86タスク生成 */
 		ECX = 4096; /* 4KB */
-		/* ESI = (offset) work->mem20_man; */ LEA(ESI, (int) work->mem20_man);
-		AX = SS;
-		DS = AX;
-		get_area(); /* 本来はZFによるエラーチェックが必要 */
-		/* EBPを破壊しないこと */
-		if (ZF == 1 /* error */) {
-			INT(0x03);
-		}
+	//	/* ESI = (offset) work->mem20_man; */ LEA(ESI, (int) work->mem20_man);
+	//	AX = SS;
+	//	DS = AX;
+	//	get_area(); /* 本来はZFによるエラーチェックが必要 */
+	//	/* EBPを破壊しないこと */
+	//	if (ZF == 1 /* error */) {
+	//		INT(0x03);
+	//	}
+
+		PUSH(FS);
+		PUSH(EBX);
+		BX = SS;
+		PUSH((int) 0);
+		PUSH(ECX); /* ダミー */
+		PUSH((int) 2 /* mem20 */);
+		PUSH(ECX);
+		PUSH((int) 0);
+		PUSH((int) 0x0114);
+		FS = BX;
+		EBX = ESP;
+		CALLFAR0(papi_sel);
+		EAX = [SS:ESP + 16];
+		ESP += 24;
+		POP(EBX);
+		POP(FS);
+
 		EDX = 0;
+		PUSH(EDX);
 		PUSH((int) EDX /* stack3の物理アドレス(確保していなければ0xffffffff) */);
 		PUSH((int) EDX /* stack3のサイズ(自動設定なら0xffffffff) */);
+		PUSH(EDX);
 		PUSH((int) EAX /* stack0の物理アドレス(確保していなければ0xffffffff) */);
 		PUSH((int) ECX /* stack0のサイズ(自動設定なら0xffffffff) */);
+		PUSH((int) 0xffffffff);
 		PUSH((int) 0xffffffff /* タスクディレクトリ */);
 	//	ESP -= 8;
 		PUSH(EDX);
@@ -1185,11 +1302,12 @@ void far Init()
 	//	EBX = 32 + init_ent + 8;
 		PUSH((int) EDX);
 		PUSH((int) EDX);
+		PUSH((int) 0);
 		PUSH((int) [GS:32 + init_ent + 12]);
 		PUSH((int) [GS:32 + init_ent +  8]);
 		EBX = ESP;
 		create_task(); /* 0x5000 */
-		ESP += 44;
+		ESP += 60;
 		EAX = tapiwork_sel;
 		(offset) tss = EBP; 
 		DS = AX;
@@ -1318,7 +1436,19 @@ void far Init()
 		//	EBX = 0x00300000;
 		//	EBP = 13;
 			testmemory();
-			if ((unsigned) work->mem24_man.data[0].size >= 0x00e00000) {
+
+			ECX = 0;
+			PUSH((int) ECX);
+			PUSH((int) ECX);
+			PUSH((int) 0x80000101);
+			PUSH((int) ECX);
+			PUSH((int) ECX);
+			PUSH((int) 0x0114);
+			EBX = ESP;
+			CALLFAR0(papi_sel);
+			EAX = [SS:ESP + 16];
+			ESP += 24;
+			if (EAX != 0 /* (unsigned) work->mem24_man.data[0].size >= 0x00e00000 */) {
 				/* 14MB以上 */
 				EBX = 0x01000000;
 				EBP = 1024 - 16;
@@ -1333,9 +1463,19 @@ void far Init()
 			testmemory();
 		}
 		POP(DS);
-		ECX = 160 * 8 * 1024;
-		work->mem24_man.data[0].size -= ECX;
-		work->mem24_man.data[0].addr += ECX;
+		ECX = 0;
+		PUSH((int) ECX);
+		PUSH((int) 0x80000001);
+		PUSH((int) 160 * 8 * 1024);
+		PUSH((int) ECX);
+		PUSH((int) 0x0114);
+		EBX = ESP;
+		CALLFAR0(papi_sel);
+		ESP += 20;
+
+	//	ECX = 160 * 8 * 1024;
+	//	work->mem24_man.data[0].size -= ECX;
+	//	work->mem24_man.data[0].addr += ECX;
 
 		/* ローディング開始 */
 		PUSH((int) 0);
@@ -1455,15 +1595,38 @@ void far Init()
 				//	EBX = 0x00300000;
 				//	EBP = 13;
 					testmemory();
-					if ((unsigned) work->mem24_man.data[0].size >= 0x00e00000) {
+
+					ECX = 0;
+					PUSH((int) ECX);
+					PUSH((int) ECX);
+					PUSH((int) 0x80000101);
+					PUSH((int) ECX);
+					PUSH((int) ECX);
+					PUSH((int) 0x0114);
+					EBX = ESP;
+					CALLFAR0(papi_sel);
+					EAX = [SS:ESP + 16];
+					ESP += 24;
+					if (EAX != 0 /* (unsigned) work->mem24_man.data[0].size >= 0x00e00000 */) {
 						/* 14MB以上 */
 						EBX = 0x01000000;
 						EBP = 3 * 1024 - 16;
 						testmemory();
 					}
-					ECX = 160 * 9 * 1024;
-					work->mem24_man.data[0].size -= ECX;
-					work->mem24_man.data[0].addr += ECX;
+
+					ECX = 0;
+					PUSH((int) ECX);
+					PUSH((int) 0x80000001);
+					PUSH((int) 160 * 9 * 1024);
+					PUSH((int) ECX);
+					PUSH((int) 0x0114);
+					EBX = ESP;
+					CALLFAR0(papi_sel);
+					ESP += 20;
+
+				//	ECX = 160 * 9 * 1024;
+				//	work->mem24_man.data[0].size -= ECX;
+				//	work->mem24_man.data[0].addr += ECX;
 
 /*
 	ページング空間はモジュールをなしていて、
@@ -1788,12 +1951,15 @@ next0:
 		ESI = EDI;
 		EAX = 0xffe00003; /* standard link-to */
 		search_tag_EAX();
+		EDX = [DS:ESI + 28];
 		EAX = [DS:ESI + 24];
+		PUSH(EDX);
 		PUSH(EAX);
 		ECX = [DS:ESI + 16] /* allocated size */;
 		PUSH(ECX); /* allocated size */
 		get_memory();
 		[DS:ESI + 24] = EAX;
+		(int) [DS:ESI + 28] = 0;
 		PUSH((int) [DS:ESI +  8]); /* used size */
 		PUSH(EAX);
 
@@ -1817,7 +1983,7 @@ next0:
 		PUSH((int) 0x1007 /* opt(over-mapping, present, R/W, user) */);
 		PUSH((int) 0x0108 /* cmd(mapping) */);
 
-		PUSH((int) EBP /* addr64(high) */);
+		PUSH((int) EDX /* addr64(high) */);
 		PUSH((int) EBX /* addr64(low) */);
 		PUSH((int) EBP /* offset64(high) */);
 		PUSH((int) EBP /* offset64(low) */);
@@ -1834,7 +2000,7 @@ next0:
 		DS = CX;
 		EBP = [SS:ESP + 4 /* used size */];
 		memcopy16();
-		EBX = [SS:ESP + 20];
+		EBX = [SS:ESP + 24]; /* [CS:ESI + 8] : LDTイメージの位置 */
 		DL = [ES:EBX + 4];
 		DH = [ES:EBX + 7];
 		ECX = [SS:ESP + 4 /* used size */]; /* 全領域をmapしてあると想定 */
@@ -1866,8 +2032,9 @@ next0:
 		STI();
 		ECX = [SS:ESP +  8 /* allocated size */];
 		EAX = [SS:ESP + 12 /* old addr */];
-		free_memory();
-		ESP += 24;
+		EDX = [SS:ESP + 16];
+		free_memory64();
+		ESP += 28;
 		POP(ESI);
 		ESI += 12;
 		EAX = [CS:ESI];
@@ -2109,7 +2276,7 @@ INT(0x03);
 			//	EAX = pdepte_sel;
 			//	DS = AX;
 				ECX = cmd0120_tss_sysdat[ 4 /* stack0_size */];
-				EDX = cmd0120_tss_sysdat[ 8 /* stack0_addr */];
+				EDX = cmd0120_tss_sysdat[ 8 /* stack0_addr(linear) */];
 				PUSH((int) 0 /* eoc */);
 				PUSH((int) 0 /* pageset */);
 				PUSH((int) EDX /* linear */);
@@ -2121,7 +2288,7 @@ INT(0x03);
 				ESP += 24;
 				ECX = cmd0120_tss_sysdat[12 /* stack3_size */];
 				if (ECX != 0) {
-					EDX = cmd0120_tss_sysdat[16 /* stack3_addr */];
+					EDX = cmd0120_tss_sysdat[16 /* stack3_addr(linear) */];
 					PUSH((int) 0 /* eoc */);
 					PUSH((int) 0 /* pageset */);
 					PUSH((int) EDX /* linear */);
@@ -2133,7 +2300,7 @@ INT(0x03);
 					ESP += 24;
 				}
 				EDX = work->tapiwork_Laddr;
-				EDX += [SS:ESP + 28];
+				EDX += [SS:ESP + 28]; /* tss(EAX) */
 				ESI = cmd0120_tss_sysdat[ 0 /* tskdir */];
 				PUSH((int) 0 /* eoc */);
 				PUSH((int) 0 /* pageset */);
@@ -2427,21 +2594,25 @@ EDX = 0x00300000; /* 3MB */
 						ES = AX;
 						EAX = 0;
 						EAX--;
+						PUSH(EAX);
 						PUSH(EAX /* (int) 0xffffffff */ /* stack3の物理アドレス(確保していなければ0xffffffff) */);
 						PUSH(EAX /* (int) 0xffffffff */ /* stack3のサイズ(自動設定なら0xffffffff) */);
+						PUSH(EAX);
 						PUSH(EAX /* (int) 0xffffffff */ /* stack0の物理アドレス(確保していなければ0xffffffff) */);
 						PUSH(EAX /* (int) 0xffffffff */ /* stack0のサイズ(自動設定なら0xffffffff) */);
+						PUSH(EAX);
 						PUSH(EAX /* (int) 0xffffffff */ /* タスクディレクトリ */);
 						ESP -= 8;
 						PUSH((int) [DS:EDX + 20]);
 						PUSH((int) [DS:EDX + 16]);
+						PUSH((int) 0);
 						PUSH((int) msg[8]);
 						PUSH((int) msg[4]);
 						AX = SS;
 						EBX = ESP;
 						ES = AX;
 						create_task();
-						LEA(ESP, [SS:ESP + 44]);
+						LEA(ESP, [SS:ESP + 60]);
 						POP(ES);
 						if (ZF == 1)
 							goto cmd0130_outofresource;
@@ -2547,6 +2718,21 @@ EDX = 0x00300000; /* 3MB */
 				msgdw += 3;
 				ECX &= 0xfffff000;
 				free_memory(); /* フリーメモリの登録 */
+
+			} else if (EAX == 0x0138) {
+				/* システムイメージ転送(512bytes/sector, LZ圧縮) */
+				/* cmd, opt, bsc_size, bsc_addr, exe_size, exe_addr,
+					完了シグナル(lenはシグナルの第一dwから判断) */
+				/* 完了シグナルを受けっとったときのためのバッファを用意 */
+				PUSH((int) 0);
+				PUSH((int) 12 /* 作業中のシグナル */);
+				PUSH((int) 0x8000 /* 完了シグナル */);
+				PUSH((int) 0x00301000);
+				PUSH(msg[16]);
+				PUSH((int) 0x00300000);
+				PUSH(msg[ 8]);
+				PUSH((int) 0x0130 /* FDC_writeIPL3 */);
+				goto cmd0128_cmd011c;
 			} else if (EAX == 0xffffff00) {
 system_reset:
 				INT(0x03);
@@ -2695,14 +2881,15 @@ movemodule_list:
 	DD(32 + timerdata_ent); DD(384 + timerdata_sel);
 	DD(32 + decowork_ent ); DD(384 + decowork_sel );
 	DD(32 + fdcwork_ent  ); DD(384 + fdcwork_sel  );
+	DD(32 + papiwork_ent ); DD(384 + papiwork_sel );
 	DD(0);
 
 movestack:
 	DD(0x2000 + 748); DD(0x0000306b /* 'k0' */); DD(0x2000 + 2048 /* ldt_img */ + 24 /* stack0 */);
 	DD(0x3000 + 748); DD(0x0000306b /* 'k0' */); DD(0x3000 + 2048 /* ldt_img */ + 24 /* stack0 */);
-	DD(0x3000 + 748); DD(0x0000336b /* 'k3' */); DD(0x3000 + 2048 /* ldt_img */ +  8 /* stack3 */);
+//	DD(0x3000 + 748); DD(0x0000336b /* 'k3' */); DD(0x3000 + 2048 /* ldt_img */ +  8 /* stack3 */);
 	DD(0x4000 + 748); DD(0x0000306b /* 'k0' */); DD(0x4000 + 2048 /* ldt_img */ + 24 /* stack0 */);
-	DD(0x4000 + 748); DD(0x0000336b /* 'k3' */); DD(0x4000 + 2048 /* ldt_img */ +  8 /* stack3 */);
+//	DD(0x4000 + 748); DD(0x0000336b /* 'k3' */); DD(0x4000 + 2048 /* ldt_img */ +  8 /* stack3 */);
 	DD(0);
 
 	ALIGN(2);
@@ -2727,6 +2914,7 @@ movestack:
 	asmout("DW 04092H, 1*16+OFFSET alloclist, 15*8"); /* IDTGDT_ent, idtgdt_sel */
 	asmout("DW 04092H, 0*16+OFFSET alloclist, 14*8"); /* PDEPTE_ent, pdepte_sel */
 	asmout("DW 0409AH,15*16+OFFSET modulelist,18*8"); /* papi_ent, papi_sel */
+	asmout("DW 04092H,10*16+OFFSET alloclist, 19*8"); /* papiwork_ent, papiwork_sel */
 
 	asmout("DW 0");
 
@@ -2736,8 +2924,9 @@ movestack:
 	asmout("DW 03EFH,OFFSET int03,2*8");
 	asmout("DW 068FH,OFFSET int06,2*8");
 	asmout("DW 0A8FH,OFFSET int10,2*8");
+	asmout("DW 0C8FH,OFFSET int12,2*8");
 	asmout("DW 0D8FH,OFFSET int13,2*8");
-	asmout("DW 0E8FH,OFFSET int14,2*8");
+//	asmout("DW 0E8FH,OFFSET int14,2*8");
 	asmout("DW 0");
 }
 
@@ -2791,7 +2980,7 @@ void near testmemory()
 		PUSH((int) EDX /* pageset */);
 		PUSH((int) ECX /* linear(3MB) */);
 		PUSH((int) 1024 * 1024 /* size(1MB) */);
-		PUSH((int) 0x0007 /* opt(present, R/W, user) */);
+		PUSH((int) EAX);
 		PUSH((int) 0x0108 /* cmd(mapping) */);
 		EBX = ESP;
 		CALLFAR0(papi_sel);
@@ -3076,6 +3265,8 @@ void near free_area()
 	return;
 }
 
+#if 0
+
 void near count_free()
 /* DS:ESIに管理情報構造体へのポインタ。 */
 /* ECXに合計サイズが返り、EAXに最大サイズが返る */
@@ -3102,8 +3293,33 @@ void near count_free()
 	return;
 }
 
+#endif
+
 void near get_memory()
 /* ECXに要求サイズ */
+{
+	unsigned int papi_sel     == 18 * 8, papiwork_sel  == 19 * 8;
+
+	PUSH(FS);
+	PUSH(EBX);
+	BX = SS;
+	PUSH((int) 0);
+	PUSH(ECX); /* ダミー */
+	PUSH((int) 0);
+	PUSH(ECX);
+	PUSH((int) 0);
+	PUSH((int) 0x0114);
+	FS = BX;
+	EBX = ESP;
+	CALLFAR0(papi_sel);
+	EAX = [SS:ESP + 16];
+	ESP += 24;
+	POP(EBX);
+	POP(FS);
+	return;
+}
+
+#if 0
 {
 	unsigned int stack_sel    ==  6 * 8, ankfont_sel   ==  7 * 8;
 	GUIGUI_work *work == DS:0xffffd000;
@@ -3126,8 +3342,31 @@ fin:
 	POP(DS);
 	return;
 }
+#endif
 
 void near free_memory()
+{
+	unsigned int papi_sel     == 18 * 8, papiwork_sel  == 19 * 8;
+
+	PUSH(FS);
+	PUSH(EBX);
+	BX = SS;
+	PUSH((int) 0);
+	PUSH(EAX);
+	PUSH(ECX);
+	PUSH((int) 0);
+	PUSH((int) 0x0110);
+	FS = BX;
+	EBX = ESP;
+	CALLFAR0(papi_sel);
+	ESP += 20;
+	POP(EBX);
+	POP(FS);
+	return;
+}
+
+
+#if 0
 {
 	unsigned int stack_sel    ==  6 * 8, ankfont_sel   ==  7 * 8;
 	GUIGUI_work *work == DS:0xffffd000;
@@ -3148,6 +3387,93 @@ free:
 	free_area();
 	POP(ESI);
 	POP(DS);
+	return;
+}
+#endif
+
+void near get_virtual()
+/* ECXに要求サイズ */
+/* EDX:EAXに64bitアドレス */
+{
+	unsigned int stack_sel    ==  6 * 8, ankfont_sel   ==  7 * 8;
+	GUIGUI_work *work == DS:0xffffd000;
+	PUSH(DS);
+	PUSH(ESI);
+	ESI = stack_sel;
+	PUSH(ECX);
+	DS = SI;
+	ECX += 4095;
+	/* ESI = (offset) work->virtual_man; */ LEA(ESI, (int) work->virtual_man);
+	(unsigned int) ECX /= 4096;
+	get_area();
+	EDX = EAX;
+	EAX <<= 12;
+	(unsigned int) EDX >>= 20;
+
+	/* ここで、PAPIに新規ページであることを通知 */
+	/* 新規ページはロードしない */
+
+	POP(ECX);
+	POP(ESI);
+	POP(DS);
+	return;
+}
+
+void near free_memory64()
+{
+	TEST(EDX, EDX);
+	asmout("JZ free_memory");
+}
+
+void near free_virtual()
+/* ECXに開放サイズ */
+/* EDX:EAXに64bitアドレス */
+{
+	unsigned int stack_sel    ==  6 * 8, ankfont_sel   ==  7 * 8;
+	unsigned int papi_sel     == 18 * 8, papiwork_sel  == 19 * 8;
+	GUIGUI_work *work == DS:0xffffd000;
+
+	PUSH(FS);
+	PUSH(DS);
+	PUSH(ESI);
+	ESI = stack_sel;
+	PUSH(EBX);
+	PUSH(EDX);
+	PUSH(ECX);
+	PUSH(EAX);
+	DS = SI;
+	SHRD(EAX, EDX, 12);
+	ECX += 4095;
+	/* ESI = (offset) work->virtual_man; */ LEA(ESI, (int) work->virtual_man);
+	(unsigned int) ECX /= 4096;
+	free_area();
+
+	ESI = 0;
+	EAX = [SS:ESP];
+	ECX = [SS:ESP + 4];
+	EDX = [SS:ESP + 8];
+	PUSH((int) ESI /* eoc */);
+	PUSH(EDX /* addr64(high) */);
+	PUSH(EAX /* addr64(low) */);
+	PUSH(ESI /* offset(high) */);
+	PUSH(ESI /* offset(low) */);
+	PUSH(ESI /* size(high) */);
+	PUSH(ECX /* size(low) */);
+	PUSH(ESI /* opt */);
+	PUSH((int) 0x0118 /* cmd(delete pages) */);
+	SI = SS;
+	EBX = ESP;
+	FS = SI;
+	CALLFAR0(papi_sel);
+	ESP += 36;
+
+	POP(EAX);
+	POP(ECX);
+	POP(EDX);
+	POP(EBX);
+	POP(ESI);
+	POP(DS);
+	POP(FS);
 	return;
 }
 
@@ -3358,8 +3684,9 @@ void near delete_binmodule()
 	if (ZF == 1) {
 		ECX = [DS:ESI + 16];
 		EAX = [DS:ESI + 24];
+		EDX = [DS:ESI + 28];
 		if (ECX != 0)
-			free_memory();
+			free_memory64();
 	}
 	ESI = 512;
 	EAX = EDI;
@@ -3389,6 +3716,14 @@ void near memcopy16()
 	return;
 }
 
+struct createtask_param {
+	unsigned int codesize /* + 0 */, codeaddr[8] /* + 4 */;
+	unsigned int header[8] /* +12 */, reserve[8] /* +20 */;
+	unsigned int tskdir[8] /* +28 */; /* ここは、rootのリニアアドレスが入っている */
+	unsigned int stack0size /* +36 */, stack0addr[8] /* +40 */;
+	unsigned int stack3size /* +48 */, stack3addr[8] /* +52 */;
+};
+
 void near create_task()
 /*	タスクネームは設定しない
 	ES:EBX に モジュールパラメーター
@@ -3396,7 +3731,7 @@ void near create_task()
 {
 	GUIGUI_work *work == SS:0xffffd000;
 //	GUIGUI_task_struct *task == SS:EBP;
-	int *param == ES:EBX;
+	createtask_param *param == ES:EBX;
 
 	unsigned int                         all_sel       ==  1 * 8;
 	unsigned int init_sel     ==  2 * 8, syswork_sel   ==  3 * 8;
@@ -3414,22 +3749,7 @@ void near create_task()
 	unsigned int freegdt_sel  == 32 * 8;
 
 	unsigned int alloclist == 16 * 16;
-	unsigned int syswork_ent   ==  0 * 16, init_ent    == 1 * 16;
-	unsigned int GAPI_ent      ==  2 * 16, keyint_ent  == 3 * 16;
-	unsigned int timerint_ent  ==  4 * 16, tapi_ent    == 5 * 16;
-	unsigned int decode_ent    ==  6 * 16, fdc_ent     == 7 * 16;
-	unsigned int idle_ent      ==  8 * 16;
 	unsigned int pioneer_ent   ==  10 * 16;
-	unsigned int pdepte_ent    ==  0 * 16 + alloclist;
-	unsigned int IDTGDT_ent    ==  1 * 16 + alloclist;
-	unsigned int ankfont_ent   ==  2 * 16 + alloclist;
-	unsigned int stack_ent     ==  3 * 16 + alloclist;
-	unsigned int keydata_ent   ==  4 * 16 + alloclist;
-	unsigned int gapidata_ent  ==  5 * 16 + alloclist;
-	unsigned int timerdata_ent ==  6 * 16 + alloclist;
-	unsigned int tapiwork_ent  ==  7 * 16 + alloclist; /* ここを参照している */
-	unsigned int decowork_ent  ==  8 * 16 + alloclist;
-	unsigned int fdcwork_ent   ==  9 * 16 + alloclist;
 
 	PUSH(GS);
 //	PUSH(ES);
@@ -3439,12 +3759,13 @@ void near create_task()
 	EAX = root_sel;
 	ESI = 512;
 	DS = AX;
-	if (param[24 /* tskdir */] == 0xffffffff) {
+	if (param->tskdir[0] == 0xffffffff) {
 		ECX = 512; /* 0.5KB */
 		alloc_tagdir();
 		if (ZF == 1)
 			goto error;
-		param[24 /* tskdir */] = EDI;
+		param->tskdir[0] = EDI;
+		param->tskdir[4] = 0;
 		AX = CS;
 		asmout("MOV EBX,OFFSET #taskdir");
 		GS = AX;
@@ -3484,12 +3805,12 @@ void near create_task()
 	add_tags();
 	(offset) param = (int) [SS:ESP + 16 /* EBX */ + 72];
 	ESP += 72;
-	EBX = param[24 /* tskdir */];
+	EBX = param->tskdir[0];
 	regist_module();
 
 	(offset) param = (int) [SS:ESP + 16 /* EBX */];
 
-	if (param[32 /* stack0_addr */] == 0xffffffff) {
+	if (param->stack0addr[0] == 0xffffffff) {
 		ECX = 4096; /* 4KB */
 		get_memory();
 		if (ZF == 1)
@@ -3509,10 +3830,11 @@ void near create_task()
 		(int) [SS:ESP + 44] = 0;
 		(int) [SS:ESP + 48] = ECX;
 		(int) [SS:ESP + 52] = 0;
-		param[28 /* stack0_size */] = ECX;
+		param->stack0size = ECX;
 		(int) [SS:ESP + 56] = EAX;
 		(int) [SS:ESP + 60] = 0;
-		param[32 /* stack0_addr */] = EAX;
+		param->stack0addr[0] = EAX;
+		param->stack0addr[4] = EAX;
 		(int) [SS:ESP + 64] = 0xffffffff;
 		(int) [SS:ESP + 68] = 0xffffffff;
 		ECX = 512;
@@ -3521,17 +3843,20 @@ void near create_task()
 		add_tags();
 		(offset) param = (int) [SS:ESP + 16 /* EBX */ + 72];
 		ESP += 72;
-		EBX = param[24 /* tskdir */];
+		EBX = param->tskdir[0];
 		regist_module();
 	}
 
 	(offset) param = (int) [SS:ESP + 16 /* EBX */];
-	if (param[40 /* stack3_addr */] == 0xffffffff) {
-		ECX = param[8 /* stack3_size */];
+	if (param->stack3addr[0] == 0xffffffff) {
+		ECX = param->header[0];
 		if (ECX != 0) {
-			get_memory();
-			if (ZF == 1)
-				goto error;
+		//	get_memory();
+		//	if (ZF == 1)
+		//		goto error;
+			PUSH(EDX);
+			EDX = 0;
+			get_virtual();
 			ESI = 512;
 			ESP -= 72;
 			(int) [SS:ESP +  0] = 0xffe00000; /* module name */
@@ -3548,10 +3873,11 @@ void near create_task()
 			(int) [SS:ESP + 44] = 0;
 			(int) [SS:ESP + 48] = ECX;
 			(int) [SS:ESP + 52] = 0;
-			param[36 /* stack3_size */] = ECX;
+			param->stack3size = ECX;
 			(int) [SS:ESP + 56] = EAX;
-			(int) [SS:ESP + 60] = 0;
-			param[40 /* stack3_addr */] = EAX;
+			(int) [SS:ESP + 60] = EDX;
+			param->stack3addr[0] = EAX;
+			param->stack3addr[4] = EDX;
 			(int) [SS:ESP + 64] = 0xffffffff;
 			(int) [SS:ESP + 68] = 0xffffffff;
 			EAX = root_sel;
@@ -3560,25 +3886,26 @@ void near create_task()
 			alloc_tagdir();
 			EBX = ESP;
 			add_tags();
-			(offset) param = (int) [SS:ESP + 16 /* EBX */ + 72];
+			(offset) param = (int) [SS:ESP + 16 /* EBX */ + 72 + 4];
 			ESP += 72;
-			EBX = param[24 /* tskdir */];
+			EBX = param->tskdir[0];
 			regist_module();
+			POP(EDX);
 		}
 	}
 
 	(offset) param = (int) [SS:ESP + 16 /* EBX */];
 
 	/* code, stack0, stack3 */
-	ECX = param[ 0 /* code_size */];
+	ECX = param->codesize;
 	EAX = stack_sel;
 	ECX += 0x1fff;
 	/* ESI = (offset) work->linear_man; */ LEA(ESI, (int) work->linear_man);
 	ECX &= 0xfffff000;
 	DS = AX;
-	ECX += param[28 /* stack0_size */];
-	ECX += param[36 /* stack3_size */];
-	ECX += param[12 /* stack3_reserve */];
+	ECX += param->stack0size;
+	ECX += param->stack3size;
+	ECX += param->header[4];
 	ECX &= 0xfffffffe;
 	get_area();
 	if (ZF == 1)
@@ -3615,8 +3942,8 @@ void near create_task()
 
 	/* mapping */
 	EDX = [SS:ESP + 4 + 4];
-	ECX = param[ 0 /* code_size */];
-	EAX = param[ 4 /* code_addr */];
+	ECX = param->codesize;
+	EAX = param->codeaddr[0];
 	ECX += 0x1fff;
 	EAX &= 0xfffff000;
 	ECX &= 0xfffff000;
@@ -3643,8 +3970,8 @@ void near create_task()
 	POP(FS);
 
 	EDX += ECX;
-	EAX = param[32 /* stack0_addr */];
-	ECX = param[28 /* stack0_size */];
+	EAX = param->stack0addr[0];
+	ECX = param->stack0size;
 
 	PUSH(FS);
 	PUSH(EBX);
@@ -3667,20 +3994,22 @@ void near create_task()
 	POP(EBX);
 	POP(FS);
 
-	EAX = param[12 /* stack3_reserve */];
+	EAX = param->header[4];
 	EDX += ECX;
 	if (AL == 0)
 		EDX += EAX;
-	ECX = param[36 /* stack3_size */];
+	ECX = param->stack3size;
 	if (ECX != 0) {
-		EAX = param[40 /* stack3_addr */];
+		EAX = param->stack3addr[0];
 		PUSH(FS);
+		PUSH(EBP);
 		PUSH(EBX);
+		EBP = param->stack3addr[4];
 		BX = SS;
 		FS = BX;
 		EBX = 0;
 		PUSH((int) EBX /* eoc */);
-		PUSH((int) EBX /* addr64(high) */);
+		PUSH((int) EBP /* addr64(high) */);
 		PUSH((int) EAX /* addr64(low) */);
 		PUSH((int) EBX /* offset64(high) */);
 		PUSH((int) EBX /* offset64(low) */);
@@ -3689,10 +4018,18 @@ void near create_task()
 		PUSH((int) ECX /* size */);
 		PUSH((int) 0x0007 /* opt(present, R/W, user) */);
 		PUSH((int) 0x0108 /* cmd(mapping) */);
+
+EBX = [SS:ESP + 8 /* EBP */ + 12 + 40 + 12];
+if (EBX == 0xffff)
+	INT(0x03);
+/* tss:3000 45f000 */
+/* tss:4000 480000 */
+
 		EBX = ESP;
 		CALLFAR0(papi_sel);
 		ESP += 40;
 		POP(EBX);
+		POP(EBP);
 		POP(FS);
 	}
 	EDX = work->tapiwork_Laddr;
@@ -3755,10 +4092,10 @@ void near create_task()
 	tss->tr[0] = EAX;
 	EAX += 0x0008;
 	(int) tss->tss386.LDTR = EAX;
-	POP(tss_sysdat[4]);
-	POP(tss_sysdat[8]);
-	tss_sysdat[12] = 0;
-	tss_sysdat[16] = 0;
+	POP(tss_sysdat[4 /* stack0size */]);
+	POP(tss_sysdat[8 /* stack0addr(linear) */]);
+	tss_sysdat[12 /* stack3size */] = 0;
+	tss_sysdat[16 /* stack3addr(linear) */] = 0;
 
 //	EAX = tapiwork_sel; DS = AX;
 
@@ -3848,13 +4185,13 @@ void near create_task()
 	DS = AX;
 	GS = AX;
 
-	EAX = param[24 /* tskdir */];
+	EAX = param->tskdir[0];
 	tss_sysdat[0] = EAX;
 
 	/* ldt:0004 コード */
 	EDX = tss_sysdat[ 8];
-	EAX = param[ 4 /* code_addr */];
-	ECX = param[ 0 /* code_size */];
+	EAX = param->codeaddr[0]; /* ページ属性参照のため */
+	ECX = param->codesize;
 	EAX &= 0xfff;
 	PUSH(EDX);
 	EDX |= EAX;
@@ -3870,7 +4207,7 @@ void near create_task()
 	EDX += ECX;
 
 	/* ldt:001c lv0スタック */
-	ECX = param[28 /* stack0_size */];
+	ECX = param->stack0size;
 //	if (DL == 0x01) {
 //		EDX &= 0xffffff80;
 //		ECX = 4096;
@@ -3885,9 +4222,9 @@ void near create_task()
 	(offset) param = (int) [SS:ESP + 16 /* EBX */ + 4];
 
 	/* ldt:000c データー兼スタック */
-	ECX = param[36 /* stack3_size */];
+	ECX = param->stack3size;
 	if (ECX != 0) {
-		EAX = param[12 /* stack3_reserve */];
+		EAX = param->header[4];
 		ECX += EAX;
 		if (AL == 0)
 			EDX += EAX;
@@ -4439,6 +4776,9 @@ cmd0080:
 	(int) [DS:ESI     ] = EAX;
 	(int) [DS:ESI +  4] = ECX;
 	(int) [DS:ESI +  8] = EDX;
+//	STR(BX);
+//	if (BX == 0x0130)
+//		INT(0x03);
 	goto nextcmd;
 
 cmd0100:
@@ -5014,39 +5354,68 @@ cmd0408:
 	EDX = cmd[8]; /* slot */
 	ES = AX;
 	EAX = cmd[4]; /* opt */
-	if (EAX == 0x0001) {
-		/* 8x16dot mono */
+	if ((signed) EAX > 0) {
+
+		/* アトリビュートを取得して、サイズを確定 */
+		ECX = 0;
+		PUSH(ECX); /* eoc */
+		PUSH(ECX);
+		PUSH(ECX);
+		PUSH(ECX);
+		PUSH(ECX);
+		PUSH(EAX); /* type */
+		PUSH(ECX);
+		PUSH((int) 0x0110 /* get font attr */);
+		EBX = ESP;
+		DB(0x9a); DD(0); DW((short) GAPI_sel);
+		ECX = [SS:ESP + 12]; /* CL == bits/font */
+		ESP += 32;
+		PUSH(ECX);
 		EAX = GAPIwork_sel;
-		ECX = cmd[12]; /* len */
+		EBX = cmd[12]; /* len */
 		ESI = 0x0c00;
-		[ES:EDX +  0] = ECX;
+		if (CL == 0x03) {
+			EBX++;
+			EBX &= 0xfffffffe;
+		}
+		[ES:EDX +  0] = EBX;
+
+		/* 領域確保 */
+		SHL(EBX, CL);
 		DS = AX;
-		ECX *= 16;
+		ECX = EBX;
 		get_area();
 		if (ZF == 1)
 			INT(0x03);
-		ESI = EAX;
-		EAX |= 0x4;
+
+		/* 転送コマンド実行 */
+		PUSH((int) 0);
+		PUSH(cmd[20] /* from (sel) */);
+		PUSH(cmd[16] /* from (ofs) */);
+		PUSH(EAX /* to */);
+		PUSH(cmd[12] /* len */);
+		PUSH(cmd[4] /* type */);
+		PUSH((int) 0 /* opt */);
+		PUSH((int) 0x0104 /* load font */);
+		(offset) cmd += 24;
+		AL |= [SS:ESP + 32];
 		(int) [ES:EDX + 12] = 0x0118; /* alloced font mark */
 		[ES:EDX +  4] = EAX;
-		asmout("LES EDI,FWORD PTR GS:[EBP+16]");
-		(offset) cmd += 24;
-		do {
-			EAX = [ES:EDI];
-			EDI += 4;
-			[DS:ESI] = EAX;
-			ESI += 4;
-			ECX -= 4;
-		} while (!= 0);
+		EBX = ESP;
+		DB(0x9a); DD(0); DW((short) GAPI_sel);
+		ESP += 32 + 4;
 		goto nextcmd;
-	} else if (EAX == 0x80000001) {
+	}
+
+	if (EAX == 0x80000001) {
 		/* 8x16dot mono ANK */
 		(offset) cmd += 12;
 		(int) [ES:EDX +  0] = 256 /* max-range */;
 		(int) [ES:EDX +  4] = 0x1004; /* conv */
 		(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
 		goto nextcmd;
-	} else if (EAX == 0x80000002) {
+	}
+	if (EAX == 0x80000002) {
 		/* 8x8dot mono half-ANK */
 		(offset) cmd += 12;
 		(int) [ES:EDX +  0] = 512 /* max-range */;
@@ -5531,6 +5900,8 @@ cmd0720:
 	EAX = 0xffe00003;
 	search_tag_EAX();
 	EAX = [DS:ESI + 24 /* 先頭物理アドレス */];
+	EDI = [DS:ESI + 28];
+
 //	[DS:ESI + 16 /* モジュールサイズ */];
 	ECX = cmd[12] /* size */;
 	EAX += cmd[20] /* ofs & attr */;
@@ -5538,7 +5909,7 @@ cmd0720:
 
 	EBX = 0;
 	PUSH((int) EBX /* eoc */);
-	PUSH((int) EBX /* addr64(high) */);
+	PUSH((int) EDI /* addr64(high) */);
 	PUSH((int) EAX /* addr64(low) */);
 	PUSH((int) EBX /* offset64(high) */);
 	PUSH((int) EBX /* offset64(low) */);
@@ -5694,6 +6065,7 @@ void far GUIGUI_shellcall2()
 	unsigned int timerint_sel == 10 * 8, timerdata_sel == 11 * 8;
 	unsigned int tapi_sel     == 12 * 8, tapiwork_sel  == 13 * 8;
 	unsigned int tss386_0_sel == 14 * 8, idtgdt_sel    == 15 * 8;
+	unsigned int papi_sel     == 18 * 8, papiwork_sel  == 19 * 8;
 	unsigned int decode_sel   == 22 * 8, decowork_sel  == 23 * 8;
 	unsigned int fdcdrive_sel == 28 * 8, fdcwork_sel   == 29 * 8;
 	unsigned int diskbuf_sel  == 30 * 8, textbuf_sel   == 31 * 8;
@@ -5990,6 +6362,35 @@ cmd0034:
 		+08 : mem20(all, free, max, blocks)
 		+18 : mem24(all, free, max, blocks)
 		+28 : mem32(all, free, max, blocks) */
+	ECX = 0;
+	PUSH((int) ECX);
+	ESP -= 16 * 3;
+	PUSH((int) 0x800000ff);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH((int) 0x0114);
+	PUSH(FS);
+	PUSH((offset) cmd);
+	AX = SS;
+	LEA(EBX, [SS:ESP + 8]);
+	FS = AX;
+	CALLFAR0(papi_sel);
+	POP((offset) cmd);
+	POP(FS);
+	(offset) cmd += 8;
+	ESP += 16;
+//	ECX = 4 * 3;
+	ECX += 4 * 3;
+	do {
+		POP(*cmd);
+		(offset) cmd += 4;
+		ECX--;
+	} while (!= 0);
+	POP(EAX);
+	goto nextcmd;
+
+#if 0
+
 	EDX = 0;
 	EAX = stack_sel;
 	ECX = stack_sel;
@@ -6024,6 +6425,7 @@ cmd0034:
 	cmd[52] = EDI;
 	(offset) cmd += 56;
 	goto nextcmd;
+#endif
 
 cmd0040:
 	/* ファイルリストの転送：削除されたものは送らない */
@@ -6226,7 +6628,7 @@ void near output_string()
 	MOVZX(ECX,DH);
 	cmd->color   = EAX;
 	cmd->bgcolor = ECX;
-	cmd->fnt = 0;
+//	cmd->fnt = 0;
 //	(int) cmd->fntsel = ankfont_sel;
 	unsigned char *s == GS:ESI;
 	unsigned int *t == SS:EBP, len == ECX, chr == EAX;
@@ -6247,46 +6649,6 @@ void near output_string()
 		chr *= 16;
 	} while (!= 0);
 
-#if 0
-	do {
-		chr = *s; // MOVZX
-		s++;
-		chr *= 16;
-		if (== 0)
-			break;
-	//	chr += 4096;
-		len++;
-		*t = chr;
-		t += 4;
-		chr = *s; // MOVZX
-		s++;
-		chr *= 16;
-		if (== 0)
-			break;
-	//	chr += 4096;
-		len++;
-		*t = chr;
-		t += 4;
-		chr = *s; // MOVZX
-		s++;
-		chr *= 16;
-		if (== 0)
-			break;
-	//	chr += 4096;
-		len++;
-		*t = chr;
-		t += 4;
-		chr = *s; // MOVZX
-		s++;
-		chr *= 16;
-		if (== 0)
-			break;
-	//	chr += 4096;
-		len++;
-		*t = chr;
-		t += 4;
-	} while (len < 100);
-#endif
 	cmd->length = len;
 	// (int) [cmd->string + len * 4] = 0x0000;
 //	asmout("MOV DWORD PTR SS:[ESP+36+ECX*4],0");
@@ -6301,7 +6663,7 @@ void near output_string()
 }
 
 void near ui8toa()
-/*  AXを[DS:ESI]へ */
+/*  ALを[DS:ESI]へ */
 {
 	unsigned char *s == DS:ESI;
 	PUSH(EAX);
@@ -6318,6 +6680,8 @@ void near ui8toa()
 	POP(EAX);
 	return;
 }
+
+#if 0
 
 void near ui16toa()
 /*  AXを[DS:ESI]へ */
@@ -6349,13 +6713,27 @@ void near ui16toa()
 	return;
 }
 
+#endif
+
+void near ui16toa()
+/*  AXを[DS:ESI]へ */
+{
+	XCHG(AH, AL);
+	ui8toa();
+	ESI += 2;
+	XCHG(AH, AL);
+	ui8toa();
+	ESI -= 2;
+	return;
+}
+
 void near ui32toa()
 /* EAXを[DS:ESI]へ */
 {
-	ROR(EAX, 16); // 上位と下位を交換
+	ROR(EAX, 16); /* 上位と下位を交換 */
 	ui16toa();
 	ESI += 4;
-	ROL(EAX, 16); // 上位と下位を交換
+	ROL(EAX, 16); /* 上位と下位を交換 */
 	ui16toa();
 	ESI -= 4;
 	return;
@@ -6365,6 +6743,13 @@ void far int10()
 {
 	PUSHAD();
 	ESI = InitMdl::"INT 0x0A Invalid TSS";
+	asmout("JMP put_int_status_ec");
+}
+
+void far int12()
+{
+	PUSHAD();
+	ESI = InitMdl::"INT 0x0c Stack Protect";
 	asmout("JMP put_int_status_ec");
 }
 
@@ -7162,11 +7547,13 @@ op_rep_ES_outsw:
 //	INT(0x03);
 }
 
+/*
 void far int14()
 {
 	PUSHAD();
 	ESI = InitMdl::"INT 0x0E Page Protect";
 }
+*/
 
 void near put_int_status_ec()
 // エラーコードあり(フラグを表示していない)
@@ -7412,6 +7799,7 @@ void far int01()
 		goto no_trap;
 	#endif
 
+	#if 0
 	if (CX == 0x0010) {
 		if (EAX == 0x11a7)
 			goto no_trap;
@@ -7420,9 +7808,22 @@ void far int01()
 	} else if (CX == 0x0060) {
 		if (EAX == 0x08b2)
 			goto no_trap;
-		if (EAX == 0x09f0)
-			goto no_trap;
+		if (EAX == 0x09f0) {
+			if ((unsigned) ESI < 512)
+				goto no_trap;
+		}
 	}
+	#endif
+	#if 1
+		if (CX == 0x00c7) {
+			if (EAX == 0x026e)
+				goto no_trap;
+			if (EAX == 0x1335) {
+				if (ESI <= 0x002c)
+					goto no_trap;
+			}
+		}
+	#endif
 trap:
 	ESI = InitMdl::"INT 0x01 Debug Fault";
 	asmout("JMP put_int_status");

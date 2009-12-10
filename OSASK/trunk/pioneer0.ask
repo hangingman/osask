@@ -699,7 +699,8 @@ void near cmd040()
 	MUL(cmd0040_textbox->x_size);
 	EAX += cmd[ 8]; // x_pos
 	EDX = cmd0040_textbox->backcolor;
-	CL = (char) cmd[4]; TEST(CL, 0x01); // option
+	CL = (char) cmd[4]; /* option */
+	TEST(CL, 0x01);
 	if (!= 0) {
 		EDX = cmd[24]; // back_color
 	}
@@ -720,6 +721,9 @@ void near cmd040()
 		(int) [SS:ESP + 28] = ECX; // charset
 		if (== 0) {
 			// normal
+			TEST(AL, 0x10);
+			if (!= 0)
+				(char) [SS:ESP +  4] = 0x01; /* option */
 			EDX >>= 16;
 			(int) [SS:ESP + 24] = EDX; // back_color
 			ECX = cmd[12]; // y_pos
@@ -735,6 +739,14 @@ void near cmd040()
 			(int) [SS:ESP + 12] = EAX; /* x0 */
 			(int) [SS:ESP + 16] = ECX; /* y0 */
 			(int) [SS:ESP + 20] = EDX; // color
+			EAX = cmd[4]; /* option */
+			TEST(AL, 0x02);
+			if (== 0)
+				goto copystr;
+			EAX = 0;
+			(char) [SS:ESP +  4] |= 0x02; /* option */
+			(int) [SS:ESP + 20] = EAX; /* color */
+			(int) [SS:ESP + 24] = EAX; /* back color */
 		} else {
 			// title
 			EAX = cmd0040_win->mode0;
@@ -747,6 +759,7 @@ void near cmd040()
 			(int) [SS:ESP + 20] = EAX; /* color */
 			(int) [SS:ESP + 24] = ECX; /* backcolor */
 		}
+copystr:
 		(offset) cmd += 32;
 		LEA(EBX, [SS:ESP + 36]);
 		ECX = (int) [SS:ESP + 32]; // length
@@ -765,8 +778,14 @@ void near cmd040()
 	}
 	(offset) cmd += 32;
 	if (ECX != 0) {
+		asmout("TEST BYTE PTR DS:[ESI+4-32],02H");
+		if (!= 0) {
+			EDX = 0;
+			goto colorfont;
+		}
 		if (EDX == 0)
 			goto blank;
+colorfont:
 		LEA(EBX, [(offset) cmd0040_textbox + EAX * 8 + 64]);
 		do {
 			EAX = *cmd;
@@ -2290,8 +2309,12 @@ void near drawcomponent()
 						ESP -= 512 - 12;
 					}
 					// バッファを参照して書き込む
+					EAX = 0;
+					TEST(textbox->option, 0x10);
+					if (!= 0)
+						EAX++; /* half height */
 					(int) [SS:ESP     ] = 0x0404; /* put text */
-					(int) [SS:ESP +  4] = 0x0000; /* option */
+					(int) [SS:ESP +  4] = EAX; /* option */
 					(int) [SS:ESP +  8] = EDX;
 					EAX = textbox->charset;
 					(int) [SS:ESP + 28] = EAX; /* charset */
@@ -2336,8 +2359,13 @@ void near drawcomponent()
 							EBX -= 36;
 							EBX /= 4;
 							(int) [SS:ESP +  32] = EBX; /* length */
+							EAX = [SS:ESP + 20]; /* backcolor */
 							EBX = ESP;
+							EAX |= [SS:ESP + 24]; /* color */
+							if (== 0)
+								(char) [SS:ESP + 4] /* opt */ |= 0x02;
 							DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+							(char) [SS:ESP + 4] /* opt */ &= 0xfd;
 						} while (EBP != 0);
 						EAX = (int) [SS:ESP + 16] /* y0 */;
 						EBP = textbox->x_size;

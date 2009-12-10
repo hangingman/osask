@@ -1,4 +1,4 @@
-// "VGADRV0.ASK" ver.0.6 copyright(C) 2001 川合秀実, ODP
+// "VGADRV0.ASK" ver.0.7 copyright(C) 2001 川合秀実, ODP
 
 segment GapiMdl(USE32, PARA);
 
@@ -116,6 +116,8 @@ asmout("next_command:");
 		goto fontload;
 //	if (EAX == 0x0108)
 //		goto allocarea; /* cmd, opt, size, (addr) */
+	if (EAX == 0x0110)
+		goto font_attr; /* cmd, opt, type, (param0), (param1), (param2), (param3) */
 
 	if (EAX != 0)
 		goto GAPI_error;
@@ -130,23 +132,127 @@ fontload:
 	/* cmd, opt, type, len, to, from */
 	PUSH(DS);
 	asmout("LDS ESI,FWORD PTR FS:[EBX+20]");
-	ECX = cmd[12];
-	EDI = cmd[16];
-	ECX *= 4; /* 16bytes/font */
+	EAX = cmd[ 8]; /* type */
+	ECX = cmd[12]; /* len */
+	EDI = cmd[16]; /* to */
 	(offset) cmd += 28;
-	do {
-		EAX = [DS:ESI];
-		ESI += 4;
-		[ES:EDI] = EAX;
-		EDI += 4;
-		ECX--;
-	} while (!= 0);
-	POP(DS);
+	if (EAX <= 2) {
+		LEA(ECX, [ECX * 2]);
+		if (!=)
+			ECX *= 2;
+		do {
+			EAX = [DS:ESI];
+			ESI += 4;
+			[ES:EDI] = EAX;
+			EDI += 4;
+			ECX--;
+		} while (!= 0);
+		POP(DS);
+		asmout("JMP next_command");
+	}
+	if (EAX == 3) {
+		/* EAX == 3:4bit color 8x16 */
+		PUSH(EBP);
+		PUSH(EBX);
+		PUSH(ECX);
+		ECX = 16;
+		do {
+			do {
+				EBX = [DS:ESI]; /* 8dots */
+				ESI += 4;
+				EBP = 8;
+				EAX = 0;
+				EDX = 0;
+				do {
+					/* いかにも工夫のない方法 */
+					EBX >>= 1;
+					RCL(AL, 1);
+					EBX >>= 1;
+					RCL(AH, 1);
+					EBX >>= 1;
+					RCL(DL, 1);
+					EBX >>= 1;
+					RCL(DH, 1);
+					EBP--;
+				} while (!= 0);
+				[ES:EDI     ] = AL;
+				[ES:EDI + 16] = AH;
+				[ES:EDI + 32] = DL;
+				[ES:EDI + 48] = DH;
+				EDI++;
+				ECX--;
+			} while (!= 0);
+			EDI += 48;
+			(int) [SS:ESP]--;
+		} while (!= 0);
+		POP(EAX); /* dummy */
+		POP(EBX);
+		POP(EBP);
+		POP(DS);
+		asmout("JMP next_command");
+	}
+	if (EAX == 4) {
+		/* EAX == 4:4bit color 8x8 */
+		PUSH(EBP);
+		PUSH(EBX);
+		PUSH(ECX);
+		ECX = 8;
+		do {
+			do {
+				EBX = [DS:ESI]; /* 8dots */
+				ESI += 4;
+				EBP = 8;
+				EAX = 0;
+				EDX = 0;
+				do {
+					/* いかにも工夫のない方法 */
+					EBX >>= 1;
+					RCL(AL, 1);
+					EBX >>= 1;
+					RCL(AH, 1);
+					EBX >>= 1;
+					RCL(DL, 1);
+					EBX >>= 1;
+					RCL(DH, 1);
+					EBP--;
+				} while (!= 0);
+				[ES:EDI     ] = AL;
+				[ES:EDI +  8] = AH;
+				[ES:EDI + 16] = DL;
+				[ES:EDI + 24] = DH;
+				EDI++;
+				ECX--;
+			} while (!= 0);
+			EDI += 24;
+			(int) [SS:ESP]--;
+		} while (!= 0);
+		POP(EAX); /* dummy */
+		POP(EBX);
+		POP(EBP);
+		POP(DS);
+		asmout("JMP next_command");
+	}
+	INT(0x03);
+
+font_attr:
+	/* cmd, opt, type, (param0), (param1), (param2), (param3) */
+	EAX = cmd[ 8]; /* type */
+	asmout("MOV AL,BYTE PTR CS:[#font_attr_table][EAX-1]");
+	(char) cmd[12] = AL;
+	(offset) cmd += 28;
 	asmout("JMP next_command");
+font_attr_table:
+	DB(4 /*  16bytes/font (8x16 mono) */);
+	DB(3 /*   8bytes/font (8x 8 mono half height) */);
+	DB(6 /*  64bytes/font (8x16 4bit color) */);
+	DB(5 /*  32bytes/font (8x 8 4bit color half height) */);
 }
 
 // マウスには非表示カウントというのがある
 // これが0からnon-0になったときや、non-0から0になったときに、描画・待避を行なう
+
+void near fontwritesub8();
+void near fontwritesub16();
 
 void near GAPI_fontwrite()
 {
@@ -156,8 +262,8 @@ void near GAPI_fontwrite()
 
 	int *cmd == FS:EBX;
 
-	if (cmd[4] != 0)
-		goto error;
+	if ((unsigned) cmd[4] >= 2)
+		goto opt2;
 
 	EDX = 0x03ce;
 	EAX = 0x0305;
@@ -188,6 +294,10 @@ void near GAPI_fontwrite()
 
 	int *string == FS:EBP;
 	ECX = cmd[32]; // length
+
+	if (cmd[4] != 0)
+		goto opt1;
+
 	LEA((offset) string, [EBX + 36]);
 	LEA(EBX, [EBX + ECX * 4 + 36]);
 
@@ -227,9 +337,177 @@ void near GAPI_fontwrite()
 //	ES = AX;
 	asmout("JMP next_command");
 
+opt1:
+	LEA((offset) string, [EBX + 36]);
+	LEA(EBX, [EBX + ECX * 4 + 36]);
+
+	do {
+		(offset) font = *string;
+		(offset) string += 4;
+		EAX = font[ 0]; // 4lines
+		(char) [DS:ESI + 0xa0000 + 100 *  0] = AL;
+		(char) [DS:ESI + 0xa0000 + 100 *  1] = AH;
+		(unsigned int) EAX >>= 16;
+		(char) [DS:ESI + 0xa0000 + 100 *  2] = AL;
+		(char) [DS:ESI + 0xa0000 + 100 *  3] = AH;
+		EAX = font[ 4]; // 4lines
+		(char) [DS:ESI + 0xa0000 + 100 *  4] = AL;
+		(char) [DS:ESI + 0xa0000 + 100 *  5] = AH;
+		(unsigned int) EAX >>= 16;
+		(char) [DS:ESI + 0xa0000 + 100 *  6] = AL;
+		(char) [DS:ESI + 0xa0000 + 100 *  7] = AH;
+		ESI++;
+		ECX--;
+	} while (!= 0);
+	STI();
+	asmout("JMP next_command");
+
+opt2:
+	if ((unsigned) cmd[4] >= 4)
+		goto error;
+
+	EDX = 0x03ce;
+	EAX = 0x0305;
+	CLI();
+	OUT(DX, AX); // Mode Reg (writing mode : 3)
+	EAX = 0x0003;
+	OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
+	EAX = 0x0f00;
+	OUT(DX, AX); // Set / Reset Reg (color = 0x0f)
+
+	EAX = cmd[ 8]; // x
+	ESI = cmd[12]; // y
+	TEST(AL, 0x07);
+	if (!= 0)
+		goto error; // 8の倍数以外はまだサポートしてない
+
+	(unsigned int) EAX /= 8;
+	IMUL(ESI, 100);
+	ESI += EAX;
+
+//	int *font == ES:EDI;
+	CL = [DS:0xafff0]; /* ラッチセット(bc = 0) */
+
+//	int *string == FS:EBP;
+	ECX = cmd[32]; // length
+
+	if (cmd[4] != 2)
+		goto opt3;
+
+	LEA((offset) string, [EBX + 36]);
+	LEA(EBX, [EBX + ECX * 4 + 36]);
+
+	EDX = 0x03c4;
+	do {
+		(offset) font = *string;
+		EAX = 0x0102;
+		(offset) string += 4;
+		OUT(DX, AX);
+		fontwritesub16();
+		EAX = 0x0202;
+		(offset) font += 16;
+		OUT(DX, AX);
+		fontwritesub16();
+		EAX = 0x0402;
+		(offset) font += 16;
+		OUT(DX, AX);
+		fontwritesub16();
+		EAX = 0x0802;
+		(offset) font += 16;
+		OUT(DX, AX);
+		fontwritesub16();
+		ESI++;
+		ECX--;
+	} while (!= 0);
+	EAX = 0x0f02;
+	OUT(DX, AX);
+	STI();
+	asmout("JMP next_command");
+
+opt3:
+	LEA((offset) string, [EBX + 36]);
+	LEA(EBX, [EBX + ECX * 4 + 36]);
+
+	EDX = 0x03c4;
+	do {
+		(offset) font = *string;
+		EAX = 0x0102;
+		(offset) string += 4;
+		OUT(DX, AX);
+		fontwritesub8();
+		EAX = 0x0202;
+		(offset) font += 8;
+		OUT(DX, AX);
+		fontwritesub8();
+		EAX = 0x0402;
+		(offset) font += 8;
+		OUT(DX, AX);
+		fontwritesub8();
+		EAX = 0x0802;
+		(offset) font += 8;
+		OUT(DX, AX);
+		fontwritesub8();
+		ESI++;
+		ECX--;
+	} while (!= 0);
+	EAX = 0x0f02;
+	OUT(DX, AX);
+	STI();
+	asmout("JMP next_command");
+
 error:
 	STI();
 	INT(0x03);
+}
+
+void near fontwritesub16()
+{
+	int *font == ES:EDI;
+
+	EAX = font[ 0]; // 4lines
+	(char) [DS:ESI + 0xa0000 + 100 *  0] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  1] = AH;
+	(unsigned int) EAX >>= 16;
+	(char) [DS:ESI + 0xa0000 + 100 *  2] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  3] = AH;
+	EAX = font[ 4]; // 4lines
+	(char) [DS:ESI + 0xa0000 + 100 *  4] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  5] = AH;
+	(unsigned int) EAX >>= 16;
+	(char) [DS:ESI + 0xa0000 + 100 *  6] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  7] = AH;
+	EAX = font[ 8]; // 4lines
+	(char) [DS:ESI + 0xa0000 + 100 *  8] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  9] = AH;
+	(unsigned int) EAX >>= 16;
+	(char) [DS:ESI + 0xa0000 + 100 * 10] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 * 11] = AH;
+	EAX = font[12]; // 4lines
+	(char) [DS:ESI + 0xa0000 + 100 * 12] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 * 13] = AH;
+	(unsigned int) EAX >>= 16;
+	(char) [DS:ESI + 0xa0000 + 100 * 14] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 * 15] = AH;
+	return;
+}
+
+void near fontwritesub8()
+{
+	int *font == ES:EDI;
+
+	EAX = font[ 0]; // 4lines
+	(char) [DS:ESI + 0xa0000 + 100 *  0] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  1] = AH;
+	(unsigned int) EAX >>= 16;
+	(char) [DS:ESI + 0xa0000 + 100 *  2] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  3] = AH;
+	EAX = font[ 4]; // 4lines
+	(char) [DS:ESI + 0xa0000 + 100 *  4] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  5] = AH;
+	(unsigned int) EAX >>= 16;
+	(char) [DS:ESI + 0xa0000 + 100 *  6] = AL;
+	(char) [DS:ESI + 0xa0000 + 100 *  7] = AH;
+	return;
 }
 
 void near yline()

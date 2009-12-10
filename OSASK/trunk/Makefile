@@ -74,7 +74,7 @@ FORCE:
 	$(LINK32) $(LINK32_FLAGS) /LIBPATH:$(LIBPATH) $*.obj $(LIBS)
 
 pokon0.bin : pokon0.exe Makefile
-	$(EXE2BIN) $< $@ -s 36k
+	$(EXE2BIN) $< $@ -s 40k
 
 winman0.bin : winman0.exe Makefile
 	$(EXE2BIN) $< $@ -s 96k

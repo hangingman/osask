@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" for TOWNS ver.0.6 copyright(C) 2001 川合秀実 */
+/* "VGADRV0.ASK" for TOWNS ver.0.7 copyright(C) 2001 川合秀実 */
 
 segment GapiMdl(USE32, PARA);
 
@@ -74,6 +74,8 @@ asmout("next_command:");
 		goto fontload;
 //	if (EAX == 0x0108)
 //		goto allocarea; /* cmd, opt, size, (addr) */
+	if (EAX == 0x0110)
+		goto font_attr; /* cmd, opt, type, (param0), (param1), (param2), (param3) */
 
 	if (EAX != 0)
 		goto GAPI_error;
@@ -88,19 +90,72 @@ fontload:
 	/* cmd, opt, type, len, to, from */
 	PUSH(DS);
 	asmout("LDS ESI,FWORD PTR FS:[EBX+20]");
-	ECX = cmd[12];
-	EDI = cmd[16];
-	ECX *= 4; /* 16bytes/font */
+	EAX = cmd[ 8]; /* type */
+	ECX = cmd[12]; /* len */
+	EDI = cmd[16]; /* to */
 	(offset) cmd += 28;
-	do {
-		EAX = [DS:ESI];
-		ESI += 4;
-		[ES:EDI] = EAX;
-		EDI += 4;
-		ECX--;
-	} while (!= 0);
-	POP(DS);
+	if (EAX <= 2) {
+		LEA(ECX, [ECX * 2]);
+		if (!=)
+			ECX *= 2;
+		do {
+			EAX = [DS:ESI];
+			ESI += 4;
+			[ES:EDI] = EAX;
+			EDI += 4;
+			ECX--;
+		} while (!= 0);
+		POP(DS);
+		asmout("JMP next_command");
+	}
+	if (EAX <= 4) {
+		/* EAX == 3:4bit color 8x16 */
+		/* EAX == 4:4bit color 8x8 */
+		LEA(ECX, [ECX * 8]);
+		if (!=)
+			ECX *= 2;
+		do {
+			EDX = [DS:ESI]; /* 8dots */
+			ESI += 4;
+			AH = DH;
+			AL = DH;
+			(unsigned char) AH >>= 4;
+			EAX <<= 16;
+			AH = DL;
+			AL = DL;
+			(unsigned char) AH >>= 4;
+			EAX &= 0x0f0f0f0f;
+			[ES:EDI] = EAX;
+			(unsigned int) EDX >>= 16;
+			AH = DH;
+			AL = DH;
+			(unsigned char) AH >>= 4;
+			EAX <<= 16;
+			AH = DL;
+			AL = DL;
+			(unsigned char) AH >>= 4;
+			EAX &= 0x0f0f0f0f;
+			[ES:EDI + 4] = EAX;
+			EDI += 8;
+			ECX--;
+		} while (!= 0);
+		POP(DS);
+		asmout("JMP next_command");
+	}
+	INT(0x03);
+
+font_attr:
+	/* cmd, opt, type, (param0), (param1), (param2), (param3) */
+	EAX = cmd[ 8]; /* type */
+	asmout("MOV AL,BYTE PTR CS:[#font_attr_table][EAX-1]");
+	(char) cmd[12] = AL;
+	(offset) cmd += 28;
 	asmout("JMP next_command");
+font_attr_table:
+	DB(4 /*  16bytes/font (8x16 mono) */);
+	DB(3 /*   8bytes/font (8x 8 mono half height) */);
+	DB(7 /* 128bytes/font (8x16 4bit color) */);
+	DB(6 /*  64bytes/font (8x 8 4bit color half height) */);
 }
 
 /* マウスには非表示カウントというのがある
@@ -112,8 +167,13 @@ void near GAPI_fontwrite()
 
 	int *cmd == FS:EBX;
 
-	if (cmd[4] != 0)
-		goto error;
+	/* opt	bit0:full higth/half height
+			bit1-7:	0000000 mono font col&bcol
+					0000001 4bit color font
+	*/
+
+	if ((unsigned) cmd[4] >= 2)
+		goto opt2;
 	EAX = cmd[ 8]; /* x */
 	ESI = cmd[12]; /* y */
 	TEST(AL, 0x03);
@@ -167,6 +227,10 @@ void near GAPI_fontwrite()
 
 	int *string == FS:EBP;
 	ECX = cmd[32]; // length
+
+	if (cmd[4] != 0)
+		goto opt1;
+
 	LEA((offset) string, [EBX + 36]);
 //	LEA(EBX, [EBX + ECX * 4 + 36]);
 
@@ -238,6 +302,168 @@ void near GAPI_fontwrite()
 //	AX += 8;
 //	ES = AX;
 
+	asmout("JMP next_command");
+
+opt1:
+	/* half height */
+	LEA((offset) string, [EBX + 36]);
+//	LEA(EBX, [EBX + ECX * 4 + 36]);
+
+	do {
+		PUSH(ECX);
+		(offset) font = *string;
+		(offset) string += 4;
+		ECX = 2;
+		do {
+			EBX = *font; /* 4lines */
+			(offset) font += 4;
+			EDX = EBX;
+			(unsigned int) EBX /= 16;
+			EDX &= 0x0f;
+			EAX = [SS:ESP + EDX * 4 + 4];
+			EDX = EBX;
+			(unsigned int) EBX /= 16;
+			EDX &= 0x0f;
+			[DS:ESI + 0xe0000000 + 1024 *  0 + 4] = EAX;
+
+			EAX = [SS:ESP + EDX * 4 + 4];
+			EDX = EBX;
+			(unsigned int) EBX /= 16;
+			EDX &= 0x0f;
+			[DS:ESI + 0xe0000000 + 1024 *  0 + 0] = EAX;
+
+			EAX = [SS:ESP + EDX * 4 + 4];
+			EDX = EBX;
+			(unsigned int) EBX /= 16;
+			EDX &= 0x0f;
+			[DS:ESI + 0xe0000000 + 1024 *  1 + 4] = EAX;
+
+			EAX = [SS:ESP + EDX * 4 + 4];
+			EDX = EBX;
+			(unsigned int) EBX /= 16;
+			EDX &= 0x0f;
+			[DS:ESI + 0xe0000000 + 1024 *  1 + 0] = EAX;
+
+			EAX = [SS:ESP + EDX * 4 + 4];
+			EDX = EBX;
+			(unsigned int) EBX /= 16;
+			EDX &= 0x0f;
+			[DS:ESI + 0xe0000000 + 1024 *  2 + 4] = EAX;
+
+			EAX = [SS:ESP + EDX * 4 + 4];
+			EDX = EBX;
+			(unsigned int) EBX /= 16;
+			EDX &= 0x0f;
+			[DS:ESI + 0xe0000000 + 1024 *  2 + 0] = EAX;
+
+			EAX = [SS:ESP + EDX * 4 + 4];
+			EDX = EBX;
+			(unsigned int) EBX /= 16;
+			EDX &= 0x0f;
+			[DS:ESI + 0xe0000000 + 1024 *  3 + 4] = EAX;
+
+			EAX = [SS:ESP + EDX * 4 + 4];
+			[DS:ESI + 0xe0000000 + 1024 *  3 + 0] = EAX;
+			ESI += 1024 * 4;
+			ECX--;
+		} while (!= 0);
+		POP(ECX);
+		ESI -= 1024 * 8 - 8;
+		ECX--;
+	} while (!= 0);
+	ESP += 64;
+	(offset) cmd = (offset) string;
+	asmout("JMP next_command");
+
+opt2:
+	EAX = cmd[ 8]; /* x */
+	ESI = cmd[12]; /* y */
+	TEST(AL, 0x03);
+	if (!= 0)
+		goto error; /* 4の倍数以外はまだサポートしてない */
+
+	ESI *= 1024;
+	ESI += EAX;
+
+//	int *font == ES:EDI;
+//	int *string == FS:EBP;
+	ECX = cmd[32]; // length
+
+	if (cmd[4] != 2)
+		goto opt3;
+
+	LEA((offset) string, [EBX + 36]);
+//	LEA(EBX, [EBX + ECX * 4 + 36]);
+
+	do {
+		PUSH(ECX);
+		(offset) font = *string;
+		(offset) string += 4;
+		ECX = 4;
+		do {
+			EAX = font[ 0]; /* 4dots */
+			EDX = font[ 4];
+			[DS:ESI + 0xe0000000 + 1024 *  0 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + 1024 *  0 + 4] = EDX;
+			EAX = font[ 8]; /* 4dots */
+			EDX = font[12];
+			[DS:ESI + 0xe0000000 + 1024 *  1 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + 1024 *  1 + 4] = EDX;
+			EAX = font[16]; /* 4dots */
+			EDX = font[20];
+			[DS:ESI + 0xe0000000 + 1024 *  2 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + 1024 *  2 + 4] = EDX;
+			EAX = font[24]; /* 4dots */
+			EDX = font[28];
+			(offset) font += 32;
+			[DS:ESI + 0xe0000000 + 1024 *  3 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + 1024 *  3 + 4] = EDX;
+			ESI += 1024 * 4;
+			ECX--;
+		} while (!= 0);
+		POP(ECX);
+		ESI -= 1024 * 16 - 8;
+		ECX--;
+	} while (!= 0);
+	(offset) cmd = (offset) string;
+	asmout("JMP next_command");
+
+opt3:
+	/* half height */
+	LEA((offset) string, [EBX + 36]);
+//	LEA(EBX, [EBX + ECX * 4 + 36]);
+
+	do {
+		PUSH(ECX);
+		(offset) font = *string;
+		(offset) string += 4;
+		ECX = 2;
+		do {
+			EAX = font[ 0]; /* 4dots */
+			EDX = font[ 4];
+			[DS:ESI + 0xe0000000 + 1024 *  0 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + 1024 *  0 + 4] = EDX;
+			EAX = font[ 8]; /* 4dots */
+			EDX = font[12];
+			[DS:ESI + 0xe0000000 + 1024 *  1 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + 1024 *  1 + 4] = EDX;
+			EAX = font[16]; /* 4dots */
+			EDX = font[20];
+			[DS:ESI + 0xe0000000 + 1024 *  2 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + 1024 *  2 + 4] = EDX;
+			EAX = font[24]; /* 4dots */
+			EDX = font[28];
+			(offset) font += 32;
+			[DS:ESI + 0xe0000000 + 1024 *  3 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + 1024 *  3 + 4] = EDX;
+			ESI += 1024 * 4;
+			ECX--;
+		} while (!= 0);
+		POP(ECX);
+		ESI -= 1024 * 16 - 8;
+		ECX--;
+	} while (!= 0);
+	(offset) cmd = (offset) string;
 	asmout("JMP next_command");
 
 error:

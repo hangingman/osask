@@ -1,7 +1,7 @@
 
-    sb13 の著作権情報
+    sb14 の著作権情報
 
-  このアーカイブに含まれるファイルは、以下の42個です。
+  このアーカイブに含まれるファイルは、以下の27個です。
 
 ・BASE/
     BASEHEAD.ASM
@@ -9,21 +9,9 @@
     INIT.ASK
     BASEFOOT.ASM
     MAKEBASE.BAT
-・SGG00LIB/
-    EXECCMD.ASM
-    FDEBUG.C
-    FPOKON.C
-    FWINMAN.C
-    INIT.C
-    MAKELIB.BAT
-    SYSGG00.H
-    SYSGG00.LIB
-    SYSGG00.OPT
 ・PCAT/
     BASE.EXE
     WINMAN0.BIN
-    DECODE0.ASK
-    DECODE0.BIN
     FDCDRV0.ASK
     FDCDRV0.BIN
     VGADRV0.ASK
@@ -31,10 +19,6 @@
 ・TOWNS/
     BASE.EXE
     WINMAN0.BIN
-    DECODE0.ASK
-    DECODE0.BIN
-    FDCDRV0.ASK
-    FDCDRV0.BIN
     VGADRV0.ASK
     VGADRV0.BIN
 ・OSALINK0.OPT

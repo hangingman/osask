@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.9
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.0
 		copyright(C) 2001 川合秀実
 	exe2bin1 winman0 -s 96k	*/
 
@@ -2303,7 +2303,7 @@ void gapi_loadankfont()
 		0x0050, 10 * 4, {
 			0x0104 /* loadfont */,
 			0x0000 /* opt */,
-			0x0000 /* type */,
+			0x0001 /* type */,
 			0x0100 /* len */,
 			0x1000 /* to */,
 			0x0000 /* from(ofs) */,

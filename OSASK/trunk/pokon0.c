@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.1.2
+/* "pokon0.c":アプリケーションラウンチャー  ver.1.3
      copyright(C) 2001 川合秀実, 小柳雅明
-    exe2bin0 pokon0 -s 36k */
+    exe2bin1 pokon0 -s 40k */
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -23,9 +23,12 @@ struct FILELIST {
 	struct SGG_FILELIST *ptr;
 };
 
-struct STR_BANK { /* 24bytes */
+struct STR_BANK { /* 88bytes */
 	int size, addr, tss;
 	char name[12];
+	struct {
+		int global, inner;
+	} Llv[8];
 };
 
 unsigned int counter = 0;
@@ -307,6 +310,8 @@ void poko_mousespeed(const char *cmdlin);
 void poko_setdefaultIL(const char *cmdlin);
 void poko_tasklist(const char *cmdlin);
 void poko_sendsignalU(const char *cmdlin);
+void poko_LLlist(const char *cmdlin);
+void poko_setIL(const char *cmdlin);
 void poko_debug(const char *cmdlin);
 
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);
@@ -333,7 +338,7 @@ void main()
 	mode     = lib_opentextbox(0x0000, AUTO_MALLOC,  0, 20, 1,  0,  0, window, 0x00c0, 0); // 256bytes
 	selector = lib_opentextbox(0x0001, AUTO_MALLOC, 15, 16, 8, 16, 32, window, 0x00c0, 0); // 1.1KB
 
-	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon12");
+	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon13");
 	lib_opentimer(SYSTEM_TIMER);
 	lib_definesignal1p0(0, 0x0010 /* timer */, SYSTEM_TIMER, 0, 287);
 
@@ -446,19 +451,31 @@ find_freebank:
 				// 適正なGUIGUI00ファイルでない場合、タスクは生成されず、iは0。
 				if (i) {
 					sgg_settasklocallevel(i,
+						0 * 32 /* local level 1 (スリープレベル) */,
+						27 * 64 + 0x0100 /* global level 27 (スリープ) */,
+						-1 /* Inner level */
+					);
+					banklist[bank].Llv[0].global = 27;
+					banklist[bank].Llv[0].inner  = -1;
+					sgg_settasklocallevel(i,
 						1 * 32 /* local level 1 (起動・システム処理レベル) */,
-						16 * 64 /* gloval level 16 (一般アプリケーション) */,
+						12 * 64 + 0x0100 /* global level 12 (一般アプリケーション) */,
 						defaultIL /* Inner level */
 					);
+					banklist[bank].Llv[1].global = 12;
+					banklist[bank].Llv[1].inner  = defaultIL;
 					sgg_settasklocallevel(i,
 						2 * 32 /* local level 2 (通常処理レベル) */,
-						16 * 64 /* gloval level 16 (一般アプリケーション) */,
+						12 * 64 + 0x0100 /* global level 12 (一般アプリケーション) */,
 						defaultIL /* Inner level */
 					);
+					banklist[bank].Llv[2].global = 12;
+					banklist[bank].Llv[2].inner  = defaultIL;
 					sgg_runtask(i, 1 * 32);
 				} else {
 					// ロードした領域を解放
 					sgg_freememory2(banklist[bank].size, banklist[bank].addr);
+					banklist[bank].size = 0;
 				}
 			} else {
 				// .EXEファイルモード
@@ -475,9 +492,10 @@ find_freebank:
 				if (exe_size == 0)
 					break; /* switch文から抜ける */
 
-				i = ('K' | ('B' << 8) | ('S' << 16) | ('1' << 24));
+				i = ('K' | ('B' << 8) | ('S' << 16) | ('1' << 24)); /* 1,440KB 非圧縮用 */
 				if (fmode)
-					i = ('K' | ('B' << 8) | ('S' << 16) | ('0' << 24));
+				//	i = ('K' | ('B' << 8) | ('S' << 16) | ('0' << 24)); /* 1,760KB 非圧縮用 */
+					i = ('K' | ('B' << 8) | ('S' << 16) | ('2' << 24)); /* 1,440KB 圧縮用 */
 
 				for (fp = file + 1; fp->name[0]; fp++) {
 					if ((fp->name[0] | (fp->name[1] << 8) | (fp->name[2] << 16) | (fp->name[3] << 24))
@@ -491,7 +509,7 @@ find_freebank:
 					}
 				}
 				if (fp->name[0] == 0)
-					break; /* "OSASKBS0.BIN"、"OSASKBS0.BIN"が見つからなかった */
+					break; /* "OSASKBS0.BIN"～"OSASKBS2.BIN"が見つからなかった */
 
 				sgg_loadfile2(i /* file id */, 99 /* finish signal */);
 				wait99(); // finish signalが来るまで待つ
@@ -531,9 +549,9 @@ find_freebank:
 				//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
 					putselector0(1, "  Formating...  ");
 					putselector0(3, "                ");
-					i = 0x0124;
-					if (fmode)
-						i = 0x0118;
+					i = 0x0124; /* 1,440KBフォーマット */
+				//	if (fmode)
+				//		i = 0x0118; /* 1,760KBフォーマットと1,440KBフォーマットの混在 */
 					sgg_format(i, 99 /* finish signal */); // format
 					wait99(); // finish signalが来るまで待つ
 				}
@@ -542,9 +560,10 @@ find_freebank:
 			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
 				putselector0(1, " Writing        ");
 				putselector0(3, "   system image.");
-				i = 0x0128;
+				i = 0x0128; /* 1,440KBフォーマット用 非圧縮 */
 				if (fmode)
-					i = 0x011c;
+				//	i = 0x011c; /* 1,760KBフォーマット用 非圧縮 */
+					i = 0x0138; /* 1,440KBフォーマット用 圧縮 */
 				sgg_format2(i, bsc_size, bsc_addr, exe_size, exe_addr,
 					99 /* finish signal */); // store system image
 				wait99(); // finish signalが来るまで待つ
@@ -748,6 +767,8 @@ find_freebank:
 							poko_setdefaultIL,	"setdefaultIL",
 							poko_tasklist,		"tasklist",
 							poko_sendsignalU,	"sendsignalU",
+							poko_LLlist,		"LLlist",
+							poko_setIL,			"setIL",
 						//	poko_debug,			"debug",
 							NULL,				NULL
 						};
@@ -855,7 +876,7 @@ void open_console()
 	console_win = lib_openwindow1(AUTO_MALLOC, 0x0210, CONSOLESIZEX * 8, CONSOLESIZEY * 16, 0x0d, 256);
 	console_tit = lib_opentextbox(0x1000, AUTO_MALLOC,  0, 16,  1,  0,  0, console_win, 0x00c0, 0);
 	console_txt = lib_opentextbox(0x0001, AUTO_MALLOC,  0, CONSOLESIZEX, CONSOLESIZEY,  0,  0, console_win, 0x00c0, 0); // 5KB
-	lib_putstring_ASCII(0x0000, 0, 0, console_tit, 0, 0, "pokon11 console");
+	lib_putstring_ASCII(0x0000, 0, 0, console_tit, 0, 0, "pokon13 console");
 	if (consolebuf == NULL)
 		consolebuf = (char *) malloc((CONSOLESIZEX + 2) * (CONSOLESIZEY + 1));
 	bp = consolebuf;
@@ -872,7 +893,7 @@ void open_console()
 	lib_definesignal0p0(0, 0, 0, 0);
 	console_curx = console_cury = 0;
 	console_col = 15;
-	consoleout("Heppoko-shell \"poko\" version 1.8\n    Copyright (C) 2001 H.Kawai(Kawaido)\n");
+	consoleout("Heppoko-shell \"poko\" version 1.9\n    Copyright (C) 2001 H.Kawai(Kawaido)\n");
 	consoleout("\npoko>");
 	if (cursoractive) {
 		lib_settimer(0x0001, SYSTEM_TIMER);
@@ -929,7 +950,7 @@ void poko_memory(const char *cmdlin)
 		int cmd, opt, mem20[4], mem24[4], mem32[4], eoc;
 	} command = { 0x0034, 0, { 0 }, { 0 }, { 0 }, 0x0000 };
 	char str[12];
-	cmdlin += 7 /* "memory " */;
+	cmdlin += 6 /* "memory" */;
 	while (*cmdlin == ' ')
 		cmdlin++;
 	if (*cmdlin) {
@@ -953,7 +974,7 @@ void poko_memory(const char *cmdlin)
 void poko_color(const char *cmdlin)
 {
 	int param0, param1 = console_col & 0xf0;
-	cmdlin += 6 /* "color " */;
+	cmdlin += 5 /* "color" */;
 	while (*cmdlin == ' ')
 		cmdlin++;
 	if (*cmdlin == '\0') {
@@ -981,7 +1002,7 @@ void poko_cls(const char *cmdlin)
 {
 	int i, j;
 	char *bp = consolebuf;
-	cmdlin += 4 /* "cls " */;
+	cmdlin += 3 /* "cls" */;
 	while (*cmdlin == ' ')
 		cmdlin++;
 	if (*cmdlin) {
@@ -1002,7 +1023,7 @@ void poko_cls(const char *cmdlin)
 void poko_mousespeed(const char *cmdlin)
 {
 	int param;
-	cmdlin += 11 /* "mousespeed " */;
+	cmdlin += 10 /* "mousespeed" */;
 	while (*cmdlin == ' ')
 		cmdlin++;
 	if (*cmdlin == '\0') {
@@ -1023,7 +1044,7 @@ void poko_mousespeed(const char *cmdlin)
 
 void poko_setdefaultIL(const char *cmdlin)
 {
-	cmdlin += 13 /* "setdefaultIL " */;
+	cmdlin += 12 /* "setdefaultIL" */;
 	while (*cmdlin == ' ')
 		cmdlin++;
 	if (*cmdlin == '\0') {
@@ -1046,7 +1067,7 @@ void poko_tasklist(const char *cmdlin)
 	char str[12];
 	static char msg[] = "000 name----\n";
 	int i, j;
-	cmdlin += 9 /* "tasklist " */;
+	cmdlin += 8 /* "tasklist" */;
 	while (*cmdlin == ' ')
 		cmdlin++;
 	if (*cmdlin) {
@@ -1076,7 +1097,7 @@ void poko_sendsignalU(const char *cmdlin)
 		int eoc;
 	} command = { 0x0020, 0x80000000 + 3, { 0x3240 + 2, 0x7f000001, 0 }, 0x0000 };
 
-	cmdlin += 12 /* "sendsignalU " */;
+	cmdlin += 11 /* "sendsignalU" */;
 	while (*cmdlin == ' ')
 		cmdlin++;
 	if (*cmdlin == '\0') {
@@ -1098,6 +1119,109 @@ void poko_sendsignalU(const char *cmdlin)
 		return;
 	}
 	sgg_execcmd(&command);
+	consoleout("\n");
+	return;
+}
+
+void poko_LLlist(const char *cmdlin)
+{
+	int task, i, l;
+	cmdlin += 6 /* "LLlist" */;
+	while (*cmdlin == ' ')
+		cmdlin++;
+	if (*cmdlin == '\0') {
+		consoleout("\nIllegal parameter(s).\n");
+		return;
+	}
+	task = console_getdec(&cmdlin) * 4096;
+	for (i = 0; i < MAX_BANK; i++) {
+		if (banklist[i].size == 0)
+			continue;
+		if (banklist[i].tss == task)
+			goto find;
+	}
+	consoleout("\nIllegal parameter(s).\n");
+	return;
+
+find:
+	while (*cmdlin == ' ')
+		cmdlin++;
+	if (*cmdlin) {
+		consoleout("\nIllegal parameter(s).\n");
+		return;
+	}
+	consoleout("\nLL GL   IL\n");
+	for (l = 0; l < 3; l++) {
+		int global;
+		char msg[16], str[16];
+		msg[ 0] = l + '0';
+		msg[ 1] = ' ';
+		itoa10(global = banklist[i].Llv[l].global, str);
+		msg[ 2] = str[ 8];
+		msg[ 3] = str[ 9];
+		msg[ 4] = str[10];
+		msg[ 5] = ' ';
+		msg[ 6] = '-';
+		msg[ 7] = '-';
+		msg[ 8] = '-';
+		msg[ 9] = '-';
+		if (global == 12) {
+			itoa10(banklist[i].Llv[l].inner, str);
+			msg[ 6] = str[ 7];
+			msg[ 7] = str[ 8];
+			msg[ 8] = str[ 9];
+			msg[ 9] = str[10];
+		}
+		msg[10] = '\n';
+		msg[11] = '\0';
+		consoleout(msg);
+	}
+	return;
+}
+
+void poko_setIL(const char *cmdlin)
+{
+	int task, i, l;
+	cmdlin += 5 /* "setIL" */;
+	while (*cmdlin == ' ')
+		cmdlin++;
+	if (*cmdlin == '\0') {
+		consoleout("\nIllegal parameter(s).\n");
+		return;
+	}
+	task = console_getdec(&cmdlin) * 4096;
+	for (i = 0; i < MAX_BANK; i++) {
+		if (banklist[i].size == 0)
+			continue;
+		if (banklist[i].tss == task)
+			goto find;
+	}
+	consoleout("\nIllegal parameter(s).\n");
+	return;
+
+find:
+	l = console_getdec(&cmdlin);
+	while (*cmdlin == ' ')
+		cmdlin++;
+	if (*cmdlin != '\0' || l == 0) {
+		consoleout("\nIllegal parameter(s).\n");
+		return;
+	}
+	
+	sgg_settasklocallevel(task,
+		1 * 32 /* local level 1 (起動・システム処理レベル) */,
+		12 * 64 + 0x0100 /* global level 12 (一般アプリケーション) */,
+		l /* Inner level */
+	);
+	banklist[i].Llv[1].global = 12;
+	banklist[i].Llv[1].inner  = l;
+	sgg_settasklocallevel(task,
+		2 * 32 /* local level 2 (通常処理レベル) */,
+		16 * 64 /* global level 16 (一般アプリケーション) */,
+		l /* Inner level */
+	);
+	banklist[i].Llv[2].global = 12;
+	banklist[i].Llv[2].inner  = l;
 	consoleout("\n");
 	return;
 }

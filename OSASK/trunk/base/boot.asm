@@ -1,5 +1,5 @@
-;	"boot.asm" ver.1.30
-;	OSASK/AT用のブートプログラム
+;	"boot.asm" ver.1.40
+;	OSASK用のブートプログラム
 ;	Copyright(C) 2001 H.Kawai (川合秀実)
 
 BootMdl			segment para use16
@@ -437,6 +437,8 @@ alloclist		db	"pdepte  "	; 0
 			dd	4096*6,-1
 			db	"fdcwork "
 			dd	4096,-1
+			db	"papiwork"
+			dd	4096*8,-1
 
 		;	dd	"_shell  ",offset ShellSiz,  ShellMdl
 
