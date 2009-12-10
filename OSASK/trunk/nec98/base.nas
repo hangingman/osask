@@ -1,5 +1,5 @@
 ;	"boot.nas" ver.2.1
-;	OSASK/AT用のブートプログラム
+;	OSASK/NEC98用のブートプログラム
 ;	Copyright(C) 2002 H.Kawai (川合秀実)
 
 ;	TAB = 4
@@ -73,7 +73,6 @@ Entry:
 	JMP		V86TaskEntry
 
 .entry2:
-.pit1_skip:
 	MOV		 AX, DS
 	MOV		 DS, WORD [CS:.SysWorkSeg]
 	MOV		 SI, CS
@@ -83,17 +82,17 @@ Entry:
 	MOV		 BYTE [DiskCacheReady],3
 
 .fromdos:
-	mov	 ax, word ds:[VGA_mode]
-	int	10h
-;mov dx,03d4h
-;mov ax,3213h
-;out dx,ax
-
-	MOV		 AH, 0x02
-	INT		0x16 ; keyboard BIOS
-	SHR		 AL,4
-	AND		 AL,0x07
-	MOV		BYTE [boot_keylock],AL
+	MOV		CH,0xC0
+	MOV		AH,0x42
+	INT		0x18 ; 400ライングラフィックモード(BIOS)
+	MOV		AH,0x40
+	INT		0x18 ; グラフィック画面表示(BIOS)
+	MOV		AH,0x0d
+	INT		0x18 ; テキスト画面非表示(BIOS)
+	MOV		AL,0xff
+	OUT		0x0002,AL ; 割り込みマスク
+	MOV		AH,0x03
+	INT		0x18 ; キーボード初期化
 
     LSS		ESP,DWORD [stackseg+8]	; espの上位wordをクリア
 
@@ -281,7 +280,7 @@ VESAPNP_2c		DD	0
 
 VGA_mode		DW	12h	; +0x10
 				DW	0
-to_winman0		DD	1 ; +0x14
+to_winman0		DD	0 ; +0x14
 
 VGA_PCI_base	DD	0
 eflags			DD	0

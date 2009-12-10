@@ -32,8 +32,8 @@ EXE2BIN = $(BIN_PATH)exe2bin2
 EXE2BIN_FLAGS_ASK = -n
 EXE2BIN_FLAGS_C = -t -s
 
-OBJ2BIM = $(BIN_PATH)obj2bim1
-BIM2BIN = $(BIN_PATH)bim2bin1
+OBJ2BIM = $(BIN_PATH)obj2bim2
+BIM2BIN = $(BIN_PATH)bim2bin2
 BIM2BIN_FLAGS_ASK = -exe512 -simple
 
 OBJ2BIM_ALIGN_FLAGS = text_align:1 data_align:4 bss_align:4
@@ -82,6 +82,12 @@ BASE_NAS = base_bch.nas
 PREPROCESSOR_FLAGS += -DBOCHS -DNOHLT
 CFLAGS += -DBOCHS -DNOHLT
 endif
+endif
+# for NEC PC-98x1
+ifeq ($(ARCH),nec98)
+BASE_NAS = base.nas
+PREPROCESSOR_FLAGS += -DNEC98
+CFLAGS += -DNEC98
 endif
 # design $(DESIGN)
 MMI = WIN9X

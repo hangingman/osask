@@ -1,4 +1,4 @@
-/* "init.ask" ver.2.5 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "init.ask" ver.2.6 copyright(C) 2002 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -41,34 +41,34 @@ struct SS0_struct {
 	/* void * */ int [4], cli_call[6], [2];
 };
 
-void near testmemory();
-void near init_areastr();
-void near ui32toa();
-void near ui8toa();
-void near output_string();
-void near initmalloc();
-void near set_modulesegment();
+void testmemory();
+void init_areastr();
+void ui32toa();
+void ui8toa();
+void output_string();
+void initmalloc();
+void set_modulesegment();
 // void far KeyboardMdl::keyboardInit();
 // void far KeyboardMdl::KeyboardIntDrv();
-void near get_area();
-void near free_area();
-void near create_task();
-void near get_memory();
-void near free_memory();
-void near alloc_memory();
-void near alloc_tagdir();
-void near add_tags();
-void near regist_module();
-void near search_tag_EAX();
-void near delete_directory();
-void near delete_binmodule();
-void near memcopy16();
-void near disable_diskcache();
-void near get_virtual();
-void near free_virtual();
-void near free_memory64();
-void near put_int_status_ec();
-void near put_int_status();
+void get_area();
+void free_area();
+void create_task();
+void get_memory();
+void free_memory();
+void alloc_memory();
+void alloc_tagdir();
+void add_tags();
+void regist_module();
+void search_tag_EAX();
+void delete_directory();
+void delete_binmodule();
+void memcopy16();
+void disable_diskcache();
+void get_virtual();
+void free_virtual();
+void free_memory64();
+void put_int_status_ec();
+void put_int_status();
 
 struct area_man_struct_sub {
 	unsigned int size;
@@ -306,11 +306,21 @@ void far Init()
 	EBX = 384 /* IDTの分 */ + all_sel;
 	set_modulesegment();
 
-	EAX = 0x4092 /* unit:byte, use32, lv0, RW */;
-	ECX = 0x00010000; /* 64KB */
-	EDX = 0x000a0000;
-	EBX = 384 /* IDTの分 */ + VRAM_sel;
-	set_modulesegment();
+	#if (defined(PCAT))
+		EAX = 0x4092 /* unit:byte, use32, lv0, RW */;
+		ECX = 0x00010000; /* 64KB */
+		EDX = 0x000a0000;
+		EBX = 384 /* IDTの分 */ + VRAM_sel;
+		set_modulesegment();
+	#endif
+
+	#if (defined(NEC98))
+		EAX = 0x4092 /* unit:byte, use32, lv0, RW */;
+		ECX = 0x00040000; /* 256KB */
+		EDX = 0x000a8000;
+		EBX = 384 /* IDTの分 */ + VRAM_sel;
+		set_modulesegment();
+	#endif
 
 	/* tapiコールの支障にならないように、ダミーセレクタを作る */
 	EAX = 0xc092 /* unit:page, use32, lv0, RW */;
@@ -568,6 +578,44 @@ void far Init()
 		ESP += 112;
 	#endif
 
+	#if (defined(NEC98))
+		EAX = 0x07 /* present, R/W, user */;
+		TEST(DL, 0x04);
+		if (!= 0)
+			EAX |= 0x10 /* VRAMはキャッシュしない(PCD=1) */;
+
+	//	ECX = 0;
+	//	PUSH((int) ECX /* eoc */);
+
+		/* mapping high memory (0x00100000～0x002fffff) */
+
+		PUSH((int) ECX /* addr64(high) */);
+		PUSH((int) 0x00100000 /* addr64(low) */);
+		PUSH((int) ECX /* offset64(high) */);
+		PUSH((int) ECX /* offset64(low) */);
+		PUSH((int) ECX /* pageset */);
+		PUSH((int) 0x00100000 /* linear */);
+		PUSH((int) 2048 * 1024 /* size(2M) */);
+		PUSH((int) 0x0007 /* opt(present, R/W, user) */);
+		PUSH((int) ESI /* cmd(mapping) */);
+
+		/* mapping VRAM (0x000a0000～0x000e7fff) */
+
+		PUSH((int) ECX /* addr64(high) */);
+		PUSH((int) 0x000a0000 /* addr64(low) */);
+		PUSH((int) ECX /* offset64(high) */);
+		PUSH((int) ECX /* offset64(low) */);
+		PUSH((int) ECX /* pageset */);
+		PUSH((int) 0x000a0000 /* linear */);
+		PUSH((int) 288 * 1024 /* size */);
+		PUSH((int) EAX /* opt(PCD, present, R/W, user) */);
+		PUSH((int) ESI /* cmd(mapping) */);
+
+		EBX = ESP;
+		CALLFAR0(papi_sel);
+		ESP += 76;
+	#endif
+
 	PUSH((int) syswork_sel);
 	POP(ES);
 	PUSH(SS /* stack_sel */);
@@ -724,7 +772,12 @@ void far Init()
 	EBX = ESP;
 	CALLFAR0(fdcdrive_sel);
 	POP(EDX);
-	EBX = 0x0130 /* int26 */;
+	#if (defined(PCAT) || defined(TOWNS))
+		EBX = 0x0130 /* int26 */;
+	#endif
+	#if (defined(NEC98))
+		EBX = 0x0158 /* int2b */;
+	#endif
 	POP(EAX);
 	POP(ECX);
 //	POP(EDX);
@@ -826,11 +879,38 @@ void far Init()
 		AL = 0x4b; /* OCW3 ISR読み込み 特殊マスクモードリセット 01001011 */
 		OUT(0x10, AL); /* slave */
 	#endif
+	#if (defined(NEC98))
+		AL = 0x11; /* ICW1 (edge trigger) */
+		OUT(0x00, AL); /* master */
+		NOP();
+		OUT(0x08, AL); /* slave */
+		AL = 0x20; /* ICW2(int-no.) */
+		OUT(0x02, AL); /* master */
+		AL = 0x28; /* ICW2(int-no.) */
+		OUT(0x0a, AL); /* slave */
+		AL = 0x80; /* ICW3 slaveがつながっているIRQのbitを1にする(bit7 = 1) */
+		OUT(0x02, AL); /* master */
+		AL = 0x07; /* ICW3 slaveはmasterの何番に接続されているか(IRQ 07) */
+		OUT(0x0a, AL); /* slave */
+		AL = 0x1d; /* ICW4(buf.-master mode) */
+		OUT(0x02, AL); /* master */
+		AL = 0x09; /* ICW4(buf.-slave mode) */
+		OUT(0x0a, AL); /* slave */
+	//	AL = 0x7d; /* OCW1 keyboardとslaveだけを許可 01111101 */
+		AL = 0x7f; /* OCW1 slaveだけを許可 01111101 */
+		OUT(0x02, AL); /* master */
+		AL = 0xf7; /* OCW1 FDCだけを許可 11110111 */
+		OUT(0x0a, AL); /* slave */
+		AL = 0x4a; /* OCW3 IRR読み込み 特殊マスクモードリセット 01001010 */
+		OUT(0x00, AL); /* master */
+		AL = 0x4b; /* OCW3 ISR読み込み 特殊マスクモードリセット 01001011 */
+		OUT(0x08, AL); /* slave */
+	#endif
 
 	STI(); // IF = 1;
 
 	/* フォントロード for debug */
-	#if (defined(BOCHS))
+	#if (defined(BOCHS) || defined(NEC98))
 		PUSH((int) 0x0000);
 		PUSH((int) 7 * 8 /* ankfont-sel */);
 		PUSH((int) 0x0000 /* offset */);
@@ -955,14 +1035,16 @@ void far Init()
 	PUSH((int) syswork_sel);
 	POP(DS);
 
+
 //	PUSH((int) 0);
 	#if (defined(PCAT))
 		asmout("MOV AL,BYTE PTR DS:[FD_motor_init]");
 		/* 0x0c(全モーター停止、ドライブ0選択)か0x1c(drv0のモーター回転、他は停止、ドライブ0選択) */
 		PUSH(EAX);
-	#endif
-	#if (defined(TOWNS))
+	#elif (defined(TOWNS))
 		PUSH((int) 0x0301 /* 全モーター停止、ドライブ0選択 */);
+	#elif (defined(NEC98))
+		PUSH(EAX); /* !NEC98! 未完成ダミー */
 	#endif
 	PUSH((int) 0x0100 /* 初期化 */);
 	EBX = ESP;
@@ -983,8 +1065,7 @@ void far Init()
 		OUT(0x0042, AL);
 		NOP();
 		OUT(0x0042, AL);
-	#endif
-	#if (defined(TOWNS))
+	#elif (defined(TOWNS))
 		IN(AL, 0x0060);
 		AL >>= 2;
 		AL &= 0x03;
@@ -995,7 +1076,18 @@ void far Init()
 		OUT(0x0044, AL);
 		NOP();
 		OUT(0x0044, AL);
+	#elif (defined(NEC98))
+		AL = 0x07;
+		OUT(0x0037, AL);
+		AL = 0xb6;
+		OUT(0x0077, AL);
+		EDX = 0x3fdb;
+		EAX = 0;
+		OUT(DX, AL);
+		NOP();
+		OUT(DX, AL);
 	#endif
+
 //	POPFD();
 	STI();
 
@@ -1576,6 +1668,80 @@ void far Init()
 		ESP += 20;
 	#endif
 
+	#if (defined(NEC98))
+		EDX = 0x439;
+		OUT(0x00f2, AL); /* A20解除 */
+		IN(AL, DX);
+		AL &= 0xfb;
+		OUT(DX, AL); /* DMAのA20-A23有効 */
+		/* i386DX, i486, Pentium */
+		EBX = 0x00100000;
+		EBP = 15;
+	//	EBX = 0x00300000;
+	//	EBP = 13;
+		testmemory();
+
+		ECX = 0;
+		PUSH((int) ECX);
+		PUSH((int) ECX);
+		PUSH((int) 0x80000101);
+		PUSH((int) ECX);
+		PUSH((int) ECX);
+		PUSH((int) 0x0114);
+		EBX = ESP;
+		CALLFAR0(papi_sel);
+		EAX = [SS:ESP + 16];
+		ESP += 24;
+		if (EAX != 0 /* (unsigned) work->mem24_man.data[0].size >= 0x00e00000 */) {
+			/* 14MB以上 */
+			EBX = 0x01000000;
+			EBP = 1024 - 16;
+			testmemory();
+		}
+
+		POP(DS);
+	//	PUSH((int) 0);
+		PUSH((int) 0x80000001);
+		PUSH((int) 160 * 8 * 1024 /* for debug */ /* 160 * 8 * 1024 : TOWNS */);
+		PUSH((int) 0);
+		PUSH((int) 0x0114);
+		EBX = ESP;
+		CALLFAR0(papi_sel);
+		ESP += 16;
+
+	//	ECX = 160 * 8 * 1024;
+	//	work->mem24_man.data[0].size -= ECX;
+	//	work->mem24_man.data[0].addr += ECX;
+
+		/* ローディング開始 */
+	//	PUSH((int) 0);
+	//	PUSH((int) 0x0108 /* FDC_diskchange */);
+	//	EBX = ESP;
+	//	CALLFAR0(fdcdrive_sel);
+	//	ESP += 8 - 4;
+	//	POP(EAX);
+		/* このルーチンは古すぎる。PC/AT用のを参考に書き直せ */
+	//	/* GSの値はおかしいので代入せよ */
+	//	asmout("TEST BYTE PTR GS:[DiskCacheReady],01H");
+	//	if (!= 0) {
+	//		PUSH((int) 0);
+	//		PUSH((int) 0x0301 /* FDD motor off */);
+	//		PUSH((int) 0x0124 /* FDC motorcontrol */);
+	//		PUSH((int) 0x010c /* FDC_diskcache1 */);
+	//		EBX = ESP;
+	//	//	CALLFAR0(fdcdrive_sel);
+	//		ESP += 16;
+	//	}
+	//	PUSH((int) 0);
+		PUSH((int) 12 /* 作業中のシグナル */);
+		PUSH((int) 16 /* 完了シグナル */);
+		PUSH((int) 0x0110 /* FDC_loadFAT */);
+		PUSH((int) 0x0108 /* FDC_diskchange */);
+		EBX = ESP;
+		CALLFAR0(fdcdrive_sel);
+		ESP += 20;
+	#endif
+
 	int *msg == GS:ESI;
 	unsigned int msgdw == EDI;
 
@@ -1931,7 +2097,7 @@ POP(EDI);
 		ECX = 0x501c;
 	//	[DS:ECX /* (0x501c) V86 task CR3 */] = EAX;
 	#endif
-	#if (defined(TOWNS))
+	#if (defined(TOWNS) || defined(NEC98))
 		ECX = 0x401c;
 	//	[DS:ECX /* (0x401c) pokon0 task CR3 */] = EAX;
 	#endif
@@ -2227,6 +2393,8 @@ POP(EDI);
 	EBX = ESP;
 	CALLFAR0(tapi_sel);
 	ESP += 16 + 16;
+
+/* !!!ここまでは成功 NEC98 */
 
 	POP((offset) msg);
 //	for (;;); /* ここだと死ぬ */
@@ -5134,6 +5302,8 @@ nextcmd:
 			goto cmd0418; /* linear dots */
 		if (EAX == 0x041c)
 			goto cmd041c; /* points */
+		if (EAX == 0x0420)
+			goto cmd0420; // store font
 		if (EAX == 0x0510)
 			goto cmd0510; // define signal
 		INT(0x03);
@@ -5260,6 +5430,10 @@ cmd0040:
 					AL >>= 2;
 					AL &= 0x03;
 					OUT(0x0060, AL);
+				#endif
+				#if (defined(NEC98))
+					AL = 0x07;
+					OUT(0x0037, AL);
 				#endif
 				POPFD();
 			}
@@ -5992,6 +6166,8 @@ cmd0400:
 
 cmd0404:
 	// 文字表示
+	/* cmd, opt, winslot, x, y, col, bcol, charset, base, len, ofs, sel */
+	/* opt: bit0-1 > through, bit8-9 > dw|by|wd|qw */ 
 	GUIGUI_window_struct *cmd0404_win == ES:ESI;
 	int *cmd0404_stack == SS:ESP + 8;
 	PUSH((int) 0x003c); // slot_sel
@@ -6580,6 +6756,205 @@ cmd041c:
 	ESP += 84;
 	goto nextcmd;
 
+cmd0420:
+	// 文字表示
+	/* cmd, opt, ofs, sel, linebytes, col, bcol, charset, base, len, ofs, sel */
+
+	/* cmd, opt, winslot, x, y, col, bcol, charset, base, len, ofs, sel */
+	/* opt: bit24-25 > dw|by|wd|qw */ 
+	int *cmd0420_stack == SS:ESP + 8;
+	PUSH((int) 0x003c); // slot_sel
+	PUSH((int) stack_sel);
+	ESI = cmd[36]; /* length */
+	POP(ES);
+	LEA(EAX, [ESI * 4 + 40]);
+	POP(DS);
+	EDI = ESP;
+	ESP -= EAX;
+	PUSH((offset) cmd);
+	PUSH(EDI); /* old ESP */
+	EAX = cmd[ 4]; /* opt */
+	EAX &= 0x00ffcfff;
+	cmd0420_stack[ 0] = 0x0101; // put fonts
+	cmd0420_stack[ 4] = EAX; // opt
+	EAX = cmd[ 8]; /* ofs */
+	ECX = cmd[12]; /* sel */
+	EDX = cmd[16]; /* linebytes */
+	cmd0420_stack[ 8] = EAX;
+	cmd0420_stack[12] = ECX;
+	EAX = cmd[20]; /* col */
+	ECX = cmd[24]; /* bcol */
+	cmd0420_stack[16] = EAX;
+	cmd0420_stack[20] = ECX;
+	cmd0420_stack[24] = EDX;
+	EDI = cmd[28]; /* charset */
+//	ESI = cmd[36];
+	EDX = cmd[32]; /* base */
+	asmout("LES EBX,GS:[EBP+40]");
+	AH = cmd[ 5]; /* opt */
+	LEA(EBP, cmd0420_stack[36]);
+	AH &= 0x30;
+	cmd0420_stack[32] = ESI; /* len */
+	if (== 0)
+		goto cmd0420_dword;
+	if (AH == 0x10)
+		goto cmd0420_byte;
+	if (AH == 0x20)
+		goto cmd0420_word;
+
+INT(0x03);
+
+#if 0
+cmd0420_qword:
+	do {
+		/* EBX, EBP, ESI, EDI */
+		EAX = (int) [ES:EBX];
+		EBX += 8;
+		EAX += EDX;
+		/* local fontcode を global fontaddr に変換する */
+		PUSH(EDX);
+		PUSH(EDI);
+nextfont2_q:
+		EAX -= [DS:EDI + 4 /* base */];
+		if ((unsigned) < 0)
+			goto nextfont_q;
+		if ((unsigned) EAX >= [DS:EDI + 0] /* range */)
+			goto nextfont_q;
+		ECX = [DS:EDI + 8 /* conv */];
+		EDX = ECX;
+		ECX &= 0x0f;
+		EDX &= 0xfffffff0;
+		SHL(EAX, CL);
+		POP(EDI);
+		EAX += EDX;
+		POP(EDX);
+		(int) [SS:EBP] = EAX;
+		EBP += 4;
+		ESI--;
+	} while (!= 0);
+	goto cmd0420_final;
+
+nextfont_q:
+	EAX += [DS:EDI + 4 /* base */];
+	EDI += 16;
+	goto nextfont2_q;
+
+#endif
+
+cmd0420_dword:
+	do {
+		/* EBX, EBP, ESI, EDI */
+		EAX = (int) [ES:EBX];
+		EBX += 4;
+		EAX += EDX;
+
+		/* local fontcode を global fontaddr に変換する */
+		PUSH(EDX);
+		PUSH(EDI);
+nextfont4_d:
+		EAX -= [DS:EDI + 4 /* base */];
+		if ((unsigned) < 0)
+			goto nextfont3_d;
+		if ((unsigned) EAX >= [DS:EDI + 0] /* range */)
+			goto nextfont3_d;
+		ECX = [DS:EDI + 8 /* conv */];
+		EDX = ECX;
+		ECX &= 0x0f;
+		EDX &= 0xfffffff0;
+		SHL(EAX, CL);
+		POP(EDI);
+		EAX += EDX;
+		POP(EDX);
+		(int) [SS:EBP] = EAX;
+		EBP += 4;
+		ESI--;
+	} while (!= 0);
+
+cmd0420_final:
+	(int) [SS:EBP + 0] = /* 0 */ ESI; // eoc
+	LEA(EBX, [SS:ESP + 8]);
+	DB(0x9a); DD(0); DW((short) GAPI_sel);
+	POP(EDI);
+	POP((offset) cmd);
+	ESP = EDI;
+	(offset) cmd += 48;
+	goto nextcmd;
+
+nextfont3_d:
+	EAX += [DS:EDI + 4 /* base */];
+	EDI += 16;
+	goto nextfont4_d;
+
+cmd0420_word:
+	do {
+		/* EBX, EBP, ESI, EDI */
+		EAX = (unsigned short) [ES:EBX];
+		EBX += 2;
+		EAX += EDX;
+
+		/* local fontcode を global fontaddr に変換する */
+		PUSH(EDX);
+		PUSH(EDI);
+nextfont4_w:
+		EAX -= [DS:EDI + 4 /* base */];
+		if ((unsigned) < 0)
+			goto nextfont3_w;
+		if ((unsigned) EAX >= [DS:EDI + 0] /* range */)
+			goto nextfont3_w;
+		ECX = [DS:EDI + 8 /* conv */];
+		EDX = ECX;
+		ECX &= 0x0f;
+		EDX &= 0xfffffff0;
+		SHL(EAX, CL);
+		POP(EDI);
+		EAX += EDX;
+		POP(EDX);
+		(int) [SS:EBP] = EAX;
+		EBP += 4;
+		ESI--;
+	} while (!= 0);
+	goto cmd0420_final;
+
+nextfont3_w:
+	EAX += [DS:EDI + 4 /* base */];
+	EDI += 16;
+	goto nextfont4_w;
+
+cmd0420_byte:
+	do {
+		/* EBX, EBP, ESI, EDI */
+		EAX = (unsigned char) [ES:EBX];
+		EBX++;
+		EAX += EDX;
+
+		/* local fontcode を global fontaddr に変換する */
+		PUSH(EDX);
+		PUSH(EDI);
+nextfont4_b:
+		EAX -= [DS:EDI + 4 /* base */];
+		if ((unsigned) < 0)
+			goto nextfont3_b;
+		if ((unsigned) EAX >= [DS:EDI + 0] /* range */)
+			goto nextfont3_b;
+		ECX = [DS:EDI + 8 /* conv */];
+		EDX = ECX;
+		ECX &= 0x0f;
+		EDX &= 0xfffffff0;
+		SHL(EAX, CL);
+		POP(EDI);
+		EAX += EDX;
+		POP(EDX);
+		(int) [SS:EBP] = EAX;
+		EBP += 4;
+		ESI--;
+	} while (!= 0);
+	goto cmd0420_final;
+
+nextfont3_b:
+	EAX += [DS:EDI + 4 /* base */];
+	EDI += 16;
+	goto nextfont4_b;
+
 cmd0510:
 	// define signal
 	// cmd, opt, default[12](dev, code, win), msgbox, len, signal[8], far *purpose
@@ -6675,6 +7050,10 @@ cmd0604:
 			AL &= 0x03;
 			OUT(0x0060, AL);
 		#endif
+		#if (defined(NEC98))
+			AL = 0x07;
+			OUT(0x0037, AL);
+		#endif
 		POPFD();
 	}
 	EDX &= 0xffffffe;
@@ -6741,6 +7120,10 @@ cmd0608_enable:
 				AL &= 0x03;
 				OUT(0x0060, AL);
 			#endif
+			#if (defined(NEC98))
+				AL = 0x07;
+				OUT(0x0037, AL);
+			#endif
 			POPFD();
 			goto nextcmd;
 		}
@@ -6750,6 +7133,17 @@ cmd0608_enable:
 		#endif
 		#if (defined(TOWNS))
 			ECX = 307200;
+		#endif
+		#if (defined(NEC98))
+			PUSH(EAX);
+			IN(AL, 0x0042);
+			ECX = 2457600; /* 5MHz系 */
+			TEST(AL, 0x20);
+			if (!= 0) {
+				/* 8MHz系 */
+				ECX = 1996800;
+			}
+			POP(EAX);
 		#endif
 		MUL(ECX);
 		(unsigned int) EAX >>= 31; /* EAXのMSBをLSBへ */
@@ -6785,6 +7179,17 @@ cmd0608_enable:
 			AL &= 0x07;
 			AL |= 0x04;
 			OUT(0x0060, AL);
+		#endif
+		#if (defined(NEC98))
+			AL = 0xb6 /* 10110110B */;
+			EDX = 0x3fdb;
+			OUT(0x0077, AL);
+			AL = CL;
+			OUT(DX, AL);
+			AL = CH;
+			OUT(DX, AL);
+			AL = 0x06;
+			OUT(0x0037, AL);
 		#endif
 		POPFD();
 	}
@@ -7548,7 +7953,7 @@ cmd0040:
 	#if (defined(PCAT))
 		ESI = 0x102600;
 	#endif
-	#if (defined(TOWNS))
+	#if (defined(TOWNS) || defined(NEC98))
 		ESI = 0x101400;
 	#endif
 	(offset) cmd += 32;
@@ -7559,7 +7964,7 @@ cmd0040:
 			if (ESI == 0x104200)
 				break;
 		#endif
-		#if (defined(TOWNS))
+		#if (defined(TOWNS) || defined(NEC98))
 			if (ESI == 0x102c00)
 				break;
 		#endif
@@ -7682,6 +8087,11 @@ cmd0068:
 	DB(0x9a); DD(0); DW((short) decode_sel);
 	POP((offset) cmd);
 	(offset) cmd += cmd[4];
+	#if (defined(NEC98))
+		IN(AL, 0x0002);
+		AL &= 0xfd; /* keyboard enable */
+		OUT(0x0002, AL);
+	#endif
 	goto nextcmd;
 
 cmd006c:
@@ -8978,11 +9388,13 @@ void near put_int_status2()
 //	asmout("MOV DWORD PTR SS:[EBP+60],' '+'='*100h+' '*10000h+'0'*1000000h");
 //	asmout("MOV DWORD PTR SS:[EBP+64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
 //	asmout("MOV DWORD PTR SS:[EBP+68],'5'+'6'*100h+'7'*10000h+000*1000000h");
-	PUSH(DS);
-	EAX = tapiwork_sel;
-	DS = AX;
-	EAX = (int) [DS:0x000c];
-	POP(DS);
+	#if 1
+		PUSH(DS);
+		EAX = tapiwork_sel;
+		DS = AX;
+		EAX = (int) [DS:0x000c];
+		POP(DS);
+	#endif
 	// ESI = EBP +  6;
 	asmout("LEA ESI,[EBP+6]");
 	ui32toa();
@@ -9286,6 +9698,44 @@ void far int39()
 	IRETD();
 
 #if 0
+	PUSH(EAX); /* ダミーのエラーコード */
+	PUSHAD();
+	EAX = 0;
+	ESI = CODE::"INT 0x27 IRQ7\0";
+	IN(AL, 0x0020);
+	(int) [SS:ESP + 32] = EAX;
+	asmout("JMP put_int_status_ec");
+#endif
+}
+
+#endif
+
+#if (defined(NEC98) && 0)
+
+void far int39()
+{
+#if 0
+	/* ノイズにより不完全割り込みが発生したと判断 */
+	/* IRRをクリアするために、PICを再初期化 */
+	PUSH(EAX);
+	IN(AL, 0x21); /* master IMR */
+	PUSH(EAX);
+	AL = 0x11; /* ICW1 (edge trigger) */
+	OUT(0x20, AL); /* master */
+	AL = 0x20; /* ICW2(int-no.) */
+	OUT(0x21, AL); /* master */
+	AL = 0x04; /* ICW3 slaveがつながっているIRQのbitを1にする(bit2 = 1) */
+	OUT(0x21, AL); /* master */
+	AL = 0x01; /* ICW4(non-buf. mode) */
+	OUT(0x21, AL); /* master */
+	POP(EAX);
+	OUT(0x21, AL); /* OCW1 (IMR復帰) */
+	AL = 0x4a; /* OCW3 IRR読み込み 特殊マスクモードリセット 01001010 */
+	OUT(0x20, AL); /* master */
+	POP(EAX);
+	IRETD();
+#endif
+#if 1
 	PUSH(EAX); /* ダミーのエラーコード */
 	PUSHAD();
 	EAX = 0;

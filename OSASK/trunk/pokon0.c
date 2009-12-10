@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.2.7
+/* "pokon0.c":アプリケーションラウンチャー  ver.2.8
      copyright(C) 2002 小柳雅明, 川合秀実
     stack:4k malloc:84k file:1024k */
 
@@ -8,9 +8,9 @@
    仕様もかなり流動的 */
 #include <stdlib.h>
 
-#include "../pokon0.h"
+#include "pokon0.h"
 
-#define POKON_VERSION "pokon27"
+#define POKON_VERSION "pokon28"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.1\n    Copyright (C) 2002 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -1240,8 +1240,8 @@ void OsaskMain()
 			refresh_selector:
 				/* 全てのファイルセレクタを更新 */
 				for (i = 0; i < MAX_SELECTOR; i++) {
-					if (win[i].subtitle_str[0])
-						list_set(&win[i]);
+					if (selwin[i].subtitle_str[0])
+						list_set(&selwin[i]);
 				}
 				break;
 

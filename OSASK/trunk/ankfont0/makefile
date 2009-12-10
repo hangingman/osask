@@ -27,7 +27,7 @@ ifeq ($(MMI),WIN31)
 SRC = win31.txt
 endif
 ifeq ($(MMI),NEWSTYLE)
-TARGET0 = newstyle.bin
+SRC = newstyle.txt
 endif
 
 

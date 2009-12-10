@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.4b
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.5
     copyright(C) 2002 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -19,7 +19,7 @@ default(code == CODE);
 	#define DEFAULT_TBOX_BCOL	15
 
 #elif (defined(CHO_OSASK))
-	#define DEFAULT_TBOX_BCOL	7
+	#define DEFAULT_TBOX_BCOL	8
 
 #elif (defined(NEWSTYLE))
 	#define DEFAULT_TBOX_BCOL	8
@@ -74,6 +74,7 @@ void near drawcomponent();
 void near drawwindow();
 void near textbox_drawback(); /* テキストボックスの背景描画ルーチン */
 void near lineconv();
+void sendusersignal();
 
 /*
 	スロットの使用状況
@@ -138,7 +139,7 @@ cmd_jumptable:
 	asmout("DD OFFSET cmd030,  OFFSET cmd034,  OFFSET #cmderr, OFFSET cmd03c ");
 	asmout("DD OFFSET cmd040,  OFFSET cmd044,  OFFSET cmd048,  OFFSET cmd04c ");
 	asmout("DD OFFSET cmd050,  OFFSET cmd054,  OFFSET cmd058,  OFFSET cmd05c ");
-	asmout("DD OFFSET cmd060,  OFFSET #cmderr, OFFSET cmd068,  OFFSET #cmderr");
+	asmout("DD OFFSET cmd060,  OFFSET #cmderr, OFFSET cmd068,  OFFSET cmd06c ");
 	asmout("DD OFFSET cmd070,  OFFSET cmd074,  OFFSET cmd078,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd080,  OFFSET cmd084,  OFFSET #cmderr, OFFSET cmd08c ");
 	asmout("DD OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
@@ -149,7 +150,7 @@ cmd_jumptable:
 	asmout("DD OFFSET cmd0e0,  OFFSET cmd0e4,  OFFSET cmd0e8,  OFFSET cmd0ec ");
 	asmout("DD OFFSET cmd0f0,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
 	asmout("DD OFFSET #cmderr, OFFSET #cmderr, OFFSET cmd108,  OFFSET cmd10c ");
-	asmout("DD OFFSET cmd050,  OFFSET #cmderr, OFFSET cmd118,  OFFSET #cmderr");
+	asmout("DD OFFSET cmd050,  OFFSET cmd114,  OFFSET cmd118,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd120,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
 }
 
@@ -1257,7 +1258,11 @@ void near cmd040()
 // put string
 /* bit0 : bcolor */
 /* bit1 : color-font */
-/* bit6 : far-ptr */
+/* bit8-9 : 0,1,2,3(4) */
+/* bit10 : col無効化 */
+/* bit11 : bcol無効化 */
+/* bit12-13 : dw|by|wd|dw */
+/* bit14 : far-ptr */
 {
 	int *cmd == DS:ESI;
 	WINDOW *win == DS:EDI;
@@ -2124,6 +2129,39 @@ void near cmd068()
 	}
 }
 
+void cmd06c()
+/* send signal self */
+/* cmd, opt, sig0, sig1, sig2, ... */
+/* cmd, opt, ofs, sel */
+{
+	WORK *work == SS:EBP;
+	int *cmd == DS:ESI;
+	ECX = cmd[4];
+	TEST(CL, 0x02);
+	if (!= 0)
+		INT(0x03);
+	TEST(CL, 0x01);
+	PUSH(ES);
+	if (== 0) {
+		/* 即値 */
+		ECX /= 4;
+		PUSH(DS); POP(ES); /* 必要ないかも */
+		LEA(EDI, cmd[8]);
+		LEA(ESI, [ESI + ECX * 4 + 8]);
+	} else {
+		/* 間接 */
+		ECX /= 4;
+		LES(EDI, cmd[8]);
+		(offset) cmd += 16;
+	}
+	sendusersignal();
+	POP(ES);
+	if (ZF == 0 /* error */)
+		INT(0x03);
+
+	asmout("JMP nextcmd");
+}
+
 void near cmd070()
 // タイマーノードオープン
 {
@@ -2150,10 +2188,12 @@ cmd074_intervaloff:
 	}
 	PUSH((int) 0x0000);
 	PUSH(EDX);
+	PUSH((int) 0x0310); /* 現在時刻設定 */
+	PUSH(EDX);
 	PUSH((int) 0x0300); // タイマーノード取得
 	EBX = ESP;
 	CALL(0x0017,0); // shell-call
-	ESP += 12;
+	ESP += 20;
 	asmout("JMP nextcmd");
 asmout("cmd074_intervaloff EQU #cmd074_intervaloff");
 }
@@ -3413,6 +3453,126 @@ draw:
 }
 #endif
 
+void near cmd114()
+// put string (to gbox)
+/* cmd(0x0114), opt, x0, y0, gbox, col, bcol, charset, base, len, ofs, sel */
+/* bit0 : half */
+/* bit1 : color-font */
+/* bit6-7 : pset, and, or, xor */
+/* bit8-9 : 0,1,2,3(4) */
+/* bit10 : col無効化 */
+/* bit11 : bcol無効化 */
+/* bit12-13 : dw|by|wd|dw */
+/* bit14 : far-ptr */
+/* opt:bit14 far-ptr, gboxの下位8bitが-1の場合、x0, y0はofs, selになる。skipはgbox>>8 */
+/* opt:bit15 flash抑制 */
+/* opt:bit6-7はbit14-15へ移植される */
+{
+	int *cmd == DS:ESI;
+	WINDOW *win == DS:EDI;
+	GRAPHBOX *gbox == DS:EDI;
+
+	EAX = cmd[ 4]; /* opt */
+	TEST(EAX, 0x4300);
+	if (== 0)
+		INT(0x03);
+
+	if ((unsigned) (char) cmd[16] == 0xff)
+		goto nogbox;
+
+	PUSH(0x0000);
+	(offset) gbox = cmd[16]; /* gbox/linebytes */
+	PUSH(cmd[44]); /* sel */
+	PUSH(cmd[40]); /* ofs */
+	if (gbox->mode != 0x01)
+		INT(0x03);
+	EDX = gbox->x_bsize;
+	ECX = cmd[12]; /* y0/sel */
+	PUSH(cmd[36]); /* len */
+	PUSH(cmd[32]); /* base */
+	IMUL(ECX, EDX);
+	PUSH(cmd[28]); /* charset */
+	PUSH(cmd[24]); /* bcol */
+	ECX += cmd[ 8]; /* x0/ofs */
+	PUSH(cmd[20]); /* col */
+	PUSH(EDX);
+	LEA(ECX, [ECX + EDI + 64]);
+	PUSH(DS);
+	PUSH(ECX);
+	ECX = EAX;
+	AH &= 0x3f;
+	CL &= 0xc0;
+	AH |= CL;
+	PUSH(EAX);
+	PUSH(0x0420);
+	EBX = ESP;
+	CALL(0x0017,0); // GUIGUI統合shellcall
+	POP(EAX);
+	POP(ECX);
+	POP(EAX); /* bufアドレス */
+	ECX = cmd[36]; /* len */
+	ESP += 4 * 9;
+	ECX *= 8;
+	PUSH(DS);
+	EDX -= ECX;
+	PUSH(EAX);
+	PUSH(EDX); /* yskip */
+	EAX = 8;
+	TEST((char) cmd[ 4], 0x01);
+	if (== 0)
+		EAX *= 2;
+	PUSH(EAX); /* ysize */
+	PUSH(ECX); /* xsize */
+	EAX = cmd[12]; /* y0 */
+	ECX = cmd[ 8]; /* x0 */
+	EAX -= gbox->vy0;
+	ECX -= gbox->vx0;
+	EAX += gbox->y0;
+	ECX += gbox->x0;
+	(offset) win = gbox->window;
+	PUSH(EAX);
+	PUSH(ECX);
+	PUSH(win->slot);
+	PUSH(1);
+	PUSH(0x0414); /* putblock */
+	EBX = ESP;
+	TEST((char) cmd[ 5], 0x80);
+	if (== 0) {
+		if (win->draw_enable != 0) {
+			CALL(0x0017,0); // GUIGUI統合shellcall
+		}
+	}
+	ESP += 44;
+	(offset) cmd += 48;
+	asmout("JMP nextcmd");
+
+nogbox:
+	PUSH(0x0000);
+	ECX = cmd[16]; /* gbox/linebytes */
+	PUSH(cmd[44]); /* sel */
+	(signed int) ECX >>= 8; /* さかさまに対応するため */
+	PUSH(cmd[40]); /* ofs */
+	PUSH(cmd[36]); /* len */
+	PUSH(cmd[32]); /* base */
+	PUSH(cmd[28]); /* charset */
+	PUSH(cmd[24]); /* bcol */
+	PUSH(cmd[20]); /* col */
+	PUSH(ECX);
+	PUSH(cmd[12]); /* y0/sel */
+	PUSH(cmd[ 8]); /* x0/ofs */
+	ECX = EAX;
+	AH &= 0x3f;
+	CL &= 0xc0;
+	AH |= CL;
+	PUSH(EAX);
+	PUSH(0x0420);
+	EBX = ESP;
+	CALL(0x0017,0); // GUIGUI統合shellcall
+	ESP += 4 * 13;
+	(offset) cmd += 48;
+	asmout("JMP nextcmd");
+}
+
 void near cmd118()
 /* get randseed */
 /* cmd, opt, (seed) */
@@ -4134,15 +4294,23 @@ windatarray:
 		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f00);
 		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
 	#elif (defined(CHO_OSASK))
-		DB( 0, 0, 0, 0,  0,-1,  -1,-1);	/* frame downside line */
-		DB(15,15, 0,15,  7, -8, -8,-8);	/* frame inner downside line */
-		DB(15,15, 0,15, -8, 29, -8,-9);	/* frame inner rightside line */
-		DB( 0, 0, 0, 0,  7, 29,  7,-8);	/* frame inner leftside line */
-		DB( 0, 0, 0, 0,  7, 28, -8,28);	/* frame inner upside line */
-		DB( 7, 7, 0, 7,  1, 1,  -2,-2);	/* window */
-		DB( 0, 0, 0, 0, -1, 1,  -1,-2);	/* frame rightside line */
-		DB(15,15, 0,15,  0, 1,   0,-2);	/* frame leftside line */
-		DB(15,15, 0,15,  0, 0,  -1, 0);	/* frame upside line */
+		DB( 0, 0, 0, 0,  0, -2,  -1,-1);	/* frame downside line */
+		DB( 8, 8, 0, 7,  2, -6,  -3,-2);	/* frame downside fill */
+		DB(15,15, 0,15,  6, -7,  -7,-7);	/* frame inner downside line */
+		DB( 0, 0, 0, 0,  8, -8,  -8,-8);	/* frame inner downside line */
+		DB( 8, 8, 0, 7, -6, 27,  -3,-7);	/* frame rightside fill */
+		DB(15,15, 0,15, -7, 27,  -7,-8);	/* frame inner rightside line */
+		DB( 0, 0, 0, 0, -8, 29,  -8,-7);	/* frame inner rightside line */
+		DB( 8, 8, 0, 8,  8, 29,  -9,-9);	/* window fill */
+		DB( 0, 0, 0, 0,  6, 29,   7,-8);	/* frame inner leftside line */
+		DB( 8, 8, 0, 7,  2, 27,   5,-7);	/* frame leftside fill */
+		DB( 0, 0, 0, 0,  6, 27,  -8,28);	/* frame inner upside line */
+		DB( 8, 8, 0, 7,  2,  2,  -3,26);	/* frame upside fill */
+		DB( 0, 0, 0, 0, -2,  1,  -1,-3);	/* frame rightside line */
+		DB(15,15, 0,15,  1,  2,   1,-3);	/* frame leftside line */
+		DB( 0, 0, 0, 0,  0,  1,   0,-3);	/* frame leftside line */
+		DB(15,15, 0,15,  1,  1,  -3, 1);	/* frame upside line */
+		DB( 0, 0, 0, 0,  0,  0,  -1, 0);	/* frame upside line */
 	/*	DB( 0, 0,-1, 0);	*/			/* End of data */
 	picsmap:
 		DD(0x0e070707, 0x0e07070e, 0x0e0e0e0e, 0x0e0e0e0e);	/* 超 */
@@ -4370,6 +4538,7 @@ void near drawcomponent()
 	return;
 }
 
+#if (!defined(CHO_OSASK))
 void near textbox_drawback()
 /* EAX:0x0010(box), 0x0020(boxfill) */
 // EDX:win_slot, ESI:textbox
@@ -4473,6 +4642,196 @@ tb_table:
 //	DB( 8, +1, -2, +1, +1); /* inside right */
 
 }
+#else
+#define PushFB(opt,x0,y0,x1,y1,c) \
+	PUSH(c);PUSH(y1);PUSH(x1);PUSH(y0);PUSH(x0); \
+	PUSH(slot);PUSH(opt);PUSH(0x400)
+
+void near clipping();
+
+void near textbox_drawback()
+/* クリッピング付き版
+ *	パラメータ
+ *		TEXTBOX *textbox == ESI;
+ *		WINDOW *window == EDI;
+ 		int mode == EAX;
+ */
+{
+	struct MYSTACKFRAME{
+		int work0,work1,work2,tx,ty,tw,th,tbc,ww,wh;
+		void end[0];
+	};
+	MYSTACKFRAME *var == SS:EBP;
+	WINDOW *window == DS:EDI;
+	TEXTBOX *textbox == DS:ESI;
+	int mode == EAX, s == ECX, slot == EDX, t == EBX;
+
+	PUSH(EBP);PUSH(EDX);PUSH(ESI);
+
+	/* stack frame に必要な情報を集める(tx,ty,tw,th,tbc,ww,wh) */
+		PUSH(window->y_size);
+		PUSH(window->x_size);
+		s = textbox->y_size;
+		t = textbox->x_size;
+		s *= 8;
+		PUSH(textbox->backcolor);
+		t *= 8;
+		TEST(textbox->option, 0x10);
+		if(==0)
+			s *= 2;
+		PUSH(s);
+		PUSH(t);
+		PUSH(textbox->y0);
+		PUSH(textbox->x0);
+		PUSH(s);PUSH(s);PUSH(s);
+		(offset)var = ESP;
+
+	/* EOC と(必要なら)塗りつぶしコマンドをpush */
+	int x0 == ECX, y0 == EBX, x1 == ESI, y1 == EDI;
+
+		PUSH(0);					/* EOC */
+		if(mode==0x20){
+			x0 = var->tx;
+			y0 = var->ty;
+			x1 = var->tw;
+			y1 = var->th;
+			LEA(x1, [x1 + x0 -1]);
+			LEA(y1, [y1 + y0 -1]);
+			PushFB(mode, x0,y0, x1,y1, var->tbc);
+		}
+
+	struct TBDAT{
+		unsigned char flag, col;
+		signed char x0, y0, x1, y1;
+	};
+	TBDAT *tbdat == DS:EDI;
+
+	/* クリッピングしつつコマンドをpush */
+		/* (offset)tbdat = tbdatarray;
+			使えない:ASKA(あるいはc言語)にとってラベルとは
+			何なのか？ ポインタではないのか？ */
+		asmout("mov edi, offset #tbdatarray");
+
+		PUSH(CS);POP(DS);
+		do{
+			signed int a == EAX;
+			signed char al == AL;
+			unsigned int x == ECX, w == EBX,
+						 u == ESI, v == EDI;
+
+			al = tbdat->flag;
+			a &= 0x1;
+			if(==0)
+				al = tbdat->col;
+			else
+				al = var->tbc;
+			var->work2 = a;			/* col */
+	
+			a = tbdat->x0;
+			x = var->tx;
+			if(a>=0)
+				x += var->tw;		/* x = tx+dx0 (+tw); */
+			x += a;
+
+			a = tbdat->x1;
+			w = var->tx;
+			w -= x;
+			if(a>=0)
+				w += var->tw;		/* w = tx+dx0 (+tw) -x; */
+			LEA(w, [w+a+1]);
+
+			PUSH((offset)tbdat);
+				v = var->ww;
+				u = 8;
+				v -= 8+8;
+				clipping();			/* clipping(x, w, 8, ww-8-8); */
+			POP((offset)tbdat);
+
+			if(w!=0){
+				LEA(w, [w + x -1]);	/* 先の計算結果を保存 */
+				var->work0 = x;
+				var->work1 = w;
+
+			  unsigned int y == ECX, h == EBX;
+
+				a = tbdat->y0;
+				y = var->ty;
+				if(a>=0)
+					y += var->th;	/* y = ty+dy0 (+th); */
+				y += a;
+
+				a = tbdat->y1;
+				h = var->ty;
+				h -= y;
+				if(a>=0)
+					h += var->th;	/* h = ty+dy1 (+th) -y; */
+				LEA(h,[h+a+1]);
+
+				PUSH((offset)tbdat);
+					v = var->wh;
+					u = 29;
+					v -= 29+8;
+					clipping();		/* clipping(y, h, 8, ww-8-8); */
+				POP((offset)tbdat);
+
+				if(w!=0){
+					LEA(h, [y +h -1]);
+					PushFB(0x20, var->work0,y, var->work1,h, var->work2);
+				}
+			}
+			al = tbdat->flag;
+			(offset)tbdat += 6;		/* (sizeof)TBDAT; 使えない */
+			TEST(al,0x2);
+		}while(==0);
+
+	PUSH(SS);POP(DS);
+	EBX = ESP;
+	CALL(0x17,0);		/* GUIGUI00Shell(); */
+
+	LEA(ESP, [(offset)var->end]);
+	POP(ESI);POP(EDX);POP(EBP);
+	return;
+
+tbdatarray:
+  DB( 0,  0,  -3, -3,   2, -3);	/* upside line     white */
+  DB( 0,  0,  -3, -2,  -3,  1);	/* leftside line   white */
+  DB( 0, 15,   2, -2,   2,  1);	/* rightside line  black */
+  DB( 0, 15,  -3,  2,   2,  2);	/* downside line   black */
+  DB( 1,  0,  -2, -2,   1, -1);	/* upside fill     tbc */
+  DB( 1,  0,  -2, -1,  -1,  0);	/* leftside fill   tbc */
+  DB( 1,  0,   0, -1,   1,  0);	/* rightside fill  tbc */
+  DB( 3,  0,  -2,  0,   1,  2);	/* downside fill   tbc,  end */
+}
+
+void near clipping()
+/* 一次元のクリッピング
+ * x から始まる長さ w の直線を u からの長さ v の枠でクリップ
+ * ASKAらしく(?)引数はレジスタ渡し
+ */
+{
+	unsigned int x == ECX, w == EBX, u == ESI, v == EDI, t == EAX;
+
+	t = u;
+	t -= x;
+	if((unsigned)<=){		/* 左にはみ出している */
+		t += v;
+		if((signed)>)		/* 右端は入っている */
+			goto clipR;
+	  notdraw:				/* 全く入っていない */
+		w = 0;
+		return;
+	}
+	if((unsigned)t>=w)		/* 右に全く飛び出している */
+		goto notdraw;
+	w -= t;					/* clipL */
+	t = v;
+	x = u;
+  clipR:
+	if((unsigned)t<w)		/* 右にはみ出している */
+		w = t;
+	return;
+}
+#endif
 
 void near lineconv()
 /* EBPには本来の値より1小さい値が返るので、使う前にインクリメントすること */

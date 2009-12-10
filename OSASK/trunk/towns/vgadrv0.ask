@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" for TOWNS ver.1.5 copyright(C) 2002 川合秀実, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.1.6 copyright(C) 2002 川合秀実, I.Tak. */
 
 /* TWVSW is... TOWNS Vertial Screen Width! */
 #if (!defined(TWVSW))
@@ -204,7 +204,10 @@ void near GAPI_fontwrite()
 					0000001 4bit color font
 	*/
 
-	if ((unsigned) cmd[4] >= 2)
+	EAX = cmd[4];
+	if (AH != 0)
+		goto opt_high;
+	if ((unsigned) EAX >= 2)
 		goto opt2;
 	EAX = cmd[ 8]; /* x */
 	ESI = cmd[12]; /* y */
@@ -496,6 +499,87 @@ opt3:
 		ECX--;
 	} while (!= 0);
 	(offset) cmd = (offset) string;
+	asmout("JMP next_command");
+
+opt_high:
+/*
+	0x0101, opt, x, y, col, bcol[20], dummy[24], dummy[28], len, str...
+	optによって、x, yがofs:selになる
+	opt8-10 : 0, 1, 2, 4(3) (0以外はRAM描画, dmy[24]がラインバイト)
+	opt11 : extフラグ, strをfar-ptrにする(でも価値無しだな)
+	opt12 : col無効化フラグに
+	opt13 : bcol無効化フラグ
+	opt14-15 : pset, and, or, xor
+	とりあえず、opt:0x0100のみのサポートを追加しよう。
+	optで関数のアドレスが決まり、それをループごとに呼ぶ。jmpでもよい。
+*/
+	if (EAX != 0x0100)
+		goto error;
+	PUSH(DS);
+	EBP = cmd[24];
+	LDS(ESI, cmd[8]);
+	ECX = cmd[32]; /* len */
+	DL = cmd[16]; /* col */
+	DH = cmd[20]; /* bcol */
+	(offset) cmd += 36;
+	do {
+		PUSH(ECX);
+		PUSH(ESI);
+		EDI = *cmd;
+		(offset) cmd += 4;
+		CL = 16;
+		do {
+			CH = [ES:EDI];
+			EDI++;
+			TEST(CH, 0x80);
+			AL = DL;
+			if (== 0)
+				AL = DH;
+			[DS:ESI] = AL;
+			TEST(CH, 0x40);
+			AL = DL;
+			if (== 0)
+				AL = DH;
+			[DS:ESI + 1] = AL;
+			TEST(CH, 0x20);
+			AL = DL;
+			if (== 0)
+				AL = DH;
+			[DS:ESI + 2] = AL;
+			TEST(CH, 0x10);
+			AL = DL;
+			if (== 0)
+				AL = DH;
+			[DS:ESI + 3] = AL;
+			TEST(CH, 0x08);
+			AL = DL;
+			if (== 0)
+				AL = DH;
+			[DS:ESI + 4] = AL;
+			TEST(CH, 0x04);
+			AL = DL;
+			if (== 0)
+				AL = DH;
+			[DS:ESI + 5] = AL;
+			TEST(CH, 0x02);
+			AL = DL;
+			if (== 0)
+				AL = DH;
+			[DS:ESI + 6] = AL;
+			TEST(CH, 0x01);
+			AL = DL;
+			if (== 0)
+				AL = DH;
+			[DS:ESI + 7] = AL;
+			ESI += EBP;
+			CL--;
+		} while (!= 0);
+		POP(ESI);
+		POP(ECX);
+		ESI += 8;
+		ECX--;
+	} while (!= 0);
+	POP(DS);
 	asmout("JMP next_command");
 
 error:
@@ -1289,6 +1373,7 @@ void near GAPI_putbox()
 
 	int *cmd == FS:EBX;
 	unsigned char *p == ES:EDI, *q == DS:ESI;
+	unsigned int *pi == ES:EDI, *qi == DS:ESI;
 
 	PUSH(ES);
 	PUSH(EBP);
@@ -1304,6 +1389,34 @@ void near GAPI_putbox()
 	TEST(AL, 0x10);
 	if (!= 0)
 		goto putbox1;
+	TEST((char) cmd[16] /* xsize */, 0x7);
+	if (== 0) {
+		TEST((offset) p, 0x3);
+		if (== 0) {
+			TEST((offset) q, 0x3);
+			if (== 0) {
+				do {
+					ECX = cmd[16]; /* xsize */
+					do {
+						EAX = pi[0];
+						qi[0] = EAX;
+						EAX = pi[4];
+						(offset) p += 8;
+						qi[4] = EAX;
+						(offset) q += 8;
+						ECX -= 8;
+					} while (!= 0);
+					(offset) p += cmd[24]; /* yskip */
+					(offset) q += EBP;
+					EDX--;
+				} while (!= 0);
+				(offset) cmd += 36;
+				POP(EBP);
+				POP(ES);
+				asmout("JMP next_command");
+			}
+		}
+	}
 	do {
 		ECX = cmd[16]; /* xsize */
 		do {
