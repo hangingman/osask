@@ -1,5 +1,5 @@
-// "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.5
-//		copyright(C) 2000-2001 川合秀実
+// "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.6
+//		copyright(C) 2001 川合秀実
 //  exe2bin0 winman0 -s 24k
 
 #include <guigui00.h>
@@ -35,6 +35,9 @@ int *joblist, jobfree, *jobrp, *jobwp, jobnow = 0;
 void (*jobfunc)(int, int);
 int x2 = 0, y2, fromboot = 0, mx = 0x80000000, my, mbutton = 0;
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
+struct WM0_WINDOW *job_win;
+int job_count, job_int0, job_movewin4_ready = 0;
+int job_movewin_x, job_movewin_y, job_movewin_x0, job_movewin_y0;
 
 void lib_drawline(const int opt, const int reserve, const int color,
 	const int x0, const int y0, const int x1, const int y1);
@@ -42,7 +45,7 @@ void init_screen(const int x, const int y);
 struct WM0_WINDOW *handle2window(const int handle);
 void chain_unuse(struct WM0_WINDOW *win);
 struct WM0_WINDOW *get_unuse();
-void mousesignal(const int header, const int dx, const int dy);
+void mousesignal(const unsigned int header, int dx, int dy);
 void writejob(int i);
 void runjobnext();
 void job_openwin0(struct WM0_WINDOW *win);
@@ -53,7 +56,9 @@ void job_movewin1(const int cmd, const int handle);
 void job_movewin2();
 void job_movewin3();
 void job_movewin4(int sig);
+void job_movewin4m(int x, int y);
 void job_closewin0(struct WM0_WINDOW *win0);
+void job_closewin1(const int cmd, const int handle);
 void job_general0(const int cmd, const int handle);
 void job_general1();
 void job_general2(const int cmd, const int handle);
@@ -66,6 +71,10 @@ void free_sndtrk(struct SOUNDTRACK *sndtrk);
 struct SOUNDTRACK *alloc_sndtrk();
 void send_signal2dw(const int sigbox, const int data0, const int data1);
 void send_signal3dw(const int sigbox, const int data0, const int data1, const int data2);
+
+void lib_drawletters_ASCII(const int opt, const int win, const int charset, const int x0, const int y0,
+	const int color, const int backcolor, const char *str);
+void debug_bin2hex(unsigned int i, unsigned char *s);
 
 // キー操作：
 //    F9:一番下のウィンドウへ
@@ -304,7 +313,7 @@ void main()
 			// ジョブリストにこの要求を入れる
 			if (jobfree >= 2) {
 				// 空きが十分にある
-				writejob(0x0028 /* move */);
+				writejob(0x0028 /* move by keyboard */);
 				writejob((int) top);
 				*jobwp = 0; // ストッパー
 				if (jobnow == 0)
@@ -357,7 +366,7 @@ void main()
 
 		default:
 		mikannsei:
-			lib_drawline(0x0020, 0, 0, 0, 0, 15, 15); // ここに来たことを知らせる
+			lib_drawline(0x0020, -1, 0, 0, 0, 15, 15); // ここに来たことを知らせる
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 		}
@@ -372,9 +381,10 @@ void lib_drawline(const int opt, const int reserve, const int color,
 		int reserve, color;
 		int x0, y0, x1, y1;
 		int eoc;
-	} command = { 0x0044, 0, 0, 0, 0, 0, 0, 0, 0x0000 };
+	} command = { 0x0044, 0, -1, 0, 0, 0, 0, 0, 0x0000 };
 
 	command.opt = opt;
+//	command.reserve = reserve;
 	command.color = color;
 	command.x0 = x0;
 	command.y0 = y0;
@@ -387,20 +397,20 @@ void lib_drawline(const int opt, const int reserve, const int color,
 
 void init_screen(const int x, const int y)
 {
-	lib_drawline(0x0020, 0,  6,      0,      0, x -  1, y - 29);
-	lib_drawline(0x0020, 0,  8,      0, y - 28, x -  1, y - 28);
-	lib_drawline(0x0020, 0, 15,      0, y - 27, x -  1, y - 27);
-	lib_drawline(0x0020, 0,  8,      0, y - 26, x -  1, y -  1);
-	lib_drawline(0x0020, 0, 15,      3, y - 24,     59, y - 24);
-	lib_drawline(0x0020, 0, 15,      2, y - 24,      2, y -  4);
-	lib_drawline(0x0020, 0,  7,      3, y -  4,     59, y -  4);
-	lib_drawline(0x0020, 0,  7,     59, y - 23,     59, y -  5);
-	lib_drawline(0x0020, 0,  0,      2, y -  3,     59, y -  3);
-	lib_drawline(0x0020, 0,  0,     60, y - 24,     60, y -  3);
-	lib_drawline(0x0020, 0,  7, x - 47, y - 24, x -  4, y - 24);
-	lib_drawline(0x0020, 0,  7, x - 47, y - 23, x - 47, y -  4);
-	lib_drawline(0x0020, 0, 15, x - 47, y -  3, x -  4, y -  3);
-	lib_drawline(0x0020, 0, 15, x -  3, y - 24, x -  3, y -  3);
+	lib_drawline(0x0020, -1,  6,      0,      0, x -  1, y - 29);
+	lib_drawline(0x0020, -1,  8,      0, y - 28, x -  1, y - 28);
+	lib_drawline(0x0020, -1, 15,      0, y - 27, x -  1, y - 27);
+	lib_drawline(0x0020, -1,  8,      0, y - 26, x -  1, y -  1);
+	lib_drawline(0x0020, -1, 15,      3, y - 24,     59, y - 24);
+	lib_drawline(0x0020, -1, 15,      2, y - 24,      2, y -  4);
+	lib_drawline(0x0020, -1,  7,      3, y -  4,     59, y -  4);
+	lib_drawline(0x0020, -1,  7,     59, y - 23,     59, y -  5);
+	lib_drawline(0x0020, -1,  0,      2, y -  3,     59, y -  3);
+	lib_drawline(0x0020, -1,  0,     60, y - 24,     60, y -  3);
+	lib_drawline(0x0020, -1,  7, x - 47, y - 24, x -  4, y - 24);
+	lib_drawline(0x0020, -1,  7, x - 47, y - 23, x - 47, y -  4);
+	lib_drawline(0x0020, -1, 15, x - 47, y -  3, x -  4, y -  3);
+	lib_drawline(0x0020, -1, 15, x -  3, y - 24, x -  3, y -  3);
 	sgg_wm0_putmouse(mx, my);
 	return;
 }
@@ -449,11 +459,36 @@ struct WM0_WINDOW *get_unuse()
 	return win;
 }
 
-void mousesignal(const int header, const int dx, const int dy)
+static enum {
+	NO_PRESS, CLOSE_BUTTON, TITLE_BAR
+} press_pos = NO_PRESS;
+static struct WM0_WINDOW *press_win;
+static int press_mx0, press_my0;
+
+void mousesignal(const unsigned int header, int dx, int dy)
 {
 	if ((header >> 28) == 0x0 /* normal mode */) {
 		// マウス状態変更
 		int ox = mx, oy = my;
+		if (job_movewin4_ready != 0 && (dx | dy) != 0) {
+			if (press_pos == NO_PRESS) {
+				int xsize = job_win->x1 - job_win->x0;
+				int ysize = job_win->y1 - job_win->y0;
+				if (job_movewin_x <= mx && mx < job_movewin_x + xsize &&
+					job_movewin_y <= my && my < job_movewin_y + ysize) {
+					if (press_mx0 < 0) {
+						press_mx0 = mx;
+						press_my0 = my;
+					}
+					job_movewin4m(mx + dx, my + dy);
+				} else {
+					press_mx0 = mx = (job_win->x0 + job_win->x1) / 2;
+					press_my0 = my = job_win->y0 + 12;
+					dx = dy = 0;
+				}
+			} else if (press_pos == TITLE_BAR && press_win == job_win)
+				job_movewin4m(mx + dx, my + dy);
+		}
 		mx += dx;
 		my += dy;
 		if (mx < 0)
@@ -467,6 +502,7 @@ void mousesignal(const int header, const int dx, const int dy)
 		if (mx != ox || my != oy)
 			sgg_wm0_movemouse(mx, my);
 		if (mbutton != (header & 0x07)) {
+			struct WM0_WINDOW *win;
 			// マウスのボタン状態が変化
 			// bit0:left
 			// bit1:right
@@ -477,7 +513,10 @@ void mousesignal(const int header, const int dx, const int dy)
 			if ((mbutton & 0x01) == 0x00 && (header & 0x01) == 0x01) {
 				// 左ボタンが押された
 
-				struct WM0_WINDOW *win;
+				if (job_movewin4_ready != 0 && press_pos == NO_PRESS) {
+					job_movewin4(0x00f0 /* Enter */);
+					goto skip;
+				}
 
 				// どのwindowをクリックしたのかを検出
 				if (win = top) {
@@ -490,7 +529,28 @@ void mousesignal(const int header, const int dx, const int dy)
 				}
 				if (win != NULL) {
 		found_window:
-					if (win != top) {
+					if (win == top) {
+						// アクティブなウィンドウの中にマウスがある
+						if (win->x1 - 21 <= mx && mx < win->x1 - 5 && win->y0 + 5 <= my && my < win->y0 + 19) {
+							// close buttonをプレスした
+							press_win = win;
+							press_pos = CLOSE_BUTTON;
+						} else if (win->x0 + 3 <= mx && mx < win->x1 - 4 && win->y0 + 3 <= my && my < win->y0 + 21) {
+							// title-barをプレスした
+							if (jobfree >= 2) {
+								// 空きが十分にある
+								press_win = win;
+								press_pos = TITLE_BAR;
+								press_mx0 = mx;
+								press_my0 = my;
+								writejob(0x0028 /* move */);
+								writejob((int) win);
+								*jobwp = 0; // ストッパー
+								if (jobnow == 0)
+									runjobnext();
+							}
+						}
+					} else {
 						// ジョブリストにウィンドウアクティブ要求を入れる
 						if (jobfree >= 2) {
 							// 空きが十分にある
@@ -500,13 +560,37 @@ void mousesignal(const int header, const int dx, const int dy)
 						}
 					}
 				}
+			} else if ((mbutton & 0x01) == 0x01 && (header & 0x01) == 0x00) {
+				// 左ボタンがはなされた
+				switch (press_pos) {
+				case CLOSE_BUTTON:
+					if (press_win->x1 - 21 <= mx && mx < press_win->x1 - 5 &&
+						press_win->y0 + 5 <= my && my < press_win->y0 + 19) {
+						if (press_win != pokon0)
+							sgg_wm0s_close(&press_win->sgg);
+					}
+					break;
+
+				case TITLE_BAR:
+					if (press_win == job_win && job_movewin4_ready != 0) {
+						// 移動先確定シグナルを送る
+						job_movewin4(0x00f0 /* Enter */);
+					}
+				//	break;
+
+				}
+				press_pos = NO_PRESS;
 			}
+skip:
 			mbutton = header & 0x07;
 		}
 	} else if ((header >> 28) == 0xa /* extmode byte2 */) {
 		// マウスリセット
 		mbutton = 0;
 		sgg_wm0_enablemouse();
+		#if (defined(DEBUG))
+			lib_drawletters_ASCII(1, -1, 0xc0,  0, 0, 15, 0, "mouse reset");
+		#endif
 	} else {
 		// mikannsei
 	}
@@ -551,7 +635,7 @@ void runjobnext()
 			job_activewin0((struct WM0_WINDOW *) readjob());
 			break;
 
-		case 0x0028 /* move window */:
+		case 0x0028 /* move window by keyboard */:
 			job_movewin0((struct WM0_WINDOW *) readjob());
 			break;
 
@@ -565,14 +649,12 @@ void runjobnext()
 
 		case 0x0034 /* set VGA mode */:
 			job_setvgamode0(readjob());
+		//	break;
 
 		}
 	} while (jobnow == 0);
 	return;
 }
-
-struct WM0_WINDOW *job_win;
-int job_count, job_int0;
 
 const int overrapwin(const struct WM0_WINDOW *win0, const struct WM0_WINDOW *win1)
 {
@@ -710,13 +792,20 @@ void job_movewin0(struct WM0_WINDOW *win)
 
 void job_movewin1(const int cmd, const int handle)
 {
+	if (cmd != 0x00c0) {
+		#if (defined(DEBUG))
+			unsigned char s[12];
+			s[8] = '\0';
+			debug_bin2hex(cmd, s);    lib_drawletters_ASCII(1, -1, 0xc0,  0, 0, 13, 0, s);
+			debug_bin2hex(handle, s); lib_drawletters_ASCII(1, -1, 0xc0, 80, 0, 13, 0, s);
+		#endif
+		return;
+	}
 	// 0x00c0しかこない
 	if (--job_count == 0)
 		job_movewin2();
 	return;
 }
-
-int job_movewin_x, job_movewin_y;
 
 void job_movewin2()
 {
@@ -727,9 +816,17 @@ void job_movewin2()
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x00f0);
 
 	// 枠を描く
-	job_movewin_x = job_win->x0;
-	job_movewin_y = job_win->y0;
+	job_movewin_x0 = job_movewin_x = job_win->x0;
+	job_movewin_y0 = job_movewin_y = job_win->y0;
 	job_movewin3();
+	job_movewin4_ready = 1;
+	if (press_pos == NO_PRESS) {
+		if (job_movewin_x > mx || mx >= job_win->x1 || job_movewin_y > my || my >= job_win->y1) {
+			press_mx0 = mx = (job_win->x0 + job_win->x1) / 2;
+			press_my0 = my = job_win->y0 + 12;
+			sgg_wm0_movemouse(mx, my);
+		}
+	}
 	return;
 }
 
@@ -743,10 +840,10 @@ void job_movewin3()
 	x1 = x0 + win->x1 - win->x0 - 1;
 	y1 = y0 + win->y1 - win->y0 - 1;
 
-	lib_drawline(0x00e0, 0, 9, x0,     y0,     x1 - 3, y0 + 2);
-	lib_drawline(0x00e0, 0, 9, x0 + 3, y1 - 2, x1,     y1    );
-	lib_drawline(0x00e0, 0, 9, x0,     y0 + 3, x0 + 2, y1    );
-	lib_drawline(0x00e0, 0, 9, x1 - 2, y0,     x1,     y1 - 3);
+	lib_drawline(0x00e0, -1, 9, x0,     y0,     x1 - 3, y0 + 2);
+	lib_drawline(0x00e0, -1, 9, x0 + 3, y1 - 2, x1,     y1    );
+	lib_drawline(0x00e0, -1, 9, x0,     y0 + 3, x0 + 2, y1    );
+	lib_drawline(0x00e0, -1, 9, x1 - 2, y0,     x1,     y1 - 3);
 	return;
 }
 
@@ -768,6 +865,11 @@ void job_movewin4(int sig)
 	if (sig == 0x00d3 && y0 + ysize <= y2 - 36)
 		y0 += 8;
 	if ((x0 - job_movewin_x) | (y0 - job_movewin_y)) {
+		if (press_pos == NO_PRESS || press_pos == TITLE_BAR) {
+			mx += x0 - job_movewin_x;
+			my += y0 - job_movewin_y;
+			sgg_wm0_movemouse(mx, my);
+		}
 		job_movewin3();
 		job_movewin_x = x0;
 		job_movewin_y = y0;
@@ -775,19 +877,21 @@ void job_movewin4(int sig)
 	}
 
 	if (sig == 0x00f0) {
+		job_movewin4_ready = 0;
+		press_mx0 = -1;
 		job_movewin3();
 		struct WM0_WINDOW *win1;
-		win0->job_flag0 = 0x81000000; // override-disable & must-redraw
+		win0->job_flag0 = 0x81000000; // override-disabled & must-redraw
 		win1 = win0 /* top */->down;
 		do {
-			int flag0 = 0x01000000; // override-disable
+			int flag0 = 0x01000000; // override-disabled
 			if (overrapwin(win0, win1))
-				flag0 = 0x81000000; // override-disable & must-redraw
+				flag0 = 0x81000000; // override-disabled & must-redraw
 			win1->job_flag0 = flag0;
 		} while ((win1 = win1->down) != win0);
 
 		// ウィンドウを消す
-		lib_drawline(0x0020, 0, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
+		lib_drawline(0x0020, -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
 
 		win0->x0 = x0;
 		win0->y0 = y0;
@@ -796,6 +900,32 @@ void job_movewin4(int sig)
 		sgg_wm0s_movewindow(&win0->sgg, win0->x0, win0->y0);
 		redirect_input(win0);
 		job_general1();
+	}
+	return;
+}
+
+void job_movewin4m(int x, int y)
+{
+	struct WM0_WINDOW *win0 = job_win;
+
+	int x0 = job_movewin_x0 + (x - press_mx0) & ~7;
+	int y0 = job_movewin_y0 + y - press_my0;
+	int xsize = win0->x1 - win0->x0;
+	int ysize = win0->y1 - win0->y0;
+
+	if (x0 < 0)
+		x0 = 0;
+	if (x0 > x2 - xsize)
+		x0 = x2 - xsize;
+	if (y0 < 0)
+		y0 = 0;
+	if (y0 > y2 - ysize - 28)
+		y0 = y2 - ysize - 28;
+	if ((x0 - job_movewin_x) | (y0 - job_movewin_y)) {
+		job_movewin3();
+		job_movewin_x = x0;
+		job_movewin_y = y0;
+		job_movewin3();
 	}
 	return;
 }
@@ -811,7 +941,8 @@ void job_closewin0(struct WM0_WINDOW *win0)
 	win_up->down = win_down;
 	win_down->up = win_up;	
 
-	job_count = 1;
+	job_count = 0;
+	jobfunc = &job_closewin1;
 
 	if (win0 == top) {
 		top = win_down;
@@ -839,9 +970,27 @@ void job_closewin0(struct WM0_WINDOW *win0)
 no_window:
 
 	// ウィンドウを消す
-	lib_drawline(0x0020, 0, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
+	lib_drawline(0x0020, -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
 	chain_unuse(win0);
-	job_general0(0, 0);
+	if (job_count == 0)
+		job_general1();
+	return;
+}
+
+void job_closewin1(const int cmd, const int handle)
+{
+	if (cmd != 0x00c0) {
+		#if (defined(DEBUG))
+			unsigned char s[12];
+			s[8] = '\0';
+			debug_bin2hex(cmd, s);    lib_drawletters_ASCII(1, -1, 0xc0,  0, 0, 14, 0, s);
+			debug_bin2hex(handle, s); lib_drawletters_ASCII(1, -1, 0xc0, 80, 0, 14, 0, s);
+		#endif
+		return;
+	}
+	if (--job_count)
+		return;
+	job_general1();
 	return;
 }
 
@@ -853,6 +1002,7 @@ no_window:
 // ウィンドウ移動の場合、移動元と重なっているものを全て"must-redraw"にしたあと
 // もといた場所を消し、あとは自動に任せる
 
+/*
 void job_general0(const int cmd, const int handle)
 {
 	jobfunc = &job_general0;
@@ -861,6 +1011,7 @@ void job_general0(const int cmd, const int handle)
 	job_general1();
 	return;
 }
+*/
 
 void job_general1()
 // condition.bit 0 ... 0:accessdisable 1:accessenable
@@ -868,6 +1019,8 @@ void job_general1()
 
 // job_flag0.bit 0 ... new condition.bit 0(auto-set)
 // job_flag0.bit 1 ... new condition.bit 1(auto-set)
+// job_flag0.bit 8 ... disable-accept waiting
+// job_flag0.bit 9 ... redraw finish waiting
 // job_flag0.bit24 ... 0:normal 1:override-accessdisabled
 // job_flag0.bit31 ... 0:normal 1:must-redraw
 {
@@ -885,9 +1038,9 @@ void job_general1()
 	do {
 		flag0 = win0->job_flag0;
 		flag0 |=  0x01; // accessenable
-		flag0 &= ~0x02; // not-input-active
+		flag0 &= ~0x0302; // not-input-active & no-waiting
 		if ((win0->condition & 0x01) == 0)
-			flag0 |= 0x01000000; // override-disable
+			flag0 |= 0x01000000; // override-disabled
 		win0->job_flag0 = flag0;
 	} while ((win0 = win0->down) != top_);
 
@@ -910,7 +1063,7 @@ void job_general1()
 	win0 = bottom = top_->up; // 一番上の上は、一番下
 	do {
 		flag0 = win0->job_flag0;
-		if (win0->condition != (flag0 & 0x03) || (flag0 & 0x01000000) != 0)
+		if (win0->condition != (flag0 & 0x03) || (flag0 & 0x01000001) == 0x01000001)
 			win0->job_flag0 = (flag0 |= 0x80000000);
 		if (flag0 & 0x80000000) {
 			for (win1 = win0->up; win1 != bottom; win1 = win1->up) {
@@ -923,8 +1076,9 @@ void job_general1()
 	} while ((win0 = win0->down) != bottom);
 
 	// redrawを予定しているウィンドウで、他のredraw予定ウィンドウとオーバーラップしているものは、
-	// 全てoverride-accessdisableにする
-	job_count = 1;
+	// 全てoverride-accessdisabledにする
+	job_count = 0;
+	jobfunc = &job_general2;
 	win0 = top_;
 	do {
 		if ((win0->job_flag0 & 0x81000000) == 0x80000000) {
@@ -932,11 +1086,11 @@ void job_general1()
 				if (win1->job_flag0 & 0x80000000) {
 					if (overrapwin(win0, win1)) {
 						sgg_wm0s_accessdisable(&win0->sgg);
-						win0->job_flag0 |= 0x01000000;
+						win0->job_flag0 |= 0x01000100;
 						job_count++;
 						if ((win1->job_flag0 & 0x81000000) == 0x80000000) {
 							sgg_wm0s_accessdisable(&win1->sgg);
-							win1->job_flag0 |= 0x01000000;
+							win1->job_flag0 |= 0x01000100;
 							job_count++;
 						}
 					}
@@ -945,19 +1099,44 @@ void job_general1()
 		}
 	} while ((win0 = win0->down) != top_);
 	job_win = top_;
-	job_general2(0, 0);
+	if (job_count == 0)
+		job_general2(0, 0);
 	return;
 }
 
 void job_general2(const int cmd, const int handle)
 {
-	struct WM0_WINDOW *win = job_win;
+	struct WM0_WINDOW *win;
 	int flag0;
 
-	jobfunc = &job_general2;
+	if (cmd != 0 || handle != 0) {
+		win = handle2window(handle);
+		if (cmd == 0x00c0 /* 更新停止受理シグナル */) {
+			if (win->job_flag0 & 0x00000100)
+				win->job_flag0 &= ~0x00000100;
+			else {
+				#if (defined(DEBUG))
+					unsigned char s[12];
+				#endif
+error:
+				#if (defined(DEBUG))
+					s[8] = '\0';
+					debug_bin2hex(cmd, s);    lib_drawletters_ASCII(1, -1, 0xc0,  0, 0, 15, 0, s);
+					debug_bin2hex(handle, s); lib_drawletters_ASCII(1, -1, 0xc0, 80, 0, 15, 0, s);
+				#endif
+				return;
+			}
+		} else if (cmd == 0x00c4 /* 描画完了シグナル */) {
+			if (win->job_flag0 & 0x00000200)
+				win->job_flag0 &= ~0x00000200;
+			else
+				goto error;
+		}
+		if (--job_count)
+			return;
+	}
 
-	if (--job_count)
-		return;
+	win = job_win;
 
 	if (win == top && win->job_flag0 == 0) {
 		// １周目でwin->job_flag0が0になることはない
@@ -978,11 +1157,13 @@ void job_general2(const int cmd, const int handle)
 	job_win = win;
 	if ((flag0 & 0x01000001) == 0x00000000) {
 		sgg_wm0s_accessdisable(&win->sgg);
+		win->job_flag0 |= 0x00000100;
 		job_count = 1;
 	}
 	if ((flag0 & 0x03) != win->condition)
 		sgg_wm0s_setstatus(&win->sgg, win->condition = (flag0 & 0x03));
 	sgg_wm0s_redraw(&win->sgg);
+	win->job_flag0 |= 0x00000200;
 	job_count++;
 	return;
 }
@@ -1131,3 +1312,69 @@ void job_setvgamode3(const int sig, const int result)
 	sgg_wm0_setvideomode(0x0012 /* VGA */, 0x0014);
 	return;
 }
+
+#if (defined(DEBUG))
+
+void lib_drawletters_ASCII(const int opt, const int win, const int charset, const int x0, const int y0,
+	const int color, const int backcolor, const char *str)
+{
+	struct COMMAND {
+		int cmd; /* 0x0048 */
+		int opt /* 必ず0x0001にする */;
+		int window, charset /* 必ず0x00c0にする */;
+		int x0, y0 /* dot単位 */;
+		int color, backcolor;
+		int length;
+	//	int letters[0];
+		int eoc;
+    };
+
+	const unsigned char *s;
+	int *t;
+	int length;
+	
+	struct COMMAND *command;
+
+	// strの長さを調べる
+	for (s = (const unsigned char *) str; *s++; );
+
+	if (length = s - (const unsigned char *) str - 1) {
+		command = malloc(sizeof (struct COMMAND) + length * 4);
+
+		command->cmd = 0x0048;
+		command->opt = opt;
+		command->window = win;
+		command->charset = charset;
+		command->x0 = x0;
+		command->y0 = y0;
+		command->color = color;
+		command->backcolor = backcolor;
+		command->length = length;
+
+		s = (const unsigned char *) str;
+		t = &command->eoc;
+		while (*t++ = *s++);
+
+		lib_execcmd(command);
+		free(command);
+	}
+	return;
+}
+
+void debug_bin2hex(unsigned int i, unsigned char *s)
+{
+	int j;
+	unsigned char c;
+	s += 7;
+	for (j = 0; j < 8; j++) {
+		c = (i & 0x0f) | '0';
+		i >>= 4;
+		if (c > '9')
+			c += 'A' - '0' - 10;
+		*s = c;
+		s--;
+	}
+	return;
+}
+
+#endif

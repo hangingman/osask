@@ -43,13 +43,14 @@ $(SRC) : $(SRCS) Makefile
 	for %%i in ($(SRCS)) do type %%i >> $(SRC)
 
 init.3as : init.ask Makefile
-	$(ASKA) $< $@
+	$(PREPROCESSOR) $<
+	$(ASKA) init.i $@
 
 clean:
 	for %%i in ($(DISTDIR)\$(TARGET) $(TARGET)) do del %%i
-	for %%i in (init.3as $(TARGET:.exe=.asm) $(TARGET:.exe=.obj)) do del %%i
+	for %%i in (init.i init.3as $(TARGET:.exe=.asm) $(TARGET:.exe=.obj)) do del %%i
 	for %%i in ($(SRC) *.lst *.map) do del %%i
 
 dist_clean:
-#	for %%i in (*.3as *.obj *.lst *.map *.exe) do del %%i
-	for %%i in (*.3as *.obj *.exe) do del %%i
+#	for %%i in (*.i *.3as *.obj *.lst *.map *.exe) do del %%i
+	for %%i in (*.i *.3as *.obj *.exe) do del %%i

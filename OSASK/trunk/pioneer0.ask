@@ -1,5 +1,5 @@
-// "pioneer0":ぐいぐいの標準ライブラリ ver.0.8
-//  copyright(C) 2000 H.Kawai (川合秀実)
+// "pioneer0":ぐいぐいの標準ライブラリ ver.0.9
+//  copyright(C) 2001 H.Kawai (川合秀実)
 
 // これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
 // 結局のところ、処理をshellcallに取り次いでいるだけ。
@@ -17,17 +17,19 @@ struct WORK { // 256bytes
 	int signalbox_read_free, signalbox_eos, signalbox_rewind, signaldw /* user用 */;
 	int signalbox_write_free, signalbox_write_ptr,
 		signalbox_write_ptr0, signalbox_write_ptr1; // user用
-	// 空きは160バイト
+	char signalbox_status, [15];
+	// 空きは144バイト
 };
 
 struct WINDOW {	// 128bytes
 	char signature[8];
 	int chain_back, chain_next;
 	int children_back, children_next;
-	int x_size, y_size;
+	int x_size, y_size, x_ofs, y_ofs;
 	int slot;
-	unsigned char mode0, draw_enable, [2];
-	// 空きは88バイト
+	unsigned char mode0, draw_enable, siglen, sigflag;
+	int signalhead[16];
+	// 空きは64バイト
 };
 
 struct TEXTBOX { // 64bytes
@@ -39,6 +41,8 @@ struct TEXTBOX { // 64bytes
 	int buffer[0];
 };
 
+void near drawcomponent();
+void near drawwindow();
 void near textbox_drawback(); // テキストボックスの背景描画ルーチン
 
 /*
@@ -92,7 +96,8 @@ cmderr:
 	LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更しない)
 	DB(0x9a); DD(0); DW(0x0017); // shell-call(softint許可)
 	(int) [SS:ESP + 16 /* EBX */] = (offset) cmd;
-	TEST(ESP, ESP); // ZF = 0
+INT(0x03); // コマンドエラーは許さない
+//	TEST(ESP, ESP); // ZF = 0
 	POPAD();
 	return;
 
@@ -101,8 +106,8 @@ cmd_jumptable:
 	asmout("DD OFFSET cmd000,  OFFSET cmd004,  OFFSET cmd008,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd010,  OFFSET #cmderr, OFFSET cmd018,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd020,  OFFSET cmd024,  OFFSET cmd028,  OFFSET cmd02c ");
-	asmout("DD OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
-	asmout("DD OFFSET cmd040,  OFFSET cmd044,  OFFSET #cmderr, OFFSET #cmderr");
+	asmout("DD OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr, OFFSET cmd03c ");
+	asmout("DD OFFSET cmd040,  OFFSET cmd044,  OFFSET cmd048,  OFFSET #cmderr");
 	asmout("DD OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
 	asmout("DD OFFSET cmd060,  OFFSET #cmderr, OFFSET cmd068,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd070,  OFFSET cmd074,  OFFSET cmd078,  OFFSET #cmderr");
@@ -237,7 +242,7 @@ void near cmd004()
 	work->softint_mask_buf[ 8] = 0xff80;
 	work->softint_mask_buf[12] = 0x0000;
 	work->signaldw = 0;
-	work->signalbox_write_ptr = 0xffffffff;
+	work->signalbox_write_ptr = 0xfffffffe;
 	// ベクタ初期化
 	AX = CS;
 	PUSH(FS);
@@ -270,9 +275,13 @@ asmout("cmd004_cmd2:");
 void near cmd008()
 // pioneer0ライブラリの終了
 // オプションで、アプリ自体も終了するか、それともアプリは終了しないかを選べる
+// 現在は、オプションを確認することもなく、終了
 {
-	// 全く未完成
-	INT(0x03);
+	PUSH((int) 0);
+	PUSH((int) 0); // reserve
+	PUSH((int) 0x0040); // タスク終了
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
 }
 
 void near cmd010()
@@ -304,6 +313,21 @@ void near cmd018()
 		// これは許しがたいエラーである。
 
 		INT(0x03); // エラー処理未完成
+	}
+	ECX = work->signalbox_write_ptr;
+	TEST(CL, 0x01);
+	if (!= 0) {
+		if (EAX != 0) {
+			// シグナルフルだったので、それを解除
+			work->signalbox_write_ptr &= 0xfffffffc;
+			PUSH((int) 0x0000); // eoc
+			PUSH((int) 0xff02); // nest
+			PUSH((int) 0); // signals
+			PUSH((int) 0x0204); // add nest
+			EBX = ESP;
+			DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+			ESP += 16;
+		}
 	}
 	if (EDI == 0x0080) {
 		// 帰還要求を表すために、スタック内のESP値を1にする。
@@ -389,6 +413,9 @@ void near cmd018()
 
 void near cmd020()
 // create new window.
+// slotのbit0 : ユーザーシグナルハンドリング
+// slotのbit1 : position offset指定
+// 今のところ、シグナル長1のみサポート
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
@@ -412,13 +439,46 @@ void near cmd020()
 	ECX = cmd[12]; // x-size
 	EDX = cmd[16]; // y-size
 	(offset) cmd += 20;
-	ECX += 8 + 8; // 左右に8dotずつ確保
-	EDX += 29 + 8; // 上に29dot、下に8dot確保
+	TEST(AL, 0x01);
+	(int) cmd0020_win->mode0 = 0;
+	if (!= 0) {
+		// シグナルハンドリング
+		EBX = cmd[0];
+		(short) cmd0020_win->siglen = BX;
+		// シグナル長(bit0-3), ハンドリング範囲(bit8-15)
+		// 値0 : ハンドリングしない
+		// bit0 : enable(0)/disable(1)/redraw(2)/redraw2(3)
+		// bit1 : move(4)
+		// bit2 : setmode(5)
+		// bit3 : close(6)
+		// bit7は加算量scale(0はx1、1はx4)
+		// 残りの4bitはリザーブ
+		// 最小化はdisableで処理されるので、検知できない
+		// clickやresizeは拡張系(8, 9)
+		EBX = cmd[4];
+		(offset) cmd += 8;
+		cmd0020_win->signalhead[0] = EBX;
+	}
+	TEST(AL, 0x02);
+	if (== 0) {
+		ECX += 8 + 8; // 左右に8dotずつ確保
+		EDX += 29 + 8; // 上に29dot、下に8dot確保
+		cmd0020_win->x_ofs =  8;
+		cmd0020_win->y_ofs = 29;
+	} else {
+		PUSH(EDX);
+		EDX = cmd[0]; // x-offset
+		EBX = cmd[4]; // y-offset
+		(offset) cmd += 8;
+		cmd0020_win->x_ofs = EDX;
+		cmd0020_win->y_ofs = EBX;
+		POP(EDX);
+	}
+	EAX &= 0xfffffff0;
 	cmd0020_win->x_size = ECX;
 	cmd0020_win->y_size = EDX;
 	cmd0020_win->slot = EAX;
 	PUSH((int) 0 /* EOC */);
-	(int) cmd0020_win->mode0 = 0;
 	PUSH((int) 0x0040 /* signal-base */);
 	PUSH((int) 0x0140 /* signalbox(slot番号で指定) */);
 	PUSH(EDX /* y-size */);
@@ -473,8 +533,8 @@ void near cmd028()
 	cmd0028_textbox->y_size = ECX;
 	EAX = cmd[24]; // x0
 	ECX = cmd[28]; // y0
-	EAX += 8;
-	ECX += 29;
+	EAX += cmd0028_win->x_ofs;
+	ECX += cmd0028_win->y_ofs;
 	cmd0028_textbox->x0 = EAX;
 	cmd0028_textbox->y0 = ECX;
 	EDX = cmd[36]; // キャラクターセット(slot-no)
@@ -578,7 +638,7 @@ void near cmd040()
 			EAX = cmd0040_win->mode0;
 			(int) [SS:ESP + 12] = 24; /* x0 */
 			asmout("MOV EAX,CS:[EAX*4+wintitle_colortable]");
-			(int) [SS:ESP + 16] =  5; /* y0 */
+			(int) [SS:ESP + 16] =  4; /* y0 */
 			ECX = EAX;
 			EAX &= 0xff;
 			ECX /= 256;
@@ -619,10 +679,12 @@ void near cmd040()
 }
 
 void near cmd044()
-// line & box
+// line & box (without graphicbox)
+// windowを指定した場合、enableのチェックはしないので要注意
+
 //  +00 : cmd
 //  +04 : opt
-//  +08 : 0(window/graphicbox)
+//  +08 : 0(window)
 //  +0c : color
 //  +10 : x0
 //  +14 : y0
@@ -631,20 +693,36 @@ void near cmd044()
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
+	WINDOW *win == DS:EBX;
 
+	EDI = 0;
 	ESP -= 36;
 	EAX = cmd[ 4]; // opt
+	(offset) win = cmd[ 8]; // window
 	ECX = cmd[12]; // color
+	EDX = EDI;
+	if ((unsigned) (offset) win != 0xffffffff) {
+		EDX = win->slot;
+	}
 	(int) [SS:ESP +  0] = 0x0400; // cmd
 	(int) [SS:ESP +  4] = EAX; // opt
-	(int) [SS:ESP +  8] = 0; // slot
+	(int) [SS:ESP +  8] = EDX; // slot
 	(int) [SS:ESP + 28] = ECX; // color
+	EDX = EDI;
+	if ((unsigned) (offset) win != 0xffffffff) {
+		EDX = win->x_ofs;
+		EDI = win->y_ofs;
+	}
 	EAX = cmd[16]; // x0
 	ECX = cmd[20]; // y0
+	EAX += EDX;
+	ECX += EDI;
 	(int) [SS:ESP + 12] = EAX; // x0
 	(int) [SS:ESP + 16] = ECX; // y0
 	EAX = cmd[24]; // x1
 	ECX = cmd[28]; // y1
+	EAX += EDX;
+	ECX += EDI;
 	(offset) cmd += 32;
 	(int) [SS:ESP + 20] = EAX; // x1
 	(int) [SS:ESP + 24] = ECX; // y1
@@ -655,14 +733,77 @@ void near cmd044()
 	asmout("JMP nextcmd");
 }
 
+void near cmd048()
+// put string(without textbox)
+// windowを指定した場合、enableのチェックはしないので要注意
+
+// +00 : cmd
+// +04 : opt(bit0:backcolor-enable)
+// +08 : 0/window
+// +12 : charset
+// +16 : x_pos(dot)
+// +20 : y_pos(dot)
+// +24 : color
+// +28 : backcolor
+// +32 : length
+
+// optのbit0は調べていない。1だという前提。
+{
+	WORK *work == SS:EBP;
+	int *cmd == DS:ESI;
+	WINDOW *win == DS:EBX;
+
+	EAX = 0;
+	ESP -= 512;
+	(offset) win = cmd[ 8];
+	ECX = EAX;
+	EDX = EAX;
+	if ((unsigned) (offset) win != 0xffffffff) {
+		EAX = win->slot;
+		ECX = win->x_ofs;
+		EDX = win->y_ofs;
+	}
+	ECX += cmd[16]; // x_pos(dot)
+	EDX += cmd[20]; // y_pos(dot)
+	(int) [SS:ESP     ] = 0x0404; /* put text */
+	(int) [SS:ESP +  4] = 0x0000; /* option */
+	(int) [SS:ESP +  8] = EAX;
+	(int) [SS:ESP + 12] = ECX; /* x0 */
+	(int) [SS:ESP + 16] = EDX; /* y0 */
+	EAX = cmd[24]; // color
+	ECX = cmd[28]; // backcolor
+	EDX = cmd[12]; // charset
+	(int) [SS:ESP + 20] = EAX; // color
+	(int) [SS:ESP + 24] = ECX; /* backcolor */
+	(int) [SS:ESP + 28] = EDX; // charset
+	ECX = cmd[32]; // length
+	(offset) cmd += 36;
+	(int) [SS:ESP + 32] = ECX; // length
+	LEA(EBX, [SS:ESP + 36]);
+	do {
+		EAX = *cmd;
+		(offset) cmd += 4;
+		(int) [DS:EBX] = EAX;
+		EBX += 4;
+		ECX--;
+	} while (!= 0);
+	(int) [DS:EBX] = /* 0 */ ECX;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	ESP += 512;
+	asmout("JMP nextcmd");
+}
+
 void near cmd060()
 // define signalbox
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
 
-	if (work->signalbox_write_ptr == 0xfffffffe) {
-		// ユーザーシグナル待ち
+	EAX = work->signalbox_write_ptr;
+	TEST(AL, 0x01);
+	if (!= 0) {
+		// シグナルフルだったので、それを解除
 		PUSH((int) 0x0000); // eoc
 		PUSH((int) 0xff02); // nest
 		PUSH((int) 0); // signals
@@ -962,12 +1103,115 @@ void near cmd08c()
 	asmout("JMP nextcmd");
 }
 
+void near cmd03c()
+{
+	WINDOW *win == DS:EDI;
+	int *cmd == DS:ESI;
+
+	EAX = cmd[4];
+	(offset) win = cmd[8];
+	TEST(AL, 0x01);
+	if (!= 0) {
+		// EBP, ESI, EDI以外は全て破壊
+		drawwindow();
+		EAX = cmd[4];
+	}
+	TEST(AL, 0x02);
+	if (!= 0) {
+		// EBP, ESI, EDI以外は全て破壊
+		drawcomponent();
+		EAX = cmd[4];
+	}
+	TEST(AH, 0x01);
+	if (!= 0) {
+		PUSH((int) 0);
+		PUSH(win->slot);
+		PUSH((int) 0x0140);
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		ESP += 12;
+	}
+	TEST(AH, 0x02);
+	if (!= 0) {
+		PUSH((int) 0);
+		PUSH(win->slot);
+		PUSH((int) 0x0144);
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		ESP += 12;
+	}
+	(offset) cmd += 12;
+	asmout("JMP nextcmd");
+}
+
+void near sendusersignal()
+// ES:EDIからのECX[dw]を送信
+// ESI, EBP以外のレジスタは破壊される
+// 送信に失敗したら、・・・今のところは例外が起きる
+// 将来はフラグで伝達(ZF == 0はエラー)
+{
+	WORK *work == SS:EBP;
+	EDX = work->signalbox_write_ptr;
+	TEST(DL, 0x03);
+	if (== 0) {
+		LEA(EAX, [EDX + ECX * 4]);
+		if ((unsigned) EAX >= work->signalbox_write_ptr1 /* 書き込み上限アドレス */) {
+			// 先頭に戻す
+			// 捨てるdw数を計算
+			EAX = work->signalbox_write_ptr1;
+			EAX -= EDX;
+			EAX /= 4; // EAX == 先頭に戻すことによって消費するサイズ(dw単位)
+			work->signalbox_read_free += EAX;
+			work->signalbox_write_free -= EAX;
+			if ((unsigned) <= 0) {
+				work->signalbox_read_free -= EAX;
+				work->signalbox_write_free += EAX;
+				TEST(ESP, ESP); // ZF = 0
+				return;
+			} else {
+				EBX = work->signalbox_rewind;
+				[DS:EDX + 4] = EAX;
+				[DS:EDX] = EBX;
+				EDX = work->signalbox_write_ptr0;
+			}
+		}
+		work->signalbox_read_free += ECX;
+		work->signalbox_write_free -= ECX;
+		if ((unsigned) <= 0) {
+			// ユーザー用のsignalboxがあふれた
+			work->signalbox_read_free -= ECX;
+			work->signalbox_write_free += ECX;
+			TEST(ESP, ESP); // ZF = 0
+			EAX = work->signalbox_eos;
+			work->signalbox_write_ptr = EDX;
+			(int) [DS:EDX] = EAX;
+			return;
+		}
+		do {
+			EAX = [ES:EDI];
+			EDI += 4;
+			(int) [DS:EDX] = EAX;
+			EDX += 4;
+			ECX--;
+		} while (!= 0); // ZF == 1
+		EAX = work->signalbox_eos;
+		work->signalbox_write_ptr = EDX;
+		(int) [DS:EDX] = EAX;
+		// nestによらず、目を覚まさせる
+	//	(char) [SS:ESP + 12 /* GS, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+	}
+	return;
+}
+
+// ユーザーシグナルボックスがないうちに、ユーザーシグナルが来たら、シグナルをマスク
+
 void far pioneer_softint()
 {
 	WORK *work == SS:EBP;
 	int *signal == GS:ESI;
 
 	PUSH(DS);
+	PUSH(ES);
 	PUSH(GS);
 	AX = SS;
 	ECX = 0x0027; // system signalbox selector
@@ -989,7 +1233,6 @@ void far pioneer_softint()
 			// terminate
 			break;
 		}
-
 		if ((signed) <)
 			goto usersignal;
 		if ((unsigned) EAX >  0x7f0000ff)
@@ -1003,15 +1246,15 @@ void far pioneer_softint()
 		if (EAX == 0x40)
 			goto sig0040; // set window position
 		if (EAX == 0x41)
-			goto sig0041; // window
+			goto sig0041; // change window title-bar color
 		if (EAX == 0x42)
-			goto sig0042; // window
+			goto sig0042; // VRAM access enable(window)
 		if (EAX == 0x43)
-			goto sig0043; // window
+			goto sig0043; // close window
 		if (EAX == 0x44)
-			goto sig0044; // window
+			goto sig0044; // VRAM access disable(window)
 		if (EAX == 0x48)
-			goto sig0048; // window
+			goto sig0048; // redraw window
 		if (EAX == 0xc0)
 			goto sig00c0; // open sound track
 		if (EAX == 0xc8)
@@ -1028,76 +1271,43 @@ undefined:
 
 headercut:
 	// ユーザーシグナル(ヘッダーカット)
-	EDX = work->signalbox_write_ptr;
 	EAX &= 0xff;
-	if (EDX != 0xffffffff) {
-		LEA(ECX, [EDX + EAX * 4]);
-		if ((unsigned) ECX >= work->signalbox_write_ptr1 /* 書き込み上限アドレス */) {
-			// 先頭に戻す
-			// 捨てるdw数を計算
-			ECX = work->signalbox_write_ptr1;
-			ECX -= EDX;
-			ECX /= 4; // ECX == 先頭に戻すことによって消費するサイズ(dw単位)
-			work->signalbox_read_free += ECX;
-			work->signalbox_write_free -= ECX;
-			if ((unsigned) < 0) {
-				INT(0x03);
-			//	work->signalbox_read_free -= ECX;
-			//	work->signalbox_write_free += ECX;
-			//	work->signalbox_status |= 0x01 /* buffer overrun */;
-			//	goto skip_signalwrite;
-			} else {
-				[DS:EDX + 4] = ECX;
-				ECX = work->signalbox_rewind;
-				[DS:EDX] = ECX;
-				EDX = work->signalbox_write_ptr0;
-			}
-		}
-		work->signalbox_read_free += EAX;
-		work->signalbox_write_free -= EAX;
-		if ((unsigned) < 0) {
-			// ユーザー用のsignalboxがあふれた
-			INT(0x03);
-		//	work->signalbox_read_free -= EAX;
-		//	work->signalbox_write_free += EAX;
-		//	work->signalbox_status |= 0x01 /* buffer overrun */;
-		//	goto skip_signalwrite;
-		}
-		work->signaldw++;
-		(offset) signal += 4;
+	EDX = 0x0027; // system signalbox selector
+	ECX = EAX;
+	EAX++;
+	ES = DX;
+	PUSH(EAX);
+//	EDI = (offset) signal + 4;
+	LEA(EDI, [ESI + 4]);
+	sendusersignal();
+	POP(EAX);
+	if (ZF == 1 /* succeeded */) {
 		work->signaldw += EAX;
-		do {
-			ECX = *signal;
-			(offset) signal += 4;
-			(int) [DS:EDX] = ECX;
-			EDX += 4;
-			EAX--;
-		} while (!= 0);
-		EAX = work->signalbox_eos;
-		work->signalbox_write_ptr = EDX;
-		(int) [DS:EDX] = EAX;
-		// nestによらず、目を覚まさせる
-		(char) [SS:ESP + 8 /* GS, DS */ + 16] = 0x02; // リターン時にLlv2へ。
-	} else {
-		// このシグナルは処理しないで、シグナル処理そのものを一時的に凍結。
-		work->signalbox_write_ptr = 0xfffffffe;
-		// nestを0x02だけ減らす。
-		EAX = work->signaldw;
-		POP(GS);
-		POP(DS);
-		LEA(EBX, work->softint_ret_buf[0]);
-		work->softint_ret_buf[ 4] /* (int) [DS:EBX + 4] */ = EAX;
-		work->softint_ret_buf[ 8] /* (int) [DS:EBX + 8] */ = 0x00ff; // さらに1引く
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-		// 割り込みから復帰してしまう
+		LEA(ESI, [ESI + EAX * 4]);
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+		goto nextsignal;
 	}
-	goto nextsignal;
+//	goto usersigboxfull;
+
+usersigboxfull:
+	// nestを0x02だけ減らす。
+	work->signalbox_status |= 0x01 /* buffer-full */;
+	work->signalbox_write_ptr |= 0x01 /* buffer-full */;
+	EAX = work->signaldw; // それまでに処理できたシグナル
+	POP(GS);
+	POP(ES);
+	POP(DS);
+	LEA(EBX, work->softint_ret_buf[0]);
+	work->softint_ret_buf[ 4] /* (int) [DS:EBX + 4] */ = EAX;
+	work->softint_ret_buf[ 8] /* (int) [DS:EBX + 8] */ = 0x00ff; // さらに1引く
+	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	// 割り込みから復帰してしまう
 
 sig0080:
 	// システムタイマータイムアウト
 	(offset) signal += 4;
 	work->signaldw++;
-	(char) [SS:ESP + 8 + 16 /* ESP */] = 0x02; // リターン時にLlv2へ。
+	(char) [SS:ESP + 12 /* GS, ES, DS */ + 16 /* ESP */] = 0x02; // リターン時にLlv2へ。
 	goto nextsignal;
 
 sig00c0:
@@ -1106,7 +1316,7 @@ sig00c0:
 	EAX = signal[8]; // system-id
 	(offset) signal += 12;
 	work->signaldw += 3;
-	(char) [SS:ESP + 8 + 16 /* ESP */] = 0x02; // リターン時にLlv2へ。
+	(char) [SS:ESP + 12 /* GS, ES, DS */ + 16 /* ESP */] = 0x02; // リターン時にLlv2へ。
 	EDX |= 0x01; // system-id defined
 	PUSH((int) 0);
 	PUSH(EAX);
@@ -1141,11 +1351,35 @@ sig0001:
 sig0040:
 	// window位置変更
 	// 描画は全てwindow相対モードを使うので、このシグナルに応じる必要が無い
+	WINDOW *sig0040_win == DS:EBX;
+	(offset) sig0040_win = signal[4];
 //	EAX = signal[ 8];
 //	ECX = signal[12];
-	(offset) signal += 16;
 //	*win_x0 = EAX; // win_x0
 //	*win_y0 = ECX; // win_y0
+	AL = sig0040_win->sigflag;
+	TEST(AL, 0x02);
+	if (!= 0) {
+		EDI = 4;
+		TEST(AL, 0x80);
+		EDX = sig0040_win->signalhead[0];
+		if (!= 0)
+			EDI *= 4;
+		CX = SS;
+		EDX += EDI;
+		ES = CX;
+		PUSH(signal[12]);
+		PUSH(signal[ 8]);
+		PUSH(EDX);
+		ECX = 3;
+		EDI = ESP;
+		sendusersignal();
+		LEA(ESP, [SS:ESP + 12]);
+		if (ZF == 0 /* error */)
+			goto usersigboxfull;
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+	}
+	(offset) signal += 16;
 	work->signaldw += 4;
 	goto nextsignal;
 
@@ -1160,6 +1394,28 @@ sig0041:
 	(offset) sig0041_win = signal[4];
 	AL = (char) signal[8];
 	sig0041_win->mode0 = AL;
+	AL = sig0041_win->sigflag;
+	TEST(AL, 0x04);
+	if (!= 0) {
+		EDI = 5;
+		TEST(AL, 0x80);
+		EDX = sig0041_win->signalhead[0];
+		if (!= 0)
+			EDI *= 4;
+		CX = SS;
+		EDX += EDI;
+		ES = CX;
+		PUSH(signal[8]);
+		PUSH(EDX);
+		ECX = 2;
+		EDI = ESP;
+		sendusersignal();
+		POP(EAX);
+		POP(EDI);
+		if (ZF == 0 /* error */)
+			goto usersigboxfull;
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+	}
 	(offset) signal += 12;
 	work->signaldw += 3;
 	goto nextsignal;
@@ -1168,18 +1424,52 @@ sig0042:
 	// VRAMアクセスの自由化
 	WINDOW *sig0042_win == DS:EBX;
 	(offset) sig0042_win = signal[4];
+	AL = sig0042_win->sigflag;
+	sig0042_win->draw_enable = 1; // 自由表示enable（随時更新）
+	TEST(AL, 0x01);
+	if (!= 0) {
+		CX = SS;
+		PUSH(sig0042_win->signalhead[0]);
+		ES = CX;
+		ECX = 1;
+		EDI = ESP;
+		sendusersignal();
+		POP(EAX);
+		if (ZF == 0 /* error */)
+			goto usersigboxfull;
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+	}
 	(offset) signal += 8;
 	work->signaldw += 2;
-	sig0042_win->draw_enable = 1; // 自由表示enable（随時更新）
 	goto nextsignal;
 
 sig0043:
 	// ウィンドウクローズ要求
-//	WINDOW *sig0043_win == DS:EBX;
-//	(offset) sig0043_win = signal[4];
-//	(offset) signal += 8;
-//	work->signaldw += 2;
-
+	WINDOW *sig0043_win == DS:EBX;
+	(offset) sig0043_win = signal[4];
+	AL = sig0043_win->sigflag;
+	TEST(AL, 0x08);
+	if (!= 0) {
+		EDI = 6;
+		TEST(AL, 0x80);
+		EDX = sig0043_win->signalhead[0];
+		if (!= 0)
+			EDI *= 4;
+		CX = SS;
+		EDX += EDI;
+		ES = CX;
+		PUSH(EDX);
+		ECX = 1;
+		EDI = ESP;
+		sendusersignal();
+		POP(EAX);
+		if (ZF == 0 /* error */)
+			goto usersigboxfull;
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+		(offset) signal += 8;
+		work->signaldw += 2;
+		goto nextsignal;
+	}
 	PUSH((int) 0);
 	PUSH((int) 0); // reserve
 	PUSH((int) 0x0040); // タスク終了
@@ -1190,33 +1480,137 @@ sig0044:
 	// VRAMアクセスの凍結
 	WINDOW *sig0044_win == DS:EBX;
 	(offset) sig0044_win = signal[4];
+	AL = sig0044_win->sigflag;
+	TEST(AL, 0x01);
+	sig0044_win->draw_enable = 0; // 自由表示disable（更新抑制）
+	if (!= 0) {
+		EDI = 1;
+		TEST(AL, 0x80);
+		EDX = sig0044_win->signalhead[0];
+		if (!= 0)
+			EDI *= 4;
+		CX = SS;
+		EDX += EDI;
+		ES = CX;
+		PUSH(EDX);
+		ECX = 1;
+		EDI = ESP;
+		sendusersignal();
+		POP(EAX);
+		if (ZF == 0 /* error */)
+			goto usersigboxfull;
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+	} else {
+		// 受理したことをシェルにシステムコールで伝える
+		PUSH((int) 0);
+		PUSH(sig0044_win->slot);
+		PUSH((int) 0x0140);
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		ESP += 12;
+	}
 	(offset) signal += 8;
 	work->signaldw += 2;
-	sig0044_win->draw_enable = 0; // 自由表示disable（更新抑制）
-	// 受理したことをシェルにシステムコールで伝える
-	PUSH((int) 0);
-	PUSH(sig0044_win->slot);
-	PUSH((int) 0x0140);
-	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-	ESP += 12;
 	goto nextsignal;
 
 sig0048:
 	// 再描画(他のタスクによって、持ち場が荒らされた)
-	WINDOW *sig0048_win == DS:EDI;
+	WINDOW *sig0048_win == DS:EBX, *sig0048_win2 == DS:EDI;
 	(offset) sig0048_win = signal[4];
+	AL = sig0048_win->sigflag;
+	TEST(AL, 0x01);
+	if (!= 0) {
+		EDI = 2;
+		TEST(AL, 0x80);
+		EDX = sig0048_win->signalhead[0];
+		if (!= 0)
+			EDI *= 4;
+		CX = SS;
+		EDX += EDI;
+		ES = CX;
+		PUSH(EDX);
+		ECX = 1;
+		EDI = ESP;
+		sendusersignal();
+		POP(EAX);
+		if (ZF == 0 /* error */)
+			goto usersigboxfull;
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+	} else {
+		EDI = (offset) sig0048_win;
+		// EBP, ESI, EDI以外は全て破壊
+		drawwindow();
+		drawcomponent();
+		// 描画完了通知シグナル
+		PUSH((int) 0);
+		PUSH(sig0048_win2->slot);
+		PUSH((int) 0x0144);
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		ESP += 12;
+	}
 	(offset) signal += 8;
 	work->signaldw += 2;
+//	goto nextsignal;
+
+nextsignal:
+		// モードチェンジ、window位置変更、VRAMアクセスの自由化の後には、再描画が来るのをあてにしてよい。
+	} while (work->signaldw < 8);
+
+	POP(GS);
+	POP(ES);
+	POP(DS);
+
+	work->read_ptr = (offset) signal;
+
+	// スタックを乱してリターンしてはいけない
+	EAX = work->signaldw;
+	LEA(EBX, work->softint_ret_buf[0]);
+	work->softint_ret_buf[ 4] = EAX;
+	work->softint_ret_buf[ 8] = 0x0001;
+	if (work->nest == 0) {
+		if (work->signalbox_read_free != 0) {
+			if ((unsigned) (short) [SS:ESP + 40 /* CS */] != 0x00c7) {
+				// 新規割り込み
+				POP(EAX); // FS
+				PUSH(GS);
+				PUSH(EAX);
+				PUSH(DS);
+				PUSH(ES);
+				ESP -= 44;
+				PUSH(EAX);
+				EAX = work->softint_EIP;
+				ECX = work->softint_CS;
+				EDX = (int) [SS:ESP + 104 /* EFLAGS */];
+				(int) [SS:ESP + 16] = 0x02; // リターン時にLlv2へ。
+				(int) [SS:ESP + 36 /* EIP */   ] = EAX;
+				(int) [SS:ESP + 40 /* CS */    ] = ECX;
+				(int) [SS:ESP + 44 /* EFLAGS */] = EDX;
+				work->nest--;
+			}
+		}
+	}
+	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	// エラーがない限り、ここには来ない
+	INT(0x03);
+//	ALIGN(4);
+//wintitle_colortable:
+//	asmout("wintitle_colortable DD 0008H, 0708H, 0, 040FH");
+}
+
+void near drawwindow()
+{
+	WINDOW *win == DS:EDI;
+
 	// 枠を描く
 	PUSH(ESI);
-	EDX = sig0048_win->slot;
+	PUSH(EBP);
+	EDX = win->slot;
 	ESP -= 512;
-	EAX = sig0048_win->x_size;
-	ECX = sig0048_win->y_size;
+	EAX = win->x_size;
+	ECX = win->y_size;
 	EAX--;
 	ECX--;
-	(int) [SS:ESP + 508] = EBP; // EBP待避
 	EBP = 0;
 	ESI = 0x0400;
 	EBX = 0x0020;
@@ -1310,26 +1704,112 @@ sig0048:
 	(int) [SS:ESP +  20] = EAX /* x1 */;
 	(int) [SS:ESP +  24] = ECX /* y1 */;
 	(int) [SS:ESP +  28] =  8 /* color */;
-	ECX = sig0048_win->mode0;
-	EAX -= 2;
-	EBP += 2; // EBP = 4;
-	asmout("MOV ECX,CS:[ECX*4+#wintitle_colortable]");
+	ECX = win->mode0;
+	EAX--;
+	EBP++; // EBP = 3;
+	asmout("MOV ECX,CS:[ECX*4+wintitle_colortable]");
 //	(int) [SS:ESP +  32] = 0x0400 /* line command */;
 //	(int) [SS:ESP +  36] = 0x0020 /* option(box-fill) */;
 //	(int) [SS:ESP +  40] = EDX /* window(slot-no) */;
-	(int) [SS:ESP +  44] = /*  4 */ EBP /* x0 */;
-	(int) [SS:ESP +  48] = /*  4 */ EBP /* y0 */;
+	(int) [SS:ESP +  44] = /*  3 */ EBP /* x0 */;
+	(int) [SS:ESP +  48] = /*  3 */ EBP /* y0 */;
 	(int) [SS:ESP +  52] = EAX /* x1 */;
-	(int) [SS:ESP +  56] =  21 /* y1 */;
+	(int) [SS:ESP +  56] =  20 /* y1 */;
 	(char) [SS:ESP + 60] = CH /* color */;
 	(int) [SS:ESP +  64] = /* 0x0000 */ ESI /* end of command */;
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-	EBP = (int) [SS:ESP + 508]; // EBP復帰
+
+	// ウィンドウクローズボタンを描く
+	LEA(ECX, [EAX - 17]);
+	EAX -= 2;
+	ESI += 18;
+	EBP += 2;
+//	(int) [SS:ESP      ] = 0x0400 /* line command */;
+//	(int) [SS:ESP +   4] = 0x0020 /* option(box-fill) */;
+//	(int) [SS:ESP +   8] = EDX /* window(slot-no) */;
+	(int) [SS:ESP +  12] = ECX /* x0 */;
+	(int) [SS:ESP +  16] = /*  5 */ EBP /* y0 */;
+	(int) [SS:ESP +  20] = EAX /* x1 */;
+	(int) [SS:ESP +  24] = /*  5 */ EBP /* y1 */;
+	(int) [SS:ESP +  28] = 15 /* color */;
+//	(int) [SS:ESP +  32] = 0x0400 /* line command */;
+//	(int) [SS:ESP +  36] = 0x0020 /* option(box-fill) */;
+//	(int) [SS:ESP +  40] = EDX /* window(slot-no) */;
+	(int) [SS:ESP +  44] = ECX /* x0 */;
+	(int) [SS:ESP +  48] = /*  5 */ EBP /* y0 */;
+	(int) [SS:ESP +  52] = ECX /* x1 */;
+	(int) [SS:ESP +  56] = /* 18 */ ESI /* y1 */;
+	(int) [SS:ESP +  60] = 15 /* color */;
+//	(int) [SS:ESP +  64] = 0x0400 /* line command */;
+	(char) [SS:ESP + 65] = 0x04 /* line command */;
+//	(int) [SS:ESP +  68] = 0x0020 /* option(box-fill) */;
+//	(int) [SS:ESP +  72] = EDX /* window(slot-no) */;
+	(int) [SS:ESP +  76] = EAX /* x0 */;
+	(int) [SS:ESP +  80] = /*  5 */ EBP /* y0 */;
+	(int) [SS:ESP +  84] = EAX /* x1 */;
+	(int) [SS:ESP +  88] = /* 18 */ ESI /* y1 */;
+	(int) [SS:ESP +  92] =  0 /* color */;
+//	(int) [SS:ESP +  96] = 0x0400 /* line command */;
+//	(int) [SS:ESP + 100] = 0x0020 /* option(box-fill) */;
+//	(int) [SS:ESP + 104] = EDX /* window(slot-no) */;
+	(int) [SS:ESP + 108] = ECX /* x0 */;
+	(int) [SS:ESP + 112] = /*  5 */ ESI /* y0 */;
+	(int) [SS:ESP + 116] = EAX /* x1 */;
+	(int) [SS:ESP + 120] = /* 18 */ ESI /* y1 */;
+	(int) [SS:ESP + 124] =  0 /* color */;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	ECX++;
+	EBP++;
+	EAX--;
+	ESI--;
+//	(int) [SS:ESP +  64] = 0x0400 /* line command */;
+//	(int) [SS:ESP +  68] = 0x0020 /* option(box-fill) */;
+//	(int) [SS:ESP +  72] = EDX /* window(slot-no) */;
+	(int) [SS:ESP +  76] = EAX /* x0 */;
+	(int) [SS:ESP +  80] = /*  5 */ EBP /* y0 */;
+	(int) [SS:ESP +  84] = EAX /* x1 */;
+	(int) [SS:ESP +  88] = /* 18 */ ESI /* y1 */;
+	(int) [SS:ESP +  92] =  7 /* color */;
+//	(int) [SS:ESP +  96] = 0x0400 /* line command */;
+//	(int) [SS:ESP + 100] = 0x0020 /* option(box-fill) */;
+//	(int) [SS:ESP + 104] = EDX /* window(slot-no) */;
+	(int) [SS:ESP + 108] = ECX /* x0 */;
+	(int) [SS:ESP + 112] = /*  5 */ ESI /* y0 */;
+	(int) [SS:ESP + 116] = EAX /* x1 */;
+	(int) [SS:ESP + 120] = /* 18 */ ESI /* y1 */;
+	(int) [SS:ESP + 124] =  7 /* color */;
+	EAX--;
+	ESI--;
+//	(int) [SS:ESP +  32] = 0x0400 /* line command */;
+//	(int) [SS:ESP +  36] = 0x0020 /* option(box-fill) */;
+//	(int) [SS:ESP +  40] = EDX /* window(slot-no) */;
+	(int) [SS:ESP +  44] = ECX /* x0 */;
+	(int) [SS:ESP +  48] = /*  6 */ EBP /* y0 */;
+	(int) [SS:ESP +  52] = EAX /* x1 */;
+	(int) [SS:ESP +  56] = /* 18 */ ESI /* y1 */;
+	(int) [SS:ESP +  60] =  8 /* color */;
+	LEA(EBX, [SS:ESP + 32]);
+	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	ESP += 512;
+	POP(EBP);
+	POP(ESI);
+	return;
+}
+
+void near drawcomponent()
+{
+	WINDOW *win == DS:EDI;
+
+	PUSH(ESI);
+	PUSH(EBP);
+	EDX = win->slot;
+	ESP -= 512;
 
 	// このウィンドウについているコンポーネントをサーチして、全て描画する
-	LEA(EAX, sig0048_win->children_back);
-	ESI = sig0048_win->children_next;
+	LEA(EAX, win->children_back);
+	ESI = win->children_next;
 	if (EAX != ESI) {
 		do {
 			ESI -= 8;
@@ -1337,19 +1817,19 @@ sig0048:
 			ECX = (int) [DS:ESI + 4];
 			if (EAX == 0x54584554 /* TEXT */) {
 				// textbox
-				TEXTBOX *sig0048_textbox == DS:ESI;
-				EAX = sig0048_textbox->option;
+				TEXTBOX *textbox == DS:ESI;
+				EAX = textbox->option;
 				TEST(EAX, 0xf000);
 				if (== 0) {
 					// 普通のテキストボックス
-					int *sig0048_textbox_ycnt    == SS:ESP + 496;
-					int *sig0048_textbox_saveEDX == SS:ESP + 500; // win_slot(xdot)
-					int *sig0048_textbox_saveEBP == SS:ESP + 504; // work(xcnt)
-					int *sig0048_textbox_saveEDI == SS:ESP + 508; // win(buffer)
+					int *textbox_ycnt    == SS:ESP + 496;
+					int *textbox_saveEDX == SS:ESP + 500; // win_slot(xdot)
+					int *textbox_saveEBP == SS:ESP + 504; // work(xcnt)
+					int *textbox_saveEDI == SS:ESP + 508; // win(buffer)
 					TEST(EAX, 0x01);
-					*sig0048_textbox_saveEDX = EDX;
-					*sig0048_textbox_saveEBP = EBP;
-					*sig0048_textbox_saveEDI = EDI;
+					*textbox_saveEDX = EDX;
+					*textbox_saveEBP = EBP;
+					*textbox_saveEDI = EDI;
 					if (!= 0) {
 						ESP += 512 - 12;
 						// EDX:win_slot, ESI:textbox
@@ -1361,14 +1841,14 @@ sig0048:
 					(int) [SS:ESP     ] = 0x0404; /* put text */
 					(int) [SS:ESP +  4] = 0x0000; /* option */
 					(int) [SS:ESP +  8] = EDX;
-					EAX = sig0048_textbox->charset;
+					EAX = textbox->charset;
 					(int) [SS:ESP + 28] = EAX; /* charset */
-					EAX = sig0048_textbox->y_size;
-					EBP = sig0048_textbox->x_size;
-					*sig0048_textbox_ycnt = EAX;
-					EDX = sig0048_textbox->x0;
-					EAX = sig0048_textbox->y0;
-					LEA(EDI, sig0048_textbox->buffer);
+					EAX = textbox->y_size;
+					EBP = textbox->x_size;
+					*textbox_ycnt = EAX;
+					EDX = textbox->x0;
+					EAX = textbox->y0;
+					LEA(EDI, textbox->buffer);
 					do {
 						(int) [SS:ESP + 16] = EAX; /* y0 */
 						do {
@@ -1408,37 +1888,37 @@ sig0048:
 							DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
 						} while (EBP != 0);
 						EAX = (int) [SS:ESP + 16] /* y0 */;
-						EBP = sig0048_textbox->x_size;
-						CL = (char) sig0048_textbox->option;
+						EBP = textbox->x_size;
+						CL = (char) textbox->option;
 						EAX += 8;
 						TEST(CL, 0x10);
 						if (== 0)
 							EAX += 8;
-						EDX = sig0048_textbox->x0;
-						*sig0048_textbox_ycnt--;
+						EDX = textbox->x0;
+						*textbox_ycnt--;
 					} while (!= 0);
-					EDX = *sig0048_textbox_saveEDX;
-					EBP = *sig0048_textbox_saveEBP;
-					EDI = *sig0048_textbox_saveEDI;
+					EDX = *textbox_saveEDX;
+					EBP = *textbox_saveEBP;
+					EDI = *textbox_saveEDI;
 				} else {
 					// wintitle
 					// バッファを参照して書き込む
-					int *sig0048_textbox_saveESI == SS:ESP + 508; // textbox
-					*sig0048_textbox_saveESI = ESI;
+					int *textbox_saveESI == SS:ESP + 508; // textbox
+					*textbox_saveESI = ESI;
 					(int) [SS:ESP     ] = 0x0404; /* put text */
 					(int) [SS:ESP +  4] = 0x0000; /* option */
 				//	(int) [SS:ESP +  8] = EDX;
-					EAX = sig0048_win->mode0;
+					EAX = win->mode0;
 					(int) [SS:ESP + 12] = 24; /* x0 */
-					asmout("MOV EAX,CS:[EAX*4+#wintitle_colortable]");
-					(int) [SS:ESP + 16] =  5; /* y0 */
+					asmout("MOV EAX,CS:[EAX*4+wintitle_colortable]");
+					(int) [SS:ESP + 16] =  4; /* y0 */
 					ECX = EAX;
 					EAX &= 0xff;
 					ECX /= 256;
 					(int) [SS:ESP + 20] = EAX; /* color */
 					(int) [SS:ESP + 24] = ECX; /* backcolor */
-					EAX = sig0048_textbox->charset;
-					ECX = sig0048_textbox->x_size;
+					EAX = textbox->charset;
+					ECX = textbox->x_size;
 					(int) [SS:ESP + 28] = EAX; /* charset */
 					(int) [SS:ESP + 32] = ECX; /* length */
 					ESI += 64; // seek buffer head
@@ -1453,66 +1933,19 @@ sig0048:
 					(int) [DS:EBX] = /* 0x0000 */ ECX; /* end of command */
 					EBX = ESP;
 					DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-					ESI = *sig0048_textbox_saveESI;
+					ESI = *textbox_saveESI;
 				}
 			} else {
 				INT(0x03);
 			}
-			LEA(EAX, sig0048_win->children_back);
+			LEA(EAX, win->children_back);
 			ESI = (int) [DS:ESI + 12 /* chain_next */];
 		} while (EAX != ESI);
 	}
-	// 描画完了通知シグナル
-	PUSH((int) 0);
-	PUSH(EDX);
-	PUSH((int) 0x0144);
-	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-	ESP += 512 + 12;
+	ESP += 512;
+	POP(EBP);
 	POP(ESI);
-//	goto nextsignal;
-
-nextsignal:
-		// モードチェンジ、window位置変更、VRAMアクセスの自由化の後には、再描画が来るのをあてにしてよい。
-	} while (work->signaldw < 8);
-
-	POP(GS);
-	POP(DS);
-
-	work->read_ptr = (offset) signal;
-
-	// スタックを乱してリターンしてはいけない
-	EAX = work->signaldw;
-	LEA(EBX, work->softint_ret_buf[0]);
-	work->softint_ret_buf[ 4] = EAX;
-	work->softint_ret_buf[ 8] = 0x0001;
-	if (work->nest == 0) {
-		if (work->signalbox_read_free != 0) {
-			if ((unsigned) (short) [SS:ESP + 40 /* CS */] != 0x00c7) {
-				// 新規割り込み
-				POP(EAX); // FS
-				PUSH(GS);
-				PUSH(EAX);
-				PUSH(DS);
-				PUSH(ES);
-				ESP -= 44;
-				PUSH(EAX);
-				EAX = work->softint_EIP;
-				ECX = work->softint_CS;
-				EDX = (int) [SS:ESP + 104 /* EFLAGS */];
-				(int) [SS:ESP + 16] = 0x02; // リターン時にLlv2へ。
-				(int) [SS:ESP + 36 /* EIP */   ] = EAX;
-				(int) [SS:ESP + 40 /* CS */    ] = ECX;
-				(int) [SS:ESP + 44 /* EFLAGS */] = EDX;
-				work->nest--;
-			}
-		}
-	}
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-	// エラーがない限り、ここには来ない
-	INT(0x03);
-	ALIGN(4);
-	asmout("#wintitle_colortable DD 0008H, 0708H, 0, 040FH");
+	return;
 }
 
 void near textbox_drawback()
@@ -1639,3 +2072,4 @@ void near textbox_drawback()
 	POP(EBP);
 	return;
 }
+
