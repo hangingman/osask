@@ -23,8 +23,10 @@ ARCH_OBJS = timerdrv.bin keymos0.bin fdcdrv0.bin vgadrv0.bin decode0.bin
 ARCH_OBJS += $(VESA_OBJS)
 
 ASK_OBJS =  init.bin tapi0.bin pioneer0.bin papi0.bin
-
 C_OBJS = winman0.bin pokon0.bin
+WINMAN_C_OBJS = kjpegls2.obj
+WINMAN_NASK_OBJS = betaclip.obj bmp2beta.obj
+WINMAN_OBJS = winman0.obj $(WINMAN_C_OBJS) $(WINMAN_NASK_OBJS)
 
 SUB_OBJS = $(ANKFONT)
 
@@ -38,12 +40,17 @@ LIBS = guigui00.lib stdlib.lib $(SYSGGLIB)
 POKON_STACK = 4k
 POKON_MALLOC = 88k
 POKON_FILE = 4096k
-WINMAN_STACK = 4k
-WINMAN_MALLOC = 2160k
-WINMAN_FILE = 2048k
+WINMAN_STACK = 8k
+WINMAN_MALLOC = 4208k
+WINMAN_FILE = 4096k
 
 # prevent automatic deletion of an intermediate file
-.SECONDARY : $(ASK_OBJS) $(ASK_OBJS:.bin=.3as) $(ASK_OBJS:.bin=.asm) $(ASK_OBJS:.bin=.nas) $(ASK_OBJS:.bin=.i) $(ASK_OBJS:.bin=.obj) $(ASK_OBJS:.bin=.exe) $(BASE:.exe=.asm) $(C_OBJS:.bin=.s) $(C_OBJS:.bin=.nas) $(BOOT:.bin=.i) $(BOOT:.bin=.3as) $(BOOT:.bin=.nas)
+.SECONDARY : $(ASK_OBJS) $(ASK_OBJS:.bin=.3as) $(ASK_OBJS:.bin=.asm) \
+	$(ASK_OBJS:.bin=.nas) $(ASK_OBJS:.bin=.i) $(ASK_OBJS:.bin=.obj) \
+	$(ASK_OBJS:.bin=.exe) $(BASE:.exe=.asm) $(C_OBJS:.bin=.s) \
+	$(C_OBJS:.bin=.nas) $(BOOT:.bin=.i) $(BOOT:.bin=.3as) \
+	$(BOOT:.bin=.nas) $(WINMAN_C_OBJS:.obj=.s) $(WINMAN_C_OBJS:.obj=.nas) 
+
 
 ALL :
 	for %%i in ($(SUBDIRS)) do $(MAKE) -C %%i
@@ -111,8 +118,8 @@ pokon0.bim : pokon0.obj
 pokon0.bin : pokon0.bim
 	$(BIM2BIN) malloc:$(POKON_MALLOC) file:$(POKON_FILE) input:$< output:$@
 
-winman0.bim : winman0.obj
-	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:$(WINMAN_STACK) $<
+winman0.bim : $(WINMAN_OBJS)
+	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:$(WINMAN_STACK) $(WINMAN_OBJS)
 
 winman0.bin : winman0.bim
 	$(BIM2BIN) malloc:$(WINMAN_MALLOC) file:$(WINMAN_FILE) input:$< output:$@
@@ -173,6 +180,12 @@ clean:
 	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.bim)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.lst)) do del %%i
+	for %%i in ($(WINMAN_C_OBJS)) do del %%i
+	for %%i in ($(WINMAN_C_OBJS:.obj=.s)) do del %%i
+	for %%i in ($(WINMAN_C_OBJS:.obj=.nas)) do del %%i
+	for %%i in ($(WINMAN_C_OBJS:.obj=.lst)) do del %%i
+	for %%i in ($(WINMAN_NASK_OBJS)) do del %%i
+	for %%i in ($(WINMAN_NASK_OBJS:.obj=.lst)) do del %%i
 
 dist_clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i dist_clean
@@ -195,6 +208,12 @@ dist_clean:
 	for %%i in ($(C_OBJS:.bin=.nas)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.bim)) do del %%i
+	for %%i in ($(WINMAN_C_OBJS)) do del %%i
+	for %%i in ($(WINMAN_C_OBJS:.obj=.s)) do del %%i
+	for %%i in ($(WINMAN_C_OBJS:.obj=.nas)) do del %%i
+	for %%i in ($(WINMAN_C_OBJS:.obj=.lst)) do del %%i
+	for %%i in ($(WINMAN_NASK_OBJS)) do del %%i
+	for %%i in ($(WINMAN_NASK_OBJS:.obj=.lst)) do del %%i
 
 # dependencies
 pokon0.obj : pokon0.c pokon0.h

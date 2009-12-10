@@ -1,8 +1,20 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.9
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.0
 		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
-    stack:4k malloc:2160k file:2048k */
+    stack:8k malloc:4208k file:4096k */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
+#include "../kjpegls.h"
+#if (defined(WIN31))
+	static int backcolors[5] = {8, 8, 0xc618, 0x00c0c0c0, 0x00c0c0c0};
+#else
+	static int backcolors[5] = {6, 6, 0x0410, 0x00008080, 0x00008080};
+#endif
+
+#if defined(TOWNS)
+	#define vbecoldep 1
+#elif defined(NEC98)
+	#define vbecoldep 0
+#endif
 
 #if (defined(VMODE) || defined(CLGD543X))	/* OSASK3.3の忘れ物 */
 	#undef TWVSW			/* 1024でないとインターレースできない */
@@ -10,7 +22,7 @@
 							/* CLGDには1024のパラメータしか作ってない */
 #endif
 
-#define WALLPAPERMAXSIZE	(2048 * 1024)
+#define WALLPAPERMAXSIZE	(4* 1024 * 1024)
 #define	SCRNSHOTMAXSIZ		2048 * 1024
 
 #include <guigui00.h>
@@ -57,7 +69,7 @@
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		  20
 	#if (defined(PCAT)) || (defined(TOWNS))
-		#define TIMEX				-272	/* 8の倍数 */
+		#define TIMEX				-192	/* 8の倍数 */
 		#define TIMEY				 -16
 		#define TIMEC				  15
 		#define TIMEBC				   7
@@ -72,10 +84,12 @@
 	#define	RESERVELINE1		   0
 #endif
 
-#if (defined(PCAT) || defined(NEC98))
+#if (defined(PCAT))
+	static int moveunits[5] = {8,4,2,4,1};
+	#define	MOVEUNIT			   moveunits[vbecoldep]
+#elif (defined(NEC98))
 	#define	MOVEUNIT			   8
-#endif
-#if (defined(TOWNS))
+#elif (defined(TOWNS))
 	#define	MOVEUNIT			   4
 #endif
 
@@ -154,7 +168,9 @@ static struct STR_JOB {
 unsigned char *wallpaper, wallpaper_exist;
 struct WM0_WINDOW *window, *top = NULL, *unuse = NULL, *iactive = NULL, *pokon0 = NULL;
 int x2 = 0, y2, mx = 0x80000000, my = 1, mbutton = 0, mxx = 1;
-int fromboot = 0, mousescale = 2;
+int fromboot = 0;
+int mouseaccel = 2;	/* これより大きいと加速度倍増 */
+int mousescale = 2; /* 加速スケールにしよう */
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
 struct DEFINESIGNAL *defsigbuf;
 struct MOSWINSIG *moswinsig;
@@ -1257,6 +1273,7 @@ void OsaskMain()
 	#endif
 
 	MALLOC_ADDR = pjob->readCSd10 = lib_readCSd(0x0010);
+	wallpaper = malloc(WALLPAPERMAXSIZE);
 
 	lib_init(AUTO_MALLOC);
 	sgg_init(AUTO_MALLOC);
@@ -1296,7 +1313,6 @@ void OsaskMain()
 		sgg_execcmd(NEC98_mouseinit);
 	#endif
 
-	wallpaper = malloc(WALLPAPERMAXSIZE);
 	mws = moswinsig = malloc(MOSWINSIGS * sizeof(struct MOSWINSIG));
 	for (i = 0; i < MOSWINSIGS - 1; i++, mws++) {
 		mws->win = NULL;
@@ -1759,9 +1775,15 @@ void OsaskMain()
 
 			break;
 
-		case 0x6f6b6f70 + 0 /* mousespeed */:
-			mousescale = signal[1];
-			siglen++; /* siglen = 2; */
+	//	case 0x6f6b6f70 + 0 /* mousespeed */:
+	//		mousescale = signal[1];
+	//		siglen++; /* siglen = 2; */
+	//		break;
+
+		case 0x6f6b6f70 + 1 /* mouseaccel */:
+			mouseaccel = signal[1];
+			mousescale = signal[2];
+			siglen+=2; /* siglen = 3; */
 			break;
 
 		default:
@@ -1846,8 +1868,13 @@ void init_screen(const int x, const int y)
 			{  0,   0, -20,  -1, -20 },
 			{ 15,   0, -19,  -1, -19 },
 			{  7,   0, -18,  -1,  -1 },		/* System line(?) */
-			{  0, -82, -19, -82,  -1 },
-			{ 15, -81, -18, -81,  -1 },
+			#if defined(TIMEX)
+				{  0, TIMEX-2, -19, TIMEX-2,  -1 },
+				{ 15, TIMEX-1, -18, TIMEX-1,  -1 },
+			#else
+				{  0, -82, -19, -82,  -1 },
+				{ 15, -81, -18, -81,  -1 },
+			#endif
 			{ -1,   0,   0,  -1, -21 },		/* for wallpaper */
 		};
 	#elif (defined(NEWSTYLE))
@@ -2063,9 +2090,19 @@ void mousesignal(const unsigned int header, int dx, int dy)
 	// bit1:right
 	// bit2:middle
 
+/*
 	dx *= mousescale;
 	dy *= mousescale;
+*/
 	if ((header >> 28) == 0x0 /* normal mode */) {
+		if ((unsigned)(dx+mouseaccel)>mouseaccel*2){
+			int accel = (dx>0)?mouseaccel:-mouseaccel;
+			dx = (dx - accel) * mousescale + accel;
+		}
+		if ((unsigned)(dy+mouseaccel)>mouseaccel*2){
+			int accel = (dy>0) ? mouseaccel : -mouseaccel;
+			dy = (dy - accel) * mousescale + accel;
+		}
 		// マウス状態変更
 		int ox = _mx, oy = _my;
 		_mx += dx;
@@ -3256,6 +3293,8 @@ void gapi_driverinit(int drv)
 		sgg_execcmd0(0x0088, 0x0000, drv, 0x0000);
 		if (drv == 3)
 			drv++;
+		if (vbecoldep != drv)
+			wallpaper_exist = 0;
 		vbecoldep = drv;
 	#endif
 
@@ -3291,6 +3330,7 @@ void job_setvgamode0(const int mode)
 	pjob->func = job_setvgamode1;
 	if (win = top) {
 		do {
+			int x;
 			win->job_flag0 = (WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED); // override-accessdisabled & must-redraw
 			if ((win->condition & 0x01) != 0 && x2 != 0) {
 				pjob->count++; // disable
@@ -3459,6 +3499,19 @@ void job_setvgamode3(const int sig, const int result)
 		if (drv != 0)
 			sgg_execcmd0(0x0050, 8 * 4, 0x001c, 0, 0x0020, x2, y2, 0x0000, 0x0000);
 		sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
+		if (win = top){
+			int mask = MOVEUNIT - 1;
+			int d;
+			/* こっそり位置を修正 */
+			do {
+				if (d = win->x0 & mask){
+					win->x0 -= d;
+					win->x1 -= d;
+					win->job_flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
+					sgg_wm0s_movewindow(&win->sgg, win->x0, win->y0);
+				}
+			} while ((win = win->down) != top);
+		}
 		oldmode = job.int0;
 		init_screen(x2, y2);
 		job_general1();
@@ -3864,12 +3917,7 @@ void job_savevram0()
 void job_savevram1(int flag, int dmy)
 {
     if (flag == 0) { /* open成功 */
-#if (defined(PCAT))
 		lib_resizemodule(0, 0x0200, x2 * y2 * vbecoldep + 2048, 0x0050 /* sig */);
-#endif
-#if (defined(TOWNS))
-		lib_resizemodule(0, 0x0200, x2 * y2 + 2048, 0x0050 /* sig */);
-#endif
 		job.func = &job_savevram2;
 	} else {
 		job.now = 0;
@@ -4017,44 +4065,84 @@ void job_savevram1(int flag, int dmy)
 
 #endif
 
+static unsigned char wallpaper_search = 0;
+static unsigned char jpeg_used = 0;
+#define WALLPAPERNUM 4	/* 名前は4種類 */
 void job_openwallpaper()
 /* 2002.05.27 川合 : 壁紙表示がトグルになるように変更 */
 {
-	if (wallpaper_exist == 0 && x2 * y2 <= WALLPAPERMAXSIZE) {
+	static char *names[] =
+	    {"OSASK0  .BMP", "OSASK0  .JPG", "OSASK   .BMP", "OSASK   .JPG"};
+	int bytepp = vbecoldep;
+	if (bytepp)
+		bytepp--;
+	bytepp++;
+	if (wallpaper_exist == 0 && x2 * y2 * bytepp <= WALLPAPERMAXSIZE) {
 		lib_initmodulehandle0(0x0008, 0x0200);
 		job.func = &job_loadwallpaper;
-		lib_steppath0(0, 0x0200, "OSASK   .BMP", 0x0050 /* sig */);
+		lib_steppath0(0, 0x0200, names[wallpaper_search], 0x0050 /* sig */);
 		return;
-		/* OSASK.BMP is wallpaper. */
 	}
-	job_loadwallpaper(1, 0);
+	job_loadwallpaper(-1, 0);
 	return;
 }
-
-int bmp2beta(unsigned char *s, char *d, int w,int h, int ms);
+extern void betaclip(char *s, int sw, int sh, char *d, int dw, int dh, char cdep, int backcolor);
+extern int bmp2beta(unsigned char *s, unsigned int ms, char *d, char coldep, int w,int h, int backcolor);
 
 void job_loadwallpaper(int flag, int dmy)
 /* 2002.05.27 川合 : わずかに改良 */
+/* 失敗した場合flag>=0 ならば次のファイルに挑戦, -1なら諦め */
 {
 	struct WM0_WINDOW *win;
-	int i, j, k;
 
 	wallpaper_exist = 0;
-	if (flag == 0 && lib_readmodulesize(0x0200) <= 2048 * 1024) {	/* opening succeeded. */
-		char *fp = (char *)lib_readCSd(0x10);
-		j = x2 * y2 / 4;
-		k = BACKCOLOR | BACKCOLOR << 8 | BACKCOLOR << 16 | BACKCOLOR << 24;
-		for (i = 0; i < j; i++)
-			*((int *) wallpaper + i) = k;	/* ゴミが出るので初期化しておく */
-		lib_mapmodule(0x0000, 0x0200, 0x5, 2048 * 1024, fp, 0);
-		wallpaper_exist = 
-			bmp2beta(fp, wallpaper, x2, y2, lib_readmodulesize(0x0200));
-		lib_unmapmodule(0, 2048 * 1024, fp);
-		lib_initmodulehandle0(0x0008, 0x0200);
+	char *fp = (char *)lib_readCSd(0x10);
+	if (flag == 0) {	/* opening succeeded. */
+		int ms = lib_readmodulesize(0x200);
+		if (ms>WALLPAPERMAXSIZE)
+			ms = WALLPAPERMAXSIZE;
+		lib_mapmodule(0x0000, 0x0200, 0x5, ms, fp, 0);
+		if (wallpaper_search&1){
+			char *jpegbuf = wallpaper + WALLPAPERMAXSIZE;
+			static JPEG jpeg;
+			if (jpeg_used){
+				int i = sizeof(JPEG)/4, *j = (int*)&jpeg;
+				do{
+					*j++=0;
+				}while(--i);
+			}else{
+				jpeg_init(&jpeg);
+				jpeg_used = 1;
+			}
+			jpeg.fp = fp;
+			jpeg.fp1 = fp + ms;
+			jpeg_header(&jpeg);
+			if (jpeg.width==0 || jpeg.width*jpeg.height*4>WALLPAPERMAXSIZE)
+				goto failed;
+			jpegbuf -= jpeg.width * jpeg.height * 4;
+			jpeg.width_buf = jpeg.width;
+			jpeg_decode(&jpeg, jpegbuf);
+			betaclip(jpegbuf, jpeg.width, jpeg.height, wallpaper, x2,y2, vbecoldep, backcolors[vbecoldep]);
+		}else{
+			int result = bmp2beta(fp, ms, wallpaper, vbecoldep, x2, y2, backcolors[vbecoldep]);
+			if (result)
+				goto failed;
+		}
+		wallpaper_exist = 1;
+		lib_unmapmodule(0, WALLPAPERMAXSIZE, fp);
 
 	//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
 	//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+	}else{
+	failed:
+		if (flag>=0 && wallpaper_search++ < WALLPAPERNUM-1){
+			lib_unmapmodule(0, WALLPAPERMAXSIZE, fp);
+			job_openwallpaper();
+			return;
+		}
 	}
+	wallpaper_search = 0;
+	lib_initmodulehandle0(0x0008, 0x0200);
 
 	/* 全ウィンドウ再描画 */
 	if (mx != 0x80000000) {
@@ -4074,118 +4162,28 @@ void job_loadwallpaper(int flag, int dmy)
 //	job.now = 0; /* これはjob_general1()に含まれる */
 	return;
 }
+#define	lib_putblock(mode, win, x, y, sx, sy, skip, p) \
+	lib_execcmd0(0x004c, mode, (void *) (win), (int) (x), (int) (y), (int) (sx), \
+	(int) (sy), (int) (skip), (void *) (p), 0x000c, 0x0000)
 
 void putwallpaper(int x0, int y0, int x1, int y1)
 /* 2002.05.27 川合 : x1, y1の値の扱いを仕様変更 */
 {
+	int bytepp = vbecoldep;
+	if (bytepp)
+		bytepp--;
+	bytepp++;
 	if (wallpaper_exist)
-		lib_putblock1((void *) -1, x0, y0, x1 - x0, y1 - y0,
-			x2 - (x1 - x0), &wallpaper[x2 * y0 + x0]);
+		lib_putblock(bytepp, (void *) -1, x0, y0, x1 - x0, y1 - y0,
+			bytepp*(x2 - (x1 - x0)), &wallpaper[(x2 * y0 + x0)*bytepp]);
 	else {
 		#if (defined(VMODE))
 			lib_drawline(0x0020, (void *) -1, backcol, x0, y0, x1 - 1, y1 - 1);
 		#else
-			lib_drawline(0x0020, (void *) -1, BACKCOLOR, x0, y0, x1 - 1, y1 - 1);
+			lib_drawline(0x0020, (void *) -1, backcolors[0], x0, y0, x1 - 1, y1 - 1);
 		#endif
 	}
 	return;
-}
-
-int bmp2beta(unsigned char *src, char *dest, int bw, int bh, int mappedsize)
-/* 2002.05.27 川合 : うまくいったら非零を返すように仕様変更 */
-/*		ついでにセンタリングもつけた */
-{
-	int bmpW, bmpH, bpp, i;
-
-	/* Minimal size check */
-	if (mappedsize < 28)				/* OS2-BMP's header size */
-		goto error;
-
-	/* Header check and MAC */
-	if (*(short *) src != 0x4d42) {		/* "BM" */
-		mappedsize += -128;				/* for MAC BMP */
-		if (mappedsize < 28)
-			goto error;
-		src += 128;
-		if (*(short *) src != 0x4d42)
-			goto error;
-	}
-
-	/* Is module lacked? */
-	if (mappedsize < *(int *) (src+2))
-		goto error;
-
-	/* OS/2 and MS formats */
-	i = *(int *) (src+14);
-	if (i == 40 && *(int *) (src+30) != 0)	/* compressed */
-		goto error;
-
-	if (i != 40 && i != 12)
-		goto error;
-
-	bmpW = *(int *) (src+18);
-	bmpH = *(int *) (src+22);
-	bpp = *(short *) (src+28);
-	src += *(int *) (src+10);
-
-	/* センタリング */
-	if (bmpW < bw)
-		dest += (bw - bmpW) >> 1;
-	if (bmpH < bh - (RESERVELINE0 + RESERVELINE1))
-		dest += bw * (RESERVELINE0 + (bh - bmpH - (RESERVELINE0 + RESERVELINE1)) >> 1);
-
-	if (bpp == 1) {
-		int lw,y;
-
-		bmpW = (bmpW + 31) & ~31;
-		lw = ((bw < bmpW) ? bw : bmpW) / 8; /* limit loop count */
-		bmpW /= 8;
-		src += (bmpH - 1) * bmpW;
-
-		for (y = (bh < bmpH) ? bh : bmpH; y > 0; y--) {
-			int x;
-			for (x = 0; x < lw; x++) {
-				unsigned char t = src[x];
-
-				dest[x * 8 + 0] = ((t >> 7) & 0x01) + 7;
-				dest[x * 8 + 1] = ((t >> 6) & 0x01) + 7;
-				dest[x * 8 + 2] = ((t >> 5) & 0x01) + 7;
-				dest[x * 8 + 3] = ((t >> 4) & 0x01) + 7;
-				dest[x * 8 + 4] = ((t >> 3) & 0x01) + 7;
-				dest[x * 8 + 5] = ((t >> 2) & 0x01) + 7;
-				dest[x * 8 + 6] = ((t >> 1) & 0x01) + 7;
-				dest[x * 8 + 7] = ( t       & 0x01) + 7;
-			}
-			src -= bmpW; dest += bw;
-		}
-	} else {
-		int lw, y;
-
-		bmpW = (bmpW + 7) & ~7;
-		lw = ((bw < bmpW) ? bw : bmpW) / 8; /* limit loop count */
-		bmpW /= 2;
-		src += (bmpH - 1) * bmpW;
-
-		for (y = (bh < bmpH) ? bh : bmpH; y > 0; y--) {
-			int x;
-			for (x = 0; x < lw; x++) {
-				unsigned int t = *((int *) src + x);
-
-				dest[x * 8 + 0] = (t >>  4) & 0x0f;
-				dest[x * 8 + 1] =  t        & 0x0f;
-				dest[x * 8 + 2] = (t >> 12) & 0x0f;
-				dest[x * 8 + 3] = (t >>  8) & 0x0f;
-				dest[x * 8 + 4] = (t >> 20) & 0x0f;
-				dest[x * 8 + 5] = (t >> 16) & 0x0f;
-				dest[x * 8 + 6] = (t >> 28) & 0x0f;
-				dest[x * 8 + 7] = (t >> 24) & 0x0f;
-			}
-			src -= bmpW; dest += bw;
-		}
-	}
-	return 1;
-error:
-	return 0;
 }
 
 void moswinsig_flagset()

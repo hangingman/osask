@@ -10,7 +10,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon36"
+#define POKON_VERSION "pokon37"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.4\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -847,7 +847,8 @@ void poko_exec_cmd(const char *p)
 			poko_memory,		"memory", 6, 0,
 			poko_color,			"color", 5, 1,
 			poko_cls,			"cls", 3, 0,
-			poko_mousespeed,	"mousespeed", 10, 1,
+		/*	poko_mousespeed,	"mousespeed", 10, 1, */
+			poko_mouseaccel,	"mouseaccel", 10, 1,
 			poko_setdefaultIL,	"setdefaultIL", 12, 1,
 			poko_tasklist,		"tasklist", 8, 0,
 			poko_sendsignalU,	"sendsignalU", 11, 1,
@@ -2358,7 +2359,7 @@ int poko_cls(const char *cmdlin)
 	pcons->cury = 0;
 	return 0;
 }
-
+/* mouseaccel‚ð•t‚¯‚½‚Ì‚Å‚à‚¤‚¢‚ç‚È‚¢‚©‚Æ
 int poko_mousespeed(const char *cmdlin)
 {
 	int param;
@@ -2367,7 +2368,26 @@ int poko_mousespeed(const char *cmdlin)
 	param = cons_getdec_skpspc(&cmdlin);
 	if (*cmdlin)
 		goto error;
-	sgg_wm0s_sendto2_winman0(0x6f6b6f70 + 0 /* mousespeed */, param);
+	sgg_wm0s_sendto2_winman0(0x6f6b6f70 + 0, param); // mousespeed
+	return 1;
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+*/
+
+int poko_mouseaccel(const char *cmdlin)
+{
+	int param, param2;
+//	if (*cmdlin == '\0')
+//		goto error;
+	param = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin == '\0')
+		goto error;
+	param2 = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin)
+		goto error;
+	sgg_execcmd0(0x0020, 0x80000000 + 5, 0x3244, 0x7f000003, 0x6f6b6f70 + 1, param, param2, 0x0000);
+//	sgg_wm0s_sendto2_winman0(0x6f6b6f70 + 1 /* mouseaccel */, param, param2);
 	return 1;
 error:
 	return -ERR_ILLEGAL_PARAMETERS;

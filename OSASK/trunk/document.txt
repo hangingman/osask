@@ -1,30 +1,31 @@
-"src36"の使い方の説明                      2003/05/03 川合秀実
+"src37"の使い方の説明                      2003/06/02 川合秀実
 
 １．これは何か？
 
-  "src36"は、OSASK ver.3.6の「OSASK36.EXE」を生成するのに必要なモジュールのソー
+  "src37"は、OSASK ver.3.7の「OSASK37.EXE」を生成するのに必要なモジュールのソー
 スプログラムのセットです。ただし、以前のバージョンのものをそのまま利用している
-ものついては、このアーカイブに含まれていません。OSASK36.EXEを生成するのに必要な
+ものついては、このアーカイブに含まれていません。OSASK37.EXEを生成するのに必要な
 モジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    INIT.ASK     : ver.3.1
-    PIONEER0.ASK : ver.3.0
-    WINMAN0.C    : ver.2.9
-    POKON0.C     : ver.3.6
-    PCAT/
-      FDCDRV0.BIN  : ver.2.0
+    WINMAN0.C    : ver.3.0
+    BETACLIP.NAS : ver.0.0
+    BMP2BETA.NAS : ver.0.0
+    KJPEGLS2.C   : ver.0.0
+    POKON0.C     : ver.3.7
 
   (以前のバージョンのものを利用するもの)
 
     BOOT32.ASK   : ver.0.1
     OSASKINC.ASK : ver.0.0
+    INIT.ASK     : ver.3.1
     TAPI0.ASK    : ver.0.4
     PAPI0.ASK    : ver.0.6
     TIMERDRV.ASK : type-A ver.1.1
     FDCDRV0.BIN  : ver.1.9
     DECODE0.ASK  : ver.1.0
+    PIONEER0.ASK : ver.3.0
     IBMANK0.TXT  : ver.0.4
     SYSGG00.LIB  : ver.0.8
     PCAT/
@@ -35,6 +36,7 @@
       VESA8.ASK    : ver.0.0
       VESA16.ASK   : ver.0.1
       VESA32.ASK   : ver.0.1
+      FDCDRV0.BIN  : ver.2.0
     TOWNS/
       BASE.NAS     : ver.2.2
       OSALINK1.OPT : ver.0.0
