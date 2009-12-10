@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.4.4
+/* "pokon0.c":アプリケーションラウンチャー  ver.4.5
      copyright(C) 2004 I.Tak., 小柳雅明, 川合秀実
-     stack:4k malloc:88k file:4096k */
+     stack:4k malloc:89k file:4096k */
 
 /* scrollbar & mouse by I.Tak. */
 /* シグナル受信通知を*sbp==0のときに一回だけする……ほとんど意味無し
@@ -54,7 +54,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon44"
+#define POKON_VERSION "pokon45"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.7\n    Copyright (C) 2004 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -106,10 +106,27 @@ static struct VIRTUAL_MODULE_REFERENCE *vmref0;
 static int need_wb, readCSd10;
 static int sort_mode = DEFAULT_SORT_MODE;
 static signed char *pfmode;
-static signed char auto_decomp = 1;
+static signed char auto_decomp = 1, auto_dearc = 1;
+static struct STR_ARCBUF *arcbuf;
 
 //static struct STR_CONSOLE console = { -1, 0, 0, NULL, NULL, NULL, NULL, 0, 0, 0 };
 static struct STR_CONSOLE *console;
+
+struct FILEBUF *searchfbuf(struct SGG_FILELIST *fp);
+struct FILEBUF *check_wb_cache(struct FILEBUF *fbuf);
+struct STR_BANK *run_viewer(struct STR_VIEWER *viewer, struct SGG_FILELIST *fp2);
+void runfile(struct SGG_FILELIST *fp, char *name);
+struct SGG_FILELIST *searchfid1(const unsigned char *s);
+struct FILEBUF *searchfrefbuf();
+struct STR_ARCBUF *arcsub_getfree();
+struct STR_ARCBUF *arcsub_srchdslt(int dirslot);
+void arcsub_unlink(struct STR_ARCBUF *arc);
+int arcsub_gethex(unsigned char *p);
+unsigned char *arcsub_srchname0(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name);
+unsigned char *arcsub_srchname1(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name);
+unsigned char *arcsub_srchnum(struct STR_ARCBUF *arc, unsigned char *p, int num);
+void arcsub_map(struct STR_ARCBUF *arc, unsigned char *fp0);
+void arcsub_unmap(struct STR_ARCBUF *arc, unsigned char *fp0);
 
 #if (defined(PCAT))
 	#define	LASTPCIBUS	255
@@ -177,29 +194,26 @@ void unlinkfbuf(struct FILEBUF *fbuf)
 {
 	int dirslot;
 	if (--fbuf->linkcount == 0) {
-		dirslot = fbuf->dirslot;
-		if (fbuf->readonly)
-			dirslot = -1;
-		if (fbuf->size > 0) {
-			if (dirslot == -1)
-				sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, -1, fbuf->size, fbuf->paddr, 0x0000);
-			else if (writejob_n(4, JOB_FREE_MEMORY, dirslot, fbuf->size, fbuf->paddr) == 0) {
-				/* どうすりゃいいんだ？ */
+		if (fbuf->arcbuf)
+			arcsub_unlink(fbuf->arcbuf);
+		else {
+			dirslot = fbuf->dirslot;
+			if (fbuf->readonly)
+				dirslot = -1;
+			if (fbuf->size > 0) {
+				if (dirslot == -1)
+					sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, -1, fbuf->size, fbuf->paddr, 0x0000);
+				else if (writejob_n(4, JOB_FREE_MEMORY, dirslot, fbuf->size, fbuf->paddr) == 0) {
+					/* どうすりゃいいんだ？ */
+				}
 			}
 		}
-		fbuf->dirslot = -1;
+		fbuf->dirslot |= -1;
 		sgg_execcmd0(0x0074, 0, fbuf->virtualmodule, 0x0000); /* virtualmoduleの破棄 */
 		fbuf->readonly = 0;
 	}
 	return;
 }
-
-struct FILEBUF *searchfbuf(struct SGG_FILELIST *fp);
-struct FILEBUF *check_wb_cache(struct FILEBUF *fbuf);
-struct STR_BANK *run_viewer(struct STR_VIEWER *viewer, struct SGG_FILELIST *fp2);
-void runfile(struct SGG_FILELIST *fp, char *name);
-struct SGG_FILELIST *searchfid1(const unsigned char *s);
-struct FILEBUF *searchfrefbuf();
 
 struct STR_BANK *searchfrebank()
 {
@@ -558,6 +572,7 @@ int jsub_fbufready1(int *sbp)
 {
 	struct STR_JOBLIST *pjob = &job;
 	struct FILEBUF *fbuf = pjob->fbuf;
+	unsigned char *fp0 = (char *) readCSd10, *fp1;
 	int retcond = 0;
 	int i, j = 0, size0, size1;
 	fbuf->paddr = sbp[1];
@@ -571,8 +586,7 @@ int jsub_fbufready1(int *sbp)
 			size0 = fbuf->size;
 			if (size0 < FILEAREA / 2 && size0 >= 20) {
 				static unsigned char signature[16] = "\x82\xff\xff\xff\x01\x00\x00\x00OSASKCMP";
-				unsigned char *fp0 = (char *) readCSd10;
-				unsigned char *fp1 = fp0 + (size0 = ((size0 + 0xfff) & ~0xfff));
+				fp1 = fp0 + (size0 = ((size0 + 0xfff) & ~0xfff));
 				sgg_execcmd0(0x0080, size0, fbuf->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
 				for (i = 0; i < 16; i++)
 					j |= fp0[i] ^ signature[i];
@@ -587,6 +601,52 @@ int jsub_fbufready1(int *sbp)
 							fbuf->readonly = 1;
 							fbuf->paddr = i;
 							fbuf->size = size1;
+						}
+					}
+				}
+				/* unmapする */
+			}
+		}
+
+		if (auto_dearc) {
+			size0 = fbuf->size;
+			if (size0 < FILEAREA && size0 >= 0x00050000 + 29) {
+			//	fp1 = fp0 + (size0 = ((size0 + 0xfff) & ~0xfff));
+				sgg_execcmd0(0x0080, FILEAREA, fbuf->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
+				if (fp0[0x00] != 0xcc && fp0[0x0b] == 0x00 && fp0[0x0c] == 0x02 && (*(int *) &fp0[0x40]) == 0x36314653) {
+					static unsigned char signature[29] = "format_id:     \"OSASKARC0000\"";
+					struct STR_ARCBUF *abuf;
+					j &= 0;
+					for (i = 0; i < 29; i++)
+						j |= fp0[i + 0x00050000] ^ signature[i];
+					for (i = 0; i < 8; i++)
+						j |= (fp0[i + 0x00050030] ^ '0') | (fp0[i + 0x00050050] ^ '0');
+					if (j == 0 && (fp0[0x000500b5] & 0x01) != 0) { /* 最初のエントリが必ず主ファイル */
+						abuf = arcsub_srchdslt(fbuf->dirslot);
+						if (abuf) {
+							abuf->linkcount++;
+							sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, -1, fbuf->size, fbuf->paddr, 0x0000);
+							/* unmap */
+							arcsub_map(abuf, fp0);
+						} else {
+							abuf = arcsub_getfree();
+							if (abuf) {
+								abuf->dirslot = fbuf->dirslot;
+								abuf->linkcount = 1;
+								abuf->size  = fbuf->size;
+								abuf->paddr = fbuf->paddr;
+								abuf->dir0  = 0x00048000;
+								abuf->info0 = 0x00050000;
+								abuf->clu2  = 0x00050000;
+							}
+						}
+						if (abuf) {
+							fp1 = arcsub_srchname0(abuf, fp0, &fp0[0x00050090]);
+							fbuf->readonly = 1;
+							fbuf->paddr = abuf->paddr + abuf->clu2 + 512 * fp0[0x0d] * ((*(unsigned short *) &fp1[26]) - 2);
+							fbuf->size = *(int *) &fp1[28];
+							fbuf->arcbuf = abuf;
+							fbuf->dirslot = fbuf->paddr;
 						}
 					}
 				}
@@ -641,6 +701,7 @@ int jsub_create_task1(int *sbp)
 		bank->Llv[2].global = 12;
 		bank->Llv[2].inner  = i;
 		sgg_runtask(tss, 1 * 32);
+		bank->arcbuf = bank->fbuf->arcbuf;
 	}
 	(*pjob->retfunc)(retcond);
 	return 2; /* siglen */
@@ -772,6 +833,38 @@ void job_create_sysdisk1(int cond)
 	return;
 }
 
+void job_load_file1(struct FILESELWIN *win, struct FILEBUF *fbuf, int task)
+{
+	struct VIRTUAL_MODULE_REFERENCE *vmr = vmref0;
+	int i;
+
+	for (i = 0; i < MAX_VMREF; i++, vmr++) {
+		if (vmr->task == task && vmr->slot == win->mdlslot) {
+			unlinkfbuf(vmr->fbuf);
+			vmr->task = 0;
+		}
+	}
+	for (vmr = vmref0; vmr->task; vmr++);
+	vmr->task = task;
+	vmr->fbuf = fbuf;
+	vmr->slot = win->mdlslot;
+	vmr->flags = 0; /* silent */
+	sgg_directwrite(0, 4, 0, win->mdlslot,
+		(0x003c /* slot_sel */ | task << 8) + 0xf80000, (int) &fbuf->virtualmodule, 0x000c);
+	sendsignal1dw(task, win->sig[1]);
+	if (fbuf->arcbuf) {
+		struct STR_BANK *bank;
+		for (bank = banklist; bank->tss != task; bank++);
+		if (bank->arcbuf != fbuf->arcbuf) {
+			if (bank->arcbuf)
+				arcsub_unlink(bank->arcbuf);
+			bank->arcbuf = fbuf->arcbuf;
+			bank->arcbuf->linkcount++;
+		}
+	}
+	return;
+}
+
 void job_load_file0(int cond)
 {
 	struct STR_JOBLIST *pjob = &job;
@@ -793,20 +886,7 @@ void job_load_file0(int cond)
 	} else if (win->mdlslot == -1) {
 		unlinkfbuf(fbuf);
 	} else {
-		for (i = 0; i < MAX_VMREF; i++, vmr++) {
-			if (vmr->task == task && vmr->slot == win->mdlslot) {
-				unlinkfbuf(vmr->fbuf);
-				vmr->task = 0;
-			}
-		}
-		for (vmr = vmref0; vmr->task; vmr++);
-		vmr->task = task;
-		vmr->fbuf = fbuf;
-		vmr->slot = win->mdlslot;
-		vmr->flags = 0; /* silent */
-		sgg_directwrite(0, 4, 0, win->mdlslot,
-			(0x003c /* slot_sel */ | task << 8) + 0xf80000, (int) &fbuf->virtualmodule, 0x000c);
-		sendsignal1dw(task, win->sig[1]);
+		job_load_file1(win, fbuf, task);
 	}
 	win->mdlslot = -2;
 	if (win->lp /* NULLならクローズ処理中 */) {
@@ -971,8 +1051,12 @@ void poko_exec_cmd(const char *p)
 			#endif
 			poko_setwallpaper,	"setwallpaper", 12, 2,
 			poko_setext,		"setext", 6, 1,
+			poko_autodearc,		"autodearc", 9, 1,
+			#if (defined(TOWNS))
+				poko_townsmouse,	"townsmouse", 10, 1,
+			#endif
 			poko_exec,			"exec", 4, 1,
-			#if defined(DEBUG)
+			#if (defined(DEBUG))
 				poko_debug,			"debug", 5, 1,
 			#endif
 			NULL,				NULL, 0, 0
@@ -1027,7 +1111,7 @@ void put_file(struct FILESELWIN *win, const char *name, const int pos, const int
 	return;
 }
 
-#if defined(WIN9X) || defined(WIN31) || defined(NEWSTYLE)
+#if (defined(WIN9X) || defined(WIN31) || defined(NEWSTYLE))
 void draw_button(struct LIB_WINDOW *win, int c, int x0, int y0, int x1, int y1)
 {
 	lib_drawline(0x20, win,  c, x0+1,y0+1, x1-2,y1-2);	/* button */
@@ -1066,7 +1150,7 @@ void draw_sbar_frame(struct FILESELWIN *win)
 	lib_drawline(0x20, window, 8, LISTX1+3,LISTY1+2, SBARX1+1,LISTY1+2);
 	lib_drawline(0x20, window,15, LISTX1+4,LISTY1+3, SBARX1+2,LISTY1+3);
 }
-#elif defined(CHO_OSASK)
+#elif (defined(CHO_OSASK))
 void draw_button(struct LIB_WINDOW *win, int c, int x0, int y0, int x1, int y1){
 	lib_drawline(0x20, win,  c, x0+1,y0+1, x1-1,y1-1);	/* button */
 	lib_drawline(0x20, win, 15, x0  ,y0  , x1  ,y0  );	/* UP */
@@ -1080,7 +1164,7 @@ void draw_sbar_frame(struct FILESELWIN *win){
 	lib_drawline(0x20, window, 0, LISTX1+4,LISTY0-3, SBARX1,LISTY0-3);
 	lib_drawline(0x20, window,15, LISTX1+4,LISTY1+3, SBARX1,LISTY1+3);
 }
-#elif defined(TMENU)
+#elif (defined(TMENU))
 void draw_button(struct LIB_WINDOW *win, int c, int x0, int y0, int x1, int y1){
 	lib_drawline(0x20, win,  c, x0+1,y0+1, x1-1,y1-1);	/* button */
 	lib_drawline(0x10, win,  0, x0  ,y0  , x1  ,y1  );	/* LEFT */
@@ -1287,17 +1371,21 @@ void openselwin(struct FILESELWIN *win, const char *title, const char *subtitle)
 	return;
 }
 
-struct FILEBUF *searchfbuf(struct SGG_FILELIST *fp)
+struct FILEBUF *searchfbuf0(int fileid)
 {
 	struct FILEBUF *fbuf = filebuf;
 	int i;
-	int fileid = fp->id;
 
 	for (i = 0; i < MAX_FILEBUF; i++, fbuf++) {
 		if (fbuf->dirslot == fileid)
 			return fbuf;
 	}
 	return NULL;
+}
+
+struct FILEBUF *searchfbuf(struct SGG_FILELIST *fp)
+{
+	return searchfbuf0(fp->id);
 }
 
 struct FILEBUF *searchfrefbuf()
@@ -1307,6 +1395,7 @@ struct FILEBUF *searchfrefbuf()
 	for (i = 0; i < MAX_FILEBUF; i++, fbuf++) {
 		if (fbuf->linkcount == 0) {
 			fbuf->linkcount |= -1; /* 予約マーク */
+			fbuf->arcbuf = 0;
 			fbuf->readonly = 0;
 			fbuf->pipe = 0;
 			return fbuf;
@@ -1331,6 +1420,120 @@ struct FILEBUF *check_wb_cache(struct FILEBUF *fbuf)
 	return NULL;
 }
 
+struct STR_ARCBUF *arcsub_getfree()
+{
+	struct STR_ARCBUF *arc = arcbuf;
+	int i;
+	for (i = 0; i < MAX_ARCBUF; i++, arc++) {
+		if (arc->linkcount == 0) {
+			arc->linkcount |= -1; /* 予約マーク */
+			return arc;
+		}
+	}
+	return NULL;
+}
+
+struct STR_ARCBUF *arcsub_srchdslt(int dirslot)
+{
+	struct STR_ARCBUF *arc = arcbuf;
+	int i;
+	for (i = 0; i < MAX_ARCBUF; i++, arc++) {
+		if (arc->dirslot == dirslot)
+			return arc;
+	}
+	return NULL;
+}
+
+void arcsub_unlink(struct STR_ARCBUF *arc)
+{
+	if (--arc->linkcount == 0) {
+		arc->dirslot |= -1;
+		sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, -1, arc->size, arc->paddr, 0x0000);
+	}
+	return;
+}
+
+int arcsub_gethex(unsigned char *p)
+{
+	int i, j, k = 0;
+	for (i = 0; i < 8; i++) {
+		j = p[i];
+		if (j >= 'a')
+			j -= 0x20;
+		j -= 0x30;
+		if (j > 9)
+			j -= 7;
+		k = k << 4 | j;
+	}
+	return k;
+}
+
+unsigned char *arcsub_srchname0(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name)
+{
+	unsigned char n[11], c;
+	int i;
+	for (i = 0; i < 8; i++)
+		n[i] = name[i];
+	n[ 8] = name[ 9];
+	n[ 9] = name[10];
+	n[10] = name[11];
+
+	for (p += arc->dir0; *p != 0; p += 32) {
+		c = 0;
+		for (i = 0; i < 11; i++)
+			c |= p[i] ^ n[i];
+		if (c == 0)
+			return p;
+	}
+	return NULL;
+}
+
+unsigned char *arcsub_srchname1(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name)
+{
+	unsigned char c;
+	int i;
+#if 0
+	for (i = 0; i < 8; i++)
+		n[i] = name[i];
+	n[ 8] = '.';
+	n[ 9] = name[ 8];
+	n[10] = name[ 9];
+	n[11] = name[10];
+#endif
+
+	for (p += arc->info0 + 128; (*(int *) &p[0]) == 0x5f736f64 && (*(int *) &p[4]) == 0x656d616e; p += 128) {
+		c = 0;
+		for (i = 0; i < 12; i++)
+			c |= p[16 + i] ^ name[i];
+		if (c == 0)
+			return p;
+	}
+	return NULL;
+}
+
+unsigned char *arcsub_srchnum(struct STR_ARCBUF *arc, unsigned char *p, int num)
+{
+	unsigned char c;
+	int i;
+
+	for (p += arc->info0 + 128; (*(int *) &p[0]) == 0x5f736f64 && (*(int *) &p[4]) == 0x656d616e; p += 128) {
+		if (arcsub_gethex(&p[0x50]) == num && (arcsub_gethex(&p[0x30]) & 0x70) != 0x70)
+			return p;
+	}
+	return NULL;
+}
+
+void arcsub_map(struct STR_ARCBUF *arc, unsigned char *fp0)
+{
+	int i = (arc->size + 0xfff) & ~0xfff;
+	sgg_execcmd0(0x0080, arc->size, arc->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
+	return;
+}
+
+void arcsub_unmap(struct STR_ARCBUF *arc, unsigned char *fp0)
+{
+	return;
+}
 
 void OsaskMain()
 {
@@ -1380,6 +1583,7 @@ void OsaskMain()
 	order = (struct STR_OPEN_ORDER *) malloc(MAX_ORDER * sizeof (struct STR_OPEN_ORDER));
 	pjob->order = order; 
 	pcons = console = malloc(sizeof (struct STR_CONSOLE));
+	arcbuf = (struct STR_ARCBUF *) malloc(MAX_ARCBUF * sizeof (struct STR_ARCBUF));
 
 	pjob->list = (int *) malloc(JOBLIST_SIZE * sizeof (int));
 	*(pjob->rp = pjob->wp = pjob->list) = 0; /* たまった仕事はない */
@@ -1451,6 +1655,11 @@ void OsaskMain()
 	for (i = 0; i < MAX_FILEBUF; i++) {
 		fbuf0[i].dirslot |= -1;
 		fbuf0[i].linkcount &= 0;
+	}
+
+	for (i = 0; i < MAX_ARCBUF; i++) {
+		arcbuf[i].dirslot |= -1;
+		arcbuf[i].linkcount &= 0;
 	}
 
 	for (;;) {
@@ -1535,6 +1744,8 @@ void OsaskMain()
 				}
 
 				unlinkfbuf(bank->fbuf);
+				if (bank->arcbuf)
+					arcsub_unlink(bank->arcbuf);
 
 				for (i = 0; i < MAX_ORDER; i++) {
 					if (tss != order[i].task)
@@ -1721,7 +1932,10 @@ void OsaskMain()
 			case SIGNAL_RELOAD_FAT_COMPLETE:
 			//	siglen = 1;
 				for (i = 0; i < MAX_FILEBUF; i++)
-					fbuf0[i].dirslot = -1;
+					fbuf0[i].dirslot |= -1;
+				for (i = 0; i < MAX_ARCBUF; i++)
+					arcbuf[i].dirslot |= -1;
+
 			refresh_selector0:
 				pjob->now = 0;
 			refresh_selector:
@@ -2436,6 +2650,7 @@ nextsig:
 		}
 		while (*sbp == 0 && selwaitcount != 0 && selwincount < MAX_SELECTOR && fmode == STATUS_RUN_APPLICATION) {
 			static char t[24] = "< for ########     >";
+			unsigned char *fp0 = (char *) readCSd10, *p;
 			for (swait = selwait; swait->task == 0; swait++);
 			for (win = &selwin[1]; win->task; win++);
 			selwaitcount--;
@@ -2444,23 +2659,66 @@ nextsig:
 			win->lp = win->list; /* window-close処理中でないことを明示 */
 			win->task = swait->task;
 			win->mdlslot = swait->slot;
-			i = swait->bytes & 0x80000000;
+		//	i = swait->bytes & 0x80000000;
 			sgg_debug00(0, swait->bytes & 0x7fffffff, 0, swait->ofs,
 				swait->sel | (win->task << 8) + 0xf80000, (const int) subcmd, 0x000c);
 			swait->task = 0;
+			bank = NULL;
+			if (win->task >= 0x5000)
+				for (bank = banklist; bank->tss != win->task; bank++);
 			if (subcmd[0] == 0xffffff01 /* num */) {
 				win->num = subcmd[1];
 				win->siglen = subcmd[3];
 				win->sig[0] = subcmd[4];
 				win->sig[1] = subcmd[5];
+				fp = NULL;
 				for (i = 0; i < MAX_ORDER; i++) {
 					if (order[i].task == win->task && order[i].num == win->num) {
 						order[i].task = 0;
 						fp = order[i].fp;
-						goto open_redirect;
 					}
 				}
-				for (bank = banklist; bank->tss != win->task; bank++);
+				if (bank != NULL && bank->arcbuf != NULL) {
+					arcsub_map(bank->arcbuf, fp0);
+					p = arcsub_srchnum(bank->arcbuf, fp0, win->num);
+					if (p) {
+						i = (arcsub_gethex(&p[0x30]) >> 4) & 0x07; /* optionsのbit4-6 */
+						if ((i == 1 && fp == NULL) || i == 0) {
+							/* 反応する */
+							p = arcsub_srchname0(bank->arcbuf, fp0, &p[0x10]);
+							if (p) {
+			arcmatch:
+								i = bank->arcbuf->paddr + bank->arcbuf->clu2 + 512 * fp0[0x0d] * ((*(unsigned short *) &p[26]) - 2);
+								fbuf = searchfbuf0(i);
+								if (fbuf)
+									fbuf->linkcount++;
+								else {
+									if ((fbuf = searchfrefbuf()) != NULL) {
+										fbuf->linkcount = 1;
+										fbuf->readonly = 1;
+										fbuf->paddr = i;
+										fbuf->size = *(int *) &p[28];
+										fbuf->arcbuf = bank->arcbuf;
+										fbuf->dirslot = fbuf->paddr;
+										fbuf->virtualmodule = sgg_createvirtualmodule(fbuf->size, fbuf->paddr);
+									}
+								}
+								if (fbuf) {
+									bank->arcbuf->linkcount++;
+									job_load_file1(win, fbuf, bank->tss);
+									win->mdlslot = -2;
+									win->task = 0;
+									selwincount--;
+									arcsub_unmap(bank->arcbuf, fp0);
+									continue;
+								}
+							}
+						}
+					}
+					arcsub_unmap(bank->arcbuf, fp0);
+				}
+				if (fp)
+					goto open_redirect;
 				for (i = 0; i < 8; i++)
 					t[i + 6] = bank->name[i];
 				openselwin(win, "(open)", t);
@@ -2470,13 +2728,27 @@ nextsig:
 			}
 			if (subcmd[0] == 0xffffff03 /* direct-name */) {
 				/* とりあえず、名前は12バイト固定(最後のバイトは00) */
-				/* 最期のバイトを01にしてもいい。01は強制移動 */
+				/* 最後のバイトを01にしてもいい。01は強制移動 */
 				win->siglen = subcmd[6];
 				win->sig[0] = subcmd[7];
 				win->sig[1] = subcmd[8];
-				if ((fp = searchfid((unsigned char *) &subcmd[2])) == NULL) {
+				fp = searchfid((unsigned char *) &subcmd[2]);
+				if (bank != NULL && bank->arcbuf != NULL) {
+					arcsub_map(bank->arcbuf, fp0);
+					p = arcsub_srchname1(bank->arcbuf, fp0, (unsigned char *) &subcmd[2]);
+					if (p) {
+						i = arcsub_gethex(&p[0x30]) & 0x07; /* optionsのbit0-2 */
+						if ((i == 1 && fp == NULL) || i == 0) {
+							p = arcsub_srchname0(bank->arcbuf, fp0, &p[0x10]);
+							if (p)
+								goto arcmatch;
+						}
+					}
+					arcsub_unmap(bank->arcbuf, fp0);
+				}
+				if (fp == NULL) {
 					/* 強制生成 */
-					if (i != 0 && pjob->free >= 16 && (fbuf = searchfrefbuf()) != NULL) {
+					if ((swait->bytes & 0x80000000) != 0 && pjob->free >= 16 && (fbuf = searchfrefbuf()) != NULL) {
 						/* 空きが十分にある */
 						writejob_1(JOB_CREATE_FILE);
 						writejob_3p(&subcmd[2]);
@@ -3663,6 +3935,45 @@ struct STR_VIEWER *search_viewer0(const unsigned char *ext)
 find:
 	return v;
 }
+
+int poko_autodearc(const char *cmdlin)
+{
+	int param;
+//	if (*cmdlin == '\0')
+//		goto error;
+	param = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin)
+		goto error;
+	auto_dearc = param;
+	return 1;
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+
+#if (defined(TOWNS))
+int poko_townsmouse(const char *cmdlin)
+{
+	int i;
+	unsigned char par[3] = {0,0,0}, *p = par;
+
+	while (*cmdlin == ' ')
+	  cmdlin++;
+	i = 0;
+	while (cmdlin[i] && cmdlin[i] != ' ')
+	  i++;
+	if (i > 3)		/* 多すぎ */
+	  goto error;
+	for (; i ; i--)
+	  *p++ = cmdlin[i-1] - '0';
+	if (par[2] > 1 || (par[0] | par[1]) > 3)
+	  goto error;
+	sgg_execcmd0(0x0020, 0x80000004, 0x3243, 0x7f000002,
+		     0x0300, (par[2] << 4) | (par[0] << 2) | par[1], 0x0000);
+	return 1;
+ error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+#endif
 
 #if 0
 struct STR_VIEWER *search_viewer1(const unsigned char *ext)

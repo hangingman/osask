@@ -57,6 +57,7 @@ ifeq ($(ARCH),towns)
 #BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DTOWNS
 CFLAGS += -DTOWNS
+VESA_OBJS = vesa16.bin
 # enable 1-pixel scroll
 ifeq ($(TWSCRL1),y)
 PREPROCESSOR_FLAGS += -DTWSCRL1

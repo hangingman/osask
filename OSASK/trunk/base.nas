@@ -1,4 +1,4 @@
-;	"base.nas" ver.2.9
+;	"base.nas" ver.3.0
 ;	OSASK用のブートプログラム
 ;	Copyright(C) 2004 H.Kawai (川合秀実)
 
@@ -143,15 +143,20 @@ Entry:
 
 ;	ここでA20を有効にする
 
-	CLI		; IDTが設定されるまで、割り込みを禁止する
-
-	#if (defined(QEMU))
+	#if (defined(PCAT))
+		/* エッジトリガ対策 */
 		MOV AL,0xff
 		OUT 0x21,AL
 		NOP
 		OUT 0xa1,AL
-		STI
+	#elif (defined(NEC98))
+		MOV AL,0xff
+		OUT 0x02,AL
+		NOP
+		OUT 0x0a,AL
 	#endif
+
+	CLI		; IDTが設定されるまで、割り込みを禁止する
 
 	#if (defined(PCAT))
 		CALL	waitkbdout

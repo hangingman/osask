@@ -1,6 +1,6 @@
-/*	"timerdrv.ask"
-	OSASK/AT用のタイマールーチン(type-A ver. 1.2)
-	Copyright(C) 2003 川合秀実(川合堂)		*/
+/*	"timerdrv.aska"
+	OSASK/AT用のタイマールーチン(type-A ver. 1.3)
+	Copyright(C) 2004 川合秀実(川合堂)		*/
 
 //	古いチップセットには対応していない。なぜなら、連続アクセスの際にウェイトが入っていないから。
 
@@ -10,6 +10,8 @@ segment CODE(USE32, PARA);
 default(code == CODE);
 
 #define	DEBUG		1
+
+//	#define QEMU		1
 
 struct SS0_struct {
 	void [32];
@@ -115,9 +117,9 @@ void far TimerInt()
 	そうでないバージョンを作ることも可能だろう。しかし、どちらが好ましいかは分からない。
 */
 
-void near TimerRegister();
+void TimerRegister();
 
-void near TimerLongcount()
+void TimerLongcount()
 {
 	TimerWork *work == DS:0x0000;
 
@@ -130,7 +132,7 @@ void near TimerLongcount()
 	// goto TimerCountout;
 }
 
-void near TimerCountout()
+void TimerCountout()
 //	ここに来たら、CLI期間がかなり長くなるので、IRQ-00をmaskして
 //	割り込み終了をやってしまう方がいいかもしれない。
 //	しかし、ノードを繋ぎ変えているときに他の割り込みが発生し、
@@ -264,9 +266,7 @@ check_nesting:
 	IRETD();
 
 call_clicall:
-//	PUSHAD();
 	/* (ss0->clicall)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
-//	POPAD();
 	POPAD();
 	POP(EAX);
 	POP(DS);
@@ -293,13 +293,13 @@ exec3: // フライングタイムアウト用合流地点
 	// タイムアウトチェーンから一つ取り出す。
 //	(offset) tnode = work->timeout.next;
 	(offset) tnext = tnode->next;
-	/* (char) tnode->back = 1 */ asmout("MOV BYTE PTR DS:[ESI+#TN_back],1"); // このノードは時刻がセットされており、タイムアウトした(切り離された)
+	(char) tnode->back = 1; // このノードは時刻がセットされており、タイムアウトした(切り離された)
 	work->timeout.next = (offset) tnext;
 	/* tnext->back = (offset) &(work->timeout) */ asmout("MOV DWORD PTR DS:[EDI+#TN_back],#work_timeout");
 //	STI(); // 2000/05/24 割り込み処理中は一貫してCLIしておくことになった。
 	asmout("CALL FAR DWORD DS:[ESI+#TN_call_vector]");
 //	CLI();
-	if (CF == 1 /* 連続割込み要求 */) {
+	if (CF != 0 /* 連続割込み要求 */) {
 		// CFを1にするなら、ESIを壊してはいけない
 
 		// ノードを更新して、登録・・・登録ルーチンは、
@@ -360,10 +360,10 @@ long32_wait:
 	IRETD();
 }
 
-void near GetTimeAndFixZero();
-void near GetNowTime();
+void GetTimeAndFixZero();
+void GetNowTime();
 
-void near TimerRegister0()
+void TimerRegister0()
 // EDX:ECX:EAXのロードをやる
 {
 	TimerNode *tnode == DS:ESI;
@@ -372,7 +372,7 @@ void near TimerRegister0()
 	EDX = tnode->time[8];
 }
 
-void near TimerRegister()
+void TimerRegister()
 // ESI, EDX:ECX:EAX に時刻。これが呼ばれるとき、現在時刻は有効。
 // 割り込みを禁止しておくこと。
 {
@@ -533,7 +533,7 @@ comp_time:
 	return;
 }
 
-void near GetNowTime()
+void GetNowTime()
 // work->status == 0のとき以外は呼ぶな
 // CLIしておくこと
 // 現在時刻を取得したからといって、割り込みをキャンセルしなければいけないなんてことはない。
@@ -557,7 +557,7 @@ void near GetNowTime()
 	return;
 }
 
-void near GetTimeAndFixZero()
+void GetTimeAndFixZero()
 // work->status == 0のとき以外は呼ぶな
 // EDI:ESIに残りカウント
 // CLIしておくこと
@@ -597,15 +597,13 @@ interval_over:
 	return;
 }
 
-void near CancelTimer()
+void CancelTimer()
 // DS:ESIのタイマーをキャンセル
 // CLIしておくこと
 {
-	asmout("#TN_back EQU 56");
-
 	TimerNode *tnode == DS:ESI, *tnext == DS:EDI, *tback == DS:EBX;
 	// headに繋がっていて、かつ、status == 0なら、GetNowTime() + FixZero()してから切り離す
-	asmout("TEST BYTE PTR DS:[ESI+#TN_back],0FH");
+	TEST((char) tnode->back, 0x0f);
 	if (== 0) {
 	//	if ((offset) tnode == work->head.next) { // こんなのやっても、残り時間が増えるだけだから、いちいち割り込まない。
 	//		if (work->status == 0) {
@@ -618,7 +616,7 @@ void near CancelTimer()
 		interval = tnode->interval;
 		tback->next = (offset) tnext;
 		tnext->back = (offset) tback;
-		asmout("MOV BYTE PTR DS:[ESI+#TN_back],02H"); // キャンセルされた
+		(char) tnode->back = 0x02; // キャンセルされた
 		interval2 = tback->interval;
 		if ((signed) interval < 0)
 			goto interval_over;
@@ -650,7 +648,7 @@ void far TimerSC_EOC()
 	return;
 }
 
-void near TimerSC_GetNode()
+void TimerSC_GetNode()
 {
 	asmout("#work_head EQU 256");
 	asmout("#work_last EQU 320");
@@ -658,38 +656,38 @@ void near TimerSC_GetNode()
 
 	TimerWork *work == DS:0x0000;
 	TimerNode *tnode == DS:ECX, *tnext == DS:EDX;
+	int *cmd == FS:EBX;
 	PUSHFD();
 	CLI();
 	(offset) tnode = work->last.next;
-	EAX = [FS:EBX + 8];
+	EAX = cmd[8];
 //	CMP((offset) tnode, (offset) &work->head);
 	asmout("CMP ECX,#work_head");
 	(offset) tnext = tnode->next;
 	/* (false) */ if (==) {
 		POPFD();
-	//	STI();
 		INT(0x03);
 	}
 	work->last.next = (offset) tnext;
 //	tnext->back = (offset) &work->last;
 	asmout("MOV DWORD PTR DS:[EDX+#TN_back],#work_last");
 	POPFD();
-//	STI();
-	[FS:EBX + 4] = ECX; // 書き込み即値
-	asmout("MOV BYTE PTR DS:[ECX+#TN_back],03H"); // 時刻すらセットされていない
-	EBX += 8;
+	cmd[4] = (offset) tnode; // 書き込み即値
+	(char) tnode->back = 0x03; // 時刻すらセットされていない
+	(offset) cmd += 8;
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
 }
 
-void near TimerSC_FreeNode()
+void TimerSC_FreeNode()
 {
 	asmout("#work_last EQU 320");
 	asmout("#TN_back EQU 56");
 
 	TimerWork *work == DS:0x0000;
 	TimerNode *tnode == DS:ECX, *tnext == DS:EDX;
-	(offset) tnode = [FS:EBX + 4];
-	EAX = [FS:EBX + 8];
+	int *cmd == FS:EBX;
+	(offset) tnode = cmd[4];
+	EAX = cmd[8];
 	EBX += 8;
 	PUSHFD();
 	CLI();
@@ -700,17 +698,16 @@ void near TimerSC_FreeNode()
 	tnode->next = (offset) tnext;
 	tnext->back = (offset) tnode;
 	POPFD();
-//	STI();
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
 }
 
-void near TimerSC_SetNowTime()
+void TimerSC_SetNowTime()
 // 現在時刻を知る
 // 割り込み中に実行したら馬鹿。・・・でも多分、割り込み中でも平気
 {
 	TimerWork *work == DS:0x0000;
+	int *cmd == FS:EBX;
 
-//	PUSH(EBX);
 	PUSHFD();
 	CLI();
 	if (work->status == 0) {
@@ -721,17 +718,15 @@ void near TimerSC_SetNowTime()
 		EDX = work->head.time[8];
 	}
 	POPFD();
-//	STI();
-//	POP(EBX);
-	ESI = [FS:EBX + 16];
-	[FS:EBX +  4] = EAX;
-	[FS:EBX +  8] = ECX;
-	[FS:EBX + 12] = EDX;
+	ESI = cmd[16];
+	cmd[ 4] = EAX;
+	cmd[ 8] = ECX;
+	cmd[12] = EDX;
 	EBX += 16;
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+ESI]");
 }
 
-void near TimerSC_SetTimer()
+void TimerSC_SetTimer()
 {
 	SS0_struct *ss0 == /* SS:(- sizeof (SS0_struct)) */ SS:0xffffffc0;
 	TimerWork *work == DS:0x0000;
@@ -747,42 +742,75 @@ void near TimerSC_SetTimer()
 	ss0->cli_count--;
 	/* (false) */ if (== 0) {
 		PUSH(DS);
-	//	PUSHAD();
 		/* (ss0->clicall)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
-	//	POPAD();
 		POP(DS);
 	}
 	POPFD();
-//	STI();
 	POP(EBX);
 	EAX = [FS:EBX + 8];
 	EBX += 8;
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
 }
 
-void near TimerSC_CancelTimer()
+void TimerSC_CancelTimer()
 {
+	SS0_struct *ss0 == /* SS:(- sizeof (SS0_struct)) */ SS:0xffffffc0;
 	TimerNode *tnode == DS:ESI;
-	(offset) tnode = [FS:EBX + 4];
-	EBP = EBX;
+	int *cmd == FS:EBX;
+	(offset) tnode = cmd[4];
+EBP = EBX;	///	PUSH(EBX);
 	PUSHFD();
 	CLI();
+///	ss0->cli_count++;
 	CancelTimer();
+///	ss0->cli_count--;
+///	/* (false) */ if (== 0) {
+///		PUSH(DS);
+///		/* (ss0->clicall)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
+///		POP(DS);
+///	}
 	POPFD();
-//	STI();
-	EAX = [FS:EBP + 8];
-	/* EBX = EBP + 8 */ asmout("LEA EBX,[EBP+8]");
+EAX = [FS:EBP + 8]; asmout("LEA EBX,[EBP+8]");	///	POP(EBX);
+
+#if 0
+TEST((char) tnode->back, 0x0f); if (== 0) INT(3);
+if (ESI == 0x0340) {
+	if (EDX == 0x02d0) {
+		PUSH(DS);
+		PUSH(SEL_IDTGDT);
+		POP(DS);
+		ECX = 384 + SEL_TIMERDAT;
+		AL = [DS:ECX + 4];
+		AH = [DS:ECX + 7];
+		EAX <<= 16;
+		AX = [DS:ECX + 2];
+		POP(DS);
+		LEA(ECX, tnode->back);
+		EAX += ECX;
+		asmout("MOV DR0,EAX");
+		EAX = 0;
+		asmout("MOV DR6,EAX");
+		asmout("MOV EAX,1000000010B+1101B*10000H");
+			/* GE = G0 = 1; LEN0 = 3 (DW); RW0 = 01 (write only); */
+		asmout("MOV DR7,EAX");
+		EAX = tnode->back;
+		tnode->back = EAX;
+	}
+}
+#endif
+
+///	EAX = cmd[8];
+///	EBX += 8;
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
 }
 
-void near TimerSC_SetNowTimeNode()
+void TimerSC_SetNowTimeNode()
 // 現在時刻を知る
 // 割り込み中に実行したら馬鹿。・・・でも多分、割り込み中でも平気
 {
 	TimerWork *work == DS:0x0000;
 	TimerNode *tnode == DS:ESI;
 
-//	PUSH(EBX);
 	PUSHFD();
 	CLI();
 	if (work->status == 0) {
@@ -793,8 +821,6 @@ void near TimerSC_SetNowTimeNode()
 		EDX = work->head.time[8];
 	}
 	POPFD();
-//	STI();
-//	POP(EBX);
 	(offset) tnode = [FS:EBX + 4];
 	EDI = [FS:EBX + 8];
 	EBX += 8;
@@ -804,7 +830,7 @@ void near TimerSC_SetNowTimeNode()
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EDI]");
 }
 
-void near TimerSC_AddTimeNode()
+void TimerSC_AddTimeNode()
 {
 	TimerWork *work == DS:0x0000;
 	TimerNode *tnode == DS:ESI;
@@ -821,7 +847,7 @@ void near TimerSC_AddTimeNode()
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EDI]");
 }
 
-void near TimerSC_SubTimeNode()
+void TimerSC_SubTimeNode()
 {
 	TimerWork *work == DS:0x0000;
 	TimerNode *tnode0 == DS:ESI, *tnode1 == DS:EDI;
@@ -840,7 +866,7 @@ void near TimerSC_SubTimeNode()
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EDI]");
 }
 
-void near TimerSC_SetCallVectorNode()
+void TimerSC_SetCallVectorNode()
 {
 	TimerWork *work == DS:0x0000;
 	TimerNode *tnode == DS:ESI;
@@ -855,7 +881,7 @@ void near TimerSC_SetCallVectorNode()
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EDI]");
 }
 
-void near TimerSC_SetMsgDataNode()
+void TimerSC_SetMsgDataNode()
 {
 	TimerWork *work == DS:0x0000;
 	TimerNode *tnode == DS:ESI;
@@ -866,8 +892,26 @@ void near TimerSC_SetMsgDataNode()
 
 	#if (defined(DEBUG))
 		TEST((char) tnode->back, 0x0f);
-		if (== 0)
+		if (== 0) {
+#if 0
+		//	EAX = [SS:ESP + 28];
+		//	ECX = [SS:ESP + 32];
+
+			EBX = [SS:ESP + 36 + 56 + 48 + 0]; // 1603
+			EBP = [SS:ESP + 36 + 56 + 48 + 4]; // c7
+			EDI = [SS:ESP + 36 + 56 + 48 + 8]; // 348
+			ECX = [SS:ESP + 36 + 56 + 48 + 12]; // f
+			ECX &= 0xfffffffc;
+			DS = CX;
+
+		//	EAX = [DS:EDI + 12 + 32 + 0]; // 5560 (execcmd0)
+		//	ECX = [DS:EDI + 12 + 32 + 4]; // 7
+			EAX = [DS:EDI + 12 + 32 + 12 + 0];
+#endif
 			INT(0x03);
+		}
+//EAX = 0;
+//asmout("MOV DR7,EAX");
 	#endif
 
 	do {
@@ -881,7 +925,7 @@ void near TimerSC_SetMsgDataNode()
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
 }
 
-void near TimerSC_AddTimeNode2()
+void TimerSC_AddTimeNode2()
 {
 	TimerWork *work == DS:0x0000;
 	TimerNode *tnode == DS:EDI;
@@ -926,10 +970,26 @@ void TimerSC_Special()
 		(int) [FS:EBX + 0x0c] = 32;
 		(int) [FS:EBX + 0x10] = 40;
 		(int) [FS:EBX + 0x14] = 0;
-		(int) [FS:EBX + 0x18] = 0x5e572d0d;
-		(int) [FS:EBX + 0x1c] = 0x004186af;
-		(int) [FS:EBX + 0x20] = 0x26a0149a;
-		(int) [FS:EBX + 0x24] = 1000;
+		#if (!defined(QEMU))
+			(int) [FS:EBX + 0x18] = 0x5e572d0d;
+			(int) [FS:EBX + 0x1c] = 0x004186af;
+			(int) [FS:EBX + 0x20] = 0x26a0149a;
+			(int) [FS:EBX + 0x24] = 1000;
+		#else
+			/* ちゃんと計算してない */
+			#if 1
+				(int) [FS:EBX + 0x18] = 0x44444444;
+				(int) [FS:EBX + 0x1c] = 0x04444444;
+				(int) [FS:EBX + 0x20] = 0;
+				(int) [FS:EBX + 0x24] = 60;
+			#endif
+			#if 0 /* 8倍速設定 */
+				(int) [FS:EBX + 0x18] = 0x88888888;
+				(int) [FS:EBX + 0x1c] = 0x00888888;
+				(int) [FS:EBX + 0x20] = 0x80000000;
+				(int) [FS:EBX + 0x24] = 7;
+			#endif
+		#endif
 		EBX += 40;
 	} else if (EAX == 8) {
 		// Intハンドラ情報
@@ -1070,10 +1130,17 @@ void TimerInit()
 
 	AL = 0x34 /* PIT0, Low/High, mode2, binary */;
 	OUT(PIT_CMD, AL);
-	AL = 0xa9; // 設定値(1193)
-	OUT(PIT0_COUNT, AL);
-	AL = 0x04;
-	OUT(PIT0_COUNT, AL);
+	#if (!defined(QEMU))
+		AL = 0xa9; // 設定値(1193)
+		OUT(PIT0_COUNT, AL);
+		AL = 0x04;
+		OUT(PIT0_COUNT, AL);
+	#else
+		AL = 0xae; // 設定値(19886)
+		OUT(PIT0_COUNT, AL);
+		AL = 0x4d;
+		OUT(PIT0_COUNT, AL);
+	#endif
 
 	POPFD();
 
@@ -1086,10 +1153,21 @@ void TimerInit()
 
 /* mscount計算用 */
 
+void far int8vect()
+{
+	ECX = EAX;
+	AL = 0x60;
+	OUT(0x20, AL);
+	EAX |= 0xffffffff;
+	IRET();
+}
+
+#if (!defined(QEMU) | 1)
+
 void calc_count1ms_sub()
 {
 	PUSH(EAX);
-	AL = 0x36;
+	AL = 0x34;
 	OUT(0x43, AL);
 	POP(EAX);
 	OUT(0x40, AL);
@@ -1097,19 +1175,9 @@ void calc_count1ms_sub()
 	OUT(0x40, AL);
 	EAX = 0;
 	do {
-		EAX--;
+		EAX++;
 	} while (!= 0);
-	NEG(ECX);
 	return;
-}
-
-void far int8vect()
-{
-	ECX = EAX;
-	AL = 0x60;
-	OUT(0x20, AL);
-	EAX = 1;
-	IRET();
 }
 
 void calc_count1ms()
@@ -1123,7 +1191,7 @@ void calc_count1ms()
 	/* デフォルトは65536らしい ＞ PIT0 */
 
 	/* 安全のためのダミー設定 */
-	AL = 0x36;
+	AL = 0x34;
 	OUT(0x43, AL);
 	EAX = 0;
 	OUT(0x40, AL);
@@ -1145,7 +1213,7 @@ void calc_count1ms()
 	calc_count1ms_sub(); /* 合計(3.1ms) */
 	EDX -= ECX;
 
-	AL = 0x36;
+	AL = 0x34;
 	OUT(0x43, AL);
 	EAX = 0;
 	OUT(0x40, AL);
@@ -1155,9 +1223,21 @@ void calc_count1ms()
 	AL = BL;
 	OUT(0x21, AL);
 
-	EAX = EDX;
+	XCHG(EAX, EDX);	//	EAX = EDX;
 	POP(ECX);
 	POP(EDX);
 	POP(EBX);
 	return;
 }
+
+#else
+
+/* QEMUではどうせ正確な値は測定できない。つまり測定時間の無駄 */
+
+void calc_count1ms()
+{
+	EAX = 1;
+	return;
+}
+
+#endif

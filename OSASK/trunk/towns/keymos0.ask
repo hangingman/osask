@@ -1,6 +1,22 @@
-// "keymos0.ask" for TOWNS ver.0.4 copyright(C) 2002 H.Kawai(川合秀実)
+// "keymos0.ask" for TOWNS ver.0.5 copyright(C) 2004 I.Tak, H.Kawai(川合秀実)
 
 // このバージョンもOTASK版と同じく、キーを押しながら抜くとフェーズが狂う
+
+/* FM-R mouse driver added by I.Tak. 2004
+ */
+#define FMRMOUSE	/* enables rmouse routine */
+
+/* ASKAの浦和座
+ * char *send_buf == DS:ESI;
+ * AL = send_buf[17];                   // OK
+ * send_buf[17] = AL;                   // error
+ * [send_buf+17] = AL;                  // OK……なんだってー!
+ * [send_buf+ECX+17] = AL;              // OK……なんだってー!
+ * (offset)send_buf = work->mouse_send_buf; // メモリアクセス……なんだってー!
+ * (offset)send_buf = (offset)work->mouse_send_buf; // ポインタの代入……なるほど
+ * work->keyjmp = (offset)KeyIntDrv_Normal; // error
+ * work->keyjmp = (int)KeyIntDrv_Normal; // errorにならないこともある……?
+ */
 
 #include "osaskinc.ask"
 
@@ -135,7 +151,7 @@ cmd010c:
 	PUSH((offset) cmd);
 	AX = CS;
 	FS = AX;
-	/* EBX = (offset) cmd010c_cmdline */ asmout("MOV EBX,OFFSET #cmd010c_cmdline");
+	/* EBX = (offset) cmd010c_cmdline; */ asmout("MOV EBX,OFFSET #cmd010c_cmdline");
 	KeyboardQueueExecute();
 	POP((offset) cmd);
 	POP(FS);
@@ -363,75 +379,95 @@ void near keyboardInit()
 	asmout("work_mouse_send_buf equ 01C0H");
 	asmout("work_err_send_buf EQU 0200H");
 
-//	PUSH(DS); // あらかじめ、mallocしてGDTに割り当てておく
-//	PUSH(EAX);
-//	PUSH(ECX);
-//	AX = CS; AX += 8; DS = AX; // 特定のDSに依存しないための手続き
-
 	keyboarddata *work == DS:0;
 	int zero == EAX, i == ECX;
+
+#if 0
+	PUSH(DS); // あらかじめ、mallocしてGDTに割り当てておく
+	PUSH(EAX);
+	PUSH(ECX);
+	AX = CS; AX += 8; DS = AX; // 特定のDSに依存しないための手続き
+#endif
 	zero = 0;
 	i = 64 + 64 / 8; // ついでにpushflagsも初期化
+#if (defined(PERFECTASKA))
 	do {
 		i--;
-		/* work->send_buf[i * 8 + 0] = zero */ asmout("MOV DWORD PTR DS:[ECX * 8 + 0],EAX");
-		/* work->send_buf[i * 8 + 4] = zero */ asmout("MOV DWORD PTR DS:[ECX * 8 + 4],EAX");
+		work->send_buf[i * 8 + 0] = zero;
+		work->send_buf[i * 8 + 4] = zero;
 	} while (!= 0);
+	work->keyjmp = KeyIntDrv_Normal;
+	work->queue_free_dw = sizeof (work->queue_buf) / 4 - 1; /* quecmd_tonormalの分 */
+	work->queue_write_ptr = (offset) work->queue_buf;
+	work->queue_exec_ptr  = (offset) work->queue_buf;
+#else
+	do {
+		i--;
+		[work->send_buf+ ECX * 8 + 0] = zero;
+		[work->send_buf+ ECX * 8 + 4] = zero;
+	} while (!= 0);
+	asmout("MOV DWORD PTR DS:[188h], OFFSET KeyIntDrv_Normal");
+	work->queue_free_dw = 128 / 4 - 1; /* quecmd_tonormalの分 */
+	work->queue_write_ptr = 0x80;
+	work->queue_exec_ptr  = 0x80;
+#endif
 
-	/* work->keyjmp = KeyIntDrv_Normal; */ asmout("MOV DWORD PTR DS:[0188h],OFFSET KeyIntDrv_Normal");
+#if 0
+	/* work->keysignal[0] = keytest; */ asmout("MOV DWORD PTR DS:[0180h],OFFSET keytest");
+	/* work->keysignal[4] */ [work + 0x184] = CS;
+	asmout("MOV DWORD PTR DS:[0000H],000007F1H");
+	asmout("MOV DWORD PTR DS:[0004H],5");
+	asmout("MOV DWORD PTR DS:[0180H],OFFSET Keydecode_Main");
+	asmout("MOV DWORD PTR DS:[0184H],22*8");
+#endif
 
-//	/* work->keysignal[0] = keytest; */ asmout("MOV DWORD PTR DS:[0180h],OFFSET keytest");
-//	/* work->keysignal[4] */ [work + 0x184] = CS;
-//	asmout("MOV DWORD PTR DS:[0000H],000007F1H");
-//	asmout("MOV DWORD PTR DS:[0004H],5");
-//	asmout("MOV DWORD PTR DS:[0180H],OFFSET Keydecode_Main");
-//	asmout("MOV DWORD PTR DS:[0184H],22*8");
-
-	work->queue_free_dw = /* sizeof (work->queue_buf) */ 128 / 4 - 1 /* quecmd_tonormalの分 */;
-	work->queue_write_ptr = /* (offset) work->queue_buf */ 0x80;
-	work->queue_exec_ptr  = /* (offset) work->queue_buf */ 0x80;
-
-//	/* work->mousejmp = MouseIntDrv_Phase0; */ asmout("MOV DWORD PTR DS:[018CH],OFFSET MouseIntDrv_Phase0");
-
+#if (defined(FMRMOUSE))
 	PUSH(FS);
-//	PUSH(EBX);
-	PUSH((int) 0); // eoc
-	PUSH(EAX);
-	PUSH(EAX);
+	PUSH(SS);
+	POP(FS);
+	PUSH(zero); // eoc
+	PUSH(zero);
+	PUSH(zero);
 	PUSH(0x011c /* TAPI_SingnalMessageTimerベクタ要求 */);
-	AX = SS;
 	EBX = ESP;
-	FS = AX;
 	DB(0x9a); DD(0); DW((short) TAPI_sel);
 	POP(EAX);
 	POP(work->mousesignal[0]);
 	POP(work->mousesignal[4]);
 	POP(EAX);
-//	POP(EBX);
 	POP(FS);
+#endif
 
-	/* work->mouse_send_buf[0] = 0x00003244 */ asmout("MOV DWORD PTR DS:[work_mouse_send_buf+0],3244H");
-	/* work->mouse_send_buf[4] = 0x7f000003 */ asmout("MOV DWORD PTR DS:[work_mouse_send_buf+4],7F000003H");
-	/* work->mouse_send_buf[8] = 0x73756f6d */ asmout("MOV DWORD PTR DS:[work_mouse_send_buf+8],73756F6DH");
-	/* work->mouse_send_buf[12] = 0 */ asmout("MOV DWORD PTR DS:[work_mouse_send_buf+12],0");
-//	/* work->mousesignal[0] = (offset) mousetest; */ asmout("MOV DWORD PTR DS:[work_mousesignal+0],OFFSET TAPI_SingnalMessageTimer");
-//	/* work->mousesignal[4] */ [work + 0x1B4] = /* CS */ 12*8;
-//	asmout("MOV DWORD PTR DS:[work_mousesignal+4],12*8");
-
-	work->mouse_queue_free_dw = /* sizeof (work->mouse_queue_buf) */ 128 / 4 - 1 /* mouse_quecmd_tonormalの分 */;
-	work->mouse_queue_write_ptr = /* (offset) work->mouse_queue_buf */ 0x100;
-	work->mouse_queue_exec_ptr  = /* (offset) work->mouse_queue_buf */ 0x100;
-
-	/* work->keyerr_signal[0] = (offset) dummy_fret */ asmout("MOV DWORD PTR DS:[work_keyerr_signal+0],OFFSET dummy_fret");
-	/* work->keyerr_signal[4] = CS */ asmout("MOV WORD PTR DS:[work_keyerr_signal+4],CS");
+#if (defined(PERFECTASKA))	/* 新スタイルの提案 */
+  #if (defined(FMRMOUSE))
+	work->mouse_send_buf[0] = 0x00003243;
+	work->mouse_send_buf[4] = 0x7f000002;
+	work->mouse_send_buf[8] = 0x73756f6d + 1;
+	work->mouse_send_buf[16] = zero;
+  #endif
+	work->keyerr_signal[0] = (offset) dummy_fret;
+	work->keyerr_signal[4] = CS;
+#else
+  #if (defined(FMRMOUSE))
+	(int)[work->mouse_send_buf+0] = 0x00003243;
+	(int)[work->mouse_send_buf+4] = 0x7f000002;
+	(int)[work->mouse_send_buf+8] = 0x73756f6d + 1;
+	(int)[work->mouse_send_buf+16] = zero;
+  #endif
+	[work->keyerr_signal+0] = (offset) dummy_fret;
+	[work->keyerr_signal+4] = CS;
+#endif
 
 	EDX = 0x0604;
 	AL = 1;
 	OUT(DX, AL);
 
-//	POP(ECX);
-//	POP(EAX);
-//	POP(DS);
+#if 0
+	POP(ECX);
+	POP(EAX);
+	POP(DS);
+#endif
+
 dummy_fret:
 	asmout("dummy_fret:");
 	return;
@@ -489,14 +525,30 @@ void near KeyboardIntDrv2()
 	asmout("JMP DWORD PTR DS:[0188H]"); // goto work->keyjmp;
 }
 
+
+/* 第一バイトは0x80が立っている。他は立っていない。
+ * 第二バイトが0x7eだとそれは拡張コードらしく,
+ * さらに後続のバイトを読んでコードとする。
+ */
+/*
+ * buf[0]=0xE0～0xE7で始まるのはFMRマウス。
+ *  0x04が立っていると, ボタン情報が付く。
+ *  0x02はdyのMSB, 0x01はdxのMSB (後続バイトではMSBを立てない決まりなので)。
+ * buf[1]=dx, buf[2]=dy。
+ * buf[3]=R+L*2+C*4	each bit is 1 if pushed.
+ */
 void near KeyIntDrv_Normal()
 {
 	keyboarddata *work == DS:0;
 	unsigned int keycode == EAX;
-	TEST(AH, AH);
-	if ((signed) < 0) {
+	if (AH < 0) {
 		// 第一バイト
 		work->firstbyte = AH;
+#if (defined(FMRMOUSE))
+		AH -= 0xe0;
+		if ((unsigned)AH < 8)
+			work->keyjmp = (int)KeyIntDrv_rmouse;
+#endif
 		goto fin;
 	}
 	// 第二バイト
@@ -600,6 +652,59 @@ call_ring0call:
 	/* (ss0->ring0call)() */ jmp_system_count0();
 //	IRETD();
 }
+
+
+#if (defined(FMRMOUSE))
+/* FMRマウスドライバ */
+void near KeyIntDrv_rmouse()
+{
+	keyboarddata *work == DS:0;
+	unsigned int keycode == EAX;
+
+	asmout("#fin EQU KeyIntDrv_Ret");
+	if (AH < 0)
+		goto fin; // 第一バイト
+	// 第二バイト以降
+	AL = work->firstbyte;	/* AL=0xe?なら第一パラメータ, 0x0?は第二, 0x2?は第三 */
+	AL += 0x20;		/* カウントアップ, 0xe?ならCF */
+	work->firstbyte = AL;
+	if (CF != 0) {
+		/* dx */
+		AL <<= 7;
+		AL |= AH;
+		[work->mouse_send_buf+12+1] = AL;
+	} else if (AL < 0x40) {
+		/* dy */
+		AH *= 2;
+		AL >>= 2;
+		RCR(AH, 1);
+		[work->mouse_send_buf+12+2] = AH;
+		TEST(AL, 1);
+		if (== 0) goto send;	/* 2byteで終わり */
+	} else {		
+		/* ボタン */
+		AH &= 0x03;
+		AH += 0xfe;
+		ADC(AH, AH);		/* exchange bit0, bit1 */
+		AH &= 0x03;
+		[work->mouse_send_buf+12] = AH;
+	send:
+		PUSHAD();
+		ESI = (offset)work->mouse_send_buf;
+	#if (defined(PERFECTASKA))
+		work->keyjmp = KeyIntDrv_Normal;
+		(work->mousesignal)();
+		// ESIも含め、汎用レジスタはすべて破壊される
+	#else
+		work->keyjmp = (int)KeyIntDrv_Normal;
+		asmout("CALL FAR DWORD[DS:01b0h]");
+		// ESIも含め、汎用レジスタはすべて破壊される
+	#endif
+		POPAD();
+	}
+	goto fin;
+}
+#endif
 
 void near KeyIntDrv_7Ebyte()
 {

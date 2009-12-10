@@ -1,6 +1,8 @@
-/* "init.ask" ver.3.8 copyright(C) 2004 H.Kawai(川合秀実), I.Tak., KIYOTO */
+/* "init.ask" ver.3.9 copyright(C) 2004 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
+
+#define KROM  /* shellcall2にcmd0100を追加。漢字ROM→GAPIデータデコード */
 
 #define	MAXWINDOW		80	/* 1024/32 */
 #define	CALLFAR0(sel)	CALL(sel, 0)
@@ -476,6 +478,7 @@ void far Init()
 		ESP += 36; /* eocが残っている */
 
 		/* mapping PC-Card Window */
+		/* CX以降の非386SXであれば、EBXを0xc1000000にするべきだ */
 
 		PUSH(EAX);
 		EBX = 0xc0000000;
@@ -935,19 +938,20 @@ PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 1; POP(DS);
 		(short) [DS:EBX + 2] = SEL_TIMERINT;
 		(short) [DS:EBX + 6] = AX;
 		ESP += 24; /* ?, ?, eocは残っている */
-		#if (!defined(QEMU))
-			PUSH(0x000c); /* calc_count1ms */
-			PUSH(0x0004); /* special */
-			EBX = ESP;
-			CALLFAR0(SEL_TIMERINT);
-			POP(EAX);
-			POP(EAX);
-		#endif
+		PUSH(0x000c); /* calc_count1ms */
+		PUSH(0x0004); /* special */
+		EBX = ESP;
+		CALLFAR0(SEL_TIMERINT);
+		POP(EAX);
+		POP(EAX);
 		POP(EDX);
 		POP(EAX); /* eocが残っている */
 	#endif
-	#if (defined(QEMU))
-		EDX = 1000;
+	#if (defined(QEMU) | 1)
+		/* 実機ではこんなコードは要らないのだが・・・ */
+		/* qemuとbochsのために */
+		if ((signed) EDX <= 15)
+			EDX = 15; /* てきとーなあたい */
 	#endif
 
 #ifdef DEBUG031127
@@ -7182,6 +7186,10 @@ nextcmd:
 	#endif
 	if (EAX == 0x00b0)
 		goto cmd00b0; /* set info */
+	#if (defined(KROM))
+		if (EAX == 0x0100)
+			goto cmd0100; // decode TOWNS KanjiROM
+	#endif
 
 	if (EAX == 0x8010)
 		goto cmd8010;
@@ -7741,58 +7749,113 @@ cmd0088:
 		}
 		INT(0x03);
 
-	#elif (defined(TOWNS) && defined(CLGD543X))
-cmd0088:	/* VRAM/CRT出力変更 */
+	#elif (defined(TOWNS))
+cmd0088:	/* opt=1:CRTC/CLGD切り替え opt=0:GAPIsel切り替え */
 			/* cmd, opt, drv */
-		/* VRAM_selの準備 */
-		PUSH(syswork_sel);
-		EAX = cmd[8]; /* drv */
-		POP(DS);
-		EBP = 512 * 1024;
-		DX = 0x055c;
-		CMP(AH, 1);
-		if ((unsigned) <) {	/* TOWNS汎用型 */
-			ESI = 0x80100000;
-			IN(AX, 0x0030); /* CPU識別レジスタ */
-			AL &= 0x07;
-			CMP(AL, 0x03);
-			if (==) /* i386SX */
-				ESI = 0x00b00000;
-			AL = 0;
-			OUT(DX, AL);
-		} else {
-			ESI = 0x89400000; /* CLGD543X */
-			if (!=)
-				EBP += EBP;
-			AL = 1;
-			EBP += EBP;
-			OUT(DX, AL); /* CRT 出力切替え */
-		}
-		DL = [DS:0x001c + 2 /* eflags[2] */];
-		ECX = 0x1007 /* present, R/W, user, override */;
-		TEST(DL, 0x04);
-		if (!= 0)
-			CL = 0x1f /* VRAMはキャッシュしない(PCD=1) */;
-		PUSH(FS);
-		PUSH(EBX);
-		PUSH(0);
-		PUSH(0 /* addr64(high) */);
-		PUSH(ESI /* addr64(low) */);
-		PUSH(0 /* offset64(high) */);
-		PUSH(0 /* offset64(low) */);
-		PUSH(0 /* pageset */);
-		PUSH((int) 0xe0000000 /* linear */);
-		PUSH(EBP /* size */);
-		PUSH(ECX /* opt */);
-		PUSH((int) 0x0108 /* cmd(mapping) */);
-		PUSH(SS);
-		POP(FS);
-		EBX = ESP;
-		CALLFAR0(papi_sel);
-		ESP += 40;
-		POP(EBX);
-		POP(FS);
+		EAX = cmd[4];
+		if (EAX == 0) {/* ビデオドライバ変更 */
+			STR_SYSWORK *cmd0088_swork == DS:0;
+			EAX = cmd[8];
+			PUSH(syswork_sel);
+			POP(DS);
+			EDX = 0x040;
+			/* base.nas:SysWorkMdl+0x100にvesa16の情報がある */
+			if (EAX == 2) {
+				/* vesa16に入れると面倒なのでここに突っ込む */
+				ECX = 0;
+				EDX = 0x440;
+				do {
+					EAX = ECX;
+					OUT(DX, AX);
+					asmout("mov AX, [CS:towns15crtc+ECX*2]");
+					DL = 0x42;
+					OUT(DX, AX);
+					DL = 0x40;
+					CMP(ECX, 31);
+					ECX++;
+				} while (CF != 0);
+				/* プライオリティーレジスタ */
+				DL = 0x48;
+				AL = 0x00;
+				OUT(DX, AL);
+				DL = 0x4a;
+				AL = 0x0f;
+				OUT(DX, AL);
+				DL = 0x48;
+				AL = 0x01;
+				OUT(DX, AL);
+				DL = 0x4a;
+				AL = 0x08;
+				OUT(DX, AL);
+				/* CRT出力コントロールレジスタ */
+				EDX = 0xfda0;
+				AL = 0x0c;
+				OUT(DX, AL);
 
+				EDX = 0x0100;
+			}
+			ECX = [DS:EDX +  8];
+			EDX = [DS:EDX + 12];
+			EDX -= cmd0088_swork->bmodule_paddr;
+			EDX += cmd0088_swork->bmodule_laddr;
+			PUSH(idtgdt_sel);
+			POP(DS);
+			EAX = 4 * 8 + 384;
+			(short) [DS:EAX + 0] = CX; /* limit */
+			(short) [DS:EAX + 2] = DX; /* base */
+			EDX >>= 16;
+			(char) [DS:EAX + 4] = DL;
+			(char) [DS:EAX + 7] = DH;
+		} else if (EAX == 1) {
+			/* VRAM_selの準備 */
+			PUSH(syswork_sel);
+			EAX = cmd[8]; /* drv */
+			POP(DS);
+			EBP = 512 * 1024;
+			DX = 0x055c;
+			CMP(AH, 1);
+			if ((unsigned) <) {	/* TOWNS汎用型 */
+				ESI = 0x80100000;
+				IN(AX, 0x0030); /* CPU識別レジスタ */
+				AL &= 0x07;
+				CMP(AL, 0x03);
+				if (==) /* i386SX */
+					ESI = 0x00b00000;
+				AL = 0;
+				OUT(DX, AL);
+			} else {
+				ESI = 0x89400000; /* CLGD543X */
+				if (!=)
+					EBP += EBP;
+				AL = 1;
+				EBP += EBP;
+				OUT(DX, AL); /* CRT 出力切替え */
+			}
+			DL = [DS:0x001c + 2 /* eflags[2] */];
+			ECX = 0x1007 /* present, R/W, user, override */;
+			TEST(DL, 0x04);
+			if (!= 0)
+				CL = 0x1f /* VRAMはキャッシュしない(PCD=1) */;
+			PUSH(FS);
+			PUSH(EBX);
+			PUSH(0);
+			PUSH(0 /* addr64(high) */);
+			PUSH(ESI /* addr64(low) */);
+			PUSH(0 /* offset64(high) */);
+			PUSH(0 /* offset64(low) */);
+			PUSH(0 /* pageset */);
+			PUSH((int) 0xe0000000 /* linear */);
+			PUSH(EBP /* size */);
+			PUSH(ECX /* opt */);
+			PUSH((int) 0x0108 /* cmd(mapping) */);
+			PUSH(SS);
+			POP(FS);
+			EBX = ESP;
+			CALLFAR0(papi_sel);
+			ESP += 40;
+			POP(EBX);
+			POP(FS);
+		}
 		(offset) cmd += 12;
 		goto nextcmd;
 	#endif
@@ -8170,6 +8233,75 @@ cmd00b0:
 	} while (!= 0);
 	(offset) cmd += 24;
 	goto nextcmd;
+
+	#if (defined(KROM))
+cmd0100: // TOWNS KanjiROM decoder. cmd, offset, selector
+		LDS(EDI, cmd[4]);		/* JISX0213用だがJISX0208-1983を突っこむ */
+		CH = 0x21;
+		do {
+			CL = 0x21;
+			do {
+				AL = CH;
+				EDX = 0xff94;
+				OUT(DX, AL);
+				AL = CL;
+				EDX++;
+				OUT(DX, AL);
+				EDX++;
+				AH = 16;
+				do {
+					IN(AL, DX);
+					EDX++;
+					[DS:EDI] = AL;
+					IN(AL, DX);
+					[DS:EDI + 16] = AL;
+					EDX--;
+					EDI++;
+					AH--;
+				} while (!= 0);
+				EDI += 16;
+				CMP(CL, 0x7e);
+				CL++;
+			} while (CF != 0);
+			CMP(CH, 0x7e);
+			CH++;
+		} while (CF != 0);
+
+		EDI += 0x4a000 - 94*94*2*16;
+
+		CH = 0x76;
+		do {
+			CL = 0x00;
+			do {
+				AL = CH;
+				EDX = 0xff94;
+				OUT(DX, AL);
+				AL = CL;
+				EDX++;
+				OUT(DX, AL);
+				EDX++;
+				AH = 16;
+				do {
+				IN(AL, DX);
+				[DS:EDI] = AL;
+				EDI++;
+				EDX++;
+				IN(AL, DX);
+				[DS:EDI] = AL;
+				EDI++;
+				EDX--;
+				AH--;
+			} while (!= 0);
+			CMP(CL, 0x1f);
+			CL++;
+		} while (CF != 0);
+		CMP(CH, 0x79);
+		CH++;
+	} while (CF != 0);
+
+	(offset)cmd += 12;
+	goto nextcmd;
+#endif
 
 cmd8010:
 	// デバッグ用コマンド
@@ -10768,5 +10900,15 @@ clgd543XDetect_data:
 	DB(0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f);
 	DB(0x41, 0x00, 0x0f, 0x00, 0x00);
 	/* HiddenDAC:	DB(0x00); */
+}
+#endif
+
+#if (defined(TOWNS))
+void towns15crtc()
+{
+	DW(0x0060, 0x02C0, 0xffff, 0xffff, 0x031F, 0x0000, 0x0004, 0x0000);
+	DW(0x0419, 0x00CA, 0x02CA, 0x00CA, 0x02CA, 0x0046, 0x0406, 0x0046);
+	DW(0x0406, 0x0000, 0x00CA, 0x0000, 0x0080, 0x0000, 0x00CA, 0x0000);
+	DW(0x0080, 0x0058, 0x0001, 0x0000, 0x800A, 0x0002, 0xC200, 0x0192);
 }
 #endif

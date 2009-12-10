@@ -6,7 +6,7 @@ BASE_OBJ = $(BASE:.exe=.obj)
 
 ASK_OBJS =  timerdrv.bin keymos0.bin fdcdrv0.bin vgadrv0.bin decode0.bin
 
-#ASK_OBJS += vesadrv0.bin 
+ASK_OBJS += $(VESA_OBJS)
 
 C_OBJS = 
 

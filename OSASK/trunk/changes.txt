@@ -1,5 +1,11 @@
 ●主な変更点 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
+Version 4.5(2004/5)
+[OSASK 6930][OSASK 6935]
+・アーカイブ機能がサポートされました。
+・32768色画面に対応しました(TOWNS版)。
+・漢字ROMに対応しました(TOWNS版)。
+
 Version 4.4(2004/4)
 [OSASK 6872][OSASK 6880][OSASK 6883][OSASK 6910][OSASK 6911]
 ・CardBus周りのルーチンを改良しました。

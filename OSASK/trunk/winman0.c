@@ -1,6 +1,12 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.6
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.7
 		copyright(C) 2004 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
     stack:8k malloc:4208k file:4096k */
+
+#include <guigui00.h>
+#include <sysgg00.h>
+/* sysggは、一般のアプリが利用してはいけないライブラリ
+   仕様もかなり流動的 */
+#include <stdlib.h>
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 #include "../kjpegls.h"
@@ -10,9 +16,11 @@
 	static int backcolors[5] = {6, 6, 0x0410, 0x00008080, 0x00008080};
 #endif
 
-#if defined(TOWNS)
-	#define vbecoldep 1
-#elif defined(NEC98)
+#if (defined(TOWNS))
+	/* マウス・パッドポート設定 (FMR<<4)|(R<<2)|L, 0:none,1:mouse,2:pad,3:6pad */
+	static char townsmouse = 0x04;/* right mouse only */
+	static char vbecoldep = 1;
+#elif (defined(NEC98))
 	#define vbecoldep 0
 #endif
 
@@ -22,15 +30,13 @@
 							/* CLGDには1024のパラメータしか作ってない */
 #endif
 
+/* いわゆる"パッドでマウス"対応 */
+#define FMRMOUSE		1	/* FMRMOUSEに対応 2004.04.12 by I.Tak. */
+#define KROM			1	/* font file が無いときにROMで代用する 2004.04.12 by I.Tak. */
+
 #define WALLPAPERMAXSIZE	(4 * 1024 * 1024)
 #define	SCRNSHOTMAXSIZ		2048 * 1024
 #define MAXWINDEF			16
-
-#include <guigui00.h>
-#include <sysgg00.h>
-/* sysggは、一般のアプリが利用してはいけないライブラリ
-   仕様もかなり流動的 */
-#include <stdlib.h>
 
 //static int MALLOC_ADDR;
 #define MALLOC_ADDR			j
@@ -1285,13 +1291,16 @@ void OsaskMain()
 
 	#if (defined(TOWNS))
 		static int TOWNS_mouseinit[] = {
-			0x0064, 17 * 4, 0x0030 /* SetMouseParam */, 0x020d,
+			0x0064, 17 * 4, 0x0030 /* SetMouseParam */, 0x030d,
 			20 /* サンプリングレート 20ミリ秒 */,
 			0, 0, /* TAPIのシグナル処理ベクタ(TAPI_SignalMessageTimer) */
 			0x3245, 0x7f000004, 0x73756f6d, 0,
 			0x000d0019 /* wait0=25, wait1=13 */, 0x0f3f0f0f /* strobe */,
-			0x00000000, 0x000000, 0x0f0f0f3f, 0x00000030,
+			0x0f0f0f3f, 0x000030, 0x0f0f0f3f, 0x00000030,
 			0 /* eoc */
+		};
+		static int TOWNS_mousestop[] = {
+			0x0064, 4*4, 0x0030 /* SetMouseParam */, 0x0002, 0
 		};
 	#endif
 	#if (defined(NEC98))
@@ -1674,8 +1683,13 @@ void OsaskMain()
 				goto fin_wrtjob;
 			#endif
 
+		case 0x0207: /* PF4 */
+			#if (defined(TOWNS))
+				//	siglen = 1;
+				writejob_n( 2, 0x0034, 3);
+				goto fin_wrtjob;
+			#endif
 			#if (defined(PCAT))
-		case 0x0207:
 			//	siglen = 1;
 				if (f4mode) {
 					writejob_n(2, 0x0034 /* change VGA mode */, f4mode);
@@ -1757,6 +1771,29 @@ void OsaskMain()
 			writejob_n(1, 0x0048 /* set wallpaper */);
 			goto fin_wrtjob;
 
+			#if (defined(TOWNS))
+		case 0x0300: /* townsmouse */
+			siglen++; /* siglen = 2; */
+			sgg_execcmd(TOWNS_mousestop);
+			if (signal[1] & 0x0f) {
+			  int par = signal[1] & 0x0f, port = 0;
+			  TOWNS_mouseinit[ 3] = 0x0000030d;
+			  TOWNS_mouseinit[13] = 0;
+			  TOWNS_mouseinit[14] = 0x00000030;
+			  TOWNS_mouseinit[15] = 0;
+			  TOWNS_mouseinit[16] = 0x00000030;
+			  for (; par; par >>= 2, port++)
+			    if (par & 0x03) {
+			      TOWNS_mouseinit[13 + port*2] = 0x0f0f0f3f;
+			      if (par & 0x02) /* pad */
+			        TOWNS_mouseinit[14 + port*2] = 0x0f0f0f3f;
+			    }
+			  sgg_execcmd(TOWNS_mouseinit);
+			}
+			townsmouse = signal[1];
+			break;
+			#endif
+
 			#if (defined(PCAT))
 		case 0x10001 /* 英語キーボードに変更 */:
 			//	siglen = 1;
@@ -1800,12 +1837,39 @@ void OsaskMain()
 				break;
 			#endif
 
+			#if (defined(TOWNS) && defined(FMRMOUSE))
+		case 0x73756f6d + 1: /* from rmouse */
+			siglen++;
+			if (mx != 0x80000000 && (townsmouse & 0x10))
+				mousesignal(signal[1] & 3, (signed char)(signal[1] >> 8),
+					(signed char)(signal[1] >> 16));
+			break;
+			#endif
+
 		case 0x73756f6d /* from mouse */:
 			#if (defined(TOWNS))
-				if (mx != 0x80000000) {
-					mousesignal(((signal[3] >> 4) & 0x03) ^ 0x03,
-						- (signed char) (((signal[3] >> 20) & 0xf0) | ((signal[3] >> 16) & 0x0f)),
-						- (signed char) (((signal[3] >>  4) & 0xf0) | ( signal[3]        & 0x0f)));
+				if (mx != 0x80000000 && (townsmouse & 0x0f)) {
+					char port, cfg = townsmouse;
+					int dx = 0, dy = 0, btn = 0;
+					for (port = 0; port < 2; port++, cfg >>= 2) {
+						int b = signal[2+port];
+						if (cfg & 3) {
+							if ((cfg & 2) == 0) {
+								dx -=(signed char)(0x0f &(b >> 16)| 0xf0 &(b >> 20));
+								dy -=(signed char)(0x0f & b       | 0xf0 &(b >>  4));
+								btn |= ((b >> 4) & 0x03) ^ 0x03;
+							} else {
+								static char d[] = {0, -1, 1, 0};
+								b = (b & (b >> 16) & 0x0f3f) ^ 0x0f3f;
+								if (cfg & 1) /* 6PAD */
+									b = b | (b >> 5) & 0x40; /* C button */
+								dy += d[b & 3];
+								dx += d[(b >> 2) & 3];
+								btn |= (b >> 4) & 7;
+							}
+						}
+					}
+					mousesignal(btn, dx, dy);
 				}
 				siglen = 4;
 			#endif
@@ -3498,6 +3562,12 @@ void gapi_driverinit(int drv)
 		if (vbecoldep != drv)
 			wallpaper_exist = 0;
 		vbecoldep = drv;
+	#elif (defined(TOWNS))
+		/* sggでドライバ切り替えを指定 */
+		sgg_execcmd0(0x0088, 0x0000, drv, 0x0000);
+		if (vbecoldep != drv)
+			wallpaper_exist = 0;
+		vbecoldep = drv;
 	#endif
 
 	sgg_wm0_gapicmd_0010_0000();
@@ -3573,46 +3643,52 @@ void job_setvgamode2()
 {
 	struct WM0_WINDOW *win;
 	#if (defined(TOWNS))
-		#if (defined(CLGD543X))
-			if (job.int0 < 0x100) {
-				/* 全部のウィンドウの座標範囲を確認(はみ出したら画面を切り替えない) */
-				if (win = top) {
-					do {
-						if (/* win->x1 > TWVSW || */ win->y1 > 512 * 1024 / TWVSW - RESERVELINE1) {
-							job_general1();
-							sgg_wm0_putmouse(mx = mxx, my);
-							return;
-						}
-					} while ((win = win->down) != top);
-				}
-			}
-		#endif
+		int width[] = { TWVSW, TWVSW, TWVSW, 512, 1024 };
+		int height[] = { 1024*512/TWVSW, 1024*512/TWVSW, 1024*512/TWVSW, 480, 768 };
+		int newcol = (job.int0 == 3) ? 2 : 1, newmode;
 
-		/* 画面モード0設定(640x480) */
-		/* 画面モード1設定(768x512) */
+		newmode = job.int0;
+		if (newmode >= 4)
+			newmode = 4;
+		if (job.int0 < 0x100 && (win = top)) {
+			/* 全ウィンドウの座標範囲を確認(はみ出したら画面を切り替えない) */
+			do {
+				if (win->x1 > width[newmode] || win->y1 > height[newmode] - RESERVELINE1) {
+					job_general1();
+					sgg_wm0_putmouse(mx = mxx, my);
+					return;
+				}
+			} while ((win = win->down) != top);
+		}
+
+		/* 画面モード0設定(640x480x8bpp) */
+		/* 画面モード1設定(768x512x8bpp) */
 		/* 画面モード2設定(640x480ビデオ) */
-		x2 = TWVSW;
-		y2 = 512 * 1024 / TWVSW;
-		#if (defined(CLGD543X))
-			if (job.int0 >= 0x0100) { /* CLGD543X */
-				x2 = 1024;
-				y2 = 768;
-				/* CLGDの初期化は最初にPF13を押したときに済ませた */
-			}
-		#endif
+		/* 画面モード3設定(512x480x16bpp) */
+		/* 画面モード4設定(1024x768x8bpp CLGD543x) */
+		x2 = width[newmode];
+		y2 = height[newmode];
+		if (mx > x2)
+			mx = x2 - 1;
 		if (my > y2 - 16)
 			my = y2 - 16;
 		#if (defined(VMODE))
 			backcol = BACKCOLOR;
 			if (job.int0 == 2)
-				backcol = 0;
+			  backcol = 0;
 		#endif
-		sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job.int0 /* mode */, 0x0000, 0x0000);
-		if (job.int0 < 0x0100)
-			sgg_wm0_gapicmd_001c_0004(); /* ハードウェア初期化 */
+
+		/* GAPI差し替え vesa16のときは画面モード変更も同時にやる */
+		gapi_driverinit(newcol);
+		if (newcol == 2) /* vesa16にx2,y2を知らせる */
+		  sgg_execcmd0(0x0050, 8 * 4, 0x001c, 0, 0x0020, x2, y2, 0x0000, 0x0000);
+		else
+		  sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job.int0 /* mode */, 0x0000, 0x0000); /* 画面モード変更 */
+ 		if (job.int0 < 3)
+ 			sgg_wm0_gapicmd_001c_0004(); /* ハードウェア初期化(パレット設定) */
 		#if (defined(CLGD543X))
 			/* 不要なときも多いのだが…… */
-			sgg_execcmd0(0x0088, 0, job.int0, 0x0000); /* VRAM&CRT出力 切替え */
+			sgg_execcmd0(0x0088, 1, job.int0, 0x0000); /* VRAM&CRT出力 切替え */
 		#endif
 		init_screen(x2, y2);
 		job_general1();
@@ -3793,27 +3869,34 @@ void job_loadfont0(int fonttype, int tss, int sig)
 void job_loadfont1(int flag, int dmy)
 {
 	struct STR_JOB *pjob = &job;
-	if ((pjob->fontflag & 0x01) == 0 && flag == 0 /* ロード成功 */) {
+	if ((pjob->fontflag & 0x01) == 0) {
 		char *fp = (char *) pjob->readCSd10 /* malloc領域の終わり == mapping領域の始まり */;
-		lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
+		if (flag == 0 /* ロード成功 */) {
+			lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
 
-		/* ここでslot:0x0210にgapidataを配備 */
-		/* ロードが終わってから配備するのが重要で、そうでないとgapidataの拡張が終わってないかもしれないから */
-		sgg_execcmd0(0x007c, 0, 0x0210, 0x0000);
+			/* ここでslot:0x0210にgapidataを配備 */
+			/* ロードが終わってから配備するのが重要で、そうでないとgapidataの拡張が終わってないかもしれないから */
+			sgg_execcmd0(0x007c, 0, 0x0210, 0x0000);
 
-		lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 304 * 1024, fp + 256 * 1024, (8 + 16) * 1024);
-		lib_decodetek0(304 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
-		lib_unmapmodule(0, 768 * 1024, fp);
-		pjob->fontflag |= 0x01;
-		lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
+			lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 304 * 1024, fp + 256 * 1024, (8 + 16) * 1024);
+			lib_decodetek0(304 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
+			lib_unmapmodule(0, 768 * 1024, fp);
+			pjob->fontflag |= 0x01;
+			lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
 
-	//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-	//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+		}
+		#if (defined(TOWNS) && defined(KROM))
+			else {
+				/* fontfileロードに失敗したのでROMを頼る */
+				sgg_execcmd0(0x007c, 0, 0x0210, 0x0000);
+				lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 304 * 1024, fp, (8 + 16) * 1024);
+				sgg_execcmd0(0x0100, fp, 0x000c, 0x0000); /* ROM to GAPI data */
+				lib_unmapmodule(0, 304 * 1024, fp);
+				pjob->fontflag |= 0x01;
+			}
+		#endif
 	}
-//	if (pjob->fonttss)
-//		send_signal2dw(job_fonttss | 0x240, 0x7f000001, job_sig);
-//	pjob->now = 0;
-//	pjob->func = NULL;
+
 	job_loadfont2();
 	return;
 }
@@ -3847,9 +3930,6 @@ void job_loadfont3(int flag, int dmy)
 		lib_unmapmodule(0, 768 * 1024, fp);
 		pjob->fontflag |= 0x02;
 		lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
-
-	//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-	//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
 	}
 	if (pjob->fonttss) {
 		send_signal2dw(pjob->fonttss | 0x240, 0x7f000001, pjob->sig);

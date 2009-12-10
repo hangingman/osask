@@ -1,9 +1,7 @@
-/* "VESA8.ASK" for PC/AT ver.0.3 copyright(C) 2004 川合秀実 */
+/* "VESA8.ASK" for PC/AT ver.0.4 copyright(C) 2004 川合秀実 */
 
 segment CODE(USE32, PARA);
 default(code == CODE);
-
-//	#define QEMU		1
 
 struct GAPI_WORK {
 	signed int mx, my, mx0, my0, mx1, my1;
@@ -191,7 +189,7 @@ void GAPI_fontwrite()
 		goto error; /* 4の倍数以外はまだサポートしてない */
 
 	IMUL(ESI, work->linebytes);
-	ESI += EAX;
+	LEA(ESI, [ESI + EAX + 0xe0000000]);
 
 	int *font == ES:EDI;
 	EAX = (unsigned char) cmd[20]; /* bgcolor */
@@ -249,71 +247,66 @@ void GAPI_fontwrite()
 		(offset) font = *string;
 		(offset) string += 4;
 		ECX = 4;
+		PUSH(ESI);
 		do {
 			EBX = *font; /* 4lines */
 			(offset) font += 4;
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 4] = EAX;
+			[DS:ESI + 4] = EAX;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
+			[DS:ESI + 0] = EAX;
 			ESI += work->linebytes;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 4] = EAX;
+			[DS:ESI + 4] = EAX;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
+			[DS:ESI + 0] = EAX;
 			ESI += work->linebytes;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 4] = EAX;
+			[DS:ESI + 4] = EAX;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
+			[DS:ESI + 0] = EAX;
 			ESI += work->linebytes;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 4] = EAX;
+			[DS:ESI + 4] = EAX;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
+			EAX = [SS:ESP + EDX * 4 + 8];
+			[DS:ESI + 0] = EAX;
 			ESI += work->linebytes;
 			ECX--;
 		} while (!= 0);
-		EAX = work->linebytes;
+		POP(ESI);
 		POP(ECX);
-		#if (!defined(QEMU))
-			IMUL(EAX, -16);
-		#else
-			EAX *= 16;
-			NEG(EAX);
-		#endif
-		LEA(ESI, [ESI + EAX + 8]);
+		ESI += 1 * 8;
 		ECX--;
 	} while (!= 0);
 	ESP += 64;
@@ -334,71 +327,66 @@ opt1:
 		(offset) font = *string;
 		(offset) string += 4;
 		ECX = 2;
+		PUSH(ESI);
 		do {
 			EBX = *font; /* 4lines */
 			(offset) font += 4;
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 4] = EAX;
+			[DS:ESI + 4] = EAX;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
+			[DS:ESI + 0] = EAX;
 			ESI += work->linebytes;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 4] = EAX;
+			[DS:ESI + 4] = EAX;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
+			[DS:ESI + 0] = EAX;
 			ESI += work->linebytes;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 4] = EAX;
+			[DS:ESI + 4] = EAX;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
+			[DS:ESI + 0] = EAX;
 			ESI += work->linebytes;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
+			EAX = [SS:ESP + EDX * 4 + 8];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 4] = EAX;
+			[DS:ESI + 4] = EAX;
 
-			EAX = [SS:ESP + EDX * 4 + 4];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
+			EAX = [SS:ESP + EDX * 4 + 8];
+			[DS:ESI + 0] = EAX;
 			ESI += work->linebytes;
 			ECX--;
 		} while (!= 0);
-		EAX = work->linebytes;
+		POP(ESI);
 		POP(ECX);
-		#if (!defined(QEMU))
-			IMUL(EAX, -8);
-		#else
-			EAX *= 8;
-			NEG(EAX);
-		#endif
-		LEA(ESI, [ESI + EAX + 8]);
+		ESI += 1 * 8;
 		ECX--;
 	} while (!= 0);
 	ESP += 64;
@@ -413,7 +401,7 @@ opt2:
 		goto error; /* 4の倍数以外はまだサポートしてない */
 
 	IMUL(ESI, work->linebytes);
-	ESI += EAX;
+	LEA(ESI, [ESI + EAX + 0xe0000000]);
 
 //	int *font == ES:EDI;
 //	int *string == FS:EBP;
@@ -430,39 +418,34 @@ opt2:
 		(offset) font = *string;
 		(offset) string += 4;
 		ECX = 4;
+		PUSH(ESI);
 		do {
 			EAX = font[ 0]; /* 4dots */
 			EDX = font[ 4];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			[DS:ESI + 0] = EAX;
+			[DS:ESI + 4] = EDX;
 			ESI += work->linebytes;
 			EAX = font[ 8]; /* 4dots */
 			EDX = font[12];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			[DS:ESI + 0] = EAX;
+			[DS:ESI + 4] = EDX;
 			ESI += work->linebytes;
 			EAX = font[16]; /* 4dots */
 			EDX = font[20];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			[DS:ESI + 0] = EAX;
+			[DS:ESI + 4] = EDX;
 			ESI += work->linebytes;
 			EAX = font[24]; /* 4dots */
 			EDX = font[28];
 			(offset) font += 32;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			[DS:ESI + 0] = EAX;
+			[DS:ESI + 4] = EDX;
 			ESI += work->linebytes;
 			ECX--;
 		} while (!= 0);
-		EAX = work->linebytes;
+		POP(ESI);
 		POP(ECX);
-		#if (!defined(QEMU))
-			IMUL(EAX, -16);
-		#else
-			EAX *= 16;
-			NEG(EAX);
-		#endif
-		LEA(ESI, [ESI + EAX + 8]);
+		ESI += 1 * 8;
 		ECX--;
 	} while (!= 0);
 	(offset) cmd = (offset) string;
@@ -478,39 +461,34 @@ opt3:
 		(offset) font = *string;
 		(offset) string += 4;
 		ECX = 2;
+		PUSH(ESI);
 		do {
 			EAX = font[ 0]; /* 4dots */
 			EDX = font[ 4];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			[DS:ESI + 0] = EAX;
+			[DS:ESI + 4] = EDX;
 			ESI += work->linebytes;
 			EAX = font[ 8]; /* 4dots */
 			EDX = font[12];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			[DS:ESI + 0] = EAX;
+			[DS:ESI + 4] = EDX;
 			ESI += work->linebytes;
 			EAX = font[16]; /* 4dots */
 			EDX = font[20];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			[DS:ESI + 0] = EAX;
+			[DS:ESI + 4] = EDX;
 			ESI += work->linebytes;
 			EAX = font[24]; /* 4dots */
 			EDX = font[28];
 			(offset) font += 32;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			[DS:ESI + 0] = EAX;
+			[DS:ESI + 4] = EDX;
 			ESI += work->linebytes;
 			ECX--;
 		} while (!= 0);
-		EAX = work->linebytes;
+		POP(ESI);
 		POP(ECX);
-		#if (!defined(QEMU))
-			IMUL(EAX, -8);
-		#else
-			EAX *= 8;
-			NEG(EAX);
-		#endif
-		LEA(ESI, [ESI + EAX + 8]);
+		ESI += 1 * 8;
 		ECX--;
 	} while (!= 0);
 	(offset) cmd = (offset) string;

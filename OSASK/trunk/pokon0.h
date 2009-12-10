@@ -17,6 +17,7 @@
 #define MAX_VMREF			256
 #define JOBLIST_SIZE		1024
 #define MAX_ORDER			16	/* 256B */ //	256 /* 4KB */
+#define MAX_ARCBUF			32
 
 /* key defines */
 #define DEFSIG_EXT1     0x00001000
@@ -174,12 +175,14 @@ struct FILELIST {
 
 struct FILEBUF {
 	int dirslot, linkcount, size, paddr, virtualmodule;
+	struct STR_ARCBUF *arcbuf;
 	char readonly, pipe /* resizeŽž‚Ì‹““®‚ðŒˆ‚ß‚é */;
 };
 
 struct STR_BANK { /* 84bytes */
 	int tss; /* ‚±‚±‚ª0‚¾‚Æ–¢Žg—pbank, •‰‚Ì’l‚¾‚Æ—\–ñbank */
 	struct FILEBUF *fbuf;
+	struct STR_ARCBUF *arcbuf;
 	char name[12];
 	struct {
 		int global, inner;
@@ -298,6 +301,11 @@ struct STR_PROCESS {
 	struct STR_PROCESS_TASK task[4];
 };
 
+struct STR_ARCBUF {
+	int dirslot, linkcount, size, paddr, clu2;
+	int dir0, info0;
+};
+
 /* functions */
 void consoleout(char *s);
 void open_console();
@@ -338,6 +346,8 @@ int poko_drvcf(const char *cmdlin);
 int poko_drvbfd(const char *cmdlin);
 int poko_setwallpaper(const char *cmdlin);
 int poko_setext(const char *cmdlin);
+int poko_autodearc(const char *cmdlin);
+int poko_townsmouse(const char *cmdlin);
 
 /* */
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);
