@@ -1,4 +1,4 @@
-;	"boot.asm" ver.1.10
+;	"boot.asm" ver.1.20
 ;	OSASK/AT用のブートプログラム
 ;	Copyright(C) 2001 H.Kawai (川合秀実)
 
@@ -65,13 +65,13 @@ Boot_pit1_skip:
 		;	jne	Boot_boot_from_IPL
 
 Boot_boot_from_IPL:
-			mov	 byte ptr ds:[DiskCacheReady],1
+			mov	 byte ptr ds:[DiskCacheReady],3
 Boot_normal:
 		;	mov	 ax, word ptr ds:[VGA_mode]
-		;	cmp	 ax,0012h
-		;	je	Boot_normal2 ; !!!!
-		;	cmp0	 ah
-		;	jne	Boot_VESA
+		;;	cmp	 ax,0012h
+		;;	je	Boot_normal2 ; !!!!
+		;;	cmp0	 ah
+		;;	jne	Boot_VESA
 		;	int	10h
 ;mov dx,03d4h
 ;mov ax,3213h
@@ -210,16 +210,29 @@ Boot_normal2:
 			clr	 ax
 			rep stosw
 
+			add	ebx,4096
+			mov	 cx, es
 			mov	eax,ebx
+			add	 cx,0100h ; skip link-page
+			mov	 es, cx
+
 			test	 byte ptr ds:[eflags][2],004h	; bit18(AC)
 			jz	short Boot_skip386_1
 			or	 al,010h	; PDE,PTEはキャッシュしない(PCD=1) 
 Boot_skip386_1:
 			mov	cr3,eax
 			add	eax,4096+07h	; present, R/W, user
-			mov	dword ptr es:[0],eax
+			mov	dword ptr es:[0000h],eax
 			add	eax,4096	; 32bit-VRAM-page
 			mov	dword ptr es:[0e00h],eax
+			add	eax,4096
+			mov	dword ptr es:[0004h],eax
+			add	eax,4096
+			mov	dword ptr es:[0008h],eax
+			add	eax,4096
+			mov	dword ptr es:[000ch],eax
+			add	eax,4096
+			mov	dword ptr es:[0010h],eax
 
 			mov	 di,4096
 			mov	 cx,640/4
@@ -228,49 +241,6 @@ Boot_fillpte:
 			stosd
 			add	eax,4096
 			loop	Boot_fillpte
-
-ifdef abcdedfgh
-
-			mov	 cx,128/4
-		;	and	eax,0fffffffbh ; system-pageにする。 
-			test	 byte ptr ds:[eflags][2],004h	; bit18(AC)
-			jz	short Boot_fillpte2
-			or	eax,010h	; VRAMはキャッシュしない(PCD=1) 
-Boot_fillpte2:
-			stosd
-			add	eax,4096
-			loop	Boot_fillpte2
-
-; VESAのために、BIOS領域もマップしてやる
-			mov	 cx,256/4
-			and	 ax,0f007h
-Boot_fillpte9:
-			stosd
-			add	eax,4096
-			loop	Boot_fillpte9
-; ここまで、VESA用
-
-			mov	 di,4096+1024
-			mov	 cx,1024*3/4
-			mov	eax,1024*1024+7	; present, R/W, user
-Boot_fillpte3:
-			stosd
-			add	eax,4096
-			loop	Boot_fillpte3
-
-			mov	eax,dword ptr ds:[VGA_PCI_base]
-		;	mov	 di,4096*2
-			mov	 cx,1024*4/4 ; 4MB
-			or	eax,7	; present, R/W, user
-			test	 byte ptr ds:[eflags][2],004h	; bit18(AC)
-			jz	short Boot_fillpte4
-			or	eax,010h	; VRAMはキャッシュしない(PCD=1) 
-Boot_fillpte4:
-			stosd
-			add	eax,4096
-			loop	Boot_fillpte4
-
-endif
 
 			mov	eax,dword ptr ds:[alloclist][16*1][12]	; gdt
 			shr	eax,4
@@ -448,7 +418,7 @@ vesadrv_sizadr		dd	0,BootMdl
 loaded_modules		equ	($ - modulelist) / 16
 
 alloclist		db	"pdepte  "	; 0
-			dd	4096*3,-1
+			dd	4096*8,-1
 			db	"idtgdt  "
 			dd	4096,-1	; 48+463entry
 			db	"fontbuf "
@@ -460,41 +430,73 @@ alloclist		db	"pdepte  "	; 0
 			db	"gapidata"
 			dd	4096,-1
 			db	"timerdat"
-			dd	4096,-1
+			dd	4096*2,-1
 			db	"tapiwork"
-			dd	4096*16,-1 ; for 15 tasks(init, idle, winman0, pokon0).
+			dd	0,0 ; for 31 tasks(init, idle, winman0, pokon0).
 			db	"decodata"	; 8
 			dd	4096*6,-1
 			db	"fdcwork "
 			dd	4096,-1
-			db	"dummy00 "
-			dd	0,0
-			db	"dummy01 "
-			dd	0,0
-			db	"dummy02 "	; 12
-			dd	0,0
-			db	"empty1  "
-			dd	0,0
-			db	"dummy03 "
-			dd	0,0
-			db	"dummy04 "
-			dd	0,0
-			db	"empty00 "	; 16
-			dd	0,0
-			db	"empty01 "
-			dd	0,0
-			db	"empty02 "
-			dd	0,0
-			db	"empty03 "
-			dd	0,0
-			db	"empty04 "
-			dd	0,0
-			db	"empty05 "
-			dd	0,0
-			db	"empty06 "
-			dd	0,0
-			db	"empty07 "
-			dd	0,0
+		;	db	"dummy00 "
+		;	dd	0,0
+		;	db	"dummy01 "
+		;	dd	0,0
+		;	db	"dummy02 "	; 12
+		;	dd	0,0
+		;	db	"empty1  "
+		;	dd	0,0
+		;	db	"dummy03 "
+		;	dd	0,0
+		;	db	"dummy04 "
+		;	dd	0,0
+		;	db	"empty00 "	; 16
+		;	dd	0,0
+		;	db	"empty01 "
+		;	dd	0,0
+		;	db	"empty02 "
+		;	dd	0,0
+		;	db	"empty03 "
+		;	dd	0,0
+		;	db	"empty04 "
+		;	dd	0,0
+		;	db	"empty05 "
+		;	dd	0,0
+		;	db	"empty06 "
+		;	dd	0,0
+		;	db	"empty07 "
+		;	dd	0,0
+		;	db	"empty08 "	; 24
+		;	dd	0,0
+		;	db	"empty09 "
+		;	dd	0,0
+		;	db	"empty10 "
+		;	dd	0,0
+		;	db	"empty11 "
+		;	dd	0,0
+		;	db	"empty12 "
+		;	dd	0,0
+		;	db	"empty13 "
+		;	dd	0,0
+		;	db	"empty14 "
+		;	dd	0,0
+		;	db	"empty15 "
+		;	dd	0,0
+		;	db	"empty16 "	; 32
+		;	dd	0,0
+		;	db	"empty17 "
+		;	dd	0,0
+		;	db	"empty18 "
+		;	dd	0,0
+		;	db	"empty19 "
+		;	dd	0,0
+		;	db	"empty20 "
+		;	dd	0,0
+		;	db	"empty21 "
+		;	dd	0,0
+		;	db	"empty22 "
+		;	dd	0,0
+		;	db	"empty23 "
+		;	dd	0,0
 
 		;	dd	"_shell  ",offset ShellSiz,  ShellMdl
 
@@ -507,24 +509,25 @@ bootmalloc_fre0		dd	0
 bootmalloc_adr1		dd	?	; LastMdlを指す
 bootmalloc_fre1		dd	?	; 640KB - bootmalloc_adr1
 
-GUIGUI_mouse_x		dd	312 ; (640 - 16) / 2
-GUIGUI_mouse_y		dd	200 ; (452 - 16) / 2 - 18
-GUIGUI_led		db	0,0,0,0
-GUIGUI_music_button	dd	?
-GUIGUI_music_ptr	dd	0 ; 無音状態
-GUIGUI_music_node	dd	?
-GUIGUI_music_basetime	dd	?
+;GUIGUI_mouse_x		dd	312 ; (640 - 16) / 2
+;GUIGUI_mouse_y		dd	200 ; (452 - 16) / 2 - 18
+;GUIGUI_led		db	0,0,0,0
+;GUIGUI_music_button	dd	?
+;GUIGUI_music_ptr	dd	0 ; 無音状態
+;GUIGUI_music_node	dd	?
+;GUIGUI_music_basetime	dd	?
 ;GUIGUI_pad_x		dd	0
 ;GUIGUI_pad_y		dd	0
 ;GUIGUI_textbuf		db	128*16 dup (0) ; 2KB
-GUIGUI_fdc_track	dd	0
-GUIGUI_fdc_addr		dd	0
-GUIGUI_mem1		dd	0
-GUIGUI_mem2		dd	0
-GUIGUI_textdire_button	dd	?
+;GUIGUI_fdc_track	dd	0
+;GUIGUI_fdc_addr		dd	0
+;GUIGUI_mem1		dd	0
+;GUIGUI_mem2		dd	0
+;GUIGUI_textdire_button	dd	?
 FD_motor_init		db	01ch ; motor on
 FD_cache_init		db	1 ; must init
 DiskCacheReady		db	0
+	; bit0 : cache enable, bit1:boot from OSASK boot-sector
 			db	?
 FD_debug		dd	-1
 

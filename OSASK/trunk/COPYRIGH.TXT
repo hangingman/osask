@@ -1,7 +1,7 @@
 
-    sbcm11 の著作権情報
+    sb12 の著作権情報
 
-  このアーカイブに含まれるファイルは、以下の15個です。
+  このアーカイブに含まれるファイルは、以下の32個です。
 
 ・BASE/
     BASEHEAD.ASM
@@ -9,6 +9,26 @@
     INIT.ASK
     BASEFOOT.ASM
     MAKEBASE.BAT
+・SGG00LIB/
+    EXECCMD.ASM
+    FDEBUG.C
+    FPOKON.C
+    FWINMAN.C
+    INIT.C
+    MAKELIB.BAT
+    SYSGG00.H
+    SYSGG00.LIB
+    SYSGG00.OPT
+・PCAT/
+    BASE.EXE
+    TIMERDRV.ASK
+    TIMERDRV.BIN
+    WINMAN0.BIN
+・TOWNS/
+    BASE.EXE
+    TIMERDRV.ASK
+    TIMERDRV.BIN
+    WINMAN0.BIN
 ・OSALINK0.OPT
 ・PIONEER0.ASK
 ・PIONEER0.BIN
@@ -31,7 +51,7 @@
     e-mail  kawai@imasy.org
 
   このプログラムは、著作権者の総意により「川合堂ライセンス-01」によってライセン
-スされています。このライセンスの範囲でご利用くださいますようお願いいたします。ラ
-イセンスの内容につきましては、LICENSE.TXTをご覧ください。
+スされています。このライセンスの範囲でご利用くださいますようお願いいたします。
+ライセンスの内容につきましては、LICENSE.TXTをご覧ください。
 
   著作権に関するお問い合わせは、川合秀実が代表で受け付けます。

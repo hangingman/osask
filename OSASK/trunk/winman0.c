@@ -1,6 +1,6 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.7
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.8
 		copyright(C) 2001 川合秀実
-	exe2bin0 winman0 -s 32k	*/
+	exe2bin1 winman0 -s 96k	*/
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -12,7 +12,7 @@
 
 #define	AUTO_MALLOC			  0
 #define NULL				  0
-#define	MAX_WINDOWS			 16		// 16KB
+#define	MAX_WINDOWS			 80		// 80KB
 #define JOBLIST_SIZE		256		// 1KB
 #define	MAX_SOUNDTRACK		 16		// 0.5KB
 
@@ -42,10 +42,11 @@ struct SOUNDTRACK {
 struct WM0_WINDOW *window, *top = NULL, *unuse = NULL, *iactive = NULL, *pokon0 = NULL;
 int *joblist, jobfree, *jobrp, *jobwp, jobnow = 0;
 void (*jobfunc)(int, int);
-int x2 = 0, y2, fromboot = 0, mx = 0x80000000, my, mbutton = 0;
+int x2 = 0, y2, mx = 0x80000000, my, mbutton = 0;
+int fromboot = 0;
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
 struct WM0_WINDOW *job_win;
-int job_count, job_int0, job_movewin4_ready = 0;
+int job_count, job_int0, job_movewin4_ready = 0, mousescale = 1;
 int job_movewin_x, job_movewin_y, job_movewin_x0, job_movewin_y0;
 
 void lib_drawline(const int opt, const int reserve, const int color,
@@ -84,11 +85,13 @@ void lib_drawletters_ASCII(const int opt, const int win, const int charset, cons
 	const int color, const int backcolor, const char *str);
 void debug_bin2hex(unsigned int i, unsigned char *s);
 
-// キー操作：
-//    F9:一番下のウィンドウへ
-//    F10:上から２番目のウィンドウを選択
-//    F11:ウィンドウの移動
-//    F12:ウィンドウクローズ
+/* キー操作：
+      F9:一番下のウィンドウへ
+      F10:上から２番目のウィンドウを選択
+      F11:ウィンドウの移動
+      F12:ウィンドウクローズ */
+
+//int allclose = 0;
 
 void main()
 {
@@ -99,7 +102,7 @@ void main()
 		static int TOWNS_mouseinit[] = {
 			0x0064, 17 * 4, 0x0030 /* SetMouseParam */, 0x020d,
 			20 /* サンプリングレート 20ミリ秒 */,
-			0x08c8, 0x0060, /* TAPIのシグナル処理ベクタ */
+			0x08c8, 0x0060, /* TAPIのシグナル処理ベクタ(TAPI_SignalMessageTimer) */
 			0x3245, 0x7f000004, 0x73756f6d, 0,
 			0x000d0019 /* wait0=25, wait1=13 */, 0x0f3f0f0f /* strobe */,
 			0x00000000, 0x000000, 0x0f0f0f3f, 0x00000030,
@@ -123,7 +126,7 @@ void main()
 		free_sndtrk(&sndtrk_buf[i]);
 
 	joblist = (int *) malloc(JOBLIST_SIZE * sizeof (int));
-	*(jobrp = jobwp = joblist) = 0; // たまった仕事はない
+	*(jobrp = jobwp = joblist) = 0; /* たまった仕事はない */
 	jobfree = JOBLIST_SIZE - 1;
 
 	#if (defined(TOWNS))
@@ -142,79 +145,97 @@ void main()
 			break;
 
 		case 0x0010:
-			// 初期化要請
+			/* 初期化要請 */
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 
-			// ジョブリストにこの要求を入れる
+			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 4) {
 				// 空きが十分にある
 				writejob(0x0030 /* open VGA driver */);
 				writejob(0x0000);
 				writejob(0x0034 /* change VGA mode */);
 				writejob(0x0012);
-				*jobwp = 0; // ストッパー
+				*jobwp = 0; /* ストッパー */
 				if (jobnow == 0)
 					runjobnext();
 			}
 			break;
 
 		case 0x0018:
-			// from boot
+			/* from boot */
 			fromboot = signal[1];
 			signal += 2;
 			lib_waitsignal(0x0000, 2, 0);
 			break;
 
 		case 0x001c:
-			// 終了要請
+			/* 終了要請 */
+#if 0
+			if (signal[1] == 4) {
+				/* close all-window(含むpokon0) */
+				signal += 2;
+				lib_waitsignal(0x0000, 2, 0);
+	close_all:
+				allclose = 0;
+				if (top == pokon0 && top->down == pokon0)
+					break;
+				allclose = 1;
+				win = top;
+				if (win == pokon0)
+					win = win->down;
+				sgg_wm0s_close(&win->sgg);
+				closewin = win;
+				break;
+			}
+#endif
 			goto mikannsei;
 			break;
 
 		case 0x0020:
-			// ウィンドウオープン要請(handle)
+			/* ウィンドウオープン要請(handle) */
 			win = get_unuse();
 			sgg_wm0_openwindow(&win->sgg, signal[1]);
 			signal += 2;
 			lib_waitsignal(0x0000, 2, 0);
 			win->ds1 = win->defsig;
 
-			// ジョブリストにこの要求を入れる
+			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				// 空きが十分にある
 				writejob(0x0020 /* open */);
 				writejob((int) win);
-				*jobwp = 0; // ストッパー
+				*jobwp = 0; /* ストッパー */
 				if (jobnow == 0)
 					runjobnext();
 			}
 			break;
 
 		case 0x0024:
-			// ウィンドウクローズ要請(handle)
+			/* ウィンドウクローズ要請(handle) */
 			win = handle2window(signal[1]);
 			signal += 2;
 			lib_waitsignal(0x0000, 2, 0);
-			// ジョブリストにこの要求を入れる
+			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				// 空きが十分にある
 				writejob(0x002c /* close */);
 				writejob((int) win);
-				*jobwp = 0; // ストッパー
+				*jobwp = 0; /* ストッパー */
 				if (jobnow == 0)
 					runjobnext();
 			}
 			break;
 
 		case 0x0028:
-			// ウィンドウアクティブ要請(opt, handle)
+			/* ウィンドウアクティブ要請(opt, handle) */
 			goto mikannsei;
 			break;
 
 		case 0x002c:
-			// ウィンドウ連動デバイス指定
-			//  (opt,  win-handle, reserve(signalebox),
-			//     default-device, default-code, len(2), 0x7f000001, signal)
+			/* ウィンドウ連動デバイス指定
+			    (opt,  win-handle, reserve(signalebox),
+			       default-device, default-code, len(2), 0x7f000001, signal) */
 
 			win = handle2window(signal[2]);
 			if (win->ds1 < win->defsig
@@ -237,8 +258,8 @@ void main()
 			lib_waitsignal(0x0000, 9, 0);
 			break;
 
-		case 0x0040: // open sound track (slot, tss, signal-base, reserve0, reserve1)
-			// 受理したことを知らせるために、シグナルで応答する
+		case 0x0040: /* open sound track (slot, tss, signal-base, reserve0, reserve1)
+			   受理したことを知らせるために、シグナルで応答する */
 			{
 				struct SOUNDTRACK *sndtrk = alloc_sndtrk();
 				sndtrk->sigbox  = signal[2 /* tss */] + 0x0240;
@@ -246,24 +267,24 @@ void main()
 				sndtrk->sigbase = signal[3 /* signal-base */];
 				signal += 6;
 				lib_waitsignal(0x0000, 6, 0);
-				// ハンドル番号の対応づけを通達
+				/* ハンドル番号の対応づけを通達 */
 				send_signal3dw(sndtrk->sigbox, sndtrk->sigbase + 0, sndtrk->slot, (int) sndtrk);
 				if (sndtrk_active == NULL) {
 					sndtrk_active = sndtrk;
-					// アクティブシグナルを送る
+					/* アクティブシグナルを送る */
 					send_signal2dw(sndtrk->sigbox, sndtrk->sigbase + 8 /* enable */, sndtrk->slot);
 				}
 			}
 			break;
 
-		case 0x0044: // close sound track (handle)
+		case 0x0044: /* close sound track (handle) */
 			{
 				struct SOUNDTRACK *sndtrk = (struct SOUNDTRACK *) signal[1];
 				free_sndtrk(sndtrk);
 				signal += 2;
 				lib_waitsignal(0x0000, 2, 0);
 				if (sndtrk == sndtrk_active) {
-					// 違うやつをアクティブにする
+					/* 違うやつをアクティブにする */
 					sndtrk = NULL;
 					for (i = 0; i < MAX_SOUNDTRACK; i++) {
 						if (sndtrk_buf[i].sigbox) {
@@ -272,16 +293,16 @@ void main()
 						}
 					}
 					if (sndtrk_active = sndtrk) {
-						// アクティブシグナルを送る
+						/* アクティブシグナルを送る */
 						send_signal2dw(sndtrk->sigbox, sndtrk->sigbase + 8 /* enable */, sndtrk->slot);
 					}
 				}
 			}
 			break;
 
-		case 0x0014: // 画面モード変更完了(result)
-		case 0x00c0: // 更新停止シグナル(handle)
-		case 0x00c4: // 描画完了シグナル(handle)
+		case 0x0014: /* 画面モード変更完了(result) */
+		case 0x00c0: /* 更新停止シグナル(handle) */
+		case 0x00c4: /* 描画完了シグナル(handle) */
 			i = signal[0];
 			j = signal[1];
 			signal += 2;
@@ -306,12 +327,12 @@ void main()
 		case 0x0200 /* active bottom window */:
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
-			// ジョブリストにこの要求を入れる
+			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
-				// 空きが十分にある
+				/* 空きが十分にある */
 				writejob(0x0024 /* active */);
 				writejob((int) top->up);
-				*jobwp = 0; // ストッパー
+				*jobwp = 0; /* ストッパー */
 				if (jobnow == 0)
 					runjobnext();
 			}
@@ -320,12 +341,12 @@ void main()
 		case 0x0201 /* active second window */:
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
-			// ジョブリストにこの要求を入れる
+			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
-				// 空きが十分にある
+				/* 空きが十分にある */
 				writejob(0x0024 /* active */);
 				writejob((int) top->down);
-				*jobwp = 0; // ストッパー
+				*jobwp = 0; /* ストッパー */
 				if (jobnow == 0)
 					runjobnext();
 			}
@@ -334,12 +355,12 @@ void main()
 		case 0x0202 /* move window */:
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
-			// ジョブリストにこの要求を入れる
+			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				// 空きが十分にある
 				writejob(0x0028 /* move by keyboard */);
 				writejob((int) top);
-				*jobwp = 0; // ストッパー
+				*jobwp = 0; /* ストッパー */
 				if (jobnow == 0)
 					runjobnext();
 			}
@@ -356,12 +377,12 @@ void main()
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 
-			// ジョブリストにこの要求を入れる
+			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
-				// 空きが十分にある
+				/* 空きが十分にある */
 				writejob(0x0034 /* change VGA mode */);
 				writejob(0x0012);
-				*jobwp = 0; // ストッパー
+				*jobwp = 0; /* ストッパー */
 				if (jobnow == 0)
 					runjobnext();
 			}
@@ -371,12 +392,12 @@ void main()
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 
-			// ジョブリストにこの要求を入れる
+			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
-				// 空きが十分にある
+				/* 空きが十分にある */
 				writejob(0x0034 /* change VGA mode */);
 				writejob(0x0102);
-				*jobwp = 0; // ストッパー
+				*jobwp = 0; /* ストッパー */
 				if (jobnow == 0)
 					runjobnext();
 			}
@@ -401,9 +422,15 @@ void main()
 				break;
 			#endif
 
+		case 0x6f6b6f70 + 0 /* mousespeed */:
+			mousescale = signal[1];
+			signal += 2;
+			lib_waitsignal(0x0000, 2, 0);
+			break;
+
 		default:
 		mikannsei:
-			lib_drawline(0x0020, -1, 0, 0, 0, 15, 15); // ここに来たことを知らせる
+			lib_drawline(0x0020, -1, 0, 0, 0, 15, 15); /* ここに来たことを知らせる */
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 		}
@@ -504,6 +531,8 @@ static int press_mx0, press_my0;
 
 void mousesignal(const unsigned int header, int dx, int dy)
 {
+	dx *= mousescale;
+	dy *= mousescale;
 	if ((header >> 28) == 0x0 /* normal mode */) {
 		// マウス状態変更
 		int ox = mx, oy = my;
@@ -573,32 +602,32 @@ void mousesignal(const unsigned int header, int dx, int dy)
 							press_win = win;
 							press_pos = CLOSE_BUTTON;
 						} else if (win->x0 + 3 <= mx && mx < win->x1 - 4 && win->y0 + 3 <= my && my < win->y0 + 21) {
-							// title-barをプレスした
+							/* title-barをプレスした */
 							if (jobfree >= 2) {
-								// 空きが十分にある
+								/* 空きが十分にある */
 								press_win = win;
 								press_pos = TITLE_BAR;
 								press_mx0 = mx;
 								press_my0 = my;
 								writejob(0x0028 /* move */);
 								writejob((int) win);
-								*jobwp = 0; // ストッパー
-								if (jobnow == 0)
-									runjobnext();
+								*jobwp = 0; /* ストッパー */
+							//	if (jobnow == 0)
+							//		runjobnext();
 							}
 						}
 					} else {
-						// ジョブリストにウィンドウアクティブ要求を入れる
+						/* ジョブリストにウィンドウアクティブ要求を入れる */
 						if (jobfree >= 2) {
-							// 空きが十分にある
+							/* 空きが十分にある */
 							writejob(0x0024 /* active */);
 							writejob((int) win);
-							*jobwp = 0; // ストッパー
+							*jobwp = 0; /* ストッパー */
 						}
 					}
 				}
 			} else if ((mbutton & 0x01) == 0x01 && (header & 0x01) == 0x00) {
-				// 左ボタンがはなされた
+				/* 左ボタンがはなされた */
 				switch (press_pos) {
 				case CLOSE_BUTTON:
 					if (press_win->x1 - 21 <= mx && mx < press_win->x1 - 5 &&
@@ -610,7 +639,7 @@ void mousesignal(const unsigned int header, int dx, int dy)
 
 				case TITLE_BAR:
 					if (press_win == job_win && job_movewin4_ready != 0) {
-						// 移動先確定シグナルを送る
+						/* 移動先確定シグナルを送る */
 						job_movewin4(0x00f0 /* Enter */);
 					}
 				//	break;
@@ -622,16 +651,16 @@ skip:
 			mbutton = header & 0x07;
 		}
 	} else if ((header >> 28) == 0xa /* extmode byte2 */) {
-		// マウスリセット
+		/* マウスリセット */
 		mbutton = 0;
 		sgg_wm0_enablemouse();
 		#if (defined(DEBUG))
 			lib_drawletters_ASCII(1, -1, 0xc0,  0, 0, 15, 0, "mouse reset");
 		#endif
 	} else {
-		// mikannsei
+		/* mikannsei */
 	}
-	// 溜まったジョブがあれば、実行する
+	/* 溜まったジョブがあれば、実行する */
 	if (jobnow == 0)
 		runjobnext();
 	return;
@@ -771,28 +800,31 @@ void job_activewin0(struct WM0_WINDOW *win)
 	struct WM0_WINDOW *win_up, *win_down;
 
 	if (top == win) {
-		// topとiactiveは常に等しい
+		/* topとiactiveは常に等しい */
 		jobnow = 0;
 		return;
 	}
 
-	// winをリストから一度切り離す
+	/* winをリストから一度切り離す */
 	win_up = win->up;
 	win_down = win->down;
 	win_up->down = win_down;
 	win_down->up = win_up;
 
-	// 再接続
+	/* 再接続 */
 	win->up = win_down = top->up;
 	win->down = top;
 	top->up = win;
 	win_down->down = win;
 	top = win;
 
-	// 入力アクティブを変更
+	/* 入力アクティブを変更 */
 	redirect_input(win); /* この関数は、ウィンドウ制御はしない */
 	iactive = win;
-
+	win = top;
+	do {
+		win->job_flag0 = 0;
+	} while ((win = win->down) != top);
 	job_general1();
 	return;
 }
@@ -1004,6 +1036,16 @@ void job_closewin0(struct WM0_WINDOW *win0)
 	job_count = 0;
 	jobfunc = &job_closewin1;
 
+#if 0
+	if (allclose) {
+		lib_drawline(0x0020, -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
+		chain_unuse(win0);
+		allclose--;
+		return;
+	}
+#endif
+
+	/* ウィンドウを消す */
 	if (win0 == top) {
 		top = win_down;
 		if (win_up == win0) {
@@ -1070,15 +1112,15 @@ void job_closewin1(const int cmd, const int handle)
 
 
 void job_general1()
-// condition.bit 0 ... 0:accessdisable 1:accessenable
-// condition.bit 1 ... 0:inputdisable(not active) 1:inputenable(active)
+/* condition.bit 0 ... 0:accessdisable 1:accessenable
+   condition.bit 1 ... 0:inputdisable(not active) 1:inputenable(active)
 
-// job_flag0.bit 0 ... new condition.bit 0(auto-set)
-// job_flag0.bit 1 ... new condition.bit 1(auto-set)
-// job_flag0.bit 8 ... disable-accept waiting
-// job_flag0.bit 9 ... redraw finish waiting
-// job_flag0.bit24 ... 0:normal 1:override-accessdisabled
-// job_flag0.bit31 ... 0:normal 1:must-redraw
+   job_flag0.bit 0 ... new condition.bit 0(auto-set)
+   job_flag0.bit 1 ... new condition.bit 1(auto-set)
+   job_flag0.bit 8 ... disable-accept waiting
+   job_flag0.bit 9 ... redraw finish waiting
+   job_flag0.bit24 ... 0:normal 1:override-accessdisabled
+   job_flag0.bit31 ... 0:normal 1:must-redraw */
 {
 	struct WM0_WINDOW *win0, *win1, *bottom, *top_ = top /* 高速化、コンパクト化のため */;
 	int flag0;
@@ -1089,44 +1131,44 @@ void job_general1()
 		return;
 	}
 
-	// accessenable & not input active
+	/* accessenable & not input active */
 	win0 = top_;
 	do {
 		flag0 = win0->job_flag0;
-		flag0 |=  0x01; // accessenable
-		flag0 &= ~0x0302; // not-input-active & no-waiting
+		flag0 |=  0x0001; /* accessenable */
+		flag0 &= ~0x0302; /* not-input-active & no-waiting */
 		if ((win0->condition & 0x01) == 0)
-			flag0 |= WINFLG_OVERRIDEDISABLED; // override-disabled
+			flag0 |= WINFLG_OVERRIDEDISABLED; /* override-disabled */
 		win0->job_flag0 = flag0;
 	} while ((win0 = win0->down) != top_);
 
-	// 上から見ていって、重なっているものはaccessdisable
+	/* 上から見ていって、重なっているものはaccessdisable */
 	win0 = top_;
 	do {
 		for (win1 = win0->down; win1 != top_; win1 = win1->down) {
-			if (win1->job_flag0 & 0x01) { // このif文がなくても実行結果は変わらないが、高速化のため
+			if (win1->job_flag0 & 0x01) { /* このif文がなくても実行結果は変わらないが、高速化のため */
 				if (overrapwin(win0, win1))
-					win1->job_flag0 &= ~0x01; // accessdisable
+					win1->job_flag0 &= ~0x01; /* accessdisable */
 			}
 		}
 	} while ((win0 = win0->down) != top_);
 
-	// topはjob_flag0.bit 1 = 1;
-	top_->job_flag0 |= 0x02; // input-active
+	/* topはjob_flag0.bit 1 = 1; */
+	top_->job_flag0 |= 0x02; /* input-active */
 
-	// 下から見ていって、conditionが変化していたらjob_flag0.bit31 = 1;
-	//   job_flag0.bit31 == 1なら自分に重なっている上のやつ全てもjob_flag0.bit31 = 1;
-	win0 = bottom = top_->up; // 一番上の上は、一番下
+	/* 下から見ていって、conditionが変化していたらjob_flag0.bit31 = 1;
+	     job_flag0.bit31 == 1なら自分に重なっている上のやつ全てもjob_flag0.bit31 = 1; */
+	win0 = bottom = top_->up; /* 一番上の上は、一番下 */
 	do {
 		flag0 = win0->job_flag0;
 		if (win0->condition != (flag0 & 0x03) ||
-			(flag0 & (WINFLG_OVERRIDEDISABLED | 0x01) == (WINFLG_OVERRIDEDISABLED | 0x01)))
+			(flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01))
 			win0->job_flag0 = (flag0 |= WINFLG_MUSTREDRAW);
 		if (flag0 & WINFLG_MUSTREDRAW) {
 			for (win1 = win0->up; win1 != bottom; win1 = win1->up) {
 				if ((win1->job_flag0 & WINFLG_MUSTREDRAW) == 0) { /* このif文がなくても実行結果は変わらないが、高速化のため */
 					if (overrapwin(win0, win1))
-						win1->job_flag0 |= WINFLG_MUSTREDRAW; // must-redraw
+						win1->job_flag0 |= WINFLG_MUSTREDRAW; /* must-redraw */
 				}
 			}
 		}

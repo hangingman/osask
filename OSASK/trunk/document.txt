@@ -1,29 +1,33 @@
-"sbcm11"の使い方の説明                      2001/03/23 川合秀実
+"sb12"の使い方の説明                      2001/04/28 川合秀実
 
 １．これは何か？
 
-  "sbcm11"は、OSASK ver.1.1の「OSASK11.EXE」を生成するのに必要なモジュールのソ
-ースプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのもの
-をそのまま利用しているものや機種によってことなる部分については、このアーカイブ
-に含まれていません。OSASK11.EXEを生成するのに必要なモジュールのバージョンを書い
-ておきます。
+  "sb12"は、OSASK ver.1.2の「OSASK12.EXE」を生成するのに必要なモジュールのソー
+スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK12.EXE
+を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.EXE     : ver.1.11 (BASE.EXE自身は機種に依存するので、機種別のアーカイ
-    OSALINK0.OPT : ver.1.10  ブ内にあります)
-    PIONEER0.BIN : ver.1.0
-    WINMAN0.BIN  : ver.0.7  (WINMAN0.BIN自身は機種に依存するので、機種別のアー
-    POKON0.BIN   : ver.1.0   カイブ内にあります)
-    SYSGG00.LIB  : ver.0.2
+    BASE.EXE     : ver.1.20
+    OSALINK0.OPT : ver.1.20
+    PIONEER0.BIN : ver.1.1
+    WINMAN0.BIN  : ver.0.8
+    POKON0.BIN   : ver.1.1
+    SYSGG00.LIB  : ver.0.3
+    PCAT/
+      TIMERDRV.BIN  : type-A ver.0.9
+    TOWNS/
+      TIMERDRV.BIN  : type-A ver.0.9
 
-  (sbat10に含まれているもの)
+  (以前のバージョンのものを利用するもの)
 
     TAPI0.BIN    : ver.0.1
-
-  (srcat09、binat09に含まれているもの)
-
     ANKFONT0.BIN : ver.0.0
+    KEYMOS0.BIN  : ver.0.3
+    FDCDRV0.BIN  : ver.0.9
+    VGADRV0.BIN  : ver.0.4
+    DECODE0.BIN  : ver.0.8
 
   このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
 いるだけです。
@@ -34,7 +38,7 @@
 
 ・ASKA version 1.0 beta 15b
 ・masmcnv2
-・exe2bin0
+・exe2bin1
 ・MASM version 6.14.8444
 ・Microsoft (R) Segmented Executable Linker  Version 5.60.339 Dec  5 1994
 ・lcc-win32 (LCC.EXEのタイムスタンプ2000/09/10、サイズ438,304バイト)
@@ -48,10 +52,17 @@
   BASE.EXEの生成は、MAKEBASE.BATで行いました。MAKEBASE.BATを読んでアセンブル手
 順を把握してください。TOWNS版を生成する時は、少し書き換える必要があります。
 
-  拡張子が.ASKのものは、ASKA→masmcnv2→exe2bin0で.BINファイルにします。exe2bin
-0のオプション指定では、-sでも-tでもなく、-nを指定します。
+  SYSGG00.LIBの生成は、MAKELIB.BATで行いました。MAKELIB.BATを読んでコンパイル・
+アセンブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成
+に必要な専用ライブラリです。
 
-  拡張子が.Cのものは、exe2bin0で説明されている方法で生成できます。ただし、AT互
+  拡張子が.ASKのものは、lcc-win32→ASKA→masmcnv2→exe2bin1で.BINファイルにしま
+す。exe2bin1のオプション指定では、-sでも-tでもなく、-nを指定します。lcc-win32は
+プリプロセッサとして使います。オプション-EPを付けてください。ただし、AT互換機版
+を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を生成す
+る時は、LCCに「-DTOWNS」オプションをつけてください。
+
+  拡張子が.Cのものは、exe2bin1で説明されている方法で生成できます。ただし、AT互
 換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を
 生成する時は、LCCに「-DTOWNS」オプションをつけてください。ライブラリーにSYSGG00
 を使う必要があることにも注意してください。
