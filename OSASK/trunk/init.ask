@@ -1,9 +1,18 @@
-/* "init.ask" ver.1.70 copyright(C) 2001 H.Kawai(川合秀実) */
+/* "init.ask" ver.1.8 copyright(C) 2001 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
 #define	MAXWINDOW		80	/* 1024/32 */
 #define	CALLFAR0(sel)	DB(0x9a); DD(0); DW((short) sel);
+
+asmout("include ./inc.asm");
+asmout("modulelist = 0020H");
+asmout("alloclist  = 0120H");
+asmout("bootmalloc_adr1 = 01DCH");
+asmout("bootmalloc_fre1 = 01E0H");
+asmout("FD_motor_init = 01E4H");
+asmout("DiskCacheReady = 01E6H");
+asmout("V86TaskEntry = 0008H");
 
 /* 64タスクまでの準備はできている */
 
@@ -1033,8 +1042,8 @@ void far Init()
 	gapifontarea->data0.addr = EAX;
 	gapifontarea->data[0].size = EDX;
 	gapifontarea->data[0].addr = EDX;
-	EAX = 4096 * 2;
-	ECX = 4096 * 14;
+	EAX = 4096 * 63; /* 最初の4KBはワーク。次の4KBはANK。次の244KBは日本語。 */
+	ECX = 4096 * 17;
 	free_area();
 
 	EAX = syswork_sel;
@@ -1887,6 +1896,7 @@ next0:
 		PUSH(ESI);
 		PUSH((int) [ES:EDI + 0x0c]);
 		PUSH(ECX);
+		ECX += [CS:ESI + 8]; /* 増量サイズ */
 		alloc_memory();
 		if (ZF == 1)
 			INT(0x03);
@@ -1903,7 +1913,7 @@ next0:
 		CLI();
 		set_modulesegment();
 		ESI = [SS:ESP + 4];
-		EBP = [SS:ESP + 0];
+		EBP = [SS:ESP + 0]; /* 旧サイズ */
 		memcopy16();
 //		ESI = [SS:ESP + 8];
 //		if ((unsigned) (int) [CS:ESI + 4] == 384 + idtgdt_sel) {
@@ -1932,7 +1942,7 @@ next0:
 		POP(EAX);
 		free_memory();
 		POP(ESI);
-		ESI += 8;
+		ESI += 12;
 		EDI = [CS:ESI];
 	} while (EDI != 0);
 //	POPAD();
@@ -2082,9 +2092,17 @@ next0:
 	PUSH(EAX); /* signals */
 	PUSH(EAX); /* delta-nest(割り込みを使わないから、nestは変更しない), Llv0(sleep) */
 	PUSH((int) 0x010c); /* TAPI_AddNestSleep とりあえずスリープ */
+
+/* ここでpokonにメモリ関係の準備が完了したことを通知 */
+
+	PUSH((int) 98); /* refreshed! */
+	PUSH((int) 0x7f000001);
+	PUSH((int) 0x4240 + 2);
+	PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */);
+
 	EBX = ESP;
 	CALLFAR0(tapi_sel);
-	ESP += 16;
+	ESP += 16 + 16;
 
 	POP((offset) msg);
 //	for (;;); /* ここだと死ぬ */
@@ -2915,15 +2933,15 @@ tasksdir:
 	DD(0xfff00000); DD(0xffffffff); /* DD(0); DD(0); */
 
 movemodule_list:
-//	DD(32 + idtgdt_ent   ); DD(384 /* IDTの分 */ + idtgdt_sel);
-	DD(32 + ankfont_ent  ); DD(384 + ankfont_sel  );
-	DD(32 + stack_ent    ); DD(384 + stack_sel    );
-	DD(32 + keydata_ent  ); DD(384 + keydata_sel  );
-	DD(32 + gapidata_ent ); DD(384 + GAPIwork_sel );
-	DD(32 + timerdata_ent); DD(384 + timerdata_sel);
-	DD(32 + decowork_ent ); DD(384 + decowork_sel );
-	DD(32 + fdcwork_ent  ); DD(384 + fdcwork_sel  );
-	DD(32 + papiwork_ent ); DD(384 + papiwork_sel );
+//	DD(32 + idtgdt_ent   ); DD(384 /* IDTの分 */ + idtgdt_sel); DD(0);
+	DD(32 + ankfont_ent,   384 + ankfont_sel,   0);
+	DD(32 + stack_ent,     384 + stack_sel,     0);
+	DD(32 + keydata_ent,   384 + keydata_sel,   0);
+	DD(32 + gapidata_ent,  384 + GAPIwork_sel,  0x4e000);
+	DD(32 + timerdata_ent, 384 + timerdata_sel, 0);
+	DD(32 + decowork_ent,  384 + decowork_sel,  0);
+	DD(32 + fdcwork_ent,   384 + fdcwork_sel,   0);
+	DD(32 + papiwork_ent,  384 + papiwork_sel,  0);
 	DD(0);
 
 movestack:
@@ -4608,6 +4626,8 @@ nextcmd:
 			goto cmd0414; /* put graphic box */
 		if (EAX == 0x0418)
 			goto cmd0418; /* linear dots */
+		if (EAX == 0x041c)
+			goto cmd041c; /* points */
 		if (EAX == 0x0510)
 			goto cmd0510; // define signal
 		INT(0x03);
@@ -5491,23 +5511,56 @@ cmd0408:
 		goto nextcmd;
 	}
 
-	if (EAX == 0x80000001) {
+	PUSH(EAX);
+	EAX &= 0x0fffffff;
+	(offset) cmd += 12;
+
+	if (EAX == 0x00000001) {
 		/* 8x16dot mono ANK */
-		(offset) cmd += 12;
 		(int) [ES:EDX +  0] = 256 /* max-range */;
 		(int) [ES:EDX +  4] = 0x1004; /* conv */
-		(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
-		goto nextcmd;
-	}
-	if (EAX == 0x80000002) {
+	//	(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
+	} else if (EAX == 0x00000002) {
 		/* 8x8dot mono half-ANK */
-		(offset) cmd += 12;
 		(int) [ES:EDX +  0] = 512 /* max-range */;
 		(int) [ES:EDX +  4] = 0x1003; /* conv */
-		(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
-		goto nextcmd;
+	//	(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
+	} else if (EAX == 0x00000011) {
+		/* 8x16dot mono gg00jpn0 */
+		(int) [ES:EDX +  0] = 0x3cf4 /* max-range (15604文字-半角単位) */;
+		(int) [ES:EDX +  4] = 0x2004; /* conv */
+	//	(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
+	} else if (EAX == 0x00000012) {
+		/* 8x8dot mono half-gg00jpn0 */
+		(int) [ES:EDX +  0] = 0x79e8 /* max-range (31208文字-半角単位) */;
+		(int) [ES:EDX +  4] = 0x2003; /* conv */
+	//	(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
+	} else {
+		INT(0x03);
 	}
-	INT(0x03);
+	POP(EAX);
+	(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
+	TEST(EAX, 0x40000000);
+	if (== 0)
+		goto nextcmd;
+
+	/* winman0にシグナルを送る */
+	EBX = tapiwork_sel;
+	DS = EBX;
+	PUSH((int) 0);
+	PUSH(cmd[4]);
+	PUSH(cmd[0]);
+	PUSH((int) [DS:0x000c] /* tss */);
+	PUSH(EAX);
+	PUSH((int) 0x0048);
+	PUSH((int) 0x7f000005);
+	PUSH((int) 0x3240 /* winman0 */ + 6);
+	PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */);
+	EBX = ESP;
+	CALLFAR0(tapi_sel);
+	(offset) cmd += 8;
+	ESP += 36;
+	goto nextcmd;
 
 cmd040c:
 	/* free font */
@@ -5622,7 +5675,6 @@ cmd0418:
 	// linear dots
 	/* cmd, opt, window, x0, y0, xsize, ysize, lines, ofs, sel */
 	GUIGUI_window_struct *cmd0418_win == DS:ESI;
-	int *cmd0418_stack == SS:ESP;
 	EAX = 0x003c; // slot_sel
 	ECX = stack_sel;
 	ES = AX;
@@ -5650,6 +5702,56 @@ cmd0418:
 	PUSH(EAX);
 	PUSH(cmd[ 4]);
 	PUSH((int) 0x010c);
+
+	PUSH(EBX);
+	PUSH(ECX);
+	PUSH(EAX);
+	PUSH(ECX);
+	PUSH(EAX);
+	PUSH((int) 0); // opt(lock/bitset)
+	PUSH((int) 0); // priority/handle
+	PUSH((int) 0x0184); // accesslock
+	EAX = cmd[20];
+	ECX = cmd[24];
+	(offset) cmd += 40;
+	(int) [SS:ESP + 20] += EAX;
+	(int) [SS:ESP + 24] += ECX;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW((short) GAPI_sel);
+	ESP += 84;
+	goto nextcmd;
+
+cmd041c:
+	// points
+	/* cmd, opt, window, x0, y0, xsize, ysize, lines, ofs, sel */
+	GUIGUI_window_struct *cmd041c_win == DS:ESI;
+	EAX = 0x003c; // slot_sel
+	ECX = stack_sel;
+	ES = AX;
+	DS = CX;
+	PUSH((int) 0);
+	PUSH((int) 1); // opt(unlock/bitmode)
+	EBX = ESP;
+	PUSH((int) 0); // priority/handle
+	PUSH((int) 0x0184); // accesslock
+
+	PUSH(cmd[36]); /* sel */
+	PUSH(cmd[32]); /* ofs */
+	PUSH(cmd[28]); /* lines */
+	PUSH(cmd[24]); /* ysize */
+	PUSH(cmd[20]); /* xsize */
+	EDX = cmd[ 8]; /* win */
+	EAX = cmd[12]; /* x0 */
+	ECX = cmd[16]; /* y0 */
+	if (EDX != 0) {
+		(offset) cmd041c_win = (int) [ES:EDX + 8];
+		EAX += cmd041c_win->x0;
+		ECX += cmd041c_win->y0;
+	}
+	PUSH(ECX);
+	PUSH(EAX);
+	PUSH(cmd[ 4]);
+	PUSH((int) 0x0110);
 
 	PUSH(EBX);
 	PUSH(ECX);
@@ -7074,14 +7176,14 @@ void near ui32toa()
 void far int10()
 {
 	PUSHAD();
-	ESI = InitMdl::"INT 0x0A Invalid TSS";
+	ESI = InitMdl::"INT 0x0A Invalid TSS\0";
 	asmout("JMP put_int_status_ec");
 }
 
 void far int12()
 {
 	PUSHAD();
-	ESI = InitMdl::"INT 0x0c Stack Protect";
+	ESI = InitMdl::"INT 0x0c Stack Protect\0";
 	asmout("JMP put_int_status_ec");
 }
 
@@ -7093,7 +7195,7 @@ void far int13()
 	EAX = [SS:ESP + 32 + 4 + 8] /* EFLAGS */;
 	TEST(EAX, 0x00020000);
 	if (== 0) {
-		ESI = InitMdl::"INT 0x0D General Protect";
+		ESI = InitMdl::"INT 0x0D General Protect\0";
 		asmout("JMP put_int_status_ec");
 	}
 
@@ -7883,7 +7985,7 @@ op_rep_ES_outsw:
 void far int14()
 {
 	PUSHAD();
-	ESI = InitMdl::"INT 0x0E Page Protect";
+	ESI = InitMdl::"INT 0x0E Page Protect\0";
 }
 */
 
@@ -8157,7 +8259,7 @@ void far int01()
 		}
 	#endif
 trap:
-	ESI = InitMdl::"INT 0x01 Debug Fault";
+	ESI = InitMdl::"INT 0x01 Debug Fault\0";
 	asmout("JMP put_int_status");
 no_trap:
 	POPAD();
@@ -8217,7 +8319,7 @@ asmout("MOV EDX,DR0");
 [SS:ESP + 28] = ESI;
 [SS:ESP + 24] = EDX;
 #endif
-		ESI = InitMdl::"INT 0x03 Break Point";
+		ESI = InitMdl::"INT 0x03 Break Point\0";
 		asmout("JMP put_int_status");
 	}
 
@@ -8270,7 +8372,7 @@ void far int06()
 {
 	PUSH(EAX); // ダミーのエラーコード
 	PUSHAD();
-	ESI = InitMdl::"INT 0x06 Invalid Opecode";
+	ESI = InitMdl::"INT 0x06 Invalid Opecode\0";
 }
 
 void near put_int_status()

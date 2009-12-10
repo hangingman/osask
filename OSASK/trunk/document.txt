@@ -1,29 +1,30 @@
-"sb17"の使い方の説明                      2001/09/28 川合秀実
+"sb18"の使い方の説明                      2001/10/26 川合秀実
 
 １．これは何か？
 
-  "sb17"は、OSASK ver.1.7の「OSASK17.EXE」を生成するのに必要なモジュールのソー
+  "sb18"は、OSASK ver.1.8の「OSASK18.EXE」を生成するのに必要なモジュールのソー
 スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
-そのまま利用しているものついては、このアーカイブに含まれていません。OSASK17.EXE
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK18.EXE
 を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.EXE     : ver.1.70
-    OSALINK0.OPT : ver.1.70
-    PAPI0.BIN    : ver.0.2
-    PIONEER0.BIN : ver.1.5
-    SYSGG00.LIB  : ver.0.6
+    BASE.EXE     : ver.1.8
+    OSALINK0.OPT : ver.1.8
+    INIT.ASK     : ver.1.8
+    POKON0.BIN   : ver.1.8
+    PAPI0.BIN    : ver.0.3
+    PIONEER0.BIN : ver.1.6
+    TAPI0.BIN    : ver.0.3
     WINMAN0.BIN  : ver.1.2
-    POKON0.BIN   : ver.1.7
     PCAT/
-      VGADRV0.BIN  : ver.0.8
+      VGADRV0.BIN  : ver.0.9
     TOWNS/
-      VGADRV0.BIN  : ver.0.8
+      VGADRV0.BIN  : ver.0.9
 
   (以前のバージョンのものを利用するもの)
 
-    TAPI0.BIN    : ver.0.2
+    SYSGG00.LIB  : ver.0.6
     TIMERDRV.BIN : type-A ver.0.9
     KEYMOS0.BIN  : ver.0.3
     DECODE0.BIN  : ver.0.9
@@ -37,7 +38,7 @@
 
   使用したアセンブラ、コンパイラ、コンバーター、ライブラリーは以下の通りです。
 
-・ASKA version 1.0 beta 15b
+・ASKA version 1.0 beta 18
 ・masmcnv2
 ・exe2bin2
 ・MASM version 6.14.8444
@@ -53,7 +54,7 @@
 のについては、masmcnv2、linkset0に付属のドキュメントを参照してください。
 
   BASE.EXEの生成は、MAKEBASE.BATで行いました。MAKEBASE.BATを読んでアセンブル手
-順を把握してください。TOWNS版を生成する時は、少し書き換える必要があります。
+順を把握してください。
 
   SYSGG00.LIBの生成は、MAKEFILEで行いました。MAKEFILEを読んでコンパイル・アセン
 ブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成のみに
@@ -103,8 +104,8 @@
   このドキュメントに関係のあるいくつかのURLを挙げておきます。
 
     OSASKの開発者向けページ   http://www.imasy.org/~kawai/osask/developers.html
-    OSASKのページ             http://www.imasy.org/~kawai/osask/
     小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
-    川合堂のページ            http://www.imasy.org/~mone/kawaido/
+    OSASKのページ             http://www.imasy.org/~kawai/osask/
     OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
+    川合堂のページ            http://www.imasy.org/~mone/kawaido/
     川合秀実のページ          http://www.imasy.org/~kawai/

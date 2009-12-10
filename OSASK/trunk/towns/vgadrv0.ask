@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" for TOWNS ver.0.8 copyright(C) 2001 川合秀実, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.0.9 copyright(C) 2001 川合秀実, I.Tak. */
 
 segment GapiMdl(USE32, PARA);
 
@@ -47,6 +47,7 @@ syscmd:
 	asmout("#GAPI_error EQU GAPI_error");
 	asmout("#GAPI_putbox EQU GAPI_putbox");
 	asmout("#GAPI_lineardots EQU GAPI_lineardots");
+	asmout("#GAPI_points EQU GAPI_points");
 
 	PUSH(DS);
 	PUSH(ES);
@@ -70,8 +71,8 @@ asmout("next_command:");
 		goto GAPI_line;
 	if (EAX == 0x010c)
 		goto GAPI_lineardots;
-//	if (EAX == 0x0110)
-//		goto GAPI_points;
+	if (EAX == 0x0110)
+		goto GAPI_points;
 	if (EAX == 0x0180)
 		goto GAPI_mouse;
 	if (EAX == 0x0010)
@@ -1330,6 +1331,65 @@ void near GAPI_linesub_pset()
 	EAX : カラー
 */
 {
+	PUSH(EBP);
+	PUSH(EAX);
+	ECX = EDI;
+	EAX = ESI;
+	(unsigned int) ECX >>= 16;
+	(unsigned int) EAX >>= 16;
+	ECX *= 1024;
+	LEA(EBP, [EAX + ECX + 0xe0000000]);
+	EAX = 0x00010000;
+	ECX = 0xffff0000;
+	if (EBX == EAX) {
+		if (EDX == EAX)
+			goto line_xp1_yp1;
+		if ((signed) > )
+			goto general;
+		if (EDX >= 0)
+			goto line_xpd_yp1;
+		if (EDX == ECX)
+			goto line_xm1_yp1;
+		if ((signed) < )
+			goto line_xmd_yp1;
+	} else if (EBX == ECX) {
+		if (EDX == EAX)
+			goto line_xp1_ym1;
+		if ((signed) > )
+			goto general;
+		if (EDX >= 0)
+			goto line_xpd_ym1;
+		if (EDX == ECX)
+			goto line_xm1_ym1;
+		if ((signed) < )
+			goto line_xmd_ym1;
+	} else if (EDX == EAX) {
+	//	if (EBX == EAX)
+	//		goto line_xp1_yp1;
+		if ((signed) EBX > EAX)
+			goto general;
+		if (EBX >= 0)
+			goto line_xp1_ypd;
+	//	if (EBX == ECX)
+	//		goto line_xp1_ym1;
+		if ((signed) EBX < ECX)
+			goto line_xp1_ymd;
+	} else if (EDX == ECX) {
+	//	if (EBX == EAX)
+	//		goto line_xm1_yp1;
+		if ((signed) EBX > EAX)
+			goto general;
+		if (EBX >= 0)
+			goto line_xm1_ypd;
+	//	if (EBX == ECX)
+	//		goto line_xm1_ym1;
+		if ((signed) EBX < ECX)
+			goto line_xm1_ymd;
+	}
+
+general:
+	POP(EAX);
+	POP(EBP);
 	PUSH(EDX);
 	do {
 		EDX = EDI;
@@ -1344,6 +1404,178 @@ void near GAPI_linesub_pset()
 	} while (!= 0);
 	POP(EDX);
 	return;
+
+line_xpd_yp1:
+	EDI = EBP;
+	POP(EAX);
+	EBP = 1024;
+line_xpmd_yp1:
+	ESI <<= 16;
+	POP(ECX);
+	EDX <<= 16;
+	do {
+		(char) [DS:EDI] = AL;
+		ESI += EDX;
+		ADC(EDI, EBP);
+		ECX--;
+	} while (!= 0);
+	return;
+
+line_xmd_yp1:
+	EDI = EBP;
+	POP(EAX);
+	EBP = 1023;
+	goto line_xpmd_yp1;
+
+#if 0
+	ESI <<= 16;
+	POP(ECX);
+	EDX <<= 16;
+	do {
+		(char) [DS:EDI] = AL;
+		ESI += EDX;
+		ADC(EDI, 1023); /* CF == 1なら+1024, CF == 0なら+1023 */
+		ECX--;
+	} while (!= 0);
+	return;
+#endif
+
+line_xpd_ym1:
+	EDI = EBP;
+	POP(EAX);
+	EBP = 0 - 1024;
+	goto line_xpmd_yp1;
+
+#if 0
+	ESI <<= 16;
+	POP(ECX);
+	EDX <<= 16;
+	do {
+		(char) [DS:EDI] = AL;
+		ESI += EDX;
+		ADC(EDI, 0 - 1024);
+		ECX--;
+	} while (!= 0);
+	return;
+#endif
+
+line_xmd_ym1:
+	EDI = EBP;
+	POP(EAX);
+	EBP = 0 - 1025;
+	goto line_xpmd_yp1;
+
+#if 0
+	ESI <<= 16;
+	POP(ECX);
+	EDX <<= 16;
+	do {
+		(char) [DS:EDI] = AL;
+		ESI += EDX;
+		ADC(EDI, 0 - 1025); /* CF == 1なら-1024, CF == 0なら-1025 */
+		ECX--;
+	} while (!= 0);
+	return;
+#endif
+
+line_xp1_ypd:
+	ESI = EBP;
+	POP(EAX);
+	EDI <<= 16;
+	POP(ECX);
+	EBX <<= 16;
+	do {
+		EDI += EBX;
+		SBB(EDX, EDX); /* CF == 0ならEDX = 0, CF == 1ならEDX = -1 */
+		(char) [DS:ESI] = AL;
+		EDX &= 1024;
+	//	ESI++;
+	//	ESI += EDX;
+		ECX--;
+		LEA(ESI, [ESI + EDX + 1]);
+	} while (!= 0);
+	return;
+
+line_xp1_ymd:
+	ESI = EBP;
+	POP(EAX);
+	EDI <<= 16;
+	POP(ECX);
+	EBX <<= 16;
+	do {
+		EDX = 0;
+		EDI += EBX;
+		ADC(EDX, 0xffffffff); /* CF == 0ならEDX = -1, CF == 1ならEDX = 0 */
+		(char) [DS:ESI] = AL;
+		EDX &= 0 - 1024;
+	//	ESI++;
+	//	ESI += EDX;
+		ECX--;
+		LEA(ESI, [ESI + EDX + 1]);
+	} while (!= 0);
+	return;
+
+line_xm1_ypd:
+	ESI = EBP;
+	POP(EAX);
+	EDI <<= 16;
+	POP(ECX);
+	EBX <<= 16;
+	do {
+		EDI += EBX;
+		SBB(EDX, EDX); /* CF == 0ならEDX = 0, CF == 1ならEDX = -1 */
+		(char) [DS:ESI] = AL;
+		EDX &= 1024;
+	//	ESI--;
+	//	ESI += EDX;
+		ECX--;
+		LEA(ESI, [ESI + EDX - 1]);
+	} while (!= 0);
+	return;
+
+line_xm1_ymd:
+	ESI = EBP;
+	POP(EAX);
+	EDI <<= 16;
+	POP(ECX);
+	EBX <<= 16;
+	do {
+		EDX = 0;
+		EDI += EBX;
+		ADC(EDX, 0xffffffff); /* CF == 0ならEDX = -1, CF == 1ならEDX = 0 */
+		(char) [DS:ESI] = AL;
+		EDX &= 0 - 1024;
+	//	ESI--;
+	//	ESI += EDX;
+		ECX--;
+		LEA(ESI, [ESI + EDX - 1]);
+	} while (!= 0);
+	return;
+
+line_xp1_yp1:
+	EDX = 1024 + 1;
+line_x1_y1:
+	POP(EAX);
+	ESI = EBP;
+	POP(ECX);
+	do {
+		(char) [DS:ESI] = AL;
+		ESI += EDX;
+		ECX--;
+	} while (!= 0);
+	return;
+
+line_xp1_ym1:
+	EDX = 1 - 1024;
+	goto line_x1_y1;
+
+line_xm1_yp1:
+	EDX = 1024 - 1;
+	goto line_x1_y1;
+
+line_xm1_ym1:
+	EDX = 0 - 1024 - 1;
+	goto line_x1_y1;
 }
 
 void near GAPI_linesub_xor()
@@ -1558,6 +1790,101 @@ void near GAPI_lineardots()
 		POP((offset) cmd);
 		POP(EBP);
 		(offset) cmd += 36;
+		POP(ES);
+		asmout("JMP next_command");
+//	}
+}
+
+void near GAPI_points()
+{
+	/* 点を打つ */
+	/* cmd, opt, x0, y0, sx, sy, lines, ofs, sel */
+	/* sxとsyは利用していない */
+
+	/* データーの形式 */
+	/* x0, y0, color */
+
+	int *cmd == FS:EBX;
+	int *dat == ES:EDX;
+
+	PUSH(ES);
+	EAX = cmd[ 4];
+	ECX = cmd[24];
+	asmout("LES EDX,FWORD PTR FS:[EBX+28]");
+	ESI = cmd[ 8];
+	EDI = cmd[12];
+	(offset) cmd += 36;
+	PUSH(ESI);
+	EAX >>= 6;
+	PUSH(EDI);
+	if (== 0) {
+		do {
+			ESI += dat[0]; /* x0 */
+			EDI += dat[4]; /* y0 */
+			EAX = dat[8]; /* color */
+			EDI *= 1024;
+			(offset) dat += 12;
+			(char) [DS:EDI + ESI + 0xe0000000] = AL;
+			ECX--;
+			ESI = [SS:ESP + 4];
+			EDI = [SS:ESP + 0];
+		} while (!= 0);
+		POP(EAX);
+		POP(ECX);
+		POP(ES);
+		asmout("JMP next_command");
+	}
+	EAX--;
+	if (== 0) {
+		do {
+			ESI += dat[0]; /* x0 */
+			EDI += dat[4]; /* y0 */
+			EAX = dat[8]; /* color */
+			EDI *= 1024;
+			(offset) dat += 12;
+			(char) [DS:EDI + ESI + 0xe0000000] &= AL;
+			ECX--;
+			ESI = [SS:ESP + 4];
+			EDI = [SS:ESP + 0];
+		} while (!= 0);
+		POP(EAX);
+		POP(ECX);
+		POP(ES);
+		asmout("JMP next_command");
+	}
+	EAX--;
+	if (== 0) {
+		do {
+			ESI += dat[0]; /* x0 */
+			EDI += dat[4]; /* y0 */
+			EAX = dat[8]; /* color */
+			EDI *= 1024;
+			(offset) dat += 12;
+			(char) [DS:EDI + ESI + 0xe0000000] |= AL;
+			ECX--;
+			ESI = [SS:ESP + 4];
+			EDI = [SS:ESP + 0];
+		} while (!= 0);
+		POP(EAX);
+		POP(ECX);
+		POP(ES);
+		asmout("JMP next_command");
+	}
+//	EAX--;
+//	if (== 0) {
+		do {
+			ESI += dat[0]; /* x0 */
+			EDI += dat[4]; /* y0 */
+			EAX = dat[8]; /* color */
+			EDI *= 1024;
+			(offset) dat += 12;
+			(char) [DS:EDI + ESI + 0xe0000000] ^= AL;
+			ECX--;
+			ESI = [SS:ESP + 4];
+			EDI = [SS:ESP + 0];
+		} while (!= 0);
+		POP(EAX);
+		POP(ECX);
 		POP(ES);
 		asmout("JMP next_command");
 //	}

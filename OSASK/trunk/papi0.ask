@@ -1,4 +1,4 @@
-/* "papi0.ask" ver.0.2 copyright(C) 2001 H.Kawai(川合秀実) */
+/* "papi0.ask" ver.0.3 copyright(C) 2001 H.Kawai(川合秀実) */
 /* 64bitタイプ */
 
 segment PapiMdl(USE32, PARA);
@@ -1067,7 +1067,6 @@ del:
 				(offset) node -= sizeof (AAC_Node);
 				continue;
 			}
-INT(0x03);
 			/* 途中から消す */
 			/* ECXが少ないと、分割される */
 			/*
@@ -1078,26 +1077,23 @@ INT(0x03);
 			*/
 			EDX = index;
 			EDI = node->len;
-			EDX -= node->index;
+			EDX -= node->index; /* EDX = 先頭から残るサイズ */
 			PUSH(EDI);
-			EDI -= EDX;
+			EDI -= EDX; /* EDI = 一度に消去できるサイズ */
 			node->len = EDX;
+			index += EDI; /* index = node->index + 旧node->len */
 			ECX -= EDI;
-			POP(EDX);
-			if ((unsigned) >= 0) {
-				/* 途中から末尾まで消える */
-				index += EDI;
+			POP(EDX); /* EDX = 旧node->len */
+			if ((unsigned) >= 0) /* 途中から末尾まで消える */
 				continue;
-			}
 			/* 分割される(分割後、終了) */
 			/* ECXは負の値 */
-			index = node->index;
-			EDX = node->data;
+			EDX += node->data;
 			(offset) node += sizeof (AAC_Node);
-			EDI = head->limit;
-			head->last += sizeof (AAC_Node);
 			index += ECX;
 			EDX += ECX;
+			EDI = head->limit;
+			head->last += sizeof (AAC_Node);
 			ECX =- ECX;
 			if ((unsigned) head->last >= EDI)
 				goto err;
@@ -1118,6 +1114,9 @@ INT(0x03);
 			} while (!= 0);
 			POP(EBP);
 			POP(ESI);
+			node->index = EAX;
+			node->len = ECX;
+			node->data = EDX;
 			goto ret;
 		}
 		(offset) node += sizeof (AAC_Node);

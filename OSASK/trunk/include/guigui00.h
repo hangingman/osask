@@ -32,6 +32,10 @@ struct LIB_LINES0 {
 	int x0, y0, x1, y1, dummy, color;
 };
 
+struct LIB_POINTS {
+	int x, y, color;
+};
+
 void lib_execcmd(void *EBX);
 void lib_execcmd0(int cmd, ...);
 const int lib_execcmd1(int ret, int cmd, ...);
@@ -96,6 +100,10 @@ struct LIB_GRAPHBOX *lib_opengraphbox2(int opt, struct LIB_GRAPHBOX *gbox, int m
 	struct LIB_WINDOW *window);
 void lib_putblock03001(struct LIB_GRAPHBOX *gbox, void *buf, int vx0, int vy0, void *tbuf,
 	int tbuf_skip, int tcol0);
+void lib_drawpoints0(int opt, struct LIB_GRAPHBOX *gbox, int x0, int y0, int xsize, int ysize,
+	int points, const struct LIB_POINTS *ofs);
+void lib_wsjis2gg00jpn0(int len, const char *sjis, int *gg00jpn, int ankbase, int jpnbase);
+void lib_loadfontset1(int opt, int slot, int sig);
 
 #endif
 
@@ -107,6 +115,11 @@ const int lib_readCSd(int offset);
 const int lib_readmodulesize(int slot);
 void lib_initmodulehandle1(int slot, int num, int sig);
 void lib_steppath0(int opt, int slot, const char *name, int sig);
+const int lib_decodel2d3(int size, int src_ofs, int src_sel, int dest_ofs, int dest_sel);
+void lib_putstring_SJIS0(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *textbox,
+	int color, int backcolor, const char *str);
+void lib_putstring0(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *textbox,
+	int color, int backcolor, int len, const int *str);
 
 #define	lib_init(work) \
 	(struct LIB_WORK *) lib_execcmd1(1 * 4 + 12, 0x0004, \
@@ -207,6 +220,9 @@ void lib_steppath0(int opt, int slot, const char *name, int sig);
 #define	lib_loadfontset0(opt, slot) \
 	lib_execcmd0(0x00e0, (int) (opt), (int) (slot), 0x0000)
 
+#define	lib_loadfontset1(opt, slot, sig) \
+	lib_execcmd0(0x00e0, (int) (opt), (int) (slot), 1, (int) (sig), 0x0000)
+
 #define	lib_makecharset(opt, charset, fontset, len, from, base) \
 	lib_execcmd0(0x00e8, (int) (opt), (int) (charset), (int) (fontset), \
 	(int) (len), (int) (from), (int) (base), 0x0000)
@@ -276,5 +292,14 @@ void lib_steppath0(int opt, int slot, const char *name, int sig);
 	lib_execcmd0(0x0058, 0x3001, (void *) (gbox), (void *) (buf), \
 	(int) (vx0), (int) (vy0), (void *) (tbuf), (int) (tbuf_skip), \
 	(int) (tcol0), 0x0000)
+
+#define lib_drawpoints0(opt, gbox, x0, y0, xsize, ysize, points, ofs) \
+	lib_execcmd0(0x005c, (int) (opt), (void *) (gbox), (int) (x0), \
+	(int) (y0), (int) (xsize), (int) (ysize), (int) (points), (void *) (ofs), \
+	0x000c, 0x0000)
+
+#define	lib_wsjis2gg00jpn0(len, sjis, gg00jpn, ankbase, jpnbase) \
+	lib_execcmd0(0x00ec, 0x0001, (int) (len), (void *) (sjis), 0x000c, \
+	(int *) (gg00jpn), 0x000c, (int) (ankbase), (int) (jpnbase), 0x0000)
 
 #endif

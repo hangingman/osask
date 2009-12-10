@@ -1,4 +1,4 @@
-// "tapi0.ask" ver.0.2 copyright(C) 2001 H.Kawai(川合秀実)
+// "tapi0.ask" ver.0.3 copyright(C) 2001 H.Kawai(川合秀実)
 
 /* "for DEBUG"を検索すれば、デバッグのために追加された部分を見つけられる */
 
@@ -82,7 +82,7 @@ struct TAPI_WORK {
 //	int TskTimerMin[12];
 	char TskTimerMode; // == 0 : 1タスクで独占。タイマー未使用。
 	void [3];
-	int taskFPU, [8];
+	int taskFPU, [8]; /* taskFPUは0x0024 */
 
 //	void (far *TimerSysCmd)(); 関数へのポインタ(far)
 	int TimerSysCmd[8]; // +0x30
@@ -481,7 +481,8 @@ void far TAPI_TskChgTimer()    /* far-callで呼ばれる */
 	// タイムアウトbitを調べる。もし、既にタイムアウトしていれば、重複である。
 	// こうなるとぬけられないので、タイマーをキャンセルし、Fixを要求する。
 	// 強制的にTimeOut処理をしないのは、タスクチェンジ抑制モードに配慮しているためである。
-	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],01H");
+//	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],01H");
+	TEST((char) [SS:0xfffffff1], 0x01);
 	(offset) NowTss  = work->TskPointer;
 	if (== 0)
 		goto dead_lock;
@@ -540,13 +541,15 @@ void far TAPI_TskChgTimer2()    /* これは、far-callで入ってくる */
 	AX = CS; AX += 8; DS = AX; /* DSのセット */
 
 	// Fixチェック
-	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+//	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+	TEST((char) [SS:0xfffffff1], 0x02);
 	if (== 0) {
 		asmout("CALL TAPI_FixMain"); // (near) call(FixMain);
 	}
 
 	// timeoutチェック
-	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],01H");
+//	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],01H");
+	TEST((char) [SS:0xfffffff1], 0x01);
 	if (== 0) {
 		(offset) now = work->TskPointer;
 	//	Lv0Stack->IntCountFlags |= (On | TimeOut | Fix); // 指定ビットを1にする
@@ -561,8 +564,8 @@ void far TAPI_TskChgTimer2()    /* これは、far-callで入ってくる */
 		(int) [SS:0xfffffff0] |= 0x0380;
 		EAX = now->set[0];
 		ECX = now->set[4];
-	//	CMP((char) now->short_run[11], 0xff);
-		DL = 0xff; CMP((char) now->short_run[11], DL);
+		CMP((char) now->short_run[11], 0xff);
+	//	DL = 0xff; CMP((char) now->short_run[11], DL);
 		EDX = now->set[8];
 		/* (false) */ if (!=) {
 			EAX -= now->short_run[0];
@@ -636,8 +639,8 @@ void far TAPI_SysCntZero()
 	AX = CS;
 	PUSH(DS);
 	AX += 8;
-//	TEST((char) [SS:ESP + 40 /* CS */], 0x03);
-	asmout("TEST BYTE PTR SS:[ESP+40],03H");
+	TEST((char) [SS:ESP + 40 /* CS */], 0x03);
+//	asmout("TEST BYTE PTR SS:[ESP+40],03H");
 	DS = AX;
 	(offset) tss = work->TskPointer;
 	if (== 0) {
@@ -647,11 +650,11 @@ void far TAPI_SysCntZero()
 		IRETD();
 	}
 
-//	TEST((char) [SS:0xffffffe1], 0x01);
-	asmout("TEST BYTE PTR SS:[0FFFFFFE1H],01H"); // 割り込み発生要求
+	TEST((char) [SS:0xffffffe1], 0x01);
+//	asmout("TEST BYTE PTR SS:[0FFFFFFE1H],01H"); // 割り込み発生要求
 	if (== 0) {
-	//	TEST((char) [SS:0xffffffe1], 0x02);
-		asmout("TEST BYTE PTR SS:[0FFFFFFE1H],02H"); // soft-iret要求
+		TEST((char) [SS:0xffffffe1], 0x02);
+	//	asmout("TEST BYTE PTR SS:[0FFFFFFE1H],02H"); // soft-iret要求
 		// 帰るつもりだったのに、再度割り込まれた。
 		// そういう場合は、lv1のスタックをいじらない。
 		EDI = (int) tss->softint_CS;
@@ -841,7 +844,8 @@ void near TAPI_SignalMessage()
 	CLI();
 
 //	asmout("INC BYTE PTR SS:[0FFFFFFE0H]"); // これは不要。nearだから
-	asmout("INC BYTE PTR SS:[0FFFFFFF0H]");
+//	asmout("INC BYTE PTR SS:[0FFFFFFF0H]");
+	(char) [SS:0xfffffff0]++;
 
 	TAPI_TSS *tss == DS:ESI;
 
@@ -991,7 +995,8 @@ void near TAPI_SignalMessage2()
 	CLI();
 retry:
 //	asmout("INC BYTE PTR SS:[0FFFFFFE0H]"); // これは不要。nearだから
-	asmout("INC BYTE PTR SS:[0FFFFFFF0H]");
+//	asmout("INC BYTE PTR SS:[0FFFFFFF0H]");
+	(char) [SS:0xfffffff0]++;
 
 	TAPI_TSS *tss == DS:ESI;
 
@@ -1295,14 +1300,14 @@ if (!= 0) {
 }
 */
 	(offset) AddGlv = AddTss->Glv;
-	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+//	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+	TEST((char) [SS:0xfffffff1], 0x02);
 	EAX = AddGlv->tasks;
 	if (!= 0) { // FixOnされていない
 		if ((unsigned) (offset) AddGlv == work->GlvNow) {
 			(offset) NextTss = work->TskPointer;
-		//	asmout("CMP BYTE PTR DS:[ESI+#TS_short_run+11],0FFH");
-		//	CMP((char) AddTss->short_run[11], 0xff);
-			DL = 0xff; CMP((char) AddTss->short_run[11], DL);
+			CMP((char) AddTss->short_run[11], 0xff);
+		//	DL = 0xff; CMP((char) AddTss->short_run[11], DL);
 			(offset) BackTss = NextTss->back;
 			if (==)
 				goto connect;
@@ -1315,9 +1320,8 @@ if (!= 0) {
 	/* (true) */ if (EAX != 0) {
 		(offset) NextTss = AddGlv->pointer;
 		(offset) BackTss = NextTss->back;
-	//	asmout("CMP BYTE PTR DS:[ESI+#TS_short_run+11],0FFH");
-	//	CMP((char) AddTss->short_run[11], 0xff);
-		PUSH(EDX); DL = 0xff; CMP((char) AddTss->short_run[11], DL); POP(EDX);
+		CMP((char) AddTss->short_run[11], 0xff);
+	//	PUSH(EDX); DL = 0xff; CMP((char) AddTss->short_run[11], DL); POP(EDX);
 		if (!=)
 			AddGlv->pointer = (offset) AddTss;
 connect:
@@ -1379,7 +1383,8 @@ void near TapiChangeTsk()
 	TAPI_GlvPrm *NowGlv == DS:EBX;
 
 	(offset) NowTss = work->TskPointer;
-	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+//	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+	TEST((char) [SS:0xfffffff1], 0x02);
 	if (!= 0) {
 		TapiFixOn(); // EAX～EBXを破壊
 	}
@@ -1499,7 +1504,8 @@ void near TapiFixTsk()
 //	asmout("#TS_short_run EQU 0F0H");
 	asmout("#GP_flags EQU 020H");
 
-	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+//	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+	TEST((char) [SS:0xfffffff1], 0x02);
 	if (!= 0) {
 		(char) work->NowTimeCT[11] = 0;
 	        return;
@@ -1545,7 +1551,7 @@ FixMain:
 	(char) work->NowTimeCT[11] = 0;
 //	work->TskTimerMode = 0;
 	EBP = work->TskPointer;
-	/* TEST(NowGlv->flags, 0x02); */ asmout("TEST BYTE PTR DS:[EDI+#GP_flags],2");
+	TEST(NowGlv->flags, 0x02); /* asmout("TEST BYTE PTR DS:[EDI+#GP_flags],2"); */
 	work->TskPointer = (offset) NextTss;
 	if (== 0 /* 時分割をやる */) {
 		if (NowGlv->tasks != 1 /* タスクは一つだけでない */) {
@@ -1558,9 +1564,8 @@ FixMain:
 			ADC(EDX, NextTss->set[8]);
 //if (== 0)
 //	INT(0x03);
-		//	asmout("CMP BYTE PTR DS:[EBX+#TS_short_run+11],0FFH");
-		//	CMP((char) NextTss->short_run[11], 0xff);
-			PUSH(EDX); DL = 0xff; CMP((char) NextTss->short_run[11], DL); POP(EDX);
+			CMP((char) NextTss->short_run[11], 0xff);
+		//	PUSH(EDX); DL = 0xff; CMP((char) NextTss->short_run[11], DL); POP(EDX);
 			if (!=) {
 				EAX -= NextTss->short_run[0]; // 割り込みを起こす時刻を設定
 				SBB(ECX, NextTss->short_run[4]);
@@ -1684,8 +1689,8 @@ void near TAPI_AddNestSleep()
 //	EDX = (int) [SS:ESP + 24 /* old EDX */];
 	tss->softint_nest += AL;
 	if (== 0) {
-	//	TEST(tss->msgbox_status, 0x80); /* bit7:データ存在bit */
-		AL = tss->msgbox_status; TEST(AL, 0x80);
+		TEST(tss->msgbox_status, 0x80); /* bit7:データ存在bit */
+	//	AL = tss->msgbox_status; TEST(AL, 0x80);
 		if (!= 0) {
 		//	(char) [SS:0xffffffe0]++;
 		//	(char) [SS:0xfffffff0]++;
@@ -1745,8 +1750,8 @@ void near TAPI_AddNestSleep()
 	}
 
 	// シグナルが溜まっているときは、レベルチェンジを認めない
-//	TEST(tss->msgbox_status, 0xc0);
-	AL = tss->msgbox_status; TEST(AL, 0xc0);
+	TEST(tss->msgbox_status, 0xc0);
+//	AL = tss->msgbox_status; TEST(AL, 0xc0);
 	if (== 0) {
 		if (DL != 0xff) {
 			EDX &= 0xff;
@@ -1780,7 +1785,8 @@ void near TAPI_Softint1Ret()
 	}
 	tss->softint_nest += AL;
 	if (== 0) {
-		AL = tss->msgbox_status; TEST(AL, 0x80);
+	//	AL = tss->msgbox_status; TEST(AL, 0x80);
+		TEST(tss->msgbox_status, 0x80);
 		if (!= 0) {
 			tss->softint_nest = 0xff;
 			(int) [SS:0xffffffe0] &= 0xfffffc7f; // リターン & 分岐

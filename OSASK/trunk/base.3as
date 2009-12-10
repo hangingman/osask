@@ -1,6 +1,10 @@
-;	"boot.asm" ver.1.70
+;	"boot.asm" ver.1.8
 ;	OSASK用のブートプログラム
 ;	Copyright(C) 2001 H.Kawai (川合秀実)
+
+.386p
+
+			include ./inc.asm
 
 BootMdl			segment para use16
 
@@ -309,7 +313,8 @@ Boot_init_ent		equ	1 * 16
 
 			db	66h	; opsiz-prefix
 			db	11101010b ; far-jmp to 32bit-code
-			dd	offset Init
+		;	dd	offset Init
+			dd	0
 			dw	Boot_init_sel	; init-sel
 
 Boot_param_err:
@@ -355,8 +360,6 @@ bootmalloc		endp
 
 BootSiz			equ	$-BootBgn
 
-			assume	ds:InitMdl,es:InitMdl
-			assume	ss:InitMdl,fs:InitMdl,gs:InitMdl
 
 BootMdl			ends
 
@@ -373,8 +376,6 @@ VESAPNP_2c		dd	0
 
 VGA_mode		dw	12h	; +0x10
 			dw	0
-;GUIGUI_mouse_limit_x	dw	640 ; +0x14
-;GUIGUI_mouse_limit_y	dw	480
 to_winman0		dd	0 ; +0x14
 
 VGA_PCI_base		dd	0
@@ -385,7 +386,7 @@ eflags			dd	0
 modulelist		db	"syswork "	;  0 * 16
 			dd	offset SysWorkSiz,SysWorkMdl
 			db	"init    "	;  1 * 16
-			dd	offset InitSiz,InitMdl
+			dd	0,BootMdl
 			db	"vgadrv0 "	;  2 * 16
 vgadrv_sizadr		dd	0,BootMdl
 			db	"keymos0 "	;  3 * 16
@@ -428,7 +429,7 @@ alloclist		db	"pdepte  "	; 0
 			db	"keydata "	; 4
 			dd	4096,-1
 			db	"gapidata"
-			dd	4096*16,-1
+			dd	4096*2,-1   ; 起動最低限しか用意しない
 			db	"timerdat"
 			dd	4096*2,-1
 			db	"tapiwork"
@@ -451,21 +452,6 @@ bootmalloc_fre0		dd	0
 bootmalloc_adr1		dd	?	; LastMdlを指す
 bootmalloc_fre1		dd	?	; 640KB - bootmalloc_adr1
 
-;GUIGUI_mouse_x		dd	312 ; (640 - 16) / 2
-;GUIGUI_mouse_y		dd	200 ; (452 - 16) / 2 - 18
-;GUIGUI_led		db	0,0,0,0
-;GUIGUI_music_button	dd	?
-;GUIGUI_music_ptr	dd	0 ; 無音状態
-;GUIGUI_music_node	dd	?
-;GUIGUI_music_basetime	dd	?
-;GUIGUI_pad_x		dd	0
-;GUIGUI_pad_y		dd	0
-;GUIGUI_textbuf		db	128*16 dup (0) ; 2KB
-;GUIGUI_fdc_track	dd	0
-;GUIGUI_fdc_addr		dd	0
-;GUIGUI_mem1		dd	0
-;GUIGUI_mem2		dd	0
-;GUIGUI_textdire_button	dd	?
 FD_motor_init		db	01ch ; motor on
 FD_cache_init		db	1 ; must init
 DiskCacheReady		db	0
@@ -473,10 +459,18 @@ DiskCacheReady		db	0
 			db	?
 FD_debug		dd	-1
 
-;			align	4
-
-;mode0x12_800		dd	000FEH, 0, 00000H
-
 SysWorkSiz		equ	$-SysWorkBgn
 
 SysWorkMdl		ends
+
+StackMdl		segment	para use32 stack
+
+StackBgn		equ	$
+
+			dd	64 dup (?)	; 256bytes
+
+StackSiz		equ	$-StackBgn
+
+StackMdl		ends
+
+			end	Entry

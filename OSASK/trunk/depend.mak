@@ -1,1 +1,1 @@
-ARCH = pcat
+ARCH = towns

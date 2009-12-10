@@ -1,6 +1,6 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.2
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.3
 		copyright(C) 2001 川合秀実
-    stack:4k malloc:92k file:0 */
+    stack:4k malloc:336k file:256k */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -58,6 +58,7 @@ void chain_unuse(struct WM0_WINDOW *win);
 struct WM0_WINDOW *get_unuse();
 void mousesignal(const unsigned int header, int dx, int dy);
 void writejob(int i);
+void writejob2(int i, int j);
 void runjobnext();
 void job_openwin0(struct WM0_WINDOW *win);
 void redirect_input(struct WM0_WINDOW *win);
@@ -77,6 +78,9 @@ void job_setvgamode0(const int mode);
 void job_setvgamode1(const int cmd, const int handle);
 void job_setvgamode2();
 void job_setvgamode3(const int sig, const int result);
+void job_loadfont0(int fonttype, int tss, int sig);
+void job_loadfont1(int flag);
+
 void free_sndtrk(struct SOUNDTRACK *sndtrk);
 struct SOUNDTRACK *alloc_sndtrk();
 void send_signal2dw(const int sigbox, const int data0, const int data1);
@@ -156,6 +160,7 @@ void main()
 	#endif
 
 	for (;;) {
+		win = top;
 		switch (signal[0]) {
 		case 0x0000:
 			lib_waitsignal(0x0001, 0, 0);
@@ -175,19 +180,25 @@ void main()
 			if (jobfree >= 4) {
 				/* 空きが十分にある */
 				#if (defined(PCAT))
-					writejob(0x0030 /* open VGA driver */);
-					writejob(0x0000);
-					writejob(0x0034 /* change VGA mode */);
-					writejob(0x0012);
+				//	writejob(0x0030 /* open VGA driver */);
+				//	writejob(0x0000);
+				//	writejob(0x0034 /* change VGA mode */);
+				//	writejob(0x0012);
+					writejob2(0x0030 /* open VGA driver */, 0x0000);
+					writejob2(0x0034 /* change VGA mode */, 0x0012);
+		fin_wrtjob:
 					*jobwp = 0; /* ストッパー */
 					if (jobnow == 0)
 						runjobnext();
 				#endif
 				#if (defined(TOWNS))
-					writejob(0x0030 /* open VGA driver */);
-					writejob(0x0000);
-					writejob(0x0034 /* change VGA mode */);
-					writejob(0x0000);
+				//	writejob(0x0030 /* open VGA driver */);
+				//	writejob(0x0000);
+				//	writejob(0x0034 /* change VGA mode */);
+				//	writejob(0x0000);
+					writejob2(0x0030 /* open VGA driver */, 0x0000);
+					writejob2(0x0034 /* change VGA mode */, 0x0000);
+		fin_wrtjob:
 					*jobwp = 0; /* ストッパー */
 					if (jobnow == 0)
 						runjobnext();
@@ -236,11 +247,13 @@ void main()
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				// 空きが十分にある
-				writejob(0x0020 /* open */);
-				writejob((int) win);
-				*jobwp = 0; /* ストッパー */
-				if (jobnow == 0)
-					runjobnext();
+			//	writejob(0x0020 /* open */);
+			//	writejob((int) win);
+				writejob2(0x0020 /* open */, (int) win);
+			//	*jobwp = 0; /* ストッパー */
+			//	if (jobnow == 0)
+			//		runjobnext();
+				goto fin_wrtjob;
 			}
 			break;
 
@@ -252,11 +265,13 @@ void main()
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				// 空きが十分にある
-				writejob(0x002c /* close */);
-				writejob((int) win);
-				*jobwp = 0; /* ストッパー */
-				if (jobnow == 0)
-					runjobnext();
+			//	writejob(0x002c /* close */);
+			//	writejob((int) win);
+				writejob2(0x002c /* close */, (int) win);
+			//	*jobwp = 0; /* ストッパー */
+			//	if (jobnow == 0)
+			//		runjobnext();
+				goto fin_wrtjob;
 			}
 			break;
 
@@ -337,6 +352,30 @@ void main()
 			}
 			break;
 
+		case 0x0048: /* load external font (font-type, tss, len, sig) */
+			/* ジョブリストにこの要求を入れる */
+			if (jobfree >= 4) {
+				/* 空きが十分にある */
+				writejob2(0x0038 /* loadfont */, signal[1] /* type */);
+				writejob2(signal[2] /* tss */, signal[4] /* sig */);
+				*jobwp = 0; /* ストッパー */
+				if (jobnow == 0)
+					runjobnext();
+			}
+			signal += 5;
+			lib_waitsignal(0x0000, 5, 0);
+			break;
+
+		case 0x0050:
+		case 0x0051:
+		case 0x0052:
+		case 0x0053:
+		case 0x0054: /* 0x005fまではリザーブ */
+			job_loadfont1(signal[0] - 0x0050);
+			signal++;
+			lib_waitsignal(0x0000, 1, 0);
+			break;
+
 		case 0x0014: /* 画面モード変更完了(result) */
 		case 0x00c0: /* 更新停止シグナル(handle) */
 		case 0x00c4: /* 描画完了シグナル(handle) */
@@ -367,11 +406,13 @@ void main()
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				/* 空きが十分にある */
-				writejob(0x0024 /* active */);
-				writejob((int) top->up);
-				*jobwp = 0; /* ストッパー */
-				if (jobnow == 0)
-					runjobnext();
+			//	writejob(0x0024 /* active */);
+			//	writejob((int) top->up);
+				writejob2(0x0024 /* active */, (int) win /* top */ ->up);
+			//	*jobwp = 0; /* ストッパー */
+			//	if (jobnow == 0)
+			//		runjobnext();
+				goto fin_wrtjob;
 			}
 			break;
 
@@ -381,11 +422,13 @@ void main()
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				/* 空きが十分にある */
-				writejob(0x0024 /* active */);
-				writejob((int) top->down);
-				*jobwp = 0; /* ストッパー */
-				if (jobnow == 0)
-					runjobnext();
+			//	writejob(0x0024 /* active */);
+			//	writejob((int) top->down);
+				writejob2(0x0024 /* active */, (int) win /* top */ ->down);
+			//	*jobwp = 0; /* ストッパー */
+			//	if (jobnow == 0)
+			//		runjobnext();
+				goto fin_wrtjob;
 			}
 			break;
 
@@ -395,19 +438,21 @@ void main()
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				// 空きが十分にある
-				writejob(0x0028 /* move by keyboard */);
-				writejob((int) top);
-				*jobwp = 0; /* ストッパー */
-				if (jobnow == 0)
-					runjobnext();
+			//	writejob(0x0028 /* move by keyboard */);
+			//	writejob((int) top);
+				writejob2(0x0028 /* move by keyboard */, (int) win /* top */);
+			//	*jobwp = 0; /* ストッパー */
+			//	if (jobnow == 0)
+			//		runjobnext();
+				goto fin_wrtjob;
 			}
 			break;
 
 		case 0x0203 /* close window */:
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
-			if (top != pokon0)
-				sgg_wm0s_close(&top->sgg);
+			if (win /* top */ != pokon0)
+				sgg_wm0s_close(&win /* top */ ->sgg);
 			break;
 
 		case 0x0204 /* VGA mode 0x0012 */:
@@ -418,18 +463,22 @@ void main()
 			if (jobfree >= 2) {
 				/* 空きが十分にある */
 				#if (defined(PCAT))
-					writejob(0x0034 /* change VGA mode */);
-					writejob(0x0012);
-					*jobwp = 0; /* ストッパー */
-					if (jobnow == 0)
-						runjobnext();
+				//	writejob(0x0034 /* change VGA mode */);
+				//	writejob(0x0012);
+					writejob2(0x0034 /* change VGA mode */, 0x0012);
+				//	*jobwp = 0; /* ストッパー */
+				//	if (jobnow == 0)
+				//		runjobnext();
+					goto fin_wrtjob;
 				#endif
 				#if (defined(TOWNS))
-					writejob(0x0034 /* change VGA mode */);
-					writejob(0x0000);
-					*jobwp = 0; /* ストッパー */
-					if (jobnow == 0)
-						runjobnext();
+				//	writejob(0x0034 /* change VGA mode */);
+				//	writejob(0x0000);
+					writejob2(0x0034 /* change VGA mode */, 0x0000);
+				//	*jobwp = 0; /* ストッパー */
+				//	if (jobnow == 0)
+				//		runjobnext();
+					goto fin_wrtjob;
 				#endif
 			}
 			break;
@@ -442,19 +491,39 @@ void main()
 			if (jobfree >= 2) {
 				/* 空きが十分にある */
 				#if (defined(PCAT))
-					writejob(0x0034 /* change VGA mode */);
-					writejob(0x0102);
-					*jobwp = 0; /* ストッパー */
-					if (jobnow == 0)
-						runjobnext();
+				//	writejob(0x0034 /* change VGA mode */);
+				//	writejob(0x0102);
+					writejob2(0x0034 /* change VGA mode */, 0x0102);
+				//	*jobwp = 0; /* ストッパー */
+				//	if (jobnow == 0)
+				//		runjobnext();
+					goto fin_wrtjob;
 				#endif
 				#if (defined(TOWNS))
-					writejob(0x0034 /* change VGA mode */);
-					writejob(0x0001);
-					*jobwp = 0; /* ストッパー */
-					if (jobnow == 0)
-						runjobnext();
+				//	writejob(0x0034 /* change VGA mode */);
+				//	writejob(0x0001);
+					writejob2(0x0034 /* change VGA mode */, 0x0001);
+				//	*jobwp = 0; /* ストッパー */
+				//	if (jobnow == 0)
+				//		runjobnext();
+					goto fin_wrtjob;
 				#endif
+			}
+			break;
+
+		case 0x0240 /* load JPN16$.FNT */:
+			signal++;
+			lib_waitsignal(0x0000, 1, 0);
+
+			/* ジョブリストにこの要求を入れる */
+			if (jobfree >= 4) {
+				/* 空きが十分にある */
+				writejob2(0x0038 /* loadfont */, 0x11 /* type */);
+				writejob2(0, 0);
+			//	*jobwp = 0; /* ストッパー */
+			//	if (jobnow == 0)
+			//		runjobnext();
+				goto fin_wrtjob;
 			}
 			break;
 
@@ -485,7 +554,7 @@ void main()
 
 		default:
 		mikannsei:
-			lib_drawline(0x0020, (void *) -1, 0, 0, 0, 15, 15); /* ここに来たことを知らせる */
+		//	lib_drawline(0x0020, (void *) -1, 0, 0, 0, 15, 15); /* ここに来たことを知らせる */
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 		}
@@ -746,6 +815,13 @@ void writejob(int i)
 	return;
 }
 
+void writejob2(int i, int j)
+{
+	writejob(i);
+	writejob(j);
+	return;
+}
+
 const int readjob()
 {
 	int i = *jobrp++;
@@ -786,8 +862,11 @@ void runjobnext()
 
 		case 0x0034 /* set VGA mode */:
 			job_setvgamode0(readjob());
-		//	break;
+			break;
 
+		case 0x0038 /* load external font */:
+			job_loadfont0(readjob(), readjob(), readjob());
+		//	break;
 		}
 	} while (jobnow == 0);
 	return;
@@ -812,7 +891,7 @@ void job_openwin0(struct WM0_WINDOW *win)
 	} else {
 		win->x0 = (x2 - xsize) / 2;
 		win->x0 &= ~0x07; // オープン位置を8の倍数になるように調整
-		win->y0 = (y2 - ysize) / 2;
+		win->y0 = (y2 - 28 - ysize) / 2;
 	}
 
 	// 各種パラメーターの初期化
@@ -853,6 +932,9 @@ void redirect_input(struct WM0_WINDOW *win)
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0200);
 	sgg_wm0_definesignal3(1, 0x0100, 0x0081 /* F1 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
+
+	sgg_wm0_definesignal3(0, 0x0100, 0x0085 /* F5 */,
+		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0240); /* JPN16$.FNTの即時ロード */
 
 	if (win) {
 		struct DEFINESIGNAL *dsp;
@@ -1374,6 +1456,7 @@ struct SOUNDTRACK *alloc_sndtrk()
 
 void send_signal2dw(const int sigbox, const int data0, const int data1)
 {
+#if 0
 	static struct {
 		int cmd, opt;
 		int data[3];
@@ -1386,10 +1469,15 @@ void send_signal2dw(const int sigbox, const int data0, const int data1)
 
 	sgg_execcmd(&command);
 	return;
+#endif
+
+	sgg_execcmd0(0x0020, 0x80000000 + 3, sigbox | 2, data0, data1, 0x000);
+	return;
 }
 
 void send_signal3dw(const int sigbox, const int data0, const int data1, const int data2)
 {
+#if 0
 	static struct {
 		int cmd, opt;
 		int data[4];
@@ -1402,6 +1490,9 @@ void send_signal3dw(const int sigbox, const int data0, const int data1, const in
 	command.data[3] = data2;
 
 	sgg_execcmd(&command);
+	return;
+#endif
+	sgg_execcmd0(0x0020, 0x80000000 + 4, sigbox | 3, data0, data1, data2, 0x000);
 	return;
 }
 
@@ -1532,6 +1623,57 @@ void job_setvgamode3(const int sig, const int result)
 }
 
 #endif
+
+int job_fonttss, job_sig, job_fontflag = 0;
+
+void job_loadfont0(int fonttype, int tss, int sig)
+{
+	job_sig = sig;
+	job_fonttss = tss;
+	if (job_fontflag) {
+		job_loadfont1(0);
+		return;
+	}
+	/* ロードコード */
+	lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
+	lib_steppath0(0, 0x0200, "JPN16$  .FNT", 0x0050 /* sig */);
+	return;
+}
+
+void job_loadfont1(int flag)
+{
+	if (job_fontflag == 0 && flag == 0 /* ロード成功 */) {
+		int *fp = (int *) lib_readCSd(0x0010 /* malloc領域の終わり == mapping領域の始まり */);
+		int *buf = malloc(249856);
+		static struct {
+			int cmd, length;
+			int gapicmd[8];
+			int eoc;
+		} command = {
+			0x0050, 10 * 4, {
+				0x0104 /* loadfont */,
+				0x0000 /* opt */,
+				0x0001 /* type */,
+				 15616 /* len */,
+				0x2000 /* to */,
+				0x0000 /* from(ofs) */,
+				0x000c /* from(sel) */,
+				0x0000 /* EOC */
+			}, 0 /* EOC */
+		};
+		lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
+		lib_decodel2d3(249856, (int) fp, 0x000c, (int) buf, 0x000c);
+		command.gapicmd[5 /* from(ofs) */] = (int) buf;
+		sgg_execcmd(&command);
+		free(buf);
+		job_fontflag++;
+	}
+	if (job_fonttss)
+		send_signal2dw(job_fonttss | 0x240, 0x7f000001, job_sig);
+	jobnow = 0;
+//	jobfunc = NULL;
+	return;
+}
 
 #if (defined(DEBUG))
 
