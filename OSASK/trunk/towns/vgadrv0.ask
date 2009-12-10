@@ -1,7 +1,9 @@
-/* "VGADRV0.ASK" for TOWNS ver.1.2 copyright(C) 2002 川合秀実, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.1.3 copyright(C) 2002 川合秀実, I.Tak. */
 
 /* TWVSW is... TOWNS Vertial Screen Width! */
-#define TWVSW 	1024	/* must be multiple of 8 */
+#if (!defined(TWVSW))
+	#define	TWVSW		1024	/* must be multiple of 8 */
+#endif
 
 #if (TWVSW & (TWVSW - 1))	/* TWVSW is not 0 nor power of 2. */
 	#undef  TWVSWlog2
@@ -2104,6 +2106,7 @@ void near GAPI_init()
 	DS = EAX;
 	asmout("JMP next_command");
 
+#if (!defined(TMENU))
 	/* デフォルトマウスカーソルパターン(16x16, mono) */
 	ALIGN(4);
 mouse_cursor:
@@ -2140,6 +2143,46 @@ mouse_cursor:
 	asmout("DB 00000110B,00000000B");
 	asmout("DB 00000011B,00000000B");
 	asmout("DB 00000000B,00000000B");
+#else
+	/* オリジナルマウスカーソルパターン(16x16, mono) by I.Tak. */
+	/* TOWNS の内臓に入ってるものに似せていますがフルスクラッチです。*/
+	ALIGN(4);
+mouse_cursor:
+	asmout("DB 10000000B,00000000B");
+	asmout("DB 11000000B,00000000B");
+	asmout("DB 10100000B,00000000B");
+	asmout("DB 10010000B,00000000B");
+	asmout("DB 11001000B,00000000B");
+	asmout("DB 10100100B,00000000B");
+	asmout("DB 11000010B,00000000B");
+	asmout("DB 10100001B,00000000B");
+	asmout("DB 11010000B,10000000B");
+	asmout("DB 10100011B,11000000B");
+	asmout("DB 11010111B,00000000B");
+	asmout("DB 10110110B,00000000B");
+	asmout("DB 11111010B,00000000B");
+	asmout("DB 11001010B,00000000B");
+	asmout("DB 10001110B,00000000B");
+	asmout("DB 00000110B,00000000B");
+
+	asmout("DB 00000000B,00000000B");
+	asmout("DB 00000000B,00000000B");
+	asmout("DB 01000000B,00000000B");
+	asmout("DB 01100000B,00000000B");
+	asmout("DB 00110000B,00000000B");
+	asmout("DB 01011000B,00000000B");
+	asmout("DB 00111100B,00000000B");
+	asmout("DB 01011110B,00000000B");
+	asmout("DB 00101111B,00000000B");
+	asmout("DB 01011100B,00000000B");
+	asmout("DB 00101000B,00000000B");
+	asmout("DB 01001000B,00000000B");
+	asmout("DB 00000100B,00000000B");
+	asmout("DB 00000100B,00000000B");
+	asmout("DB 00000000B,00000000B");
+	asmout("DB 00000000B,00000000B");
+#endif
+
 table:
 	DD(0x00000000); DD(0xff000000); DD(0x00ff0000); DD(0xffff0000);
 	DD(0x0000ff00); DD(0xff00ff00); DD(0x00ffff00); DD(0xffffff00);

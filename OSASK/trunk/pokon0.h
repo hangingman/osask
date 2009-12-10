@@ -44,6 +44,7 @@ enum {
 	STATUS_LOAD_BOOT_SECTOR_CODE_COMPLETE,/* 'S'と'Enter'と'F'と'R'しか入力できない */
 	STATUS_WRITE_KERNEL_COMPLETE,
 	STATUS_FORMAT_COMPLETE,
+	STATUS_BOOTING
 };
 
 /* pokon sort mode */
@@ -70,13 +71,15 @@ enum {
 #define	SIGNAL_REFRESH_FLIST					0x009c
 #define	SIGNAL_REFRESH_FLIST0					0x009d /* ファイルリストは変更しない */
 #define SIGNAL_RELOAD_FAT_COMPLETE              0x00a0 /* FAT再読み込み完了(Insert) */
-#define SIGNAL_LOAD_APP_FILE_COMPLETE           0x00a4 /* ファイル読み込み完了(file load & execute) */
-#define SIGNAL_CREATE_TASK_COMPLETE             0x00a8 /* タスク生成完了(create task) */
-#define SIGNAL_LOAD_FILE_COMPLETE               0x00ac /* ファイル読み込み完了(file load) */
-#define SIGNAL_LOAD_KERNEL_COMPLETE             0x00b0 /* ファイル読み込み完了(.EXE file load) */
-#define SIGNAL_LOAD_BOOT_SECTOR_CODE_COMPLETE   0x00b4 /* ファイル読み込み完了(.EXE file load) */
+#define	SIGNAL_JSUB								0x00a4 /* 汎用シグナル */
+//#define SIGNAL_LOAD_APP_FILE_COMPLETE           0x00a4 /* ファイル読み込み完了(file load & execute) */
+//#define SIGNAL_CREATE_TASK_COMPLETE             0x00a8 /* タスク生成完了(create task) */
+//#define SIGNAL_LOAD_FILE_COMPLETE               0x00ac /* ファイル読み込み完了(file load) */
+//#define SIGNAL_LOAD_KERNEL_COMPLETE             0x00b0 /* ファイル読み込み完了(.EXE file load) */
+//#define SIGNAL_LOAD_BOOT_SECTOR_CODE_COMPLETE   0x00b4 /* ファイル読み込み完了(.EXE file load) */
 #define SIGNAL_FORMAT_COMPLETE                  0x00b8 /* フォーマット完了 */
 #define SIGNAL_WRITE_KERNEL_COMPLETE            0x00bc /* .EXE書き込み完了 */
+#define	SIGNAL_RESIZE_SUB0						0x00bd /* size == 0 からのリサイズ */
 
 /* action signals */
 enum {
@@ -94,6 +97,7 @@ enum {
 	SIGNAL_CREATE_NEW,
 	SIGNAL_DELETE_FILE,
 	SIGNAL_RESIZE,
+	SIGNAL_CHANGE_SORT_MODE,
 	SIGNAL_LETTER_START = '!',
 	SIGNAL_LETTER_END = 'Z',
 	SIGNAL_WINDOW_CLOSE0 = 126,
@@ -110,6 +114,8 @@ enum {
 	COMMAND_OPEN_MONITOR,                           /* open monitor */
 	COMMAND_BINEDIT,								/* binary edit */
 	COMMAND_TXTEDIT,								/* text viewer */
+	COMMAND_CMPTEK0,
+	COMMAND_MCOPY,
 	COMMAND_SIGNAL_END = 0xff,
 };
 
@@ -207,12 +213,29 @@ struct SELECTORWAIT {
 
 struct STR_JOBLIST {
 	int *list, free, *rp, *wp, now;
-	int param[8];
 	struct FILEBUF *fbuf;
 	struct STR_BANK *bank;
 	struct FILESELWIN *win;
+	int param[8];
+	struct SGG_FILELIST *fp;
 	int dirslot;
+	struct STR_OPEN_ORDER *order;
+	void (*retfunc)(int);
+	int (*jsubfunc)(int *);
 };
+
+#define	PPJ_fbuf	 5
+#define	PPJ_bank	 6
+#define	PPJ_win		 7
+#define	PPJ_prm0	 8
+#define	PPJ_prm1	 9
+#define	PPJ_prm2	10
+#define	PPJ_prm3	11
+#define	PPJ_prm4	12
+#define	PPJ_prm5	13
+#define	PPJ_prm6	14
+#define	PPJ_prm7	15
+#define	PPJ_fp		16
 
 struct VIRTUAL_MODULE_REFERENCE {
 	int task, slot;
@@ -236,7 +259,8 @@ struct STR_CONSOLE {
 };
 
 struct STR_OPEN_ORDER {
-	int task, num, fileid, dummy;
+	int task, num, dummy;
+	struct SGG_FILELIST *fp;
 };
 
 struct STR_VIEWER {

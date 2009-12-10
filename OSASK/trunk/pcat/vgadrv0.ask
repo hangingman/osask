@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" ver.1.2 copyright(C) 2002 川合秀実, I.Tak., ODP */
+/* "VGADRV0.ASK" ver.1.3 copyright(C) 2001 川合秀実, I.Tak., ODP */
 
 segment GapiMdl(USE32, PARA);
 
@@ -1710,7 +1710,8 @@ void near GAPI_init()
 	DS = AX;
 	asmout("JMP next_command");
 
-	// デフォルトマウスカーソルパターン(16x16, mono)
+#if (!defined(TMENU))
+	/* デフォルトマウスカーソルパターン(16x16, mono) */
 	ALIGN(4);
 mouse_cursor:
 	asmout("DB 11000000B,00000000B");
@@ -1746,6 +1747,45 @@ mouse_cursor:
 	asmout("DB 00000110B,00000000B");
 	asmout("DB 00000011B,00000000B");
 	asmout("DB 00000000B,00000000B");
+#else
+	/* オリジナルマウスカーソルパターン(16x16, mono) by I.Tak. */
+	/* TOWNS の内臓に入ってるものに似せていますがフルスクラッチです。*/
+	ALIGN(4);
+mouse_cursor:
+	asmout("DB 10000000B,00000000B");
+	asmout("DB 11000000B,00000000B");
+	asmout("DB 10100000B,00000000B");
+	asmout("DB 10010000B,00000000B");
+	asmout("DB 11001000B,00000000B");
+	asmout("DB 10100100B,00000000B");
+	asmout("DB 11000010B,00000000B");
+	asmout("DB 10100001B,00000000B");
+	asmout("DB 11010000B,10000000B");
+	asmout("DB 10100011B,11000000B");
+	asmout("DB 11010111B,00000000B");
+	asmout("DB 10110110B,00000000B");
+	asmout("DB 11111010B,00000000B");
+	asmout("DB 11001010B,00000000B");
+	asmout("DB 10001110B,00000000B");
+	asmout("DB 00000110B,00000000B");
+
+	asmout("DB 00000000B,00000000B");
+	asmout("DB 00000000B,00000000B");
+	asmout("DB 01000000B,00000000B");
+	asmout("DB 01100000B,00000000B");
+	asmout("DB 00110000B,00000000B");
+	asmout("DB 01011000B,00000000B");
+	asmout("DB 00111100B,00000000B");
+	asmout("DB 01011110B,00000000B");
+	asmout("DB 00101111B,00000000B");
+	asmout("DB 01011100B,00000000B");
+	asmout("DB 00101000B,00000000B");
+	asmout("DB 01001000B,00000000B");
+	asmout("DB 00000100B,00000000B");
+	asmout("DB 00000100B,00000000B");
+	asmout("DB 00000000B,00000000B");
+	asmout("DB 00000000B,00000000B");
+#endif
 }
 
 void near GAPI_init_sub()

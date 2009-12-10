@@ -1,4 +1,4 @@
-/* "init.ask" ver.2.4 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "init.ask" ver.2.2 copyright(C) 2002 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -1083,8 +1083,8 @@ void far Init()
 	gapifontarea->data0.addr = EAX;
 	gapifontarea->data[0].size = EDX;
 	gapifontarea->data[0].addr = EDX;
-	EAX = 612 * 1024; /* 最初の4KBはワーク。次の4KBはANK。次の608KBはOSASK共通フォント。 */
-	ECX = 92 * 1024;
+	EAX = 616 * 1024; /* 最初の4KBはワーク。次の4KBはANK。次の608KBはOSASK共通フォント。 */
+	ECX = 88 * 1024;
 	free_area();
 
 	PUSH((int) syswork_sel);
@@ -7061,6 +7061,70 @@ cmd0720:
 	DX = [DS:ECX + 2];
 	PUSH((int) 0x003c /* slot_sel */);
 	POP(DS);
+
+if (ESI == 0x5000) {
+	ESI = [DS:EAX + 0];
+	PUSH((int) root_sel);
+	ESI += 16;
+	POP(DS);
+	EAX = 0xffe00003;
+	search_tag_EAX();
+	EAX = [DS:ESI + 24 /* 先頭物理アドレス */];
+	EDI = [DS:ESI + 28];
+
+//	[DS:ESI + 16 /* モジュールサイズ */];
+	EAX += cmd[24] /* ofs & attr */;
+	ADC(EDI, 0);
+	EDX += cmd[16] /* linear addr ofs */;
+	ECX = EAX;
+	EAX &= 0xfffff000;
+	ECX &= 0x00001fff;
+	ECX |= 0x00001000;
+
+	EBX = 0;
+//	if (EBX != [DS:ESI + 16] /* モジュールサイズ */) {
+		PUSH((int) EBX /* eoc */);
+		PUSH((int) EDI /* addr64(high) */);
+		PUSH((int) EAX /* addr64(low) */);
+		PUSH((int) EBX /* offset64(high) */);
+		PUSH((int) EBX /* offset64(low) */);
+		PUSH((int) EBX /* pageset */);
+		PUSH((int) EDX /* linear */);
+
+EDI = cmd[24]; /* ofs */
+EAX = cmd[12];
+EDI &= 0xfffff000;
+EBX = [DS:ESI + 16 /* モジュールサイズ */];
+EBX -= EDI;
+if ((unsigned) < 0)
+	EBX = 0;
+if ((unsigned) EAX > EBX)
+	EAX = EBX;
+EAX += 0xfff;
+EAX &= 0xfffff000;
+if (== 0) {
+	ESP += 28;
+	(offset) cmd += 28;
+	goto nextcmd;
+}
+PUSH(EAX);
+
+	//	PUSH((int) cmd[12] /* size */);
+		PUSH((int) ECX /* opt(over-mapping, present, R/W, user) */);
+		PUSH((int) 0x0108 /* cmd(mapping) */);
+		EBX = ESP;
+		CALLFAR0(papi_sel);
+		ESP += 40;
+//	}
+
+	(offset) cmd += 28;
+	goto nextcmd;
+
+
+
+}
+
+
 	ESI = [DS:EAX + 0];
 	PUSH((int) root_sel);
 	ESI += 16;
@@ -7489,7 +7553,7 @@ cmd0040:
 		ESI = 0x101400;
 	#endif
 	(offset) cmd += 32;
-	EDI += 16;
+	EDI += 20;
 	do {
 		EAX = [DS:ESI + 0];
 		#if (defined(PCAT))
@@ -7504,16 +7568,18 @@ cmd0040:
 			break;
 		if (AL == 0xe5) {
 			ESI += 32;
-				continue;
+			continue;
 		}
 		EDX = [DS:ESI + 4];
 		[ES:EDI +  0] = ESI;
 		[ES:EDI +  4] = EAX;
 		EAX = [DS:ESI + 8];
 		[ES:EDI +  8] = EDX;
+		EDX = [DS:ESI + 28]; /* size */
 		[ES:EDI + 12] = EAX;
+		[ES:EDI + 16] = EDX;
 		ESI += 32;
-		EDI += 16;
+		EDI += 20;
 		ECX--;
 	} while (!= 0);
 	EAX = 0;
@@ -7521,6 +7587,7 @@ cmd0040:
 	[ES:EDI +  4] = EAX;
 	[ES:EDI +  8] = EAX;
 	[ES:EDI + 12] = EAX;
+	[ES:EDI + 16] = EAX;
 	goto nextcmd;
 
 cmd0050:
@@ -7792,12 +7859,27 @@ cmd8010:
 	LDS(ESI, [FS:EBX + 16]);
 	LLDT(DX);
 	(offset) cmd += 32;
+	EAX = ECX;
+	EAX |= EDI;
+	EAX |= ESI;
+	TEST(AL, 0x03);
+	if (!= 0) {
+		do {
+			AL = [DS:ESI];
+			ESI++;
+			[ES:EDI] = AL;
+			EDI++;
+			ECX--;
+		} while (!= 0);
+		STI();
+		goto nextcmd;
+	}
 	do {
-		AL = [DS:ESI];
-		ESI++;
-		[ES:EDI] = AL;
-		EDI++;
-		ECX--;
+		EAX = [DS:ESI];
+		ESI += 4;
+		[ES:EDI] = EAX;
+		EDI += 4;
+		ECX -= 4;
 	} while (!= 0);
 	STI();
 	goto nextcmd;

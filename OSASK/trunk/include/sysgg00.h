@@ -7,8 +7,8 @@ struct SGG_WORK {
 
 struct SGG_FILELIST {
 	int id;
-	char name[11];
-	char type;
+	unsigned char name[11], type;
+	int size;
 };
 
 struct SGG_WINDOW {

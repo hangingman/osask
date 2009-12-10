@@ -50,24 +50,28 @@ $(ANKFONT) :
 pcat : FORCE
 #	copy /y base.as base.asm
 	echo ARCH = pcat> depend.mak
+	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 vmware : FORCE
 #	copy /y base.as base.asm
 	echo ARCH = pcat> depend.mak
 	echo VMWARE = y>> depend.mak
+	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 bochs : FORCE
 #	copy /y base.bch base.asm
 	echo ARCH = pcat> depend.mak
 	echo BOCHS = 13>> depend.mak
+	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 bochs12 : FORCE
 #	copy /y base.bch base.asm
 	echo ARCH = pcat> depend.mak
 	echo BOCHS = 12>> depend.mak
+	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 towns : FORCE 
@@ -75,6 +79,7 @@ towns : FORCE
 	echo ARCH = towns> depend.mak
 	echo TWSCRL1 = n>> depend.mak
 	echo TWVSW = 1024>> depend.mak
+	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 FORCE:
@@ -93,7 +98,7 @@ winman0.bim : winman0.obj
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
 
 winman0.bin : winman0.bim
-	$(BIM2BIN) malloc:92k file:768k input:$< output:$@
+	$(BIM2BIN) malloc:620k file:768k input:$< output:$@
 
 %.i : %.ask .\depend.mak
 	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<

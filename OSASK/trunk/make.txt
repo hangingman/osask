@@ -1,5 +1,5 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2002.3.2 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
+2002.5.19 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 
@@ -27,6 +27,11 @@ make towns
 
 3. make clean とすると全ての生成物が削除されます。
 また make dist_clean で中間生成物が削除されます。
+
+◎共通設定パラメータ
+  depend.mak を編集することで設定を換えることができます。
+・TMENU = y とする(#を削除する)と GUI が Towns MENU 風になります。
+
 
 ◎FM-TOWNS 版の設定パラメータ
   FM-TOWNS 版の生成において depend.mak を編集することで設定を換える

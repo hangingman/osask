@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.1.4 copyright(C) 2002 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.1.5 copyright(C) 2002 H.Kawai(川合秀実)
 
 segment FDC_Mdl(USE32, PARA);
 
@@ -2215,18 +2215,28 @@ searchdouble:
 			if ((signed) ESI < 0xffffc000)
 				ESI = 0xffffc000;
 			do {
-				EDI--;
+				EDI--; /* EDI == distance */
 				if (AL == [DS:EDX + EDI]) {
+					/* 第一バイトが一致 */
 					PUSH(ESI);
 					ESI = [SS:ESP + 16]; /* エンドアドレス */
 					PUSH(EDX);
-					EDX++;
+					/* ECX == maxlen */
+					EDX += ECX;
+					do {
+						AH = [DS:EDX];
+						if (AH != [DS:EDX + EDI])
+							goto skip2;
+						EDX--;
+					} while ((unsigned) EDX > [SS:ESP]);
+					LEA(EDX, [EDX + ECX + 1]);
 					do {
 						AH = [DS:EDX];
 						if (AH != [DS:EDX + EDI])
 							break;
 						EDX++;
 					} while ((unsigned) EDX < ESI);
+skip2:
 					ESI = EDX;
 					POP(EDX);
 					ESI -= EDX;

@@ -1,6 +1,11 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.8
-		copyright(C) 2002 川合秀実
-    stack:4k malloc:92k file:768k */
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.9c
+		copyright(C) 2002 川合秀実, I.Tak., 小柳雅明
+    stack:4k malloc:620k file:768k */
+
+/* "2002.05.27"を検索すれば、いじったところが分かります(わずかです) */
+
+
+#define WALLPAPERMAXSIZE	(512 * 1024)
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -22,7 +27,28 @@
 #define	MAX_SOUNDTRACK		  16		// 0.5KB
 #define	DEFSIGBUFSIZ		2048
 
-#define TWVSW				1024
+#define	BACKCOLOR			   6
+
+#if (!defined(TMENU))
+	#define	RESERVELINE0		   0
+	#define	RESERVELINE1		  28
+#else
+	#define	RESERVELINE0		  20
+	#define	RESERVELINE1		  28
+#endif
+
+#if (defined(PCAT))
+	#define	MOVEUNIT			   8
+#endif
+#if (defined(TOWNS))
+	#define	MOVEUNIT			   4
+#endif
+
+#if (defined(TOWNS))
+	#if (!defined(TWVSW))
+		#define	TWVSW		1024
+	#endif
+#endif
 
 #define WINFLG_MUSTREDRAW		0x80000000	/* bit31 */
 #define WINFLG_OVERRIDEDISABLED	0x01000000	/* bit24 */
@@ -30,6 +56,11 @@
 #define	WINFLG_WAITDISABLE		0x00000100	/* bit 8 */
 
 //	#define	DEBUG	1
+
+#define	sgg_debug00(opt, bytes, reserve, src_ofs, src_sel, dest_ofs, dest_sel) \
+	sgg_execcmd0(0x8010, (int) (opt), (int) (bytes), (int) (reserve), \
+	(int) (src_ofs), (int) (src_sel), (int) (dest_ofs), (int) (dest_sel), \
+	0x0000)
 
 struct DEFINESIGNAL { // 32bytes
 	int win, opt, dev, cod, len, sig[3];
@@ -49,15 +80,22 @@ struct SOUNDTRACK {
 	int sigbox, sigbase, slot, reserve[5];
 };
 
+static struct STR_JOB {
+	int now, movewin4_ready, fontflag;
+	int *list, free, *rp, *wp;
+	int count, int0;
+	int movewin_x, movewin_y, movewin_x0, movewin_y0;
+	int readCSd10;
+	void (*func)(int, int);
+	struct WM0_WINDOW *win;
+	int fonttss, sig;
+} job = { 0 /* now */, 0 /* movewin4_ready */, /* fontflag */ };
+
+unsigned char *wallpaper, wallpaper_exist;
 struct WM0_WINDOW *window, *top = NULL, *unuse = NULL, *iactive = NULL, *pokon0 = NULL;
-int *joblist, jobfree, *jobrp, *jobwp, jobnow = 0;
-void (*jobfunc)(int, int);
 int x2 = 0, y2, mx = 0x80000000, my, mbutton = 0;
-int fromboot = 0;
+int fromboot = 0, mousescale = 1;
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
-struct WM0_WINDOW *job_win;
-int job_count, job_int0, job_movewin4_ready = 0, mousescale = 1;
-int job_movewin_x, job_movewin_y, job_movewin_x0, job_movewin_y0;
 struct DEFINESIGNAL *defsigbuf;
 
 void init_screen(const int x, const int y);
@@ -90,7 +128,16 @@ void job_loadfont1(int flag, int dmy);
 void job_loadfont2();
 void job_loadfont3(int flag, int dmy);
 
-void free_sndtrk(struct SOUNDTRACK *sndtrk);
+#ifdef TOWNS
+void job_savevram0(void);
+void job_savevram1(int flag, int dmy);
+#endif
+void job_openwallpaper(void);
+void job_loadwallpaper(int flag, int dmy);
+void putwallpaper(int x0, int y0, int x1, int y1);
+
+//void free_sndtrk(struct SOUNDTRACK *sndtrk);
+
 struct SOUNDTRACK *alloc_sndtrk();
 void send_signal2dw(const int sigbox, const int data0, const int data1);
 void send_signal3dw(const int sigbox, const int data0, const int data1, const int data2);
@@ -105,7 +152,6 @@ void sgg_wm0_definesignal3sub(const int keycode);
 void sgg_wm0_definesignal3sub2(const int rawcode, const int shiftmap);
 void sgg_wm0_definesignal3sub3(int rawcode, const int shiftmap);
 void sgg_wm0_definesignal3com();
-
 
 /* キー操作：
       F9:一番下のウィンドウへ
@@ -123,6 +169,7 @@ void OsaskMain()
 {
 	int *signal, *signal0, i, j;
 	struct WM0_WINDOW *win;
+	struct STR_JOB *pjob = &job;
 
 	#if (defined(TOWNS))
 		static int TOWNS_mouseinit[] = {
@@ -136,7 +183,7 @@ void OsaskMain()
 		};
 	#endif
 
-	MALLOC_ADDR = lib_readCSd(0x0010);
+	MALLOC_ADDR = pjob->readCSd10 = lib_readCSd(0x0010);
 
 	lib_init(AUTO_MALLOC);
 	sgg_init(AUTO_MALLOC);
@@ -153,11 +200,12 @@ void OsaskMain()
 	// サウンドトラック用バッファの初期化
 	sndtrk_buf = (struct SOUNDTRACK *) malloc(MAX_SOUNDTRACK * sizeof (struct SOUNDTRACK));
 	for (i = 0; i < MAX_SOUNDTRACK; i++)
-		free_sndtrk(&sndtrk_buf[i]);
+	//	free_sndtrk(&sndtrk_buf[i]);
+		sndtrk_buf[i].sigbox = 0;
 
-	joblist = (int *) malloc(JOBLIST_SIZE * sizeof (int));
-	*(jobrp = jobwp = joblist) = 0; /* たまった仕事はない */
-	jobfree = JOBLIST_SIZE - 1;
+	pjob->list = (int *) malloc(JOBLIST_SIZE * sizeof (int));
+	*(pjob->rp = pjob->wp = pjob->list) = 0; /* たまった仕事はない */
+	pjob->free = JOBLIST_SIZE - 1;
 
 	defsigbuf = (struct DEFINESIGNAL *) malloc (DEFSIGBUFSIZ * sizeof (struct DEFINESIGNAL));
 	for (i = 0; i < DEFSIGBUFSIZ - 1; i++)
@@ -172,50 +220,46 @@ void OsaskMain()
 		sgg_execcmd(TOWNS_mouseinit);
 	#endif
 
+	wallpaper = malloc(WALLPAPERMAXSIZE);
+
 	for (;;) {
+		unsigned char siglen = 1;
 		win = top;
-		switch (signal[0]) {
+		struct SOUNDTRACK *sndtrk;
+		switch (i = signal[0]) {
 		case 0x0000:
+		//	siglen--; /* siglen = 0; */
 			lib_waitsignal(0x0001, 0, 0);
-			break;
+			continue;
 
 		case 0x0004 /* rewind */:
+		//	siglen--; /* siglen = 0; */
 			lib_waitsignal(0x0000, signal[1], 0);
 			signal = signal0;
-			break;
+			continue;
 
 		case 0x0010:
 			/* 初期化要請 */
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
-
-			/* ジョブリストにこの要求を入れる */
-		//	if (jobfree >= 4) {
-				/* 空きが十分にある */
-				#if (defined(PCAT))
-					writejob_n(4, 0x0030 /* open VGA driver */, 0x0000,
-						0x0034 /* change VGA mode */, 0x0012);
+		//	siglen = 1;
+			#if (defined(PCAT))
+				writejob_n(4, 0x0030 /* open VGA driver */, 0x0000,
+					0x0034 /* change VGA mode */, 0x0012);
+			#endif
+			#if (defined(TOWNS))
+				writejob_n(4, 0x0030 /* open VGA driver */, 0x0000,
+					0x0034 /* change VGA mode */, 0x0000);
+			#endif
 		fin_wrtjob:
-					*jobwp = 0; /* ストッパー */
-					if (jobnow == 0)
-						runjobnext();
-				#endif
-				#if (defined(TOWNS))
-					writejob_n(4, 0x0030 /* open VGA driver */, 0x0000,
-						0x0034 /* change VGA mode */, 0x0000);
-		fin_wrtjob:
-					*jobwp = 0; /* ストッパー */
-					if (jobnow == 0)
-						runjobnext();
-				#endif
-		//	}
+			*pjob->wp = 0; /* ストッパー */
+		check_jobnext:
+			if (pjob->now == 0)
+				runjobnext();
 			break;
 
 		case 0x0018:
 			/* from boot */
+			siglen++; /* siglen = 2; */
 			fromboot = signal[1];
-			signal += 2;
-			lib_waitsignal(0x0000, 2, 0);
 			break;
 
 		case 0x001c:
@@ -239,39 +283,24 @@ void OsaskMain()
 			}
 #endif
 			goto mikannsei;
-			break;
 
 		case 0x0020:
 			/* ウィンドウオープン要請(handle) */
 			win = get_unuse();
 			win->flags = 0;
 			sgg_wm0_openwindow(&win->sgg, signal[1]);
-			signal += 2;
-			lib_waitsignal(0x0000, 2, 0);
+			siglen++; /* siglen = 2; */
 		//	win->ds1 = win->defsig;
-
-			/* ジョブリストにこの要求を入れる */
-		//	if (jobfree >= 2) {
-				// 空きが十分にある
-				writejob_n(2, 0x0020 /* open */, (int) win);
-			//	if (jobnow == 0)
-			//		runjobnext();
-				goto fin_wrtjob;
-		//	}
-		//	break;
+			writejob_n(2, 0x0020 /* open */, (int) win);
+			goto fin_wrtjob;
 
 		case 0x0024:
 			/* ウィンドウクローズ要請(handle) */
 			win = handle2window(signal[1]);
-			signal += 2;
-			lib_waitsignal(0x0000, 2, 0);
-			/* ジョブリストにこの要求を入れる */
-			if ((win->flags & 0x01) == 0 /* && jobfree >= 2 */) {
-				// 空きが十分にある
+			siglen++; /* siglen = 2; */
+			if ((win->flags & 0x01) == 0) {
 				win->flags |= 0x01; /* クローズ処理中 */
 				writejob_n(2, 0x002c /* close */, (int) win);
-			//	if (jobnow == 0)
-			//		runjobnext();
 				goto fin_wrtjob;
 			}
 			break;
@@ -279,7 +308,6 @@ void OsaskMain()
 		case 0x0028:
 			/* ウィンドウアクティブ要請(opt, handle) */
 			goto mikannsei;
-			break;
 
 		case 0x002c:
 			/* ウィンドウ連動デバイス指定
@@ -305,215 +333,150 @@ void OsaskMain()
 					}
 				}
 			}
-			signal += 9;
-			lib_waitsignal(0x0000, 9, 0);
+			siglen = 9;
 			break;
 
 		case 0x0040: /* open sound track (slot, tss, signal-base, reserve0, reserve1)
 			   受理したことを知らせるために、シグナルで応答する */
-			{
-				struct SOUNDTRACK *sndtrk = alloc_sndtrk();
-				sndtrk->sigbox  = signal[2 /* tss */] + 0x0240;
-				sndtrk->slot    = signal[1 /* slot */];
-				sndtrk->sigbase = signal[3 /* signal-base */];
-				signal += 6;
-				lib_waitsignal(0x0000, 6, 0);
-				/* ハンドル番号の対応づけを通達 */
-				send_signal3dw(sndtrk->sigbox, sndtrk->sigbase + 0, sndtrk->slot, (int) sndtrk);
-				if (sndtrk_active == NULL) {
-					sndtrk_active = sndtrk;
-					/* アクティブシグナルを送る */
-					send_signal2dw(sndtrk->sigbox, sndtrk->sigbase + 8 /* enable */, sndtrk->slot);
-				}
+		//	sndtrk = alloc_sndtrk();
+			for (sndtrk = sndtrk_buf; sndtrk->sigbox != 0; sndtrk++);
+			sndtrk->sigbox  = signal[2 /* tss */] + 0x0240;
+			sndtrk->slot    = signal[1 /* slot */];
+			sndtrk->sigbase = signal[3 /* signal-base */];
+			siglen = 6;
+			/* ハンドル番号の対応づけを通達 */
+			send_signal3dw(sndtrk->sigbox, sndtrk->sigbase + 0, sndtrk->slot, (int) sndtrk);
+			if (sndtrk_active == NULL) {
+				sndtrk_active = sndtrk;
+				/* アクティブシグナルを送る */
+	sndtrk_sendactsig:
+				send_signal2dw(sndtrk->sigbox, sndtrk->sigbase + 8 /* enable */, sndtrk->slot);
 			}
 			break;
 
 		case 0x0044: /* close sound track (handle) */
-			{
-				struct SOUNDTRACK *sndtrk = (struct SOUNDTRACK *) signal[1];
-				signal += 2;
-				lib_waitsignal(0x0000, 2, 0);
-				/* close完了をしらせる */
-				send_signal2dw(sndtrk->sigbox, sndtrk->sigbase + 4 /* close */, sndtrk->slot);
-				free_sndtrk(sndtrk);
-				if (sndtrk == sndtrk_active) {
-					/* 違うやつをアクティブにする */
-					sndtrk = NULL;
-					for (i = 0; i < MAX_SOUNDTRACK; i++) {
-						if (sndtrk_buf[i].sigbox) {
-							sndtrk = &sndtrk_buf[i];
-							break;
-						}
-					}
-					if (sndtrk_active = sndtrk) {
-						/* アクティブシグナルを送る */
-						send_signal2dw(sndtrk->sigbox, sndtrk->sigbase + 8 /* enable */, sndtrk->slot);
+			sndtrk = (struct SOUNDTRACK *) signal[1];
+			siglen++; /* siglen = 2; */
+			/* close完了をしらせる */
+			send_signal2dw(sndtrk->sigbox, sndtrk->sigbase + 4 /* close */, sndtrk->slot);
+		//	free_sndtrk(sndtrk);
+			sndtrk->sigbox = 0;
+			if (sndtrk == sndtrk_active) {
+				/* 違うやつをアクティブにする */
+				sndtrk = NULL;
+				for (i = 0; i < MAX_SOUNDTRACK; i++) {
+					if (sndtrk_buf[i].sigbox) {
+						sndtrk = &sndtrk_buf[i];
+						break;
 					}
 				}
+				if (sndtrk_active = sndtrk)
+					goto sndtrk_sendactsig; /* アクティブシグナルを送る */
 			}
 			break;
 
 		case 0x0048: /* load external font (font-type, tss, len, sig) */
-			/* ジョブリストにこの要求を入れる */
-		//	if (jobfree >= 4) {
-				/* 空きが十分にある */
-				writejob_n(4, 0x0038 /* loadfont */, signal[1] /* type */,
-					signal[2] /* tss */, signal[4] /* sig */);
-				if (jobnow == 0)
-					runjobnext();
-		//	}
-			signal += 5;
-			lib_waitsignal(0x0000, 5, 0);
-			break;
+			siglen = 5;
+			writejob_n(4, 0x0038 /* loadfont */, signal[1] /* type */,
+				signal[2] /* tss */, signal[4] /* sig */);
+			goto fin_wrtjob;
 
 		case 0x0050:
 		case 0x0051:
 		case 0x0052:
 		case 0x0053:
 		case 0x0054: /* 0x005fまではリザーブ */
-			(*jobfunc)(signal[0] - 0x0050, 0);
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
-			if (jobnow == 0)
-				runjobnext();
-			break;
+			(*pjob->func)(i - 0x0050, 0);
+		//	siglen = 1;
+			goto check_jobnext;
 
 		case 0x0014: /* 画面モード変更完了(result) */
 		case 0x00c0: /* 更新停止シグナル(handle) */
 		case 0x00c4: /* 描画完了シグナル(handle) */
-			i = signal[0];
+		//	i = signal[0];
 			j = signal[1];
-			signal += 2;
-			lib_waitsignal(0x0000, 2, 0);
-			(*jobfunc)(i, j);
-			if (jobnow == 0)
-				runjobnext();
-			break;
+			siglen++; /* siglen = 2; */
+			(*pjob->func)(i, j);
+			goto check_jobnext;
 
 		case 0x00d0:
 		case 0x00d1:
 		case 0x00d2:
 		case 0x00d3:
 		case 0x00f0:
-			i = signal[0];
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
+		//	i = signal[0];
+		//	siglen = 1;
 			job_movewin4(i);
 			break;
 
 
 		case 0x0200 /* active bottom window */:
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
-			/* ジョブリストにこの要求を入れる */
-			if ((win->flags & 0x01) == 0 /* && jobfree >= 2 */) {
-				/* 空きが十分にある */
-			//	writejob(0x0024 /* active */);
-			//	writejob((int) top->up);
+		//	siglen = 1;
+			if ((win->flags & 0x01) == 0) {
 				writejob_n(2, 0x0024 /* active */, (int) win /* top */ ->up);
-			//	*jobwp = 0; /* ストッパー */
-			//	if (jobnow == 0)
-			//		runjobnext();
 				goto fin_wrtjob;
 			}
 			break;
 
 		case 0x0201 /* active second window */:
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
-			/* ジョブリストにこの要求を入れる */
-			if ((win->flags & 0x01) == 0 /* && jobfree >= 2 */) {
-				/* 空きが十分にある */
-			//	writejob(0x0024 /* active */);
-			//	writejob((int) top->down);
+		//	siglen = 1;
+			if ((win->flags & 0x01) == 0) {
 				writejob_n(2, 0x0024 /* active */, (int) win /* top */ ->down);
-			//	*jobwp = 0; /* ストッパー */
-			//	if (jobnow == 0)
-			//		runjobnext();
 				goto fin_wrtjob;
 			}
 			break;
 
 		case 0x0202 /* move window */:
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
-			/* ジョブリストにこの要求を入れる */
-			if ((win->flags & 0x01) == 0 /* && jobfree >= 2 */) {
-				// 空きが十分にある
-			//	writejob(0x0028 /* move by keyboard */);
-			//	writejob((int) top);
+		//	siglen = 1;
+			if ((win->flags & 0x01) == 0) {
 				writejob_n(2, 0x0028 /* move by keyboard */, (int) win /* top */);
-			//	*jobwp = 0; /* ストッパー */
-			//	if (jobnow == 0)
-			//		runjobnext();
 				goto fin_wrtjob;
 			}
 			break;
 
 		case 0x0203 /* close window */:
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
+		//	siglen = 1;
 			if (win /* top */ != pokon0 && (win->flags & 0x01) == 0)
 				sgg_wm0s_close(&win /* top */ ->sgg);
 			break;
 
 		case 0x0204 /* VGA mode 0x0012 */:
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
-
-			/* ジョブリストにこの要求を入れる */
-		//	if (jobfree >= 2) {
-				/* 空きが十分にある */
-				#if (defined(PCAT))
-					writejob_n(2, 0x0034 /* change VGA mode */, 0x0012);
-				//	if (jobnow == 0)
-				//		runjobnext();
-					goto fin_wrtjob;
-				#endif
-				#if (defined(TOWNS))
-					writejob_n(2, 0x0034 /* change VGA mode */, 0x0000);
-				//	if (jobnow == 0)
-				//		runjobnext();
-					goto fin_wrtjob;
-				#endif
-		//	}
-		//	break;
+		//	siglen = 1;
+			#if (defined(PCAT))
+				writejob_n(2, 0x0034 /* change VGA mode */, 0x0012);
+			#endif
+			#if (defined(TOWNS))
+				writejob_n(2, 0x0034 /* change VGA mode */, 0x0000);
+			#endif
+			goto fin_wrtjob;
 
 		case 0x0205 /* VESA mode 0x0102 */:
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
-
-			/* ジョブリストにこの要求を入れる */
-		//	if (jobfree >= 2) {
-				/* 空きが十分にある */
-				#if (defined(PCAT))
-					writejob_n(2, 0x0034 /* change VGA mode */, 0x0102);
-				//	if (jobnow == 0)
-				//		runjobnext();
-					goto fin_wrtjob;
-				#endif
-				#if (defined(TOWNS))
-					writejob_n(2, 0x0034 /* change VGA mode */, 0x0001);
-				//	if (jobnow == 0)
-				//		runjobnext();
-					goto fin_wrtjob;
-				#endif
-		//	}
-		//	break;
+		//	siglen = 1;
+			#if (defined(PCAT))
+				writejob_n(2, 0x0034 /* change VGA mode */, 0x0102);
+			#endif
+			#if (defined(TOWNS))
+				writejob_n(2, 0x0034 /* change VGA mode */, 0x0001);
+			#endif
+			goto fin_wrtjob;
 
 		case 0x0240 /* load JPN16$.FNT */:
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
+		//	siglen = 1;
+			writejob_n(4, 0x0038 /* loadfont */, 0x11 /* type */, 0, 0);
+			goto fin_wrtjob;
 
-			/* ジョブリストにこの要求を入れる */
-		//	if (jobfree >= 4) {
-				/* 空きが十分にある */
-				writejob_n(4, 0x0038 /* loadfont */, 0x11 /* type */, 0, 0);
-			//	if (jobnow == 0)
-			//		runjobnext();
-				goto fin_wrtjob;
-		//	}
-		//	break;
+#if (defined(TOWNS))
+
+		case 0x0244 /* capture */:
+		//	siglen = 1;
+			writejob_n(1, 0x003c /* capture */);
+			goto fin_wrtjob;
+#endif
+
+		case 0x0248 /* load wallpaper */:
+		//	siglen = 1;
+			writejob_n(1, 0x0040 /* load wallpaper */);
+			goto fin_wrtjob;
 
 		case 0x73756f6d /* from mouse */:
 			#if (defined(TOWNS))
@@ -522,29 +485,29 @@ void OsaskMain()
 						- (signed char) (((signal[3] >> 20) & 0xf0) | ((signal[3] >> 16) & 0x0f)),
 						- (signed char) (((signal[3] >>  4) & 0xf0) | ( signal[3]        & 0x0f)));
 				}
-				signal += 4;
-				lib_waitsignal(0x0000, 4, 0);
-				break;
+				siglen = 4;
 			#endif
 			#if (defined(PCAT))
 				if (mx != 0x80000000)
 					mousesignal(signal[1], (signed short) (signal[2] & 0xffff), (signed short) (signal[2] >> 16));
-				signal += 3;
-				lib_waitsignal(0x0000, 3, 0);
-				break;
+				siglen = 3;
 			#endif
+			break;
 
 		case 0x6f6b6f70 + 0 /* mousespeed */:
 			mousescale = signal[1];
-			signal += 2;
-			lib_waitsignal(0x0000, 2, 0);
+			siglen++; /* siglen = 2; */
 			break;
 
 		default:
 		mikannsei:
 		//	lib_drawline(0x0020, (void *) -1, 0, 0, 0, 15, 15); /* ここに来たことを知らせる */
-			signal++;
-			lib_waitsignal(0x0000, 1, 0);
+		//	siglen = 1;
+			;
+		}
+		if (siglen) {
+			signal += siglen;
+			lib_waitsignal(0x0000, siglen, 0);
 		}
 	}
 }
@@ -555,27 +518,61 @@ void init_screen(const int x, const int y)
 		signed char col, x0, y0, x1, y1;
 	};
 
-	static struct STR_BGV linedata[] = {
-		{  6,   0,   0,  -1, -29 },
-		{  8,   0, -28,  -1, -28 },
-		{ 15,   0, -27,  -1, -27 },
-		{  8,   0, -26,  -1,  -1 },
-		{ 15,   3, -24,  59, -24 },
-		{ 15,   2, -24,   2,  -4 },
-		{  7,   3,  -4,  59,  -4 },
-		{  7,  59, -23,  59,  -5 },
-		{  0,   2,  -3,  59,  -3 },
-		{  0,  60, -24,  60,  -3 },
-		{  7, -47, -24,  -4, -24 },
-		{  7, -47, -23, -47,  -4 },
-		{ 15, -47,  -3,  -4,  -3 },
-		{ 15,  -3, -24,  -3,  -3 },
-		{  0,   0,   0,   0,   0 }
-	};
+	#if (defined(TMENU))
+		#define TMGUIB2(c, x, y, w, h) \
+			{ 15, x,         y,         x + w - 1, y         }, \
+			{ 15, x,         y + 1,     x + w - 2, y + 1     }, \
+			{  0, x + w - 1, y + 1,     x + w - 1, y + 1     }, \
+			{ 15, x,         y + 2,     x + 1,     y + h - 2 }, \
+			{  c, x + 2,     y + 2,     x + w - 3, y + h - 3 }, \
+			{  0, x + w - 2, y + 2,     x + w - 1, y + h - 3 }, \
+			{  0, x + 2,     y + h - 2, x + w - 1, y + h - 2 }, \
+			{ 15, x,         y + h - 1, x,         y + h - 1 }, \
+			{  0, x + 1,     y + h - 1, x + w - 1, y + h - 1 }
+		#define TMGUIBF1(x, y, w, h) \
+			{ 15, x,         y,         x + w - 1, y         }, \
+			{ 15, x,         y + 1,     x,         y + h - 1 }, \
+			{  0, x + w - 1, y + 1,     x + w - 1, y + h - 2 }, \
+			{  0, x + 1,     y + h - 1, x + w - 1, y + h - 1 }
+		#define BOXFRAME(c, x0, y0, x1, y1)	\
+			{  c, x0,        y0,        x1,        y0        }, \
+			{  c, x0,        y0 + 1,    x0,        y1 - 1    }, \
+			{  c, x1,        y0 + 1,    x1,        y1 - 1    }, \
+			{  c, x0,        y1,        x1,        y1        }
+		static struct STR_BGV linedata[] = {
+			TMGUIB2(0, 0, 0, 96, 20),			/* FM TOWNS button */
+			{ 7, 96, 0, -1, 19 },				/* title bar */
+			TMGUIB2(0, -28, 0, 20, 20),			/* exit button */
+			BOXFRAME(0, 0, -28, -1, -1),
+			{ 7, 1, -27, -2, -2 },				/* bar */
+			TMGUIBF1( 6, -24, 90, 20),			/* "start" frame */
+			{ -1, 0, 20, -1, -29 }				/* for wallpaper */
+		};
+		#undef	TMGUIB2
+		#undef	TMGUIBF1
+		#undef	BOXFRAME
+	#else
+		static struct STR_BGV linedata[] = {
+			{  8,   0, -28,  -1, -28 },
+			{ 15,   0, -27,  -1, -27 },
+			{  8,   0, -26,  -1,  -1 },
+			{ 15,   3, -24,  59, -24 },
+			{ 15,   2, -24,   2,  -4 },
+			{  7,   3,  -4,  59,  -4 },
+			{  7,  59, -23,  59,  -5 },
+			{  0,   2,  -3,  59,  -3 },
+			{  0,  60, -24,  60,  -3 },
+			{  7, -47, -24,  -4, -24 },
+			{  7, -47, -23, -47,  -4 },
+			{ 15, -47,  -3,  -4,  -3 },
+			{ 15,  -3, -24,  -3,  -3 },
+			{ -1,   0,   0,  -1, -29 }		/* for wallpaper */
+		};
+	#endif
 
 	struct STR_BGV *p;
 	int x0, y0, x1, y1;
-	for (p = linedata; p->y1; p++) {
+	for (p = linedata; ; p++) {
 		if ((x0 = p->x0) < 0)
 			x0 += x;
 		if ((y0 = p->y0) < 0)
@@ -584,25 +581,106 @@ void init_screen(const int x, const int y)
 			x1 += x;
 		if ((y1 = p->y1) < 0)
 			y1 += y;
+		if (p->col < 0) break;
 		lib_drawline(0x0020, (void *) -1, p->col, x0, y0, x1, y1);
 	}
+	putwallpaper(x0, y0, x1 + 1, y1 + 1);
 
-#if 0
-	lib_drawline(0x0020, (void *) -1,  6,      0,      0, x -  1, y - 29);
-	lib_drawline(0x0020, (void *) -1,  8,      0, y - 28, x -  1, y - 28);
-	lib_drawline(0x0020, (void *) -1, 15,      0, y - 27, x -  1, y - 27);
-	lib_drawline(0x0020, (void *) -1,  8,      0, y - 26, x -  1, y -  1);
-	lib_drawline(0x0020, (void *) -1, 15,      3, y - 24,     59, y - 24);
-	lib_drawline(0x0020, (void *) -1, 15,      2, y - 24,      2, y -  4);
-	lib_drawline(0x0020, (void *) -1,  7,      3, y -  4,     59, y -  4);
-	lib_drawline(0x0020, (void *) -1,  7,     59, y - 23,     59, y -  5);
-	lib_drawline(0x0020, (void *) -1,  0,      2, y -  3,     59, y -  3);
-	lib_drawline(0x0020, (void *) -1,  0,     60, y - 24,     60, y -  3);
-	lib_drawline(0x0020, (void *) -1,  7, x - 47, y - 24, x -  4, y - 24);
-	lib_drawline(0x0020, (void *) -1,  7, x - 47, y - 23, x - 47, y -  4);
-	lib_drawline(0x0020, (void *) -1, 15, x - 47, y -  3, x -  4, y -  3);
-	lib_drawline(0x0020, (void *) -1, 15, x -  3, y - 24, x -  3, y -  3);
-#endif
+	#if (defined(TMENU))
+		static int tosask[] = {
+			0x00000000, 0x00000000, 0x00000000, 0x0f0f0f0f, 0x0000000f, 
+			0x00000000, 0x0f0f0f0f, 0x0f0f0f0f, 0x000f0f0f, 0x00000000, 
+			0x000f0000, 0x00000000, 0x00000000, 0x0f0f0f0f, 0x0f0f0f0f, 
+			0x000f0f0f, 0x00000f0f, 0x00000000, 0x0f000000, 0x0e0e0e0f, 
+			0x00000000, 0x00000000, 0x0f0f0000, 0x0f0f0f0f, 0x000f0f0f, 
+			0x0f000000, 0x0f0f0f0f, 0x0f0f0f0f, 0x000f0f0f, 0x00000000, 
+			0x0f0f0f00, 0x00000000, 0x0f000000, 0x0f0f0f0f, 0x0f0f0f0f, 
+			0x000f0f0f, 0x00000f0f, 0x00000000, 0x0f0f0f00, 0x0e0e0e0f, 
+			0x00000000, 0x00000000, 0x0f0f0f00, 0x00000000, 0x0f0f0f00, 
+			0x0f0f0000, 0x0000000f, 0x00000000, 0x00000000, 0x00000000, 
+			0x0f0f0f00, 0x00000000, 0x0f0f0000, 0x0000000f, 0x00000000, 
+			0x00000000, 0x00000f0f, 0x0f000000, 0x0f0f0f0f, 0x0e0e0e00, 
+			0x00000000, 0x00000000, 0x000f0f00, 0x00000000, 0x0f0f0000, 
+			0x0f0f0000, 0x0000000f, 0x00000000, 0x00000000, 0x00000000, 
+			0x0f000f0f, 0x0000000f, 0x0f0f0000, 0x0000000f, 0x00000000, 
+			0x00000000, 0x00000f0f, 0x0f0f0f00, 0x00000f0f, 0x0e0e0e00, 
+			0x00000000, 0x00000000, 0x00000f0f, 0x00000000, 0x0f000000, 
+			0x0f00000f, 0x0f0f0f0f, 0x0f0f0f0f, 0x0000000f, 0x00000000, 
+			0x0f000f0f, 0x0000000f, 0x0f000000, 0x0f0f0f0f, 0x0f0f0f0f, 
+			0x0000000f, 0x0f0f0f0f, 0x0f0f0f0f, 0x00000000, 0x0e0e0e00, 
+			0x00000000, 0x00000000, 0x00000f0f, 0x00000000, 0x0f000000, 
+			0x0000000f, 0x0f0f0f0f, 0x0f0f0f0f, 0x00000f0f, 0x0f000000, 
+			0x0000000f, 0x00000f0f, 0x00000000, 0x0f0f0f0f, 0x0f0f0f0f, 
+			0x00000f0f, 0x0f0f0f0f, 0x000f0f0f, 0x00000000, 0x0e0e0e00, 
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x0e0e0e00, 
+			0x0f0f0f0f, 0x00000f0f, 0x00000f0f, 0x00000000, 0x0f000000, 
+			0x0000000f, 0x00000000, 0x00000000, 0x000f0f0f, 0x0f0f0000, 
+			0x0f0f0f0f, 0x000f0f0f, 0x00000000, 0x00000000, 0x00000000, 
+			0x000f0f0f, 0x00000f0f, 0x0f0f0000, 0x0000000f, 0x0e0e0e00, 
+			0x0f0f000f, 0x00000f00, 0x00000f0f, 0x00000000, 0x0f000000, 
+			0x0000000f, 0x00000000, 0x00000000, 0x000f0f00, 0x0f0f0000, 
+			0x0f0f0f0f, 0x000f0f0f, 0x00000000, 0x00000000, 0x00000000, 
+			0x000f0f00, 0x00000f0f, 0x0f000000, 0x00000f0f, 0x0e0e0e00, 
+			0x0f0f0000, 0x00000000, 0x000f0f00, 0x00000000, 0x0f0f0000, 
+			0x00000000, 0x00000000, 0x00000000, 0x000f0f00, 0x000f0f00, 
+			0x00000000, 0x0f0f0000, 0x00000000, 0x00000000, 0x00000000, 
+			0x000f0f00, 0x00000f0f, 0x00000000, 0x000f0f0f, 0x0e0e0e00, 
+			0x0f0f0000, 0x00000000, 0x0f0f0f00, 0x00000000, 0x0f0f0f00, 
+			0x00000000, 0x00000000, 0x00000000, 0x000f0f0f, 0x000f0f00, 
+			0x00000000, 0x0f0f0000, 0x00000000, 0x00000000, 0x00000000, 
+			0x000f0f0f, 0x00000f0f, 0x00000000, 0x0f0f0f00, 0x0e0e0e00, 
+			0x0f0f0000, 0x00000000, 0x0f0f0000, 0x0f0f0f0f, 0x000f0f0f, 
+			0x0f0f0000, 0x0f0f0f0f, 0x0f0f0f0f, 0x00000f0f, 0x00000f0f, 
+			0x00000000, 0x0f000000, 0x0f0f000f, 0x0f0f0f0f, 0x0f0f0f0f, 
+			0x00000f0f, 0x00000f0f, 0x00000000, 0x0f0f0000, 0x0e0e0e0f, 
+			0x0f0f0f00, 0x0000000f, 0x00000000, 0x0f0f0f0f, 0x0000000f, 
+			0x0f0f0000, 0x0f0f0f0f, 0x0f0f0f0f, 0x0000000f, 0x00000f0f, 
+			0x00000000, 0x0f000000, 0x0f0f000f, 0x0f0f0f0f, 0x0f0f0f0f, 
+			0x0000000f, 0x00000f0f, 0x00000000, 0x0f000000, 0x0e0e0e0f 
+		};
+		static int exitdoor[] = {
+			0x00000000, 0x000f0f0f, 0x00000000, 
+			0x00000000, 0x000f0f0f, 0x00000000, 
+			0x00000000, 0x000f0f0f, 0x00000000, 
+			0x00000000, 0x000f0f0f, 0x00000000, 
+			0x00000000, 0x00000000, 0x00000000, 
+			0x00000000, 0x000f0f0f, 0x00000000, 
+			0x0f000000, 0x0f0f0f0f, 0x00000000, 
+			0x0f000000, 0x0f0f0f0f, 0x00000000, 
+			0x0f0f0000, 0x0f0f0f0f, 0x0000000f, 
+			0x0f0f0000, 0x0f0f0f0f, 0x0000000f, 
+			0x0f0f0f00, 0x0f0f0f0f, 0x00000f0f, 
+			0x0f0f0f00, 0x0f0f0f0f, 0x00000f0f, 
+			0x0f0f0f0f, 0x0f0f0f0f, 0x000f0f0f, 
+			0x0f0f0f0f, 0x0f0f0f0f, 0x000f0f0f, 
+		};
+		static int askcube[] = {
+			0x07070707, 0x09000707, 0x07070700, 0x07070707,
+			0x07070707, 0x09090900, 0x07000909, 0x07070707,
+			0x09000707, 0x01090909, 0x09090900, 0x07070700,
+			0x09090007, 0x09090101, 0x09090009, 0x07070009,
+
+			0x01000300, 0x01000000, 0x01090909, 0x07000e00,
+			0x0b0b0300, 0x09010000, 0x00000909, 0x07000e00,
+			0x0b0b0b00, 0x01000b0b, 0x00000e00, 0x07000e0e,
+			0x000b0b00, 0x000b0b00, 0x00000e0e, 0x0700000e,
+	
+			0x0b0b0000, 0x000b0003, 0x0e000e0e, 0x07000000,
+			0x03000b00, 0x00000b0b, 0x0e0e0e0e, 0x07000e0e,
+			0x000b0b00, 0x000b0b00, 0x00000e0e, 0x07000e0e,
+			0x0b0b0007, 0x000b0b0b, 0x00000e0e, 0x0707000e,
+
+			0x03000707, 0x000b0b0b, 0x00000e0e, 0x07070700,
+			0x07070707, 0x00030300, 0x07000e0e, 0x07070707,
+			0x07070707, 0x00000707, 0x07070700, 0x07070707
+		};
+		lib_putblock1((void *) -1,      8,      4, 77, 13, 3, &tosask);
+		lib_putblock1((void *) -1, x - 24,      3, 11, 14, 1, &exitdoor);
+		lib_putblock1((void *) -1,      8, y - 21, 15, 15, 1, &askcube);
+	#endif
 
 	sgg_wm0_putmouse(mx, my);
 	return;
@@ -612,9 +690,10 @@ struct WM0_WINDOW *handle2window(const int handle)
 {
 	// topの中から探してもいい
 	int i;
-	for (i = 0; i < MAX_WINDOWS; i++) {
-		if (window[i].sgg.handle == handle)
-			return &(window[i]);
+	struct WM0_WINDOW *win = window;
+	for (i = 0; i < MAX_WINDOWS; i++, win++) {
+		if (win->sgg.handle == handle)
+			return win;
 	}
 	return NULL;
 }
@@ -658,50 +737,43 @@ struct WM0_WINDOW *get_unuse()
 	return win;
 }
 
-static enum {
-	NO_PRESS, CLOSE_BUTTON, TITLE_BAR
-} press_pos = NO_PRESS;
-static struct WM0_WINDOW *press_win;
-static int press_mx0, press_my0;
+static struct STR_PRESS {
+	enum {
+		NO_PRESS, CLOSE_BUTTON, TITLE_BAR
+	} pos;
+	struct WM0_WINDOW *win;
+	int mx0, my0;
+} press0 = { NO_PRESS }; 
 
 void mousesignal(const unsigned int header, int dx, int dy)
 {
+	struct STR_JOB *pjob = &job;
+	struct STR_PRESS *press = &press0;
+	int _mx = mx, _my = my;
 	dx *= mousescale;
 	dy *= mousescale;
 	if ((header >> 28) == 0x0 /* normal mode */) {
 		// マウス状態変更
-		int ox = mx, oy = my;
-		if (job_movewin4_ready != 0 && (dx | dy) != 0) {
-			if (press_pos == NO_PRESS) {
-				int xsize = job_win->x1 - job_win->x0;
-				int ysize = job_win->y1 - job_win->y0;
-				if (job_movewin_x <= mx && mx < job_movewin_x + xsize &&
-					job_movewin_y <= my && my < job_movewin_y + ysize) {
-					if (press_mx0 < 0) {
-						press_mx0 = mx;
-						press_my0 = my;
-					}
-					job_movewin4m(mx + dx, my + dy);
-				} else {
-					press_mx0 = mx = (job_win->x0 + job_win->x1) / 2;
-					press_my0 = my = job_win->y0 + 12;
-					dx = dy = 0;
-				}
-			} else if (press_pos == TITLE_BAR && press_win == job_win)
-				job_movewin4m(mx + dx, my + dy);
+		int ox = _mx, oy = _my;
+		_mx += dx;
+		_my += dy;
+		if (_mx < 0)
+			_mx = 0;
+		if (_mx >= x2)
+			_mx = x2 - 1;
+		if (_my < 0)
+			_my = 0;
+		if (_my >= y2 - 15)
+			_my = y2 - 16;
+		if (_mx != ox || _my != oy) {
+			mx = _mx;
+			my = _my;
+			sgg_wm0_movemouse(_mx, _my);
+			if (pjob->movewin4_ready) {
+				if (press->pos == NO_PRESS || (press->pos == TITLE_BAR && press->win == pjob->win))
+					job_movewin4m(_mx, _my);
+			}
 		}
-		mx += dx;
-		my += dy;
-		if (mx < 0)
-			mx = 0;
-		if (mx >= x2)
-			mx = x2 - 1;
-		if (my < 0)
-			my = 0;
-		if (my >= y2 - 15)
-			my = y2 - 16;
-		if (mx != ox || my != oy)
-			sgg_wm0_movemouse(mx, my);
 		if (mbutton != (header & 0x07)) {
 			struct WM0_WINDOW *win;
 			// マウスのボタン状態が変化
@@ -711,56 +783,17 @@ void mousesignal(const unsigned int header, int dx, int dy)
 			// bit3:always 1
 			// bit4:reserve(dx bit8)
 			// bit5:reserve(dy bit8)
-#if 0
-			// どのwindowをクリックしたのかを検出
-			if (win = top) {
-				do {
-					if (win->x0 <= mx && mx < win->x1 && win->y0 <= my && my < win->y1)
-						goto found_window;
-					win = win->down;
-				} while (win != top);
-				win = NULL;
-			}
-			if (win != NULL) {
-found_window:
-
-/*
-	tx0 = x0 +  3
-	ty0 = y0 +  3
-	tx1 = x1 -  4
-	ty1 = y0 + 21
-*/
-				if (win == top) {
-					/* ウィンドウタイトル部分のプレスか？ */
-						if (win->tx0 <= mx && mx < win->tx1 && win->ty0 <= my && my < win->ty0) {
-							/* title-barをプレスした */
-							if (jobfree >= 2) {
-								/* 空きが十分にある */
-								press_win = win;
-								press_pos = TITLE_BAR;
-								press_mx0 = mx;
-								press_my0 = my;
-								writejob(0x0028 /* move */);
-								writejob((int) win);
-								*jobwp = 0; /* ストッパー */
-							//	if (jobnow == 0)
-							//		runjobnext();
-							}
-						}
-#endif
 
 			if ((mbutton & 0x01) == 0x00 && (header & 0x01) == 0x01) {
 				// 左ボタンが押された
-
-				if (job_movewin4_ready != 0 && press_pos == NO_PRESS) {
+				if (pjob->movewin4_ready != 0 && press->pos == NO_PRESS) {
 					job_movewin4(0x00f0 /* Enter */);
 					goto skip;
 				}
-
 				// どのwindowをクリックしたのかを検出
 				if (win = top) {
 					do {
-						if (win->x0 <= mx && mx < win->x1 && win->y0 <= my && my < win->y1)
+						if (win->x0 <= _mx && _mx < win->x1 && win->y0 <= _my && _my < win->y1)
 							goto found_window;
 						win = win->down;
 					} while (win != top);
@@ -770,51 +803,71 @@ found_window:
 		found_window:
 					if (win == top) {
 						// アクティブなウィンドウの中にマウスがある
-						if (win->x1 - 21 <= mx && mx < win->x1 - 5 && win->y0 + 5 <= my && my < win->y0 + 19) {
-							// close buttonをプレスした
-							press_win = win;
-							press_pos = CLOSE_BUTTON;
-						} else if (win->x0 + 3 <= mx && mx < win->x1 - 4 && win->y0 + 3 <= my && my < win->y0 + 21) {
-							/* title-barをプレスした */
-							if (jobfree >= 2) {
-								/* 空きが十分にある */
-								press_win = win;
-								press_pos = TITLE_BAR;
-								press_mx0 = mx;
-								press_my0 = my;
-								writejob_n(2, 0x0028 /* move */, (int) win);
-							//	if (jobnow == 0)
-							//		runjobnext();
+						#if (!defined(TMENU))
+							if (win->x1 - 21 <= _mx && _mx < win->x1 - 5 && win->y0 + 5 <= _my && _my < win->y0 + 19) {
+								// close buttonをプレスした
+								press->win = win;
+								press->pos = CLOSE_BUTTON;
+							} else if (win->x0 + 3 <= _mx && _mx < win->x1 - 4 && win->y0 + 3 <= _my && _my < win->y0 + 21) {
+								/* title-barをプレスした */
+								if (pjob->free >= 2) {
+									/* 空きが十分にある */
+									press->win = win;
+									press->pos = TITLE_BAR;
+									press->mx0 = _mx;
+									press->my0 = _my;
+									writejob_n(2, 0x0028 /* move */, (int) win);
+								}
 							}
-						}
+						#else
+							if (win->x0 + 2 <= _mx && _mx < win->x0 + 20 && win->y0 + 3 <= _my && _my < win->y0 + 21) {
+								// close buttonをプレスした
+								press->win = win;
+								press->pos = CLOSE_BUTTON;
+							} else if (win->x0 + 1 <= _mx && _mx < win->x1 - 1 && win->y0 + 1 <= _my && _my < win->y0 + 21) {
+								/* title-barをプレスした */
+								if (pjob->free >= 2) {
+									/* 空きが十分にある */
+									press->win = win;
+									press->pos = TITLE_BAR;
+									press->mx0 = _mx;
+									press->my0 = _my;
+									writejob_n(2, 0x0028 /* move */, (int) win);
+								}
+							}
+						#endif
 					} else {
-						/* ジョブリストにウィンドウアクティブ要求を入れる */
-					//	if (jobfree >= 2) {
-							/* 空きが十分にある */
-							writejob_n(2, 0x0024 /* active */, (int) win);
-					//	}
+						writejob_n(2, 0x0024 /* active */, (int) win);
 					}
 				}
 			} else if ((mbutton & 0x01) == 0x01 && (header & 0x01) == 0x00) {
 				/* 左ボタンがはなされた */
-				switch (press_pos) {
+				switch (press->pos) {
 				case CLOSE_BUTTON:
-					if (press_win->x1 - 21 <= mx && mx < press_win->x1 - 5 &&
-						press_win->y0 + 5 <= my && my < press_win->y0 + 19) {
-						if (press_win != pokon0)
-							sgg_wm0s_close(&press_win->sgg);
-					}
+					#if (!defined(TMENU))
+						if (press->win->x1 - 21 <= _mx && _mx < press->win->x1 - 5 &&
+							press->win->y0 + 5 <= _my && _my < press->win->y0 + 19) {
+							if (press->win != pokon0)
+								sgg_wm0s_close(&press->win->sgg);
+						}
+					#else
+						if (press->win->x0 + 2 <= _mx && _mx < press->win->x0 + 20 &&
+							press->win->y0 + 3 <= _my && _my < press->win->y0 + 21) {
+							if (press->win != pokon0)
+								sgg_wm0s_close(&press->win->sgg);
+						}
+					#endif
 					break;
 
 				case TITLE_BAR:
-					if (press_win == job_win && job_movewin4_ready != 0) {
+					if (press->win == pjob->win && pjob->movewin4_ready != 0) {
 						/* 移動先確定シグナルを送る */
 						job_movewin4(0x00f0 /* Enter */);
 					}
 				//	break;
 
 				}
-				press_pos = NO_PRESS;
+				press->pos = NO_PRESS;
 			}
 skip:
 			mbutton = header & 0x07;
@@ -830,40 +883,23 @@ skip:
 		/* mikannsei */
 	}
 	/* 溜まったジョブがあれば、実行する */
-	if (jobnow == 0)
+	if (pjob->now == 0)
 		runjobnext();
 	return;
 }
 
-#if 0
-void writejob(int i)
-{
-	*jobwp++ = i;
-	jobfree--;
-	if (jobwp == joblist + JOBLIST_SIZE)
-		jobwp = joblist;
-	return;
-}
-
-void writejob2(int i, int j)
-{
-	writejob(i);
-	writejob(j);
-	return;
-}
-#endif
-
 int writejob_n(int n, int p0,...)
 {
-	if (jobfree >= n) {
+	struct STR_JOB *pjob = &job;
+	if (pjob->free >= n) {
 		int *p = &p0;
 		do {
-			*jobwp++ = *p++;
-			jobfree--;
-			if (jobwp == joblist + JOBLIST_SIZE)
-				jobwp = joblist;
+			*pjob->wp++ = *p++;
+			pjob->free--;
+			if (pjob->wp == pjob->list + JOBLIST_SIZE)
+				pjob->wp = pjob->list;
 		} while (--n);
-		*jobwp = 0;
+		*pjob->wp = 0;
 		return 1;
 	}
 	return 0;
@@ -871,54 +907,75 @@ int writejob_n(int n, int p0,...)
 
 const int readjob()
 {
-	int i = *jobrp++;
-	jobfree++;
-	if (jobrp == joblist + JOBLIST_SIZE)
-		jobrp = joblist;
+	struct STR_JOB *pjob = &job;
+	int i = *pjob->rp++;
+	pjob->free++;
+	if (pjob->rp == pjob->list + JOBLIST_SIZE)
+		pjob->rp = pjob->list;
 	return i;
 }
 
 void runjobnext()
 {
+	struct STR_JOB *pjob = &job;
 	int i, j;
+	void (*func1)(int);
+
 	do {
-		if ((jobnow = *jobrp) == 0)
+		if ((pjob->now = *pjob->rp) == 0)
 			return;
 
 		readjob(); // から読み
-		switch (jobnow) {
-
+		func1 = NULL;
+		switch (pjob->now) {
 		case 0x0020 /* open new window */:
-			job_openwin0((struct WM0_WINDOW *) readjob());
+		//	job_openwin0((struct WM0_WINDOW *) readjob());
+			func1 = job_openwin0;
 			break;
 
 		case 0x0024 /* active window */:
-			job_activewin0((struct WM0_WINDOW *) readjob());
+		//	job_activewin0((struct WM0_WINDOW *) readjob());
+			func1 = job_activewin0;
 			break;
 
 		case 0x0028 /* move window by keyboard */:
-			job_movewin0((struct WM0_WINDOW *) readjob());
+		//	job_movewin0((struct WM0_WINDOW *) readjob());
+			func1 = job_movewin0;
 			break;
 
 		case 0x002c /* close window */:
-			job_closewin0((struct WM0_WINDOW *) readjob());
+		//	job_closewin0((struct WM0_WINDOW *) readjob());
+			func1 = job_closewin0;
 			break;
 
 		case 0x0030 /* open VGA driver */:
-			job_openvgadriver(readjob());
+		//	job_openvgadriver(readjob());
+			func1 = job_openvgadriver;
 			break;
 
 		case 0x0034 /* set VGA mode */:
-			job_setvgamode0(readjob());
+		//	job_setvgamode0(readjob());
+			func1 = job_setvgamode0;
 			break;
 
 		case 0x0038 /* load external font */:
 			i = readjob();
 			j = readjob();
 			job_loadfont0(i, j, readjob());
-		//	break;
+			break;
+
+#if (defined(TOWNS))
+		case 0x003c /* capture */:
+		    job_savevram0();
+		    break;
+#endif
+		case 0x0040 /* load wallpaper */:
+			job_openwallpaper();
+			break;
 		}
-	} while (jobnow == 0);
+		if (func1)
+			(*func1)(readjob());
+	} while (pjob->now == 0);
 	return;
 }
 
@@ -940,8 +997,8 @@ void job_openwin0(struct WM0_WINDOW *win)
 		pokon0 = win;
 	} else {
 		win->x0 = (x2 - xsize) / 2;
-		win->x0 &= ~0x07; // オープン位置を8の倍数になるように調整
-		win->y0 = (y2 - 28 - ysize) / 2;
+		win->x0 &= ~(MOVEUNIT - 1); // オープン位置を8の倍数になるように調整
+		win->y0 = RESERVELINE0 + (y2 - (RESERVELINE0 + RESERVELINE1) - ysize) / 2;
 	}
 
 	// 各種パラメーターの初期化
@@ -987,6 +1044,15 @@ void redirect_input(struct WM0_WINDOW *win)
 	sgg_wm0_definesignal3(0, 0x0100, 0x00701085 /* F5 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0240); /* JPN16$.FNTの即時ロード */
 
+	#if (defined(TOWNS))
+		sgg_wm0_definesignal3(0, 0x0100, 0x00701086 /* F6 */,
+			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0244); /* CAPTURE */
+	#endif
+	
+	sgg_wm0_definesignal3(0, 0x0100, 0x00701087 /* F7 */,
+		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0248); /* load wallpaper */
+
+	
 	if (win) {
 		struct DEFINESIGNAL *dsp;
 		int sigbox = sgg_wm0_win2sbox(&win->sgg);
@@ -1009,7 +1075,7 @@ void job_activewin0(struct WM0_WINDOW *win)
 
 	if (top == win) {
 		/* topとiactiveは常に等しい */
-		jobnow = 0;
+		job.now = 0;
 		return;
 	}
 
@@ -1040,28 +1106,29 @@ void job_activewin0(struct WM0_WINDOW *win)
 void job_movewin0(struct WM0_WINDOW *win)
 {
 	// winは、必ずtopで、かつ、iactiveであること
+	struct STR_JOB *pjob = &job;
 
-	job_win = top /* win */;
+	pjob->win = top /* win */;
 
 	// キー入力シグナルの対応づけを初期化
 //	sgg_wm0_definesignal0(255, 0x0100, 0);
 	sgg_wm0_definesignal3com();
 
 	// とりあえず、全てのウィンドウの画面更新権を一時的に剥奪する
-	job_count = 0;
+	pjob->count = 0;
 	win = top;
-	jobfunc = &job_movewin1;
+	pjob->func = job_movewin1;
 	do {
 		win->job_flag0 = 0x01;
 		if (win->condition & 0x01) {
-			job_count++; // disable
+			pjob->count++; // disable
 			sgg_wm0s_accessdisable(&win->sgg);
 		}
 		win = win->down;
 	} while (win != top);
 
 //	以下は成立しない(最低一つは出力アクティブなウィンドウが存在するから)
-//	if (job_count == 0) {
+//	if (pjob->count == 0) {
 //		job_movewin2(); // すぐにウィンドウ枠表示へ
 //	}
 
@@ -1080,13 +1147,16 @@ void job_movewin1(const int cmd, const int handle)
 		return;
 	}
 	// 0x00c0しかこない
-	if (--job_count == 0)
+	if (--job.count == 0)
 		job_movewin2();
 	return;
 }
 
 void job_movewin2()
 {
+	struct STR_JOB *pjob = &job;
+	struct STR_PRESS *press = &press0;
+	struct WM0_WINDOW *win = pjob->win;
 	// シグナルを宣言(0x00d0～0x00d3, 0x00f0)
 	sgg_wm0_definesignal3(3, 0x0100, 0x00ac /* left */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x00d0);
@@ -1094,27 +1164,30 @@ void job_movewin2()
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x00f0);
 
 	// 枠を描く
-	job_movewin_x0 = job_movewin_x = job_win->x0;
-	job_movewin_y0 = job_movewin_y = job_win->y0;
+	pjob->movewin_x0 = pjob->movewin_x = win->x0;
+	pjob->movewin_y0 = pjob->movewin_y = win->y0;
 	job_movewin3();
-	job_movewin4_ready = 1;
-	if (press_pos == NO_PRESS) {
-		if (job_movewin_x > mx || mx >= job_win->x1 || job_movewin_y > my || my >= job_win->y1) {
-			press_mx0 = mx = (job_win->x0 + job_win->x1) / 2;
-			press_my0 = my = job_win->y0 + 12;
+	pjob->movewin4_ready = 1;
+	if (press->pos == NO_PRESS) {
+		if (pjob->movewin_x > mx || mx >= win->x1 || pjob->movewin_y > my || my >= win->y1) {
+			mx = (win->x0 + win->x1) / 2;
+			my = win->y0 + 12;
 			sgg_wm0_movemouse(mx, my);
 		}
+		press->mx0 = mx;
+		press->my0 = my;
 	}
 	return;
 }
 
 void job_movewin3()
 {
+	struct STR_JOB *pjob = &job;
 	int x0, y0, x1, y1;
-	struct WM0_WINDOW *win = job_win;
+	struct WM0_WINDOW *win = pjob->win;
 
-	x0 = job_movewin_x;
-	y0 = job_movewin_y;
+	x0 = pjob->movewin_x;
+	y0 = pjob->movewin_y;
 	x1 = x0 + win->x1 - win->x0 - 1;
 	y1 = y0 + win->y1 - win->y0 - 1;
 
@@ -1127,49 +1200,39 @@ void job_movewin3()
 
 void job_movewin4(int sig)
 {
-	struct WM0_WINDOW *win0 = job_win;
+	struct STR_JOB *pjob = &job;
+	struct WM0_WINDOW *win0 = pjob->win;
+	struct STR_PRESS *press = &press0;
 
-	int x0 = job_movewin_x;
-	int y0 = job_movewin_y;
+	int x0 = pjob->movewin_x;
+	int y0 = pjob->movewin_y;
 	int xsize = win0->x1 - win0->x0;
 	int ysize = win0->y1 - win0->y0;
 
-	#if (defined(TOWNS))
-		if (sig == 0x00d0 && x0 >= 4)
-			x0 -= 4;
-		if (sig == 0x00d1 && x0 + xsize <= x2 - 4)
-			x0 += 4;
-		if (sig == 0x00d2 && y0 >= 4)
-			y0 -= 4;
-		if (sig == 0x00d3 && y0 + ysize <= y2 - 32)
-			y0 += 4;
-	#endif
-	#if (defined(PCAT))
-		if (sig == 0x00d0 && x0 >= 8)
-			x0 -= 8;
-		if (sig == 0x00d1 && x0 + xsize <= x2 - 8)
-			x0 += 8;
-		if (sig == 0x00d2 && y0 >= 8)
-			y0 -= 8;
-		if (sig == 0x00d3 && y0 + ysize <= y2 - 36)
-			y0 += 8;
-	#endif
+	if (sig == 0x00d0 && x0 >= MOVEUNIT)
+		x0 -= MOVEUNIT;
+	if (sig == 0x00d1 && x0 + xsize <= x2 - 4)
+		x0 += MOVEUNIT;
+	if (sig == 0x00d2 && y0 >= MOVEUNIT + RESERVELINE0)
+		y0 -= MOVEUNIT;
+	if (sig == 0x00d3 && y0 + ysize <= y2 - (RESERVELINE1 + MOVEUNIT))
+		y0 += MOVEUNIT;
 
-	if ((x0 - job_movewin_x) | (y0 - job_movewin_y)) {
-		if (press_pos == NO_PRESS || press_pos == TITLE_BAR) {
-			mx += x0 - job_movewin_x;
-			my += y0 - job_movewin_y;
+	if ((x0 - pjob->movewin_x) | (y0 - pjob->movewin_y)) {
+		if (press->pos == NO_PRESS || press->pos == TITLE_BAR) {
+			mx += x0 - pjob->movewin_x;
+			my += y0 - pjob->movewin_y;
 			sgg_wm0_movemouse(mx, my);
 		}
 		job_movewin3();
-		job_movewin_x = x0;
-		job_movewin_y = y0;
+		pjob->movewin_x = x0;
+		pjob->movewin_y = y0;
 		job_movewin3();
 	}
 
 	if (sig == 0x00f0) {
-		job_movewin4_ready = 0;
-		press_mx0 = -1;
+		pjob->movewin4_ready = 0;
+		press->mx0 = -1;
 		job_movewin3();
 		struct WM0_WINDOW *win1;
 		win0->job_flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
@@ -1182,7 +1245,7 @@ void job_movewin4(int sig)
 		} while ((win1 = win1->down) != win0);
 
 		// ウィンドウを消す
-		lib_drawline(0x0020, (void *) -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
+		putwallpaper(win0->x0, win0->y0, win0->x1, win0->y1);
 
 		win0->x0 = x0;
 		win0->y0 = y0;
@@ -1197,32 +1260,26 @@ void job_movewin4(int sig)
 
 void job_movewin4m(int x, int y)
 {
-	struct WM0_WINDOW *win0 = job_win;
+	struct STR_JOB *pjob = &job;
+	struct WM0_WINDOW *win0 = pjob->win;
 
-	#if (defined(TOWNS))
-		#define	XALIGN	~3
-	#endif
-	#if (defined(PCAT))
-		#define	XALIGN	~7
-	#endif
-
-	int x0 = job_movewin_x0 + (x - press_mx0) & XALIGN;
-	int y0 = job_movewin_y0 + y - press_my0;
+	int x0 = pjob->movewin_x0 + (x - press0.mx0) & ~(MOVEUNIT - 1);
+	int y0 = pjob->movewin_y0 + y - press0.my0;
 	int xsize = win0->x1 - win0->x0;
 	int ysize = win0->y1 - win0->y0;
 
 	if (x0 < 0)
 		x0 = 0;
 	if (x0 > x2 - xsize)
-		x0 = (x2 - xsize) & XALIGN;
-	if (y0 < 0)
-		y0 = 0;
-	if (y0 > y2 - ysize - 28)
-		y0 = y2 - ysize - 28;
-	if ((x0 - job_movewin_x) | (y0 - job_movewin_y)) {
+		x0 = (x2 - xsize) & ~(MOVEUNIT - 1);
+	if (y0 < RESERVELINE0)
+		y0 = RESERVELINE0;
+	if (y0 > y2 - ysize - RESERVELINE1)
+		y0 = y2 - ysize - RESERVELINE1;
+	if ((x0 - pjob->movewin_x) | (y0 - pjob->movewin_y)) {
 		job_movewin3();
-		job_movewin_x = x0;
-		job_movewin_y = y0;
+		pjob->movewin_x = x0;
+		pjob->movewin_y = y0;
 		job_movewin3();
 	}
 	return;
@@ -1231,6 +1288,7 @@ void job_movewin4m(int x, int y)
 void job_closewin0(struct WM0_WINDOW *win0)
 // このウィンドウは既にaccessdisableになっていることが前提
 {
+	struct STR_JOB *pjob = &job;
 	struct WM0_WINDOW *win1, *win_up, *win_down;
 
 	/* winをリストから切り離す */
@@ -1247,8 +1305,8 @@ void job_closewin0(struct WM0_WINDOW *win0)
 			dsp->win = NULL;
 	}
 
-	job_count = 0;
-	jobfunc = &job_closewin1;
+	pjob->count = 0;
+	pjob->func = job_closewin1;
 
 #if 0
 	if (allclose) {
@@ -1278,7 +1336,7 @@ void job_closewin0(struct WM0_WINDOW *win0)
 			flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED;
 			if (win1->condition & 0x01) {
 				sgg_wm0s_accessdisable(&win1->sgg);
-				job_count++;
+				pjob->count++;
 				flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED | WINFLG_WAITDISABLE;
 			}
 		}
@@ -1288,9 +1346,9 @@ void job_closewin0(struct WM0_WINDOW *win0)
 no_window:
 
 	/* ウィンドウを消す */
-	lib_drawline(0x0020, (void *) -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
+	putwallpaper(win0->x0, win0->y0, win0->x1, win0->y1);
 	chain_unuse(win0);
-	if (job_count == 0)
+	if (pjob->count == 0)
 		job_general1();
 	return;
 }
@@ -1309,8 +1367,7 @@ void job_closewin1(const int cmd, const int handle)
 		return;
 	}
 	win->job_flag0 &= ~WINFLG_WAITDISABLE;
-	job_count--;
-	if (job_count == 0)
+	if (--job.count == 0)
 		job_general1();
 	return;
 }
@@ -1335,12 +1392,13 @@ void job_general1()
    job_flag0.bit24 ... 0:normal 1:override-accessdisabled
    job_flag0.bit31 ... 0:normal 1:must-redraw */
 {
+	struct STR_JOB *pjob = &job;
 	struct WM0_WINDOW *win0, *win1, *bottom, *top_ = top /* 高速化、コンパクト化のため */;
 	int flag0;
 
 	if (top_ == NULL) {
-		jobnow = 0;
-	//	jobfunc = NULL;
+		pjob->now = 0;
+	//	pjob->func = NULL;
 		return;
 	}
 
@@ -1389,8 +1447,8 @@ void job_general1()
 
 	/* redrawを予定しているウィンドウで、他のredraw予定ウィンドウとオーバーラップしているものは、
 		全てoverride-accessdisabledにする */
-	job_count = 0;
-	jobfunc = &job_general2;
+	pjob->count = 0;
+	pjob->func = job_general2;
 	win0 = top_;
 	do {
 		if (win0->job_flag0 & WINFLG_MUSTREDRAW) {
@@ -1400,26 +1458,27 @@ void job_general1()
 						if ((win0->job_flag0 & WINFLG_OVERRIDEDISABLED) == 0) {
 							sgg_wm0s_accessdisable(&win0->sgg);
 							win0->job_flag0 |= WINFLG_OVERRIDEDISABLED | WINFLG_WAITDISABLE;
-							job_count++;
+							pjob->count++;
 						}
 						if ((win1->job_flag0 & (WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED)) == WINFLG_MUSTREDRAW) {
 							sgg_wm0s_accessdisable(&win1->sgg);
 							win1->job_flag0 |= WINFLG_OVERRIDEDISABLED | WINFLG_WAITDISABLE;
-							job_count++;
+							pjob->count++;
 						}
 					}
 				}
 			}
 		}
 	} while ((win0 = win0->down) != top_);
-	job_win = NULL;
-	if (job_count == 0)
+	pjob->win = NULL;
+	if (pjob->count == 0)
 		job_general2(0, 0);
 	return;
 }
 
 void job_general2(const int cmd, const int handle)
 {
+	struct STR_JOB *pjob = &job;
 	struct WM0_WINDOW *win;
 	int flag0;
 
@@ -1446,19 +1505,16 @@ error:
 			else
 				goto error;
 		}
-		if (--job_count)
+		if (--pjob->count)
 			return;
 	}
 
-	win = job_win;
+	win = pjob->win;
 
-	if (win == top && win->job_flag0 == 0) {
+	if (win == top && win->job_flag0 == 0)
+		goto fin;
 		/* １周目でwin->job_flag0が0になることもありうる */
 		// 全ての作業が完了
-		jobnow = 0;
-	//	jobfunc = NULL;
-		return;
-	}
 	if (win == NULL)
 		win = top;
 
@@ -1469,24 +1525,27 @@ error:
 		if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01) && x2 != 0)
 			sgg_wm0s_accessenable(&win->sgg);
 		if (flag0 & WINFLG_MUSTREDRAW) {
-			job_win = win;
+			pjob->win = win;
 			if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == 0) {
 				sgg_wm0s_accessdisable(&win->sgg);
 				win->job_flag0 |= WINFLG_WAITDISABLE;
-				job_count = 1;
+				pjob->count = 1;
 			}
 			if ((flag0 & 0x03) != win->condition)
 				sgg_wm0s_setstatus(&win->sgg, win->condition = (flag0 & 0x03));
 			sgg_wm0s_redraw(&win->sgg);
 			win->job_flag0 |= WINFLG_WAITREDRAW;
-			job_count++;
+			pjob->count++;
 			return;
 		}
 	} while (win != top);
-	jobnow = 0;
-//	jobfunc = NULL;
+fin:
+	pjob->now = 0;
+//	pjob->func = NULL;
 	return;
 }
+
+#if 0
 
 void free_sndtrk(struct SOUNDTRACK *sndtrk)
 {
@@ -1496,52 +1555,25 @@ void free_sndtrk(struct SOUNDTRACK *sndtrk)
 
 struct SOUNDTRACK *alloc_sndtrk()
 {
+	struct SOUNDTRACK *sndtrk = sndtrk_buf;
 	int i;
-	for (i = 0; i < MAX_SOUNDTRACK; i++) {
-		if (sndtrk_buf[i].sigbox == 0)
-			return &sndtrk_buf[i];
+	for (i = 0; i < MAX_SOUNDTRACK; i++, sndtrk++) {
+		if (sndtrk->sigbox == 0)
+			return sndtrk;
 	}
 	return NULL;
 }
 
-void send_signal2dw(const int sigbox, const int data0, const int data1)
-{
-#if 0
-	static struct {
-		int cmd, opt;
-		int data[3];
-		int eoc;
-	} command = { 0x0020, 0x80000000 + 3, { 0 }, 0x0000 };
-
-	command.data[0] = sigbox | 2;
-	command.data[1] = data0;
-	command.data[2] = data1;
-
-	sgg_execcmd(&command);
-	return;
 #endif
 
+void send_signal2dw(const int sigbox, const int data0, const int data1)
+{
 	sgg_execcmd0(0x0020, 0x80000000 + 3, sigbox | 2, data0, data1, 0x000);
 	return;
 }
 
 void send_signal3dw(const int sigbox, const int data0, const int data1, const int data2)
 {
-#if 0
-	static struct {
-		int cmd, opt;
-		int data[4];
-		int eoc;
-	} command = { 0x0020, 0x80000000 + 4, { 0 }, 0x0000 };
-
-	command.data[0] = sigbox | 3;
-	command.data[1] = data0;
-	command.data[2] = data1;
-	command.data[3] = data2;
-
-	sgg_execcmd(&command);
-	return;
-#endif
 	sgg_execcmd0(0x0020, 0x80000000 + 4, sigbox | 3, data0, data1, data2, 0x000);
 	return;
 }
@@ -1554,14 +1586,15 @@ void job_openvgadriver(const int drv)
 	// ここではdisableにはしない
 	sgg_wm0_gapicmd_0010_0000();
 	gapi_loadankfont();
-	jobnow = 0;
+	job.now = 0;
 	return;
 }
 
 void job_setvgamode0(const int mode)
 {
+	struct STR_JOB *pjob = &job;
 	struct WM0_WINDOW *win;
-	job_int0 = mode;
+	pjob->int0 = mode;
 
 	if (mx != 0x80000000) {
 		sgg_wm0_removemouse();
@@ -1569,21 +1602,20 @@ void job_setvgamode0(const int mode)
 		mx = my = 1;
 
 	// とりあえず、全てのウィンドウの画面更新権を一時的に剥奪する
-	job_count = 0;
-	jobfunc = &job_setvgamode1;
+	pjob->count = 0;
+	pjob->func = job_setvgamode1;
 	if (win = top) {
 		do {
 			win->job_flag0 = (WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED); // override-accessdisabled & must-redraw
 			if ((win->condition & 0x01) != 0 && x2 != 0) {
-				job_count++; // disable
+				pjob->count++; // disable
 				sgg_wm0s_accessdisable(&win->sgg);
 			}
 		} while ((win = win->down) != top);
 	}
 
-	if (job_count == 0) {
+	if (pjob->count == 0)
 		job_setvgamode2(); // すぐにディスプレーモード変更へ
-	}
 
 	return;
 }
@@ -1591,7 +1623,7 @@ void job_setvgamode0(const int mode)
 void job_setvgamode1(const int cmd, const int handle)
 {
 	// 0x00c0しかこない
-	if (--job_count == 0)
+	if (--job.count == 0)
 		job_setvgamode2();
 	return;
 }
@@ -1600,7 +1632,7 @@ void job_setvgamode2()
 {
 	#if (defined(TOWNS))
 #if 0
-		int mode = job_int0;
+		int mode = job.int0;
 		switch (mode) {
 		case 0x0000:
 			x2 = 1024;
@@ -1617,11 +1649,11 @@ void job_setvgamode2()
 
 		}
 #endif
-			x2 = TWVSW;
-			y2 = 512*1024/TWVSW;
-			/* 画面モード0設定(640x480) */
-			/* 画面モード1設定(768x512) */
-			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job_int0 /* mode */, 0x0000, 0x0000);
+		x2 = TWVSW;
+		y2 = 512*1024/TWVSW;
+		/* 画面モード0設定(640x480) */
+		/* 画面モード1設定(768x512) */
+		sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job.int0 /* mode */, 0x0000, 0x0000);
 
 		sgg_wm0_gapicmd_001c_0004(); /* ハードウェア初期化 */
 		init_screen(x2, y2);
@@ -1665,8 +1697,8 @@ void job_setvgamode2()
 
 		}
 #endif
-		jobfunc = &job_setvgamode3;
-		sgg_wm0_setvideomode(job_int0 /* mode */, 0x0014);
+		job.func = &job_setvgamode3;
+		sgg_wm0_setvideomode(job.int0 /* mode */, 0x0014);
 		return;
 	#endif
 }
@@ -1677,7 +1709,7 @@ void job_setvgamode3(const int sig, const int result)
 {
 	// 0x0014しかこない
 	if (result == 0) {
-		sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job_int0 | 0x01000000, 0x0000, 0x0000);
+		sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job.int0 | 0x01000000, 0x0000, 0x0000);
 		sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
 		init_screen(x2, y2);
 		job_general1();
@@ -1687,34 +1719,34 @@ void job_setvgamode3(const int sig, const int result)
 	// VESAのノンサポートなどにより、画面モード切り換え失敗
 //	x2 = 640;
 //	y2 = 480;
-//	jobfunc = &job_setvgamode3;
+//	job.func = job_setvgamode3;
 	sgg_wm0_setvideomode(0x0012 /* VGA */, 0x0014);
 	return;
 }
 
 #endif
 
-int job_fonttss, job_sig, job_fontflag = 0;
-
 void job_loadfont0(int fonttype, int tss, int sig)
 {
-	job_sig = sig;
-	job_fonttss = tss;
-	if (job_fontflag & 0x01) {
+	struct STR_JOB *pjob = &job;
+	pjob->sig = sig;
+	pjob->fonttss = tss;
+	if (pjob->fontflag & 0x01) {
 		job_loadfont1(0, 0);
 		return;
 	}
 	/* ロードコード */
 	lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
-	jobfunc = &job_loadfont1;
+	pjob->func = job_loadfont1;
 	lib_steppath0(0, 0x0200, "JPN16V00.FNT", 0x0050 /* sig */);
 	return;
 }
 
 void job_loadfont1(int flag, int dmy)
 {
-	if ((job_fontflag & 0x01) == 0 && flag == 0 /* ロード成功 */) {
-		char *fp = (char *) lib_readCSd(0x0010 /* malloc領域の終わり == mapping領域の始まり */);
+	struct STR_JOB *pjob = &job;
+	if ((pjob->fontflag & 0x01) == 0 && flag == 0 /* ロード成功 */) {
+		char *fp = (char *) pjob->readCSd10 /* malloc領域の終わり == mapping領域の始まり */;
 		lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
 
 		/* ここでslot:0x0210にgapidataを配備 */
@@ -1724,37 +1756,36 @@ void job_loadfont1(int flag, int dmy)
 		lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 304 * 1024, fp + 256 * 1024, (8 + 16) * 1024);
 		lib_decodetek0(304 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
 		lib_unmapmodule(0, 768 * 1024, fp);
-		job_fontflag |= 0x01;
+		pjob->fontflag |= 0x01;
 		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
 			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
 	}
-//	if (job_fonttss)
+//	if (pjob->fonttss)
 //		send_signal2dw(job_fonttss | 0x240, 0x7f000001, job_sig);
-//	jobnow = 0;
-//	jobfunc = NULL;
+//	pjob->now = 0;
+//	pjob->func = NULL;
 	job_loadfont2();
 	return;
 }
 
 void job_loadfont2()
 {
-	if (job_fontflag & 0x02) {
+	if (job.fontflag & 0x02) {
 		job_loadfont3(0, 0);
 		return;
 	}
 	/* ロードコード */
 	lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
-	jobfunc = &job_loadfont3;
+	job.func = job_loadfont3;
 	lib_steppath0(0, 0x0200, "KOR16V00.FNT", 0x0050 /* sig */);
 	return;
 }
 
-void lib_bangint3();
-
 void job_loadfont3(int flag, int dmy)
 {
-	if ((job_fontflag & 0x02) == 0 && flag == 0 /* ロード成功 */) {
-		char *fp = (char *) lib_readCSd(0x0010 /* malloc領域の終わり == mapping領域の始まり */);
+	struct STR_JOB *pjob = &job;
+	if ((pjob->fontflag & 0x02) == 0 && flag == 0 /* ロード成功 */) {
+		char *fp = (char *) pjob->readCSd10 /* malloc領域の終わり == mapping領域の始まり */;
 		lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
 
 		/* ここでslot:0x0210にgapidataを配備 */
@@ -1764,16 +1795,16 @@ void job_loadfont3(int flag, int dmy)
 		lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 288 * 1024, fp + 256 * 1024, (8 + 320) * 1024);
 		lib_decodetek0(288 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
 		lib_unmapmodule(0, 768 * 1024, fp);
-		job_fontflag |= 0x02;
+		pjob->fontflag |= 0x02;
 		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
 			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
 	}
-	if (job_fonttss) {
-		send_signal2dw(job_fonttss | 0x240, 0x7f000001, job_sig);
-		send_signal2dw(job_fonttss | 0x240, 0x000000cc, 0); /* to pioneer0 */
+	if (pjob->fonttss) {
+		send_signal2dw(pjob->fonttss | 0x240, 0x7f000001, pjob->sig);
+		send_signal2dw(pjob->fonttss | 0x240, 0x000000cc, 0); /* to pioneer0 */
 	}
-	jobnow = 0;
-//	jobfunc = NULL;
+	pjob->now = 0;
+//	pjob->func = NULL;
 	return;
 }
 
@@ -1911,7 +1942,7 @@ void sgg_wm0_definesignal3sub(const int keycode)
 		unsigned char rawcode1, shifttype1;
 	} table[] = {
 		#if (defined(PCAT))
-			{ 0x39, NOSHIFT, 0xff, 0xff    } /* ' ' */,
+			{ 0x39, IGSHIFT, 0xff, 0xff    } /* ' ' */,
 			{ 0x02, SHIFT,   0xff, 0xff    } /* '!' */,
 			{ 0x03, SHIFT,   0xff, 0xff    } /* '\x22' */,
 			{ 0x04, SHIFT,   0xff, 0xff    } /* '#' */,
@@ -2039,8 +2070,8 @@ void sgg_wm0_definesignal3sub(const int keycode)
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9d' */,
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9e' */,
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9f' */,
-			{ 0x1c, NOSHIFT, 0x9c, NOSHIFT } /* Enter */,
-			{ 0x0e, NOSHIFT, 0xff, 0xff    } /* BackSpace */,
+			{ 0x1c, IGSHIFT, 0x9c, IGSHIFT } /* Enter */,
+			{ 0x0e, IGSHIFT, 0xff, 0xff    } /* BackSpace */,
 			{ 0x0f, NOSHIFT, 0xff, 0xff    } /* Tab */,
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\xa3' */,
 			{ 0xd2, NOSHIFT, 0x52, NUMLKOF } /* Insert */,
@@ -2137,7 +2168,7 @@ void sgg_wm0_definesignal3sub(const int keycode)
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\xff' */
 		#endif
 		#if (defined(TOWNS))
-			{ 0x35, NOSHIFT, 0xff, 0xff    } /* ' ' */,
+			{ 0x35, IGSHIFT, 0xff, 0xff    } /* ' ' */,
 			{ 0x02, SHIFT,   0xff, 0xff    } /* '!' */,
 			{ 0x03, SHIFT,   0x34, NOSHIFT } /* '\x22' */,
 			{ 0x04, SHIFT,   0xff, 0xff    } /* '#' */,
@@ -2265,8 +2296,8 @@ void sgg_wm0_definesignal3sub(const int keycode)
 			{ 0xf8, NOSHIFT, 0xff, 0xff    } /* EXT2(F29) */,
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9e' */,
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9f' */,
-			{ 0x1d, NOSHIFT, 0x45, NOSHIFT } /* Enter */,
-			{ 0x0f, NOSHIFT, 0xff, 0xff    } /* BackSpace */,
+			{ 0x1d, IGSHIFT, 0x45, IGSHIFT } /* Enter */,
+			{ 0x0f, IGSHIFT, 0xff, 0xff    } /* BackSpace */,
 			{ 0x10, NOSHIFT, 0xff, 0xff    } /* Tab */,
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\xa3' */,
 			{ 0x48, NOSHIFT, 0xff, 0xff    } /* Insert */,
@@ -2730,4 +2761,198 @@ void gapi_loadankfont()
 	};
 	sgg_execcmd(&command);
 	return;
+}
+
+#if (defined(TOWNS))
+
+void job_savevram0()
+{
+    /* 保存先用意 */
+    lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
+    job.func = &job_savevram1;
+    lib_steppath0(0, 0x0200, "VRAMIMAG.BIN", 0x0050 /* sig */);
+    return;
+    /* VRAMIMAG.BINは512KB以上のサイズのファイル */
+    /* 事前にcreateしてresizeしておいてください */
+}
+
+void job_savevram1(int flag, int dmy)
+{
+    if (flag == 0) { /* open成功 */
+        if (lib_readmodulesize(0x0200) >= 512 * 1024) {
+            char *fp = (char *) job.readCSd10;
+            lib_mapmodule(0x0000, 0x0200, 0x7, 512 * 1024, fp, 0);
+            sgg_debug00(0, 512 * 1024, 0, 0xe0000000, 0x01280008,
+			(const int) fp, 0x000c);
+            lib_unmapmodule(0, 512 * 1024, fp);
+            send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+			   0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+        }
+    }
+    job.now = 0;
+    return;
+}
+
+#endif
+
+void job_openwallpaper()
+/* 2002.05.27 川合 : 壁紙表示がトグルになるように変更 */
+{
+	if (wallpaper_exist == 0) {
+		lib_initmodulehandle0(0x0008, 0x0200);
+		job.func = &job_loadwallpaper;
+		lib_steppath0(0, 0x0200, "OSASK   .BMP", 0x0050 /* sig */);
+		return;
+		/* OSASK.BMP is wallpaper. */
+	}
+	job_loadwallpaper(1, 0);
+	return;
+}
+
+int bmp2beta(unsigned char *s, char *d, int w,int h, int ms);
+
+void job_loadwallpaper(int flag, int dmy)
+/* 2002.05.27 川合 : わずかに改良 */
+{
+	struct WM0_WINDOW *win;
+	int i;
+
+	wallpaper_exist = 0;
+	if (flag == 0) {	/* opening succeeded. */
+		char *fp = (char *)lib_readCSd(0x10);
+		for (i = 0; i < WALLPAPERMAXSIZE / 4; i++)
+			*((int *) wallpaper + i) = BACKCOLOR | BACKCOLOR << 8
+				| BACKCOLOR << 16 | BACKCOLOR << 24;	/* ゴミが出るので初期化しておく */
+		lib_mapmodule(0x0000, 0x0200, 0x5, 768*1024, fp, 0);
+		wallpaper_exist = 
+			bmp2beta(fp, wallpaper, x2, y2, lib_readmodulesize(0x0200));
+		lib_unmapmodule(0, 768 * 1024, fp);
+		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+	}
+
+	/* 全ウィンドウ再描画 */
+	if (mx != 0x80000000) {
+		sgg_wm0_removemouse();
+	} else
+		mx = my = 1;
+
+	init_screen(x2, y2);
+	if (win = top) {
+		do {
+			win->job_flag0 |= WINFLG_MUSTREDRAW;
+		} while ((win = win->down) != top);
+	}
+	job_general1();
+
+//	job.now = 0; /* これはjob_general1()に含まれる */
+	return;
+}
+
+void putwallpaper(int x0, int y0, int x1, int y1)
+/* 2002.05.27 川合 : x1, y1の値の扱いを仕様変更 */
+{
+	if (wallpaper_exist)
+		lib_putblock1((void *) -1, x0, y0, x1 - x0, y1 - y0,
+			x2 - (x1 - x0), &wallpaper[x2 * y0 + x0]);
+	else
+		lib_drawline(0x0020, (void *) -1, BACKCOLOR, x0, y0, x1 - 1, y1 - 1);
+	return;
+}
+
+int bmp2beta(unsigned char *src, char *dest, int bw, int bh, int mappedsize)
+/* 2002.05.27 川合 : うまくいったら非零を返すように仕様変更 */
+/*		ついでにセンタリングもつけた */
+{
+	int bmpW, bmpH, bpp, i;
+
+	/* Minimal size check */
+	if (mappedsize < 28)				/* OS2-BMP's header size */
+		goto error;
+
+	/* Header check and MAC */
+	if (*(short *) src != 0x4d42) {		/* "BM" */
+		mappedsize += -128;				/* for MAC BMP */
+		if (mappedsize < 28)
+			goto error;
+		src += 128;
+		if (*(short *) src != 0x4d42)
+			goto error;
+	}
+
+	/* Is module lacked? */
+	if (mappedsize < *(int *) (src+2))
+		goto error;
+
+	/* OS/2 and MS formats */
+	i = *(int *) (src+14);
+	if (i == 40 && *(int *) (src+30) != 0)	/* compressed */
+		goto error;
+
+	if (i != 40 && i != 12)
+		goto error;
+
+	bmpW = *(int *) (src+18);
+	bmpH = *(int *) (src+22);
+	bpp = *(short *) (src+28);
+	src += *(int *) (src+10);
+
+	/* センタリング */
+	if (bmpW < bw)
+		dest += (bw - bmpW) >> 1;
+	if (bmpH < bh - (RESERVELINE0 + RESERVELINE1))
+		dest += bw * (RESERVELINE0 + (bh - bmpH - (RESERVELINE0 + RESERVELINE1)) >> 1);
+
+	if (bpp == 1) {
+		int lw,y;
+
+		bmpW = (bmpW + 31) & ~31;
+		lw = ((bw < bmpW) ? bw : bmpW) / 8; /* limit loop count */
+		bmpW /= 8;
+		src += (bmpH - 1) * bmpW;
+
+		for (y = (bh < bmpH) ? bh : bmpH; y > 0; y--) {
+			int x;
+			for (x = 0; x < lw; x++) {
+				unsigned char t = src[x];
+
+				dest[x * 8 + 0] = ((t >> 7) & 0x01) + 7;
+				dest[x * 8 + 1] = ((t >> 6) & 0x01) + 7;
+				dest[x * 8 + 2] = ((t >> 5) & 0x01) + 7;
+				dest[x * 8 + 3] = ((t >> 4) & 0x01) + 7;
+				dest[x * 8 + 4] = ((t >> 3) & 0x01) + 7;
+				dest[x * 8 + 5] = ((t >> 2) & 0x01) + 7;
+				dest[x * 8 + 6] = ((t >> 1) & 0x01) + 7;
+				dest[x * 8 + 7] = ( t       & 0x01) + 7;
+			}
+			src -= bmpW; dest += bw;
+		}
+	} else {
+		int lw, y;
+
+		bmpW = (bmpW + 7) & ~7;
+		lw = ((bw < bmpW) ? bw : bmpW) / 8; /* limit loop count */
+		bmpW /= 2;
+		src += (bmpH - 1) * bmpW;
+
+		for (y = (bh < bmpH) ? bh : bmpH; y > 0; y--) {
+			int x;
+			for (x = 0; x < lw; x++) {
+				unsigned int t = *((int *) src + x);
+
+				dest[x * 8 + 0] = (t >>  4) & 0x0f;
+				dest[x * 8 + 1] =  t        & 0x0f;
+				dest[x * 8 + 2] = (t >> 12) & 0x0f;
+				dest[x * 8 + 3] = (t >>  8) & 0x0f;
+				dest[x * 8 + 4] = (t >> 20) & 0x0f;
+				dest[x * 8 + 5] = (t >> 16) & 0x0f;
+				dest[x * 8 + 6] = (t >> 28) & 0x0f;
+				dest[x * 8 + 7] = (t >> 24) & 0x0f;
+			}
+			src -= bmpW; dest += bw;
+		}
+	}
+	return 1;
+error:
+	return 0;
 }
