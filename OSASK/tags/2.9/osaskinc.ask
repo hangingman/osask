@@ -1,0 +1,10 @@
+/* "osaskinc.ask" */
+
+#define	ALIGN2	asmout("RESB (2 - ($ % 2)) % 2")
+#define	ALIGN4	asmout("RESB (4 - ($ % 4)) % 4")
+#define	ALIGN8	asmout("RESB (8 - ($ % 8)) % 8")
+#define	ALIGN16	asmout("RESB (16 - ($ % 16)) % 16")
+#define	ALIGN(bytes)	ALIGN ## bytes
+
+#define	jmp_system_count0()		asmout("JMP FAR DWORD SS:[0xFFFFFFE8]")
+
