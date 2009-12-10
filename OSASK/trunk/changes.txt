@@ -1,5 +1,12 @@
 ●主な変更点 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
+Version 3.5(2002/4)
+[OSASK 5859]
+・pokonがデフォルトで開くテキストエディタがteditc01からteditc02
+  に変更されました
+・AT版では16bit/32bitカラーモードでもカラーフォントが使えるよう
+  になりました(PC-AT版)
+
 Version 3.4(2002/3)
 [OSASK 5675][OSASK 5766]
 ・起動時にスクリプトを実行するようになりました。

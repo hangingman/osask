@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.3.4
+/* "pokon0.c":アプリケーションラウンチャー  ver.3.5
      copyright(C) 2003 小柳雅明, 川合秀実
     stack:4k malloc:88k file:4096k */
 
@@ -10,7 +10,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon34"
+#define POKON_VERSION "pokon35"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.4\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -36,7 +36,7 @@ const static char *pokon_error_message[] = {
 
 static struct STR_JOBLIST job;
 static struct STR_VIEWER BINEDIT = { "BEDITC00BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER TXTEDIT = { "TEDITC01BIN", 2, 0x7f000001, 42, 0 };
+static struct STR_VIEWER TXTEDIT = { "TEDITC02BIN", 2, 0x7f000001, 42, 0 };
 static struct STR_VIEWER PICEDIT = { "BMPV06  BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER RESIZER = { "RESIZER0BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER HELPLAY = { "HELO    BIN", 0, 0, 0, 0 };

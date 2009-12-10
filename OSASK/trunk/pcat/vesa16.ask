@@ -1,4 +1,4 @@
-/* "VESA16.ASK" for PC/AT ver.0.0 copyright(C) 2003 川合秀実 */
+/* "VESA16.ASK" for PC/AT ver.0.1 copyright(C) 2003 川合秀実 */
 
 segment CODE(USE32, PARA);
 default(code == CODE);
@@ -120,6 +120,34 @@ fontload:
 	if (EAX <= 4) {
 		/* EAX == 3:4bit color 8x16 */
 		/* EAX == 4:4bit color 8x8 */
+		LEA(ECX, [ECX * 8]);
+		if (!=)
+			ECX *= 2;
+		do {
+			EDX = [DS:ESI]; /* 8dots */
+			ESI += 4;
+			AH = DH;
+			AL = DH;
+			(unsigned char) AH >>= 4;
+			EAX <<= 16;
+			AH = DL;
+			AL = DL;
+			(unsigned char) AH >>= 4;
+			EAX &= 0x0f0f0f0f;
+			[ES:EDI] = EAX;
+			(unsigned int) EDX >>= 16;
+			AH = DH;
+			AL = DH;
+			(unsigned char) AH >>= 4;
+			EAX <<= 16;
+			AH = DL;
+			AL = DL;
+			(unsigned char) AH >>= 4;
+			EAX &= 0x0f0f0f0f;
+			[ES:EDI + 4] = EAX;
+			EDI += 8;
+			ECX--;
+		} while (!= 0);
 		POP(DS);
 		asmout("JMP next_command");
 	}
@@ -135,8 +163,11 @@ font_attr:
 font_attr_table:
 	DB(4 /*  16bytes/font (8x16 mono) */);
 	DB(3 /*   8bytes/font (8x 8 mono half height) */);
-	DB(8 /* 128bytes/font (8x16 4bit color) */);
-	DB(7 /*  64bytes/font (8x 8 4bit color half height) */);
+	DB(7 /* 128bytes/font (8x16 4bit color) */);
+	DB(6 /*  64bytes/font (8x 8 4bit color half height) */);
+
+//	DB(8 /* 128bytes/font (8x16 4bit color) */);
+//	DB(7 /*  64bytes/font (8x 8 4bit color half height) */);
 }
 
 void colortable16()
@@ -437,15 +468,14 @@ opt1:
 	asmout("JMP next_command");
 
 opt2:
-	INT(0x03);
 	EAX = cmd[ 8]; /* x */
 	ESI = cmd[12]; /* y */
-	TEST(AL, 0x03);
-	if (!= 0)
-		goto error; /* 4の倍数以外はまだサポートしてない */
+//	TEST(AL, 0x03);
+//	if (!= 0)
+//		goto error; /* 4の倍数以外はまだサポートしてない */
 
 	IMUL(ESI, work->linebytes);
-	ESI += EAX;
+	LEA(ESI, [ESI + EAX * 2]);
 
 //	int *font == ES:EDI;
 //	int *string == FS:EBP;
@@ -453,6 +483,7 @@ opt2:
 
 	if (cmd[4] != 2)
 		goto opt3;
+	INT(0x03);
 
 	LEA((offset) string, [EBX + 36]);
 //	LEA(EBX, [EBX + ECX * 4 + 36]);
@@ -497,7 +528,6 @@ opt2:
 
 opt3:
 	/* half height */
-	INT(0x03);
 	LEA((offset) string, [EBX + 36]);
 //	LEA(EBX, [EBX + ECX * 4 + 36]);
 
@@ -505,35 +535,54 @@ opt3:
 		PUSH(ECX);
 		(offset) font = *string;
 		(offset) string += 4;
-		ECX = 2;
+		ECX = 8;
 		do {
-			EAX = font[ 0]; /* 4dots */
-			EDX = font[ 4];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
-			ESI += work->linebytes;
-			EAX = font[ 8]; /* 4dots */
-			EDX = font[12];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
-			ESI += work->linebytes;
-			EAX = font[16]; /* 4dots */
-			EDX = font[20];
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
-			ESI += work->linebytes;
-			EAX = font[24]; /* 4dots */
-			EDX = font[28];
-			(offset) font += 32;
-			[DS:ESI + 0xe0000000 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 4] = EDX;
+			EDX = font[ 0]; /* 2dots */
+			EAX = EDX;
+			(unsigned int) EDX >>= 8;
+			EAX &= 0x0f;
+			EDX &= 0x0f;
+			asmout("MOV EAX,[CS:colortable16+EAX*4]");
+			asmout("MOV EDX,[CS:colortable16+EDX*4]");
+			[DS:ESI + 0xe0000000 +  0] = AX;
+			EAX = font[ 0]; /* 2dots */
+			[DS:ESI + 0xe0000000 +  2] = DX;
+			EDX = EAX;
+			(unsigned int) EAX >>= 16;
+			(unsigned int) EDX >>= 24;
+			EAX &= 0x0f;
+			EDX &= 0x0f;
+			asmout("MOV EAX,[CS:colortable16+EAX*4]");
+			asmout("MOV EDX,[CS:colortable16+EDX*4]");
+			[DS:ESI + 0xe0000000 +  4] = AX;
+			[DS:ESI + 0xe0000000 +  6] = DX;
+			EDX = font[ 4]; /* 2dots */
+			EAX = EDX;
+			(unsigned int) EDX >>= 8;
+			EAX &= 0x0f;
+			EDX &= 0x0f;
+			asmout("MOV EAX,[CS:colortable16+EAX*4]");
+			asmout("MOV EDX,[CS:colortable16+EDX*4]");
+			[DS:ESI + 0xe0000000 +  8] = AX;
+			EAX = font[ 4]; /* 2dots */
+			[DS:ESI + 0xe0000000 + 10] = DX;
+			EDX = EAX;
+			(unsigned int) EAX >>= 16;
+			(unsigned int) EDX >>= 24;
+			EAX &= 0x0f;
+			EDX &= 0x0f;
+			asmout("MOV EAX,[CS:colortable16+EAX*4]");
+			asmout("MOV EDX,[CS:colortable16+EDX*4]");
+			[DS:ESI + 0xe0000000 + 12] = AX;
+			[DS:ESI + 0xe0000000 + 14] = DX;
+			(offset) font += 8;
 			ESI += work->linebytes;
 			ECX--;
 		} while (!= 0);
 		EAX = work->linebytes;
 		POP(ECX);
 		IMUL(EAX, -8);
-		LEA(ESI, [ESI + EAX + 8]);
+		LEA(ESI, [ESI + EAX + 16]);
 		ECX--;
 	} while (!= 0);
 	(offset) cmd = (offset) string;
