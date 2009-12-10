@@ -1,4 +1,4 @@
-/* "VESA32.ASK" for PC/AT ver.0.1 copyright(C) 2003 ì‡GŽÀ */
+/* "VESA32.ASK" for PC/AT ver.0.2 copyright(C) 2003 ì‡GŽÀ */
 
 segment CODE(USE32, PARA);
 default(code == CODE);
@@ -819,12 +819,11 @@ void GAPI_clippingmouse()
 	EDX = 0x1010; /* len */
 	x = work->mx;
 	y = work->my;
-	work->my0 = y;
-	work->mx0 = x;
 	EAX = x;
 	/* (false) */ if (x < 0) {
 		/* (false) */ if (x <= -16)
 			goto full_outside;
+		x = 0;
 		CL = AL;
 		DL += AL;
 		CL = - CL;
@@ -835,12 +834,15 @@ void GAPI_clippingmouse()
 		/* (false) */ if ((signed) EAX >= 16)
 			goto full_outside;
 		DL -= AL;
+		EAX = work->x2;
 	}
+	work->mx0 = x;
 	work->mx1 = EAX;
 	EAX = y;
 	/* (false) */ if (y < 0) {
 		/* (false) */ if (y <= -16)
 			goto full_outside;
+		y = 0;
 		CH = AL;
 		DH += AL;
 		CH = - CH;
@@ -851,7 +853,9 @@ void GAPI_clippingmouse()
 		/* (false) */ if ((signed) EAX >= 16)
 			goto full_outside;
 		DH -= AL;
+		EAX = work->y2;
 	}
+	work->my0 = y;
 	work->my1 = EAX;
 	(offset) q = 0;
 	work->mouse_width = DL;
@@ -861,7 +865,6 @@ void GAPI_clippingmouse()
 			(offset) q += 128;
 			CH--;
 		} while (!= 0);
-		y = 0;
 	}
 	(offset) p = y;
 	IMUL((offset) p, work->linebytes);

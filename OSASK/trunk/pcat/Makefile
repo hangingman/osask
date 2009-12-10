@@ -37,12 +37,14 @@ ALL : $(OBJS)
 	copy $@ ..
 
 $(BASE) : $(BASE_NAS) makefile ..\depend.mak
-	$(NASK) $(NASK_FLAGS) $(BASE_NAS) $(BASE) $(BASE:.exe=.lst)
+	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $(BASE:.exe=.i) $<
+	$(NASK) $(NASK_FLAGS) $(BASE:.exe=.i) $(BASE) $(BASE:.exe=.lst)
 	copy $@ ..
 
 clean:
 	del $(BASE)
 #	for %%i in ($(BASE:.exe=.obj)) do del %%i
+	for %%i in ($(BASE:.exe=.i)) do del %%i
 	for %%i in ($(BASE:.exe=.lst)) do del %%i
 #	for %%i in ($(BASE:.exe=.map)) do del %%i
 	for %%i in ($(ASK_OBJS)) do del %%i

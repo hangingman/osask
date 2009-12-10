@@ -1,4 +1,4 @@
-;	"base.nas" ver.2.5
+;	"base.nas" ver.2.6
 ;	OSASK/PCAT用のブートプログラム
 ;	Copyright(C) 2003 H.Kawai (川合秀実)
 
@@ -31,7 +31,7 @@ header:
 	DW	0 ; DOS_CS0 (entry-seg, relative)
 	DW	0x001e ; relocation table offset
 	DW	0 ; not use overlay
-	DW	1 ; I don't know.
+	DW	1 ; "I don't know."
 
 ; <relocation table image> 0x001e - 0x01ff
 ; org 0x001e
@@ -116,8 +116,10 @@ Entry:
 	MOV		AX,[CS:0x0002]
 	MOV		[CFport],AX
 
-;	mov	 ax, word ds:[VGA_mode]
-;	int	10h
+	#if (defined(BOCHS))
+		mov	 ax, word ds:[VGA_mode]
+		int	10h
+	#endif
 ;mov dx,03d4h
 ;mov ax,3213h
 ;out dx,ax
@@ -237,7 +239,11 @@ VESAPNP_2c		DD	0
 
 VGA_mode		DW	12h	; +0x10
 				DW	0
+#if (!defined(BOCHS))
 to_winman0		DD	0 ; +0x14
+#else
+to_winman0		DD	1 ; +0x14
+#endif
 
 CFport			DD	0	; +0x18
 eflags			DD	0

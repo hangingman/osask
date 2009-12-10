@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.2.2 copyright(C) 2003 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.2.3 copyright(C) 2003 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -86,6 +86,7 @@ void poweroff();
 void close_all();
 void open_cf();
 void errorfile();
+void PCC_reset();
 
 /* 手抜き満載 */
 void CFIDE_select();
@@ -154,7 +155,8 @@ nextcmd:
 		goto cmd0190; /* change_drive(0-9) */
 	if (EAX == 0x0194)
 		goto cmd0194; /* change_device */
-
+	if (EAX == 0x0198)
+		goto cmd0198; /* PC-Card Reset */
 	INT(0x03);
 
 cmd0000:
@@ -489,6 +491,12 @@ cmd0194:
 			#endif
 		}
 	}
+	(offset) cmd += 8;
+	goto nextcmd;
+
+cmd0198:
+	ECX = cmd[4]; /* 完了シグナル */
+	PCC_reset();
 	(offset) cmd += 8;
 	goto nextcmd;
 }
@@ -1546,18 +1554,13 @@ void FDC_MC_test4_cfide()
 	EBX += work->CFbaseLBA;
 	CFIDE_select();
 
-	CH = 18;
 	PUSH(DS);
 	PUSH(1 * 8);
 	POP(DS);
-	do {
-		CFIDE_ataread();
-		if (CF != 0)
-			goto err;
-		EBX++;
-		ESI += 512;
-		CH--;
-	} while (!= 0);
+	AL = 18;
+	CFIDE_ataread();
+	if (CF != 0)
+		goto err;
 	POP(DS);
 
 skip:
@@ -2253,6 +2256,7 @@ void FDC_loadFAT_cfide()
 	POP(DS);
 	EBX = 0;
 	ESI = 0x100000;
+	AL = 1;
 	CFIDE_ataread();
 	CH = 0x45; /* E */
 	if (CF != 0)
@@ -2260,6 +2264,7 @@ void FDC_loadFAT_cfide()
 	BX = [DS:ESI + 0x1be + 10];
 	EBX <<= 16;
 	BX = [DS:ESI + 0x1be +  8];
+	AL = 1;
 	CFIDE_ataread(); /* 第一パーティションのブートセクタを読み込み */
 	CH = 0x46; /* F */
 	if (CF != 0)
@@ -2295,7 +2300,10 @@ void FDC_loadFAT_cfide()
 	ESI = 0x100200;
 	LEA(EBP, [EBX + EAX * 2]);
 	do {
+		PUSH(EAX);
+		AL = 1;
 		CFIDE_ataread();
+		POP(EAX);
 		CH = 0x47; /* F */
 		if (CF != 0)
 			goto err;
@@ -2309,6 +2317,7 @@ void FDC_loadFAT_cfide()
 	EDI += 15;
 	EDI /= 16;
 	do {
+		AL = 1;
 		CFIDE_ataread();
 		CH = 0x48; /* F */
 		if (CF != 0)
@@ -3419,7 +3428,7 @@ skip:
 }
 
 void CFIDE_ataread()
-/* 512B固定, EBXにLBA, 転送先はDS:ESI */
+/* 512B固定(ALで可変), EBXにLBA, 転送先はDS:ESI */
 /* DX : 0x170か0x1f0, CLのbit4がdev */
 {
 	FDC_WORK *work == ES:0;
@@ -3428,8 +3437,11 @@ void CFIDE_ataread()
 	if ((unsigned) EDX >= 0xc000)
 		goto pccard;
 
+	PUSH(ESI);
 	PUSH(EDX);
+	PUSH(ECX);
 	PUSH(EAX);
+	CH = AL;
 	EDX |= 0x07;
 	do {
 		IN(AL, DX); /* status */
@@ -3438,7 +3450,7 @@ void CFIDE_ataread()
 	AL = 0x02;
 	EDX += 0x200 - 1; /* 3f6など */
 	OUT(DX, AL);
-	AL = 1;
+	AL = CH;
 	EDX -= 0x200 + 4; /* 1f2など */
 	OUT(DX, AL);
 	EDX++; /* 1f3など */
@@ -3458,51 +3470,55 @@ void CFIDE_ataread()
 	EDX++; /* 1f7など */
 	AL = 0x20;
 	OUT(DX, AL);
-	CFIDE_wait400ns();
+	do {
+		CFIDE_wait400ns();
+		EDX ^= 0x201; /* 3f6など */
+		IN(AL, DX);
+		EDX ^= 0x201; /* 1f7など */
+		do {
+			do {
+				IN(AL, DX);
+				TEST(AL, 0x80);
+			} while (!= 0);
+			TEST(AL, 0x01);
+			if (!= 0)
+				goto err;
+			TEST(AL, 0x08);
+		} while (== 0);
+		EDX &= 0xfffffff0;
+		CL = 512 / 8;
+		do {
+			IN(AX, DX);
+			[DS:ESI + 0] = AX;
+			IN(AX, DX);
+			[DS:ESI + 2] = AX;
+			IN(AX, DX);
+			[DS:ESI + 4] = AX;
+			IN(AX, DX);
+			[DS:ESI + 6] = AX;
+			ESI += 8;
+			CL--;
+		} while (!= 0);
+		EDX |= 0x07; /* 1f7など */
+		CH--;
+	} while (!= 0);
 	EDX ^= 0x201; /* 3f6など */
 	IN(AL, DX);
 	EDX ^= 0x201; /* 1f7など */
-	do {
-		do {
-			IN(AL, DX);
-			TEST(AL, 0x80);
-		} while (!= 0);
-		TEST(AL, 0x01);
-		if (!= 0)
-			goto err;
-		TEST(AL, 0x08);
-	} while (== 0);
-	PUSH(ESI);
-	PUSH(ECX);
-	DX &= 0xfff0;
-	ECX = 512 / 8;
-	do {
-		IN(AX, DX);
-		[DS:ESI + 0] = AX;
-		IN(AX, DX);
-		[DS:ESI + 2] = AX;
-		IN(AX, DX);
-		[DS:ESI + 4] = AX;
-		IN(AX, DX);
-		[DS:ESI + 6] = AX;
-		ESI += 8;
-		ECX--;
-	} while (!= 0);
-	EDX |= 0x206; /* 3f6など */
 	IN(AL, DX);
-	EDX ^= 0x201; /* 1f7など */
-	IN(AL, DX);
-	POP(ECX);
-	POP(ESI);
 	POP(EAX);
+	POP(ECX);
 	POP(EDX);
+	POP(ESI);
 	CLC();
 	return;
 
 err:
 	IN(AL, DX);
 	POP(EAX);
+	POP(ECX);
 	POP(EDX);
+	POP(ESI);
 	STC();
 	return;
 
@@ -3511,8 +3527,11 @@ pccard:
 		poweron();
 	#endif
 	PUSH(ES);
+	PUSH(ESI);
 	PUSH(EDX);
+	PUSH(ECX);
 	PUSH(EAX);
+	CH = AL;
 	MOV(EAX, CS);
 	EAX += 8;
 	ES = AX;
@@ -3527,7 +3546,7 @@ pccard:
 	} while (!= 0);
 	EAX = EBX;
 	(char) [ES:EDX + 0x0e] = 0x02; /* device control */
-	(char) [ES:EDX + 0x02] = 0x01; /* sector count */
+	(char) [ES:EDX + 0x02] = CH; /* sector count */
 	(char) [ES:EDX + 0x03] = AL; /* LBA 0-7 */
 	(char) [ES:EDX + 0x04] = AH; /* LBA 8-15 */
 	EAX >>= 16;
@@ -3536,39 +3555,40 @@ pccard:
 	AH |= 0x40;
 	(char) [ES:EDX + 0x06] = AH; /* LBA 24-27 */
 	(char) [ES:EDX + 0x07] = 0x20; /* command */
-	CFIDE_wait400ns();
-	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
 	do {
+		CFIDE_wait400ns();
+		AL = (char) [ES:EDX + 0x0e]; /* alternate status */
 		do {
-			AL = (char) [ES:EDX + 0x07]; /* status */
-			TEST(AL, 0x80);
+			do {
+				AL = (char) [ES:EDX + 0x07]; /* status */
+				TEST(AL, 0x80);
+			} while (!= 0);
+			TEST(AL, 0x01);
+			if (!= 0)
+				goto err_cf;
+			TEST(AL, 0x08);
+		} while (== 0);
+		CL = 512 / 8;
+		do {
+			AX = [ES:EDX + 0];
+			[DS:ESI + 0] = AX;
+			AX = [ES:EDX + 0];
+			[DS:ESI + 2] = AX;
+			AX = [ES:EDX + 0];
+			[DS:ESI + 4] = AX;
+			AX = [ES:EDX + 0];
+			[DS:ESI + 6] = AX;
+			ESI += 8;
+			CL--;
 		} while (!= 0);
-		TEST(AL, 0x01);
-		if (!= 0)
-			goto err_cf;
-		TEST(AL, 0x08);
-	} while (== 0);
-	PUSH(ESI);
-	PUSH(ECX);
-	ECX = 512 / 8;
-	do {
-		AX = [ES:EDX + 0];
-		[DS:ESI + 0] = AX;
-		AX = [ES:EDX + 0];
-		[DS:ESI + 2] = AX;
-		AX = [ES:EDX + 0];
-		[DS:ESI + 4] = AX;
-		AX = [ES:EDX + 0];
-		[DS:ESI + 6] = AX;
-		ESI += 8;
-		ECX--;
+		CH--;
 	} while (!= 0);
 	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
 	AL = (char) [ES:EDX + 0x07]; /* status */
-	POP(ECX);
-	POP(ESI);
 	POP(EAX);
+	POP(ECX);
 	POP(EDX);
+	POP(ESI);
 	POP(ES);
 	CLC();
 	return;
@@ -3577,7 +3597,9 @@ err_cf:
 	AL = (char) [ES:EDX + 0x07]; /* status */
 skip:
 	POP(EAX);
+	POP(ECX);
 	POP(EDX);
+	POP(ESI);
 	POP(ES);
 	STC();
 	return;
@@ -3601,6 +3623,20 @@ void FDC_MC_WaitNms()
 	FDC_WORK *work == DS:0;
 	int *cmd == DS:EBX, cmd_free == EBP;
 
+	asmout("CMP DWORD DS:[004CH],OFFSET #timer_int"); 
+	if (==) {
+		POP(EAX);
+		EAX = cmd[4];
+		ECX = 0;
+		EDX = 0;
+		work->MC_ptr = (offset) cmd;
+		work->MC_free = cmd_free;
+		POP(ESI);
+		POP(DS);
+		STC();
+		RETF();
+	}
+
 	MOV(EAX, DS);
 	PUSH(FS);
 	FS = AX;
@@ -3620,6 +3656,7 @@ void FDC_MC_WaitNms()
 timer_int:
 	MOV(EAX, CS);
 	PUSH(DS);
+	PUSH(ESI);
 	EAX += 8;
 	DS = AX;	
 
@@ -3629,11 +3666,13 @@ timer_int:
 	(offset) cmd += 8;
 	cmd_free += 2;
 
-	asmout("CALL DWORD PTR DS:[EBX]");
+	asmout("CALL DWORD DS:[EBX]");
+	/* work->jmpvec_timer_EIP = */ asmout("MOV DWORD PTR DS:[004CH],0"); 
 
 	work->MC_ptr = (offset) cmd;
 	work->MC_free = cmd_free;
 
+	POP(ESI);
 	POP(DS);
 	CLC();
 	RETF(); // (far) return;
@@ -3692,7 +3731,7 @@ void CFIDE_atawrite()
 	} while (== 0);
 	PUSH(ESI);
 	PUSH(ECX);
-	DX &= 0xfff0;
+	EDX &= 0xfffffff0;
 	ECX = 512 / 8;
 	do {
 		EAX = [DS:ESI + 0];
@@ -4389,3 +4428,111 @@ void errorfile()
 	POP(DS);
 	return;
 }
+
+void FDC_MC_pcc32resetsub()
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+	unsigned int all_sel == 1 * 8;
+
+	ECX = cmd[4];
+	PUSH(DS);
+	PUSH(all_sel);
+	POP(DS);
+	(char) [DS:ECX] = 0x40;
+	POP(DS);
+	(offset) cmd += 8;
+	cmd_free += 2;
+	JMP(cmd[0]);
+}
+
+void FDC_MC_pcc16resetsub()
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+
+	EDX = cmd[4];
+	EAX = EDX;
+	EAX >>= 16;
+	OUT(DX, AL);
+	EDX++;
+	AL = AH;
+	OUT(DX, AL);
+	(offset) cmd += 8;
+	cmd_free += 2;
+	JMP(cmd[0]);
+}
+
+void PCC_reset()
+// ECX:シグナル番号
+{
+	/* タイマー中にタイマーを設定してはいけなかったかもしれない */
+
+	FDC_WORK *work == DS:0;
+	unsigned int tapi_sel == 12 * 8;
+	unsigned int all_sel == 1 * 8;
+	int *cmd == DS:EBX, cmd_free == EBP;
+
+	PUSHAD();
+	PUSHFD();
+	CLI();
+	(offset) cmd = work->MC_ptr;
+	if ((unsigned) (offset) cmd == 0x0100) {
+		asmout("MOV EAX,FDC_MC_test4_cfide");
+		if (EAX == work->readsecs) {
+			asmout("MOV DWORD DS:[EBX+ 0],FDC_MC_WaitNms");
+			cmd[ 4] = 21;
+			if (work->CFerrflg != 0)
+				goto skip;
+			if (work->cardbus != 0) {
+				/* PCIデバイス */
+				PUSH(DS);
+				PUSH(all_sel);
+				POP(DS);
+				EAX = 0x000d1803;
+				(char) [DS:EAX] = 0x00; /* Interrupt and General Control : mem-card, reset */
+				POP(DS);
+				asmout("MOV EDX,FDC_MC_pcc32resetsub");
+			} else {
+				/* 16bit-PCIC */
+				EAX = work->CFdev2;
+				EAX <<= 6 + 16;
+				EAX |= 0x400303e0;
+				EDX = EAX;
+				PUSH(EAX);
+				EAX >>= 16;
+				OUT(DX, AL);
+				EDX++;
+				AL = 0;
+				OUT(DX, AL);
+				POP(EAX);
+				asmout("MOV EDX,FDC_MC_pcc16resetsub");
+			}
+			cmd[ 8] = EDX;
+			cmd[12] = EAX;
+			asmout("MOV DWORD DS:[EBX+16],FDC_MC_WaitNms");
+			cmd[20] = 21;
+			(offset) cmd += 24;
+		}
+skip:
+		asmout("MOV DWORD DS:[EBX+ 0],FDC_MC_MakeSignal");
+		cmd[ 4] = 2;
+		EAX = work->TAPI_sendsignalofs;
+		ECX = work->TAPI_sendsignalsel;
+		cmd[ 8] = EAX;
+		cmd[12] = ECX;
+		EAX = [SS:ESP + 28 /* ECX */];
+		cmd[16] = 0x1241;
+		cmd[20] = EAX;
+		asmout("MOV DWORD DS:[EBX+24],FDC_MC_Finish");
+
+		(offset) cmd = 0x100;
+		asmout("CALL DWORD DS:[EBX]");
+		work->MC_ptr = (offset) cmd;
+		work->MC_free = cmd_free;
+	}
+	POPFD();
+	POPAD();
+	return;
+}
+

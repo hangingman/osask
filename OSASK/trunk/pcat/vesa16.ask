@@ -1,4 +1,4 @@
-/* "VESA16.ASK" for PC/AT ver.0.2 copyright(C) 2003 ì‡GŽÀ */
+/* "VESA16.ASK" for PC/AT ver.0.3 copyright(C) 2003 ì‡GŽÀ */
 
 segment CODE(USE32, PARA);
 default(code == CODE);
@@ -847,6 +847,7 @@ void GAPI_putmouse()
 {
 	GAPI_WORK *work == ES:0x0000;
 	int *b /* backup */ == ES:EDX, *p /* cursor */ == DS:ESI, *q /* pattern */ == ES:EDI;
+	short *b2 /* backup */ == ES:EDX, *p2 /* cursor */ == DS:ESI, *q2 /* pattern */ == ES:EDI;
 
 	LEA((offset) b, work->backup_buf[0]);
 	(offset) p = work->cursor_addr;
@@ -899,19 +900,28 @@ void GAPI_putmouse()
 		return;
 	}
 	do {
-		CL = work->mouse_width; /* CL‚Í•K‚¸‹ô” */
+		CL = work->mouse_width;
 		PUSH((offset) q);
 		PUSH((offset) p);
 		do {
-			EAX = *p;
-			*b = EAX;
-			EAX &= q[0];
-			(offset) b += 4;
-			EAX ^= q[4];
+			AX = *p2;
+			*b2 = AX;
+			AX &= q2[0];
+			(offset) b += 2;
+			AX ^= q2[4];
+			*p2 = AX;
+			CL--;
+			if (== 0)
+				break;
+			AX = p2[2];
+			*b2 = AX;
+			AX &= q2[2];
+			(offset) b += 2;
+			AX ^= q2[6];
 			(offset) q += 8;
-			*p = EAX;
+			p2[2] = AX;
 			(offset) p += 4;
-			CL -= 2;
+			CL--;
 		} while (!= 0);
 		POP((offset) p);
 		POP((offset) q);
@@ -929,6 +939,7 @@ void GAPI_removemouse()
 {
 	GAPI_WORK *work == ES:0x0000;
 	int *b /* backup */ == ES:EDI, *p /* cursor */ == DS:ESI;
+	short *b2 /* backup */ == ES:EDI, *p2 /* cursor */ == DS:ESI;
 
 	LEA((offset) b, work->backup_buf[0]);
 	(offset) p = work->cursor_addr;
@@ -959,13 +970,13 @@ void GAPI_removemouse()
 	}
 	do {
 		EDX = (offset) p;
-		CL = work->mouse_width; /* •K‚¸‹ô” */
+		CL = work->mouse_width;
 		do {
-			EAX = *b;
-			(offset) b += 4;
-			*p = EAX;
-			(offset) p += 4;
-			CL -= 2;
+			AX = *b2;
+			(offset) b += 2;
+			*p2 = AX;
+			(offset) p += 2;
+			CL--;
 		} while (!= 0);
 		LEA((offset) p, [EDX + EBP]);
 		CH--;
@@ -989,39 +1000,48 @@ void GAPI_clippingmouse()
 	x = work->mx;
 	y = work->my;
 	x &= /* ~0x01 */ 0xfffffffe;
-	work->my0 = y;
-	work->mx0 = x;
 	EAX = x;
 	/* (false) */ if (x < 0) {
 		/* (false) */ if (x <= -18)
 			goto full_outside;
+		x = 0;
+		DL = 16;
 		CL = AL;
 		DL += AL;
 		CL = - CL;
 	}
 	EAX += 18;
 	/* (false) */ if (EAX > work->x2) {
+		EAX = work->mx;
+		x = EAX;
 		EAX -= work->x2;
-		/* (false) */ if ((signed) EAX >= 18)
+		/* (false) */ if ((signed) >= 0)
 			goto full_outside;
-		DL -= AL;
+		x = work->mx;
+		DL = AL;
+		DL =- DL;
+		EAX = work->x2;
 	}
+	work->mx0 = x;
 	work->mx1 = EAX;
 	EAX = y;
 	/* (false) */ if (y < 0) {
-		/* (false) */ if (y <= -18)
+		/* (false) */ if (y <= -16)
 			goto full_outside;
+		y = 0;
 		CH = AL;
 		DH += AL;
 		CH = - CH;
 	}
-	EAX += 18;
+	EAX += 16;
 	/* (false) */ if (EAX >= work->y2) {
 		EAX -= work->y2;
-		/* (false) */ if ((signed) EAX >= 18)
+		/* (false) */ if ((signed) EAX >= 16)
 			goto full_outside;
 		DH -= AL;
+		EAX = work->y2;
 	}
+	work->my0 = y;
 	work->my1 = EAX;
 	(offset) q = 0;
 	work->mouse_width = DL;
@@ -1031,16 +1051,17 @@ void GAPI_clippingmouse()
 			(offset) q += 72;
 			CH--;
 		} while (!= 0);
-		y = 0;
 	}
 	(offset) p = y;
 	IMUL((offset) p, work->linebytes);
 	LEA((offset) p, [EDI /* p */ + ESI * 2 + 0xe0000000]);
-//	LEA((offset) q, work->mouse_pattern[EAX /* q */ + ECX * 4]);
 	TEST((char) work->mx, 0x01);
+//	LEA((offset) q, work->mouse_pattern[EAX /* q */ + ECX * 4]);
 	LEA((offset) q, [EAX /* q */ + ECX * 4 + 1280]);
-	if (!= 0)
-		(offset) q += 1152;
+	if (!= 0) {
+		if (DL == 18)
+			(offset) q += 1152;
+	}
 	LEA((offset) p, [EDI /* p */ + ECX * 2]);
 	work->pattern_addr = (offset) q;
 	work->cursor_addr = (offset) p;

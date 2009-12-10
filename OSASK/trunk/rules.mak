@@ -93,7 +93,8 @@ CFLAGS += -DVMWARE
 endif
 ifeq ($(BOCHS),13)
 #BASE_ASM = base_bch.asm
-BASE_NAS = base_bch.nas
+#BASE_NAS = base_bch.nas
+BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DBOCHS
 CFLAGS += -DBOCHS
 endif

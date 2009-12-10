@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.3.9
+/* "pokon0.c":アプリケーションラウンチャー  ver.4.0
      copyright(C) 2003 小柳雅明, 川合秀実
     stack:4k malloc:88k file:4096k */
 
@@ -54,7 +54,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon39"
+#define POKON_VERSION "pokon40"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.6\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -257,6 +257,7 @@ void job_resize_sub2(int cond);
 void job_execute_cons0(int cond);
 void job_execute_cons1(int cond);
 void job_exec_psf_sub0(int cond);
+int job_chgdev_sub0(int *sbp);
 
 #define	ppj(member)		(PPJ_ ## member)
 
@@ -503,6 +504,13 @@ lib_putstring_ASCII(0x0000, 0, 0, &selwin0[0].subtitle.tbox, 0, 0, "debug!(2)");
 			if (need_wb == 0) {
 				sgg_execcmd0(0x009c, 0x194, i, 0x0000); /* 本当はこの方法は良くない */
 					/* アクセスが競合するかもしれないから、本当ならシステムタスクを経由するべき */
+				#if (defined(PCAT))
+					if (0x0200 <= i && i <= 0x0208) {
+						sgg_format(0x0158, SIGNAL_JSUB);
+						pjob->jsubfunc = job_chgdev_sub0;
+						break;
+					}
+				#endif
 				sgg_format(0x0114, SIGNAL_RELOAD_FAT_COMPLETE); /* INVALID_DISKCACHE */
 				break;
 			}
@@ -897,6 +905,16 @@ void job_exec_psf_sub0(int cond)
 	pjob->now = 0;
 	return;
 }
+
+#if (defined(PCAT))
+
+int job_chgdev_sub0(int *sbp)
+{
+	sgg_format(0x0114, SIGNAL_RELOAD_FAT_COMPLETE); /* INVALID_DISKCACHE */
+	return 1; /* siglen */
+}
+
+#endif
 
 void poko_exec_cmd(const char *p)
 {
@@ -2027,6 +2045,8 @@ listup:
 				exec_or_open:
 					if (cur < 0 /* ファイルが1つもない */)
 						break;
+					if (pjob->now)
+						break; /* ダブルクリック対策 */
 					if (win != selwin) { /* not pokon */
 						/* ファイルをロードして、仮想モジュールを生成し、
 							スロットを設定し、シグナルを発する */

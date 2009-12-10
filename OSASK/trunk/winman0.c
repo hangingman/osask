@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.1
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.3
 		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
     stack:8k malloc:4208k file:4096k */
 
@@ -3380,13 +3380,27 @@ void job_setvgamode1(const int cmd, const int handle)
 	return;
 }
 
+#if (defined(PCAT))
+
+struct STR_VBEMODE *vbe_modeinfo(int mode)
+{
+	struct STR_VBEMODE *p;
+	for (p = vbelist; p->mode; p++) {
+		if (mode == p->mode)
+			return p;
+	}
+	return NULL;
+}
+
+#endif
+
 void job_setvgamode2()
 {
+	struct WM0_WINDOW *win;
 	#if (defined(TOWNS))
 		#if (defined(CLGD543X))
 			if (job.int0 < 0x100) {
 				/* 全部のウィンドウの座標範囲を確認(はみ出したら画面を切り替えない) */
-				struct WM0_WINDOW *win;
 				if (win = top) {
 					do {
 						if (/* win->x1 > TWVSW || */ win->y1 > 512 * 1024 / TWVSW - RESERVELINE1) {
@@ -3431,6 +3445,9 @@ void job_setvgamode2()
 	#endif
 
 	#if (defined(PCAT))
+		struct STR_VBEMODE *p;
+		int drv, vram, x2_old = x2, y2_old = y2, mode = job.int0 & 0x3fff;
+
 		#if (defined(BOCHS))
 			x2 = 640; /* Bochsは仮想画面が使えない */
 			y2 = 480;
@@ -3450,6 +3467,34 @@ void job_setvgamode2()
 			init_screen(x2, y2);
 			job_general1();
 			return;
+		}
+		if (mode != 0x0012 && mode != 0x0102) {
+			struct STR_VBEMODE *p = vbe_modeinfo(mode);
+			int drv, vram;
+			if (p == NULL)
+				goto skip;
+			drv = p->flag;
+			vram = p->linear;
+			if (drv >= 4)
+				goto skip;
+			if (drv != 0 && vbeoverride[drv - 1] != 0)
+				vram = vbeoverride[drv - 1];
+			if (vram == 0)
+				goto skip;
+			x2 = p->x_res;
+			y2 = p->y_res;
+		}
+		if (win = top) {
+			do {
+				if (win->x1 > x2 || win->y1 > y2 - RESERVELINE1) {
+skip:
+					x2 = x2_old;
+					y2 = y2_old;
+					job_general1();
+					sgg_wm0_putmouse(mx = mxx, my);
+					return;
+				}
+			} while ((win = win->down) != top);
 		}
 		job.func = &job_setvgamode3;
 		sgg_wm0_setvideomode(job.int0 /* mode */, 0x0014);
@@ -3481,32 +3526,21 @@ void job_setvgamode3(const int sig, const int result)
 		struct STR_VBEMODE *p;
 		struct WM0_WINDOW *win;
 		if (mode != 0x0012 && mode != 0x0102) {
-			for (p = vbelist; p->mode; p++) {
-				if (mode == p->mode) {
-					drv = p->flag;
-					vram = p->linear;
-					if (drv >= 4)
-						goto skip;
-					if (drv != 0 && vbeoverride[drv - 1] != 0)
-						vram = vbeoverride[drv - 1];
-					if (vram == 0)
-						goto skip;
-					/* linearを伝達 */
-					sgg_execcmd0(0x0088, 0x0001, vram, 0x0000);
-					x2 = p->x_res;
-					y2 = p->y_res;
-					break;
-				}
-			}
-		}
-		/* 全部のウィンドウの座標範囲を確認(はみ出したら画面を戻す) */
-		if (win = top) {
-			do {
-				if (win->x1 > x2 || win->y1 > y2 - RESERVELINE1) {
-					sgg_wm0_setvideomode(job.int0 = oldmode, 0x0014);
-					return;
-				}
-			} while ((win = win->down) != top);
+			p = vbe_modeinfo(mode);
+			if (p == NULL)
+				goto skip;
+			drv = p->flag;
+			vram = p->linear;
+			if (drv >= 4)
+				goto skip;
+			if (drv != 0 && vbeoverride[drv - 1] != 0)
+				vram = vbeoverride[drv - 1];
+			if (vram == 0)
+				goto skip;
+			x2 = p->x_res;
+			y2 = p->y_res;
+			/* linearを伝達 */
+			sgg_execcmd0(0x0088, 0x0001, vram, 0x0000);
 		}
 		if (mxx > x2 - 1 || my > y2 - 16) {
 			mxx = my = 1;
@@ -3548,6 +3582,13 @@ void job_setvgamode3(const int sig, const int result)
 	// VESAのノンサポートなどにより、画面モード切り換え失敗
 skip:
 //	job.func = job_setvgamode3;
+	#if (defined(BOCHS))
+		x2 = 640; /* Bochsは仮想画面が使えない */
+		y2 = 480;
+	#else
+		x2 = 800;
+		y2 = 600;
+	#endif
 	sgg_wm0_setvideomode(job.int0 = oldmode, 0x0014);
 	return;
 }

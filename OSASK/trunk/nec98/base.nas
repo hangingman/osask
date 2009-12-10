@@ -1,4 +1,4 @@
-;	"boot.nas" ver.2.5
+;	"boot.nas" ver.2.6
 ;	OSASK/NEC98用のブートプログラム
 ;	Copyright(C) 2003 H.Kawai (川合秀実)
 
@@ -31,7 +31,7 @@ header:
 	DW	0 ; DOS_CS0 (entry-seg, relative)
 	DW	0x001e ; relocation table offset
 	DW	0 ; not use overlay
-	DW	1 ; I don't know.
+	DW	1 ; "I don't know."
 
 ; <relocation table image> 0x001e - 0x01ff
 ; org 0x001e

@@ -1,4 +1,4 @@
-/* "init.ask" ver.3.3 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
+/* "init.ask" ver.3.4 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -530,6 +530,31 @@ void far Init()
 		CALLFAR0(papi_sel);
 //		ESP += 112;
 		ESP += 40;
+
+		/* mapping PC-Card Window */
+
+		PUSH(EAX);
+		EBX = 0xc0000000;
+		IN(AX, 0x0030); /* CPU識別レジスタ */
+		AL &= 0x07;
+		CMP(AL, 0x03);
+		if (==) /* i386SX */
+			EBX = 0x00d00000;
+		POP(EAX);
+		PUSH(0);
+		PUSH((int) ECX /* addr64(high) */);
+		PUSH((int) EBX /* addr64(low) */);
+		PUSH((int) ECX /* offset64(high) */);
+		PUSH((int) ECX /* offset64(low) */);
+		PUSH((int) ECX /* pageset */);
+		PUSH((int) 0xe03ff000 /* linear */);
+		PUSH((int) 4 * 1024 /* size */);
+		PUSH((int) EAX /* opt(PCD, present, R/W, user) */);
+		PUSH((int) ESI /* cmd(mapping) */);
+		EBX = ESP;
+		CALLFAR0(papi_sel);
+		ESP += 40;
+
 	#endif
 
 	#if (defined(NEC98))
@@ -1566,6 +1591,7 @@ void far Init()
 	if (ECX != 0) {
 		PUSH(EBX); /* EBX == 0 */
 		PUSH(ECX);
+		(char) [SS:ESP + 1] &= 0x7f;
 		PUSH(0x0194 /* change device */);
 		PUSH(0x0108 /* FDC_diskchange */);
 		EBX = ESP;
@@ -1573,7 +1599,6 @@ void far Init()
 		POP(EAX);
 		POP(EAX);
 		POP(EAX);
-	//	POP(EAX); /* EAX = 0 */
 		#if (defined(PCAT))
 			PUSH((int) 0x000c /* FDD motor off */);
 			PUSH((int) 0x0124 /* FDC motorcontrol */);
@@ -1596,8 +1621,51 @@ void far Init()
 	//		POP(EBX);
 	//		POP(EBX);
 		#endif
-		POP(EAX); /* EAX = 0 */
-		EBX = 0;
+		TEST(CH, 0x80);
+		if (!= 0) {
+			PUSH(0x007f);
+			PUSH(0x0198 /* PC-Card reset */);
+			EBX = ESP;
+			CALLFAR0(fdcdrive_sel);
+			POP(EAX);
+			POP(EAX);
+			for (;;) {
+				msgdw = 0;
+				do {
+					EAX = msg[0];
+					if (EAX == 0) {	// terminate
+						break;
+					} else if (EAX == 1) {	// rewind
+						msgdw += msg[4];
+						(offset) msg = 0;
+						continue;
+					} else if (EAX == 0x7f) {
+						(offset) msg += 4;
+						msgdw++;
+						goto next_7f;
+					} else {
+						INT(0x03);
+					}
+				} while (msgdw < 8);
+				PUSH(msgdw); /* signals */
+				PUSH(0); /* delta-nest(割り込みを使わないから、nestは変更しない), Llv0(sleep) */
+				PUSH((int) 0x010c); /* TAPI_AddNestSleep */
+				EBX = ESP;
+				CALLFAR0(tapi_sel);
+				ESP += 12;
+			}
+	next_7f:
+			EAX = 0;
+			PUSH(EAX); /* eoc */
+			PUSH(msgdw); /* signals */
+			PUSH(0xff00); /* delta-nest(割り込みを使わないから、nestは変更しない), Llv nochange */
+			PUSH((int) 0x010c); /* TAPI_AddNestSleep */
+			EBX = ESP;
+			CALLFAR0(tapi_sel);
+			ESP += 16;
+		}
+		POP(EBX); /* EBX = 0 */
+		EAX = 0;
 	}
 
 	#if (defined(PCAT))
@@ -2732,6 +2800,34 @@ EDX = 0x00300000; /* 3MB */
 				EBX = ESP;
 				CALLFAR0(fdcdrive_sel);
 				ESP += 36;
+
+			} else if (EAX == 0x0158) {
+				/* PC-card reset */
+				/* cmd, opt, 完了シグナル(lenはシグナルの第一dwから判断) */
+
+				/* 完了シグナルを受けっとったときのためのバッファを用意 */
+				LEA(EBP, work->cmd0100_buf[4]);
+				ECX = msg[8];
+				(offset) msg += 12;
+				msgdw += 3;
+				[SS:EBP - 4] = ECX;
+				ECX &= 0x000f;
+				do {
+					EAX = *msg;
+					(offset) msg += 4;
+					[SS:EBP] = EAX;
+					EBP += 4;
+					msgdw++;
+					ECX--;
+				} while (!= 0);
+
+				PUSH((int) ECX);
+				PUSH((int) 0x8000); /* 完了シグナル */
+				PUSH((int) 0x0198);
+
+				EBX = ESP;
+				CALLFAR0(fdcdrive_sel);
+				ESP += 12;
 
 			} else if (EAX == 0xffffff00) {
 system_reset:

@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" for TOWNS ver.2.2 copyright(C) 2003 H.Kawai(川合秀実)
+// "fdcdrv0.ask" for TOWNS ver.2.3 copyright(C) 2003 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -1324,18 +1324,13 @@ void FDC_MC_test4_cf()
 	EBX += work->CFbaseLBA;
 	selectcf();
 
-	CH = 16;
 	PUSH(DS);
 	PUSH(1 * 8);
 	POP(DS);
-	do {
-		readcf();
-		if (CF != 0)
-			goto err;
-		EBX++;
-		ESI += 512;
-		CH--;
-	} while (!= 0);
+	AL = 16;
+	readcf();
+	if (CF != 0)
+		goto err;
 	POP(DS);
 
 skip:
@@ -1347,9 +1342,9 @@ skip:
 
 	(offset) cmd = work->MC_ptr;
 	if ((unsigned) (offset) cmd == 0x0100) {
-		asmout("MOV DWORD PTR DS:[EBX+ 0],OFFSET FDC_MC_WaitNms");
+		asmout("MOV DWORD DS:[EBX+ 0],FDC_MC_WaitNms");
 		cmd[ 4] = 2;
-		asmout("MOV DWORD PTR DS:[EBX+ 8],OFFSET FDC_MC_MakeSignal");
+		asmout("MOV DWORD DS:[EBX+ 8],FDC_MC_MakeSignal");
 		cmd[12] = 2;
 		EAX = work->TAPI_sendsignalofs;
 		ECX = work->TAPI_sendsignalsel;
@@ -1411,9 +1406,9 @@ void FDC_MC_test6_cf()
 
 	(offset) cmd = work->MC_ptr;
 	if ((unsigned) (offset) cmd == 0x0100) {
-		asmout("MOV DWORD PTR DS:[EBX+ 0],OFFSET FDC_MC_WaitNms");
+		asmout("MOV DWORD DS:[EBX+ 0],FDC_MC_WaitNms");
 		cmd[ 4] = 2;
-		asmout("MOV DWORD PTR DS:[EBX+ 8],OFFSET FDC_MC_MakeSignal");
+		asmout("MOV DWORD DS:[EBX+ 8],FDC_MC_MakeSignal");
 		cmd[12] = 2;
 		EAX = work->TAPI_sendsignalofs;
 		ECX = work->TAPI_sendsignalsel;
@@ -1422,10 +1417,10 @@ void FDC_MC_test6_cf()
 		EAX = [SS:ESP + 4 /* EDI */];
 		cmd[24] = 0x1241;
 		cmd[28] = EAX;
-		asmout("MOV DWORD PTR DS:[EBX+32],OFFSET FDC_MC_Finish");
+		asmout("MOV DWORD DS:[EBX+32],FDC_MC_Finish");
 
 		(offset) cmd = 0x100;
-		asmout("CALL DWORD PTR DS:[EBX]");
+		asmout("CALL DWORD DS:[EBX]");
 		work->MC_ptr = (offset) cmd;
 		work->MC_free = cmd_free;
 	}
@@ -1997,6 +1992,7 @@ void FDC_loadFAT_cf()
 	POP(DS);
 	EBX = 0;
 	ESI = 0x100000;
+	AL = 1;
 	readcf();
 	CH = 0x45; /* E */
 	if (CF != 0)
@@ -2004,6 +2000,7 @@ void FDC_loadFAT_cf()
 	BX = [DS:ESI + 0x1be + 10];
 	EBX <<= 16;
 	BX = [DS:ESI + 0x1be +  8];
+	AL = 1;
 	readcf(); /* 第一パーティションのブートセクタを読み込み */
 	CH = 0x46; /* F */
 	if (CF != 0)
@@ -2039,7 +2036,10 @@ void FDC_loadFAT_cf()
 	ESI = 0x100200;
 	LEA(EBP, [EBX + EAX * 2]);
 	do {
+		PUSH(EAX);
+		AL = 1;
 		readcf();
+		POP(EAX);
 		CH = 0x47; /* F */
 		if (CF != 0)
 			goto err;
@@ -2053,6 +2053,7 @@ void FDC_loadFAT_cf()
 	EDI += 15;
 	EDI /= 16;
 	do {
+		AL = 1;
 		readcf();
 		CH = 0x48; /* F */
 		if (CF != 0)
@@ -3063,6 +3064,20 @@ void FDC_MC_WaitNms()
 	FDC_WORK *work == DS:0;
 	int *cmd == DS:EBX, cmd_free == EBP;
 
+	asmout("CMP DWORD DS:[004CH],#timer_int"); 
+	if (==) {
+		POP(EAX);
+		EAX = cmd[4];
+		ECX = 0;
+		EDX = 0;
+		work->MC_ptr = (offset) cmd;
+		work->MC_free = cmd_free;
+		POP(ESI);
+		POP(DS);
+		STC();
+		RETF();
+	}
+
 	MOV(EAX, DS);
 	PUSH(FS);
 	FS = AX;
@@ -3072,7 +3087,7 @@ void FDC_MC_WaitNms()
 	work->time_add0 = EAX;
 	work->time_add4 = ECX;
 	work->time_add8 = ECX;
-	/* work->jmpvec_timer_EIP = */ asmout("MOV DWORD PTR DS:[004CH],OFFSET #timer_int"); 
+	/* work->jmpvec_timer_EIP = */ asmout("MOV DWORD DS:[004CH],#timer_int"); 
 	EBX = /* (offset) &work->timer_cmd1 */ 0x0028;
 	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
 	POP(EBX);
@@ -3082,6 +3097,7 @@ void FDC_MC_WaitNms()
 timer_int:
 	MOV(EAX, CS);
 	PUSH(DS);
+	PUSH(ESI);
 	EAX += 8;
 	DS = AX;	
 
@@ -3091,11 +3107,13 @@ timer_int:
 	(offset) cmd += 8;
 	cmd_free += 2;
 
-	asmout("CALL DWORD PTR DS:[EBX]");
+	asmout("CALL DWORD DS:[EBX]");
+	/* work->jmpvec_timer_EIP = */ asmout("MOV DWORD PTR DS:[004CH],0"); 
 
 	work->MC_ptr = (offset) cmd;
 	work->MC_free = cmd_free;
 
+	POP(ESI);
 	POP(DS);
 	CLC();
 	RETF(); // (far) return;
@@ -3135,7 +3153,7 @@ skip:
 }
 
 void readcf()
-/* 512B固定, EBXにLBA, 転送先はDS:ESI */
+/* 512B固定(ALで可変になった), EBXにLBA, 転送先はDS:ESI */
 /* DX : 0x170か0x1f0, CLのbit4がdev */
 {
 	FDC_WORK *work == ES:0;
@@ -3145,8 +3163,11 @@ void readcf()
 		poweron();
 	#endif
 	PUSH(ES);
+	PUSH(ESI);
 	PUSH(EDX);
+	PUSH(ECX);
 	PUSH(EAX);
+	CH = AL;
 	MOV(EAX, CS);
 	EAX += 8;
 	ES = AX;
@@ -3160,7 +3181,7 @@ void readcf()
 	} while (!= 0);
 	EAX = EBX;
 	(char) [ES:EDX + 0x0e] = 0x02; /* device control */
-	(char) [ES:EDX + 0x02] = 0x01; /* sector count */
+	(char) [ES:EDX + 0x02] = CH; /* sector count */
 	(char) [ES:EDX + 0x03] = AL; /* LBA 0-7 */
 	(char) [ES:EDX + 0x04] = AH; /* LBA 8-15 */
 	EAX >>= 16;
@@ -3169,39 +3190,40 @@ void readcf()
 	AH |= 0x40;
 	(char) [ES:EDX + 0x06] = AH; /* LBA 24-27 */
 	(char) [ES:EDX + 0x07] = 0x20; /* command */
-	CFIDE_wait400ns();
-	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
 	do {
+		CFIDE_wait400ns();
+		AL = (char) [ES:EDX + 0x0e]; /* alternate status */
 		do {
-			AL = (char) [ES:EDX + 0x07]; /* status */
-			TEST(AL, 0x80);
+			do {
+				AL = (char) [ES:EDX + 0x07]; /* status */
+				TEST(AL, 0x80);
+			} while (!= 0);
+			TEST(AL, 0x01);
+			if (!= 0)
+				goto err_cf;
+			TEST(AL, 0x08);
+		} while (== 0);
+		CL = 512 / 8;
+		do {
+			AX = [ES:EDX + 0];
+			[DS:ESI + 0] = AX;
+			AX = [ES:EDX + 0];
+			[DS:ESI + 2] = AX;
+			AX = [ES:EDX + 0];
+			[DS:ESI + 4] = AX;
+			AX = [ES:EDX + 0];
+			[DS:ESI + 6] = AX;
+			ESI += 8;
+			CL--;
 		} while (!= 0);
-		TEST(AL, 0x01);
-		if (!= 0)
-			goto err_cf;
-		TEST(AL, 0x08);
-	} while (== 0);
-	PUSH(ESI);
-	PUSH(ECX);
-	ECX = 512 / 8;
-	do {
-		AX = [ES:EDX + 0];
-		[DS:ESI + 0] = AX;
-		AX = [ES:EDX + 0];
-		[DS:ESI + 2] = AX;
-		AX = [ES:EDX + 0];
-		[DS:ESI + 4] = AX;
-		AX = [ES:EDX + 0];
-		[DS:ESI + 6] = AX;
-		ESI += 8;
-		ECX--;
+		CH--;
 	} while (!= 0);
 	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
 	AL = (char) [ES:EDX + 0x07]; /* status */
-	POP(ECX);
-	POP(ESI);
 	POP(EAX);
+	POP(ECX);
 	POP(EDX);
+	POP(ESI);
 	POP(ES);
 	CLC();
 	return;
@@ -3210,7 +3232,9 @@ err_cf:
 	AL = (char) [ES:EDX + 0x07]; /* status */
 skip:
 	POP(EAX);
+	POP(ECX);
 	POP(EDX);
+	POP(ESI);
 	POP(ES);
 	STC();
 	return;

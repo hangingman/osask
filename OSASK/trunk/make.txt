@@ -2,6 +2,8 @@
 2002.8.5 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
+Linux/Free BSDでのコンパイル方法は、OsaskWikiを御覧下さい。
+http://remo.s10.xrea.com/osawiki/pukiwiki.php
 
 0. document.txt の２．コンパイル＆アセンブル方法を参照して
 必要なファイルをPATH の通ったディレクトリに置きます。

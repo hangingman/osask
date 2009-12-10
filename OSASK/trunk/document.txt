@@ -1,21 +1,24 @@
-"src39"の使い方の説明                      2003/07/30 川合秀実
+"src40"の使い方の説明                      2003/08/29 川合秀実
 
 １．これは何か？
 
-  "src39"は、OSASK ver.3.9の「OSASK.EXE」を生成するのに必要なモジュールのソース
+  "src40"は、OSASK ver.4.0の「OSASK.EXE」を生成するのに必要なモジュールのソース
 プログラムのセットです。ただし、以前のバージョンのものをそのまま利用しているも
 のついては、このアーカイブに含まれていません。OSASK.EXEを生成するのに必要なモジ
 ュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.NAS     : ver.2.5
-    INIT.ASK     : ver.3.2
-    POKON0.C     : ver.3.9
+    BASE.NAS     : ver.2.6
+    INIT.ASK     : ver.3.4
+    POKON0.C     : ver.4.0
+    WINMAN0.C    : ver.3.2
     PCAT/
-      FDCDRV0.BIN  : ver.2.2
+      FDCDRV0.BIN  : ver.2.3
+      VESA16.ASK   : ver.0.3
+      VESA32.ASK   : ver.0.2
     TOWNS/
-      FDCDRV0.BIN  : ver.2.2
+      FDCDRV0.BIN  : ver.2.3
 
   (以前のバージョンのものを利用するもの)
 
@@ -27,7 +30,6 @@
     DECODE0.ASK  : ver.1.0
     PIONEER0.ASK : ver.3.1
     VGADRV0.ASK  : ver.1.9
-    WINMAN0.C    : ver.3.1
     BMP2BETA.NAS : ver.0.1
     KJPEGLS2.C   : ver.0.0
     SYSGG00.LIB  : ver.0.8
@@ -35,10 +37,7 @@
     IBMANK0.TXT  : ver.0.4
     PCAT/
       OSALINK1.OPT : ver.0.1
-      VGADRV0.ASK  : ver.1.7
       VESA8.ASK    : ver.0.1
-      VESA16.ASK   : ver.0.2
-      VESA32.ASK   : ver.0.1
     TOWNS/
       OSALINK1.OPT : ver.0.0
       KEYMOS0.BIN  : ver.0.4
@@ -59,10 +58,6 @@
 
 tolset05はOSASKの開発者向けページからダウンロードできます。
 
-  BASE.EXEの生成は、以下のように行います。
-
->nask base.nas base.exe base.lst
-
   SYSGG00.LIBの生成は、MAKEFILEで行いました。MAKEFILEを読んでコンパイル・アセン
 ブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成のみに
 必要な専用ライブラリです。
@@ -79,7 +74,7 @@ cnv0のオプション指定では、-lと-sを指定します。cpp0はプリプロセッサです。オプシ
 MODE」と「-DCLGD543X」を書き加えたときに一般公開版になります。これらを省略すれ
 ば多少コンパクトにはなりますが、いくつかの機能が利用できなくなります。
 
->cpp0 -I. -P -DPCAT -DWIN9X init.ask
+>cpp0 -I. -P -DPCAT -DWIN9X -o init.i init.ask
 >aska init.i init.3as
 >naskcnv0 -l -s init.3as init.nas
 >nask init.nas init.bin init.lst
@@ -104,6 +99,11 @@ et05内のdoc_link.txtで説明されている方法でリンクします。ただしAT互換機版を生成
 でしょう。それはbim2bin3の-osacmpモードで行ないます。具体的な手順はtolset05内の
 doc_link.txtでの説明を参照してください。
 
+  BASE.EXEの生成は、以下のように行います。
+
+>cpp0 -I. -P -DPCAT -DWIN9X -o base.i base.nas
+>nask base.i base.exe base.lst
+
   OSALINK1.OPTに書かれている全てのファイルが用意できたら、osalink1でそれらをま
 とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset05内のdoc_nask.txtを
 参照してください。
@@ -111,14 +111,11 @@ doc_link.txtでの説明を参照してください。
   またVMware対応バイナリを生成する場合は、-DPCATに加えて-DVMWAREを指定してくだ
 さい。
 
-  Bochs 1.3対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に、
-base.nasを以下の指示にしたがって書き換える必要があります。
-
-・119～120行目のセミコロンだけを削除する。
-・240行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
+  Bochs 1.3対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSを指定してくださ
+い。
 
   Bochs 1.2.1対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指定
-した上に、base.nasをBochs 1.3と同様に書き換えてください。
+してください。
 
 ３．説明＆注意点
 
