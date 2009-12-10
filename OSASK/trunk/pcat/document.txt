@@ -1,29 +1,29 @@
-"sbcm11"の使い方の説明                      2001/03/23 川合秀実
+"sbat11"の使い方の説明                      2001/03/21 川合秀実
 
 １．これは何か？
 
-  "sbcm11"は、OSASK ver.1.1の「OSASK11.EXE」を生成するのに必要なモジュールのソ
-ースプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのもの
-をそのまま利用しているものや機種によってことなる部分については、このアーカイブ
+  "sbat11"は、OSASK/AT ver.1.1の「OSASK11.EXE」を生成するのに必要なモジュールの
+ソースプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのも
+のをそのまま利用しているものや機種によらず共通の部分については、このアーカイブ
 に含まれていません。OSASK11.EXEを生成するのに必要なモジュールのバージョンを書い
 ておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.EXE     : ver.1.11 (BASE.EXE自身は機種に依存するので、機種別のアーカイ
-    OSALINK0.OPT : ver.1.10  ブ内にあります)
-    PIONEER0.BIN : ver.1.0
-    WINMAN0.BIN  : ver.0.7  (WINMAN0.BIN自身は機種に依存するので、機種別のアー
-    POKON0.BIN   : ver.1.0   カイブ内にあります)
-    SYSGG00.LIB  : ver.0.2
+    BASE.EXE     : ver.1.10 (BASEのソースは機種に依存しないので、共通のアーカイ
+    VGADRV0.BIN  : ver.0.4   ブ内にあります)
+    WINMAN0.BIN  : ver.0.7  (WINMAN0のソースは機種に依存しないので、共通のアー
+                             カイブ内にあります)
 
   (sbat10に含まれているもの)
 
-    TAPI0.BIN    : ver.0.1
+    KEYMOS0.BIN  : ver.0.3
+    FDCDRV0.BIN  : ver.0.9
 
   (srcat09、binat09に含まれているもの)
 
-    ANKFONT0.BIN : ver.0.0
+    TIMERDRV.BIN : type-A ver.0.8
+    DECODE0.BIN  : ver.0.8
 
   このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
 いるだけです。
@@ -37,24 +37,12 @@
 ・exe2bin0
 ・MASM version 6.14.8444
 ・Microsoft (R) Segmented Executable Linker  Version 5.60.339 Dec  5 1994
-・lcc-win32 (LCC.EXEのタイムスタンプ2000/09/10、サイズ438,304バイト)
-・Microsoft (R) Incremental Linker Version 5.12.8078
-・gg00lib2
-・stdlib1
 
 これらの入手先・使い方の説明は、大半がOSASKの開発者向けページにあり、その他のも
-のについては、masmcnv2、exe2bin0に付属のドキュメントを参照してください。
-
-  BASE.EXEの生成は、MAKEBASE.BATで行いました。MAKEBASE.BATを読んでアセンブル手
-順を把握してください。TOWNS版を生成する時は、少し書き換える必要があります。
+のについては、masmcnv2に付属のドキュメントを参照してください。
 
   拡張子が.ASKのものは、ASKA→masmcnv2→exe2bin0で.BINファイルにします。exe2bin
 0のオプション指定では、-sでも-tでもなく、-nを指定します。
-
-  拡張子が.Cのものは、exe2bin0で説明されている方法で生成できます。ただし、AT互
-換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を
-生成する時は、LCCに「-DTOWNS」オプションをつけてください。ライブラリーにSYSGG00
-を使う必要があることにも注意してください。
 
 ３．説明＆注意点
 

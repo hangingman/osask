@@ -12,7 +12,7 @@ struct SGG_FILELIST {
 };
 
 struct SGG_WINDOW {
-	int image[64 / 4];
+	int image[32 / 4];
 	int handle;
 };
 

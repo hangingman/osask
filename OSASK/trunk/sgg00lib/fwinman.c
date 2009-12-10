@@ -1,17 +1,15 @@
-// "fwinman.c" copyright(C) 2001 H.Kawai(êÏçáèGé¿)
-
 // for winman0
 
 #include <sysgg00.h>
 
 #define	WINSTR_STATUS		 0 / 4
+#define	WINSTR_USERID		 4 / 4
 #define	WINSTR_SIGNALBASE	 8 / 4
 #define	WINSTR_SIGNALEBOX	12 / 4
 #define	WINSTR_XSIZE		16 / 4
 #define	WINSTR_YSIZE		20 / 4
-#define	WINSTR_X0		24 / 4
-#define	WINSTR_Y0		28 / 4
-#define	WINSTR_USERID		32 / 4
+#define	WINSTR_X0			24 / 4
+#define	WINSTR_Y0			28 / 4
 
 void sgg_wm0s_movewindow(struct SGG_WINDOW *window, const int x, const int y)
 // wm0sÇÕÅA"winman0signal"ÇÃó™

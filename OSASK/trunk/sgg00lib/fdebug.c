@@ -1,5 +1,3 @@
-// "fdebug.c" copyright(C) 2000 H.Kawai(ì‡GÀ)
-
 // for debug
 
 #include <sysgg00.h>

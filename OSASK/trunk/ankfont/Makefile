@@ -24,10 +24,11 @@ DISTDIR = ..
 # prevent automatic deletion of an intermediate file
 .SECONDARY : $(SRC:.ask=.3as) $(SRC:.ask=.asm)
 
+$(DISTDIR)\$(TARGET) : $(TARGET)
+	copy $(TARGET) $(DISTDIR)
+
 $(TARGET) : $(SRC) Makefile
 	txt2bin.exe
-	copy $@ $(DISTDIR)
 
 clean:
-	del $(DISTDIR)\$(TARGET)
 	del $(TARGET)

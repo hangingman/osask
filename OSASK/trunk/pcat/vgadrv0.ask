@@ -1,4 +1,4 @@
-// "VGADRV0.ASK" ver.0.3 copyright(C) 2001 川合秀実, ODP
+// "VGADRV0.ASK" ver.0.4 copyright(C) 2001 川合秀実, ODP
 
 segment GapiMdl(USE32, PARA);
 
@@ -76,7 +76,7 @@ syscmd:
 	CX += 8;
 	ES = CX;
 
-/*
+#if 0
 	// for debug
 	PUSHFD();
 	POP(EAX);
@@ -85,9 +85,9 @@ syscmd:
 		STI();
 		INT(0x03);
 	}
-*/
+#endif
 
-/*
+#if 0
 	// taskcountを取得
 	CLI();
 	EAX = work->nextcount;
@@ -95,7 +95,7 @@ syscmd:
 	EAX++;
 	work->nextcount = EAX;
 	STI();
-*/
+#endif
 
 asmout("next_command:");
 
@@ -772,7 +772,7 @@ void near GAPI_init()
 	work->mouseflag = /* 0 */ CL;
 	ECX++;
 	work->nextcount = /* 1 */ ECX;
-/*
+#if 0
 	EAX = syswork_sel;
 	DS = AX;
 	EAX = [DS:32 + bootseg_ent + 12];
@@ -781,7 +781,7 @@ void near GAPI_init()
 	(unsigned int) ECX >>= 4; // stack000_ent
 	workES->V86CS = AX;
 	workES->V86SS = CX;
-*/
+#endif
 
 	STI();
 //	EBP++; // EBP = 1;
@@ -939,6 +939,7 @@ void near GAPI_resetdevice()
 		(offset) pt += 3;
 		ECX--;
 	} while (!= 0);
+	STI();
 
 	cmd[4] = 0xffffffff; // 終了
 	(offset) cmd += 12;
@@ -953,7 +954,7 @@ palette_table: // Red, Green, Blue
 	asmout("DB 000H, 000H, 0FFH,   0FFH, 000H, 0FFH,   000H, 0FFH, 0FFH,   0FFH, 0FFH, 0FFH");
 }
 
-/*
+#if 0
 void near GAPI_setmode()
 // 001c, 0020, priority, mode(00, 12, 92, 6a, ea, 0102, 8102)
 {
@@ -966,7 +967,7 @@ void near GAPI_disconnect()
 {
 
 }
-*/
+#endif
 
 void near GAPI_error()
 {
@@ -1541,7 +1542,7 @@ skip_imul:
 	return;
 }
 
-/*
+#if 0
 
 // 16ライン以外のマウスカーソルルーチン
 
@@ -1595,6 +1596,6 @@ GAPI_mouse_erasesub_EDX	proc	near
 
 GAPI_mouse_erasesub_EDX	endp
 
-*/
+#endif
 
 

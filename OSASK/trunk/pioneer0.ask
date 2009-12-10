@@ -1,4 +1,4 @@
-// "pioneer0":ぐいぐいの標準ライブラリ ver.0.9
+// "pioneer0":ぐいぐいの標準ライブラリ ver.1.0
 //  copyright(C) 2001 H.Kawai (川合秀実)
 
 // これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -494,9 +494,21 @@ void near cmd020()
 
 void near cmd024()
 // windowクローズ
+// これにつながっていた全てのコンポーネントも使えなくなる
 {
-	// 全く未完成
-	INT(0x03);
+	WORK *work == SS:EBP;
+	int *cmd == DS:ESI;
+
+	WINDOW *cmd0024_win == DS:EDI;
+	(offset) cmd0024_win = cmd[ 8]; // work_ptr
+	(offset) cmd += 12;
+	PUSH((int) 0 /* EOC */);
+	PUSH(cmd0024_win->slot);
+	PUSH((int) 0x0104 /* cmd-no */);
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 12;
+	asmout("JMP nextcmd");
 }
 
 void near cmd028()

@@ -41,7 +41,7 @@ void near KeyIntDrv_Normal();
 
 void far keyboard_syscmd()
 {
-	asmout("include ./inc.asm");
+	asmout("include ../inc.asm");
 
 	int *cmd == FS:EBX;
 

@@ -1,5 +1,3 @@
-// "pokon0" copyright(C) 2001 H.Kawai(êÏçáèGé¿)
-
 // for pokon0
 
 #include <sysgg00.h>
@@ -27,11 +25,11 @@ const int sgg_getfilelist(const int size, struct SGG_FILELIST *fp, const int res
 void sgg_loadfile(const int mdl_ent, const int file_id, const int fin_sig)
 {
 	static struct {
-		int cmd, opt, data[7];
+		int cmd, opt, data[8];
 		int eoc;
 	} command = {
-		0x0020, 0x80000000 + 7,
-		0x1246, 0x0100, 0, 0, 0x4242 /* to pokon0 */, 0x7f000001, 0,
+		0x0020, 0x80000000 + 8,
+		0x1247, 0x0100, 0, 0, 0x4243 /* to pokon0 */, 0x7f000002, 0, 0,
 		0x0000
 	};
 

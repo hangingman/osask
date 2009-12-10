@@ -1,5 +1,3 @@
-// "init.c" copyright(C) 2000 H.Kawai(ì‡GÀ)
-
 // ƒ‰ƒCƒuƒ‰ƒŠ‰Šú‰»
 
 #include <sysgg00.h>

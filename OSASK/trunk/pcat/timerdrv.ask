@@ -49,7 +49,7 @@ struct TimerWork {
 void far TimerSysCmd()
 // FS:EBX‚©‚çƒRƒ}ƒ“ƒh
 {
-	asmout("include ./inc.asm");
+	asmout("include ../inc.asm");
 	segment TimerMdl == CS;
 	PUSH(DS);
 	ESP -= 24;

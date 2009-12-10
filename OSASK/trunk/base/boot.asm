@@ -1,4 +1,4 @@
-;	"boot.asm" ver.1.00
+;	"boot.asm" ver.1.10
 ;	OSASK/AT用のブートプログラム
 ;	Copyright(C) 2001 H.Kawai (川合秀実)
 
@@ -67,15 +67,18 @@ Boot_pit1_skip:
 Boot_boot_from_IPL:
 			mov	 byte ptr ds:[DiskCacheReady],1
 Boot_normal:
-			mov	 ax, word ptr ds:[VGA_mode]
-			cmp	 ax,0012h
-			je	Boot_normal2 ; !!!!
-			cmp0	 ah
-			jne	Boot_VESA
-			int	10h
+		;	mov	 ax, word ptr ds:[VGA_mode]
+		;	cmp	 ax,0012h
+		;	je	Boot_normal2 ; !!!!
+		;	cmp0	 ah
+		;	jne	Boot_VESA
+		;	int	10h
 ;mov dx,03d4h
 ;mov ax,3213h
 ;out dx,ax
+
+ifdef abcdefgh
+
 			jmp	Boot_normal2
 Boot_VESA:
 			mov	eax,dword ptr ds:[VESA_busdevfnc]
@@ -155,6 +158,9 @@ Boot_normal3:
 		;	mov	 word ptr ds:[GUIGUI_mouse_limit_y],480
 			clr	eax
 			mov	dword ptr ds:[VGA_PCI_base],eax
+
+endif
+
 Boot_normal2:
 			sti
 			mov	 ss, word ptr ds:[stackseg][4]
@@ -223,6 +229,8 @@ Boot_fillpte:
 			add	eax,4096
 			loop	Boot_fillpte
 
+ifdef abcdedfgh
+
 			mov	 cx,128/4
 		;	and	eax,0fffffffbh ; system-pageにする。 
 			test	 byte ptr ds:[eflags][2],004h	; bit18(AC)
@@ -261,6 +269,8 @@ Boot_fillpte4:
 			stosd
 			add	eax,4096
 			loop	Boot_fillpte4
+
+endif
 
 			mov	eax,dword ptr ds:[alloclist][16*1][12]	; gdt
 			shr	eax,4
@@ -457,12 +467,12 @@ alloclist		db	"pdepte  "	; 0
 			dd	4096*6,-1
 			db	"fdcwork "
 			dd	4096,-1
-			db	"diskbuf "
-			dd	4096*5,-1
-			db	"textbuf "
-			dd	4096*4*0,-1*0
-			db	"user.bin"	; 12
-			dd	4096*16,-1
+			db	"dummy00 "
+			dd	0,0
+			db	"dummy01 "
+			dd	0,0
+			db	"dummy02 "	; 12
+			dd	0,0
 			db	"empty1  "
 			dd	0,0
 			db	"dummy03 "
