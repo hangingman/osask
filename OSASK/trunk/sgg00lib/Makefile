@@ -1,70 +1,42 @@
-include ..\depend.mak
-include ..\rules.mak
+# Makefile for sgg00lib
+#  ver. 0.0
 
-#ASM_FLAGS = /c /coff
+TOOLPATH = ../../z_tools/
+INCPATH  = ../../z_tools/guigui00/
 
-NASKCNV_FLAGS += -w # for WCOFF
+include ../make_inc.txt
+include ../make_com.txt
 
-TARGET = sysgg00.lib
-OPT = $(TARGET:.lib=.opt)
+DEFINES += -DPCAT -D$(DESIGN)
 
-ASK_OBJS = execcmd.obj execcmd0.obj execcmd1.obj
-C_OBJS = fwinman.obj fpokon.obj fdebug.obj
+TARGET = sgg00lib.lib
+OBJS   = execcmd.obj execcmd0.obj execcmd1.obj fwinman.obj fpokon.obj fdebug.obj
+MKFL   = Makefile ../Makefile ../make_inc.txt ../make_com.txt
 
-OBJS = $(ASK_OBJS) $(C_OBJS)
+ALL :
+	$(MAKE) sgg00lib.lib
 
-INCPATH = ../include
-SYSGGINC = ../include
-DIST_DIR = ..\lib
+%.gas : $(MKFL) %.c
+	$(CC1) $(DEFINES) -I. -o $*.gas $*.c
 
-# prevent automatic deletion of an intermediate file
-.SECONDARY : $(ASK_OBJS:.obj=.3as) $(ASK_OBJS:.obj=.asm) $(ASK_OBJS:.obj=.nas) $(ASK_OBJS:.obj=.i) $(ASK_OBJS:.obj=.obj) $(ASK_OBJS:.obj=.exe) $(C_OBJS:.obj=.s) $(C_OBJS:.obj=.nas)
+%.nas : $(MKFL) %.gas
+	$(GAS2NASK) $*.gas $*.nas
 
-ALL : $(TARGET)
+%.ias : $(MKFL) %.ask
+	$(CPP0) -P $(DEFINES) -I. -o $*.ias $*.ask
 
-$(TARGET) : $(OBJS) $(OPT)
-#	$(LCCLIB) -OUT:$@ @$(OPT)
-	$(GOLIB) out:$@ $(OBJS)
-	copy $@ $(DIST_DIR)
+%.3as : $(MKFL) %.ias
+	$(ASKA) $*.ias $*.3as
 
-$(OPT) : makefile
-	echo on > $(OPT)
-	for %%i in ($(OBJS)) do echo %%i >> $(OPT)
+%.nas : $(MKFL) %.3as
+	$(NASKCNV) -w $*.3as $*.nas
 
-%.s : %.c ..\depend.mak
-	$(CC) $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC) -o $@ $<
+%.obj : $(MKFL) %.nas
+	$(NASK) $*.nas $*.obj $*.lst
 
-%.nas : %.s ..\depend.mak
-	$(GAS2NASK) $(GAS2NASK_FLAGS) $< $@
+$(TARGET) : $(MKFL) $(OBJS)
+	$(GOLIB) out:$(TARGET) $(OBJS)
 
-%.obj : %.nas ..\depend.mak
-	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
-
-%.i : %.ask makefile ..\depend.mak coffhead.ask
-	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $@ $<
-
-%.3as : %.i
-	$(ASKA) $< $@
-
-%.nas : %.3as
-	$(NASKCNV) $(NASKCNV_FLAGS) $< $@
-
-%.obj : %.nas
-	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
-
-clean:
-	del $(DIST_DIR)\$(TARGET)
-	del $(TARGET)
-	for %%i in ($(OBJS)) do del %%i
-	for %%i in ($(C_OBJS:.obj=.s)) do del %%i
-	for %%i in ($(C_OBJS:.obj=.nas)) do del %%i
-	for %%i in ($(C_OBJS:.obj=.lst)) do del %%i
-	for %%i in ($(ASK_OBJS:.obj=.i)) do del %%i
-	for %%i in ($(ASK_OBJS:.obj=.3as)) do del %%i
-	for %%i in ($(ASK_OBJS:.obj=.nas)) do del %%i
-#	for %%i in ($(ASK_OBJS:.obj=.asm)) do del %%i
-#	for %%i in ($(ASK_OBJS:.obj=.obj)) do del %%i
-	for %%i in ($(ASK_OBJS:.obj=.lst)) do del %%i
-#	for %%i in ($(ASK_OBJS:.obj=.map)) do del %%i
-#	del *.lst
-
+clean :
+	-$(DELE) *.lst
+	-$(DELE) *.obj

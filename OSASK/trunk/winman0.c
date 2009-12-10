@@ -1,7 +1,16 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.8
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.9
 		copyright(C) 2004 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
-    stack:36k malloc:4208k file:4096k */
+    stack:64k malloc:4272k file:4160k */
 
+/* 2004.08.13 スクリーンショットをBMP化
+   8,15,16,32bppで正常な画像が取れる……はず by I.Tak. */
+
+/* 2004.09.10 画面関係のglobal変数を構造体にするぞ
+ * 2004.09.11 デコーダをDLL使用にするぞ……ぐっpokonが死ぬぞtss=4000 EIP=2f10で
+ *            page faultだよ……mmarea分が不足ぐはあ
+ *            PICTURE0.BINがSCRNSHOT.BMP (8bpp) をデコードできない(T_T
+ */
+#define int3 asm(".byte 0xcc")
 #include <guigui00.h>
 #include <sysgg00.h>
 /* sysggは、一般のアプリが利用してはいけないライブラリ
@@ -9,30 +18,134 @@
 #include <stdlib.h>
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
-#include "../kjpegls.h"
-#if (defined(WIN31))
-	static int backcolors[5] = {8, 8, 0xc618, 0x00c0c0c0, 0x00c0c0c0};
-#else
-	static int backcolors[5] = {6, 6, 0x0410, 0x00008080, 0x00008080};
-#endif
+
+/* ハードコード。gas2naskバージョンアップ待ち */
+#define lib_readCSd(ofs)  ({ int _ret;\
+ __asm__(".byte 0x2e\n movl %1, %0" : "=r" (_ret) : "m" (*(int*)(ofs)));\
+ _ret;})
+
+static inline void call_dll0207_48(int *env, int *cmd)
+{
+  __asm__ 
+    ("pushl %1\n"
+     "pushl %0\n"
+     ".byte 0x9a\n"
+     ".long 0x48\n"
+     ".word 0x207\n"		/* "lcall $0x0207,$0x00000048\n" */
+     "addl $8, %%esp"		/* これを最適化できないのが残念 */
+     : : "g" (env), "g" (cmd), "m" (*cmd) :"%ecx","%edx","memory");
+}
+
+static void call_dll0207_48i(void *env, int cmd, ...)
+{
+  __asm__
+    ("pushl %1\n"
+     "pushl %0\n"
+     ".byte 0x9a\n"
+     ".long 0x48\n"
+     ".word 0x207\n"		/* "lcall $0x0207,$0x00000048\n" */
+     "addl $8, %%esp"
+     : : "g" (env), "g" (&cmd), "m" (cmd) :"%ecx","%edx","memory");
+}
 
 #if (defined(TOWNS))
-	/* マウス・パッドポート設定 (FMR<<4)|(R<<2)|L, 0:none,1:mouse,2:pad,3:6pad */
+	/* マウス存在flag (FMR<<4)|(R<<2)|L, 0:none,1:mouse,2:pad,3:6pad */
 	static char townsmouse = 0x04;/* right mouse only */
-	static char vbecoldep = 1;
+	#if (defined(VMODE) || defined(CLGD543X))
+	  #undef TWVSW        /* 1024でないとインターレースできない */
+	  #define TWVSW 1024  /* インターレースしないなら問題ないが
+                               * CLGDには1024のパラメータしか作ってない */
+	#endif
+	#define FMRMOUSE 1    /* FMRMOUSEに対応 2004.04.12 by I.Tak. */
+	#define KROM 1        /* font file が無いときにROMで代用する 2004.04.12 by I.Tak. */
+	#if (!defined(TWVSW))
+		#define	TWVSW		1024
+	#endif
+	#define DEFAULTCOLDEP 1
+#else
+	#define DEFAULTCOLDEP 0
+#endif
+
+/* NEC PC-98 では変化しない変数にconstをつけ, 最適化を期待する 
+ * 変数そのものは無くならないが (ポインタ渡しがありうるため),
+ * 参照回数は減るはずだ……こんなことする意味あるのか */
+#if (defined(PCAT)) || (defined(TOWNS))
+	#define CONST98
 #elif (defined(NEC98))
-	#define vbecoldep 0
+	#define CONST98 const
 #endif
 
-#if (defined(VMODE) || defined(CLGD543X))	/* OSASK3.3の忘れ物 */
-	#undef TWVSW			/* 1024でないとインターレースできない */
-	#define TWVSW	1024	/* インターレースしないなら問題ないが */
-							/* CLGDには1024のパラメータしか作ってない */
-#endif
+typedef struct str_screen {
+  CONST98 unsigned char vbecoldep, driver;
+  unsigned char wallpaper_name[13];
+  unsigned char wallpaper_exist, *wallpaper;
+  CONST98 int x2, y2;
+  int backcolors[5];		/* default color array for bpp 4,8,16,24,32 */
+  CONST98 int backcolor;	/* in use */
+  int moveunits[5];
+  CONST98 int moveunit;
+} SCREEN;
 
-/* いわゆる"パッドでマウス"対応 */
-#define FMRMOUSE		1	/* FMRMOUSEに対応 2004.04.12 by I.Tak. */
-#define KROM			1	/* font file が無いときにROMで代用する 2004.04.12 by I.Tak. */
+static SCREEN screen = {
+  DEFAULTCOLDEP, 0, "OSASK   .BMP", 0, (char*)0,
+  640,400,
+#if (defined(WIN31))
+  {8, 8, 0xc618, 0x00c0c0c0, 0x00c0c0c0}, 8,
+#else
+  {6, 6, 0x0410, 0x00008080, 0x00008080}, 6,
+#endif
+  {8, 4, 2, 4, 1}, 8
+};
+
+#if (defined(WIN9X))
+	#define	RESERVELINE0		   0
+	#define	RESERVELINE1		  28
+	#if (defined(PCAT) || defined(TOWNS))
+		#define TIMEX				-192	/* 8の倍数 */
+		#define TIMEY				 -20
+		#define TIMEC				   0
+		#define TIMEBC				   8
+		#define ERRMSGX				  80
+		#define ERRMSGY				 -20
+		#define ERRMSGC				   0
+		#define ERRMSGBC			   8
+		#define ERRMSGCC			   8
+	#endif
+#elif (defined(TMENU))
+	#define	RESERVELINE0		  20
+	#define	RESERVELINE1		  28
+	#if (defined(PCAT)) || (defined(TOWNS))
+		#define TIMEX				-240
+		#define TIMEY				   2
+		#define TIMEC				   0
+		#define TIMEBC				   7
+		#define ERRMSGX				 104
+		#define ERRMSGY				 -20
+		#define ERRMSGC				   0
+		#define ERRMSGBC			   7
+		#define ERRMSGCC			   7
+	#endif
+#elif (defined(CHO_OSASK))
+	#define	RESERVELINE0		   0
+	#define	RESERVELINE1		  20
+	#if (defined(PCAT)) || (defined(TOWNS))
+		#define TIMEX				-192	/* 8の倍数 */
+		#define TIMEY				 -16
+		#define TIMEC				  15
+		#define TIMEBC				   7
+		#define ERRMSGX				   8
+		#define ERRMSGY				 -16
+		#define ERRMSGC				   0
+		#define ERRMSGBC			   7
+		#define ERRMSGCC			   7
+	#endif
+#elif (defined(NEWSTYLE))
+	#define	RESERVELINE0		   0
+	#define	RESERVELINE1		   0
+#elif (defined(WIN31))
+	#define	RESERVELINE0		   0
+	#define	RESERVELINE1		   0
+#endif
 
 #define WALLPAPERMAXSIZE	(4 * 1024 * 1024)
 #define	SCRNSHOTMAXSIZ		2048 * 1024
@@ -50,79 +163,6 @@
 #define	MAX_SOUNDTRACK		  16		// 0.5KB
 #define	DEFSIGBUFSIZ		2048
 #define	MOSWINSIGS			 128		/* 4KB */
-
-#if (defined(WIN9X))
-	#define	BACKCOLOR			   6
-	#define	RESERVELINE0		   0
-	#define	RESERVELINE1		  28
-	#if (defined(PCAT) || defined(TOWNS))
-		#define TIMEX				-192	/* 8の倍数 */
-		#define TIMEY				 -20
-		#define TIMEC				   0
-		#define TIMEBC				   8
-		#define ERRMSGX				  80
-		#define ERRMSGY				 -20
-		#define ERRMSGC				   0
-		#define ERRMSGBC			   8
-		#define ERRMSGCC			   8
-	#endif
-#elif (defined(TMENU))
-	#define	BACKCOLOR			   6
-	#define	RESERVELINE0		  20
-	#define	RESERVELINE1		  28
-	#if (defined(PCAT)) || (defined(TOWNS))
-		#define TIMEX				-240
-		#define TIMEY				   2
-		#define TIMEC				   0
-		#define TIMEBC				   7
-		#define ERRMSGX				 104
-		#define ERRMSGY				 -20
-		#define ERRMSGC				   0
-		#define ERRMSGBC			   7
-		#define ERRMSGCC			   7
-	#endif
-#elif (defined(CHO_OSASK))
-	#define	BACKCOLOR			   6
-	#define	RESERVELINE0		   0
-	#define	RESERVELINE1		  20
-	#if (defined(PCAT)) || (defined(TOWNS))
-		#define TIMEX				-192	/* 8の倍数 */
-		#define TIMEY				 -16
-		#define TIMEC				  15
-		#define TIMEBC				   7
-		#define ERRMSGX				   8
-		#define ERRMSGY				 -16
-		#define ERRMSGC				   0
-		#define ERRMSGBC			   7
-		#define ERRMSGCC			   7
-	#endif
-#elif (defined(NEWSTYLE))
-	#define	BACKCOLOR			   6
-	#define	RESERVELINE0		   0
-	#define	RESERVELINE1		   0
-#elif (defined(WIN31))
-	#define	BACKCOLOR			   8
-	#define	RESERVELINE0		   0
-	#define	RESERVELINE1		   0
-#endif
-
-#if (defined(PCAT))
-	static int moveunits[5] = {8,4,2,4,1};
-	#define	MOVEUNIT			   moveunits[vbecoldep]
-#elif (defined(NEC98))
-	#define	MOVEUNIT			   8
-#elif (defined(TOWNS))
-	#define	MOVEUNIT			   4
-#endif
-
-#if (defined(TOWNS))
-	#if (!defined(TWVSW))
-		#define	TWVSW		1024
-	#endif
-	#if (defined(VMODE))
-		static int backcol = BACKCOLOR;
-	#endif
-#endif
 
 #define WINFLG_MUSTREDRAW		0x80000000	/* bit31 */
 #define WINFLG_MUSTREDRAWDIF	0x40000000	/* bit30 */
@@ -184,14 +224,12 @@ static struct STR_JOB {
 	static struct STR_VBEMODE vbelist[128];
 	static int f3mode, f4mode;
 	static unsigned int vbeoverride[3];
-	static unsigned char vbecoldep = 0; /* 0(=4), 1(=8), 2(=16), 4(=32) */
 #elif (defined(TOWNS)) && (defined(CLGD543X))
 	static int pf13mode = -1; /* (^^; */
 #endif
 
-unsigned char *wallpaper, wallpaper_exist;
 struct WM0_WINDOW *window, *top = NULL, *unuse = NULL, *iactive = NULL, *pokon0 = NULL;
-int x2 = 0, y2, mx = 0x80000000, my = 1, mbutton = 0, mxx = 1;
+int mx = 0x80000000, my = 1, mbutton = 0, mxx = 1;
 int fromboot = 0, winmanerr_time = 0;
 struct {
 	int x, y;
@@ -1280,8 +1318,6 @@ static struct KEYTABLE {
 	};
 #endif
 
-static unsigned char wallpaper_name[13] = "OSASK   .BMP";
-
 void OsaskMain()
 {
 	int *signal, *signal0, i, j;
@@ -1310,7 +1346,7 @@ void OsaskMain()
 	#endif
 
 	MALLOC_ADDR = pjob->readCSd10 = lib_readCSd(0x0010);
-	wallpaper = malloc(WALLPAPERMAXSIZE);
+	screen.wallpaper = malloc(WALLPAPERMAXSIZE + 65536);
 
 	lib_init(AUTO_MALLOC);
 	sgg_init(AUTO_MALLOC);
@@ -1767,9 +1803,9 @@ void OsaskMain()
 
 		case 0x024c /* set wallpaper */:
 			siglen = 4;
-			*(int *) &wallpaper_name[0] = signal[1];
-			*(int *) &wallpaper_name[4] = signal[2];
-			*(int *) &wallpaper_name[8] = signal[3];
+			*(int *) &screen.wallpaper_name[0] = signal[1];
+			*(int *) &screen.wallpaper_name[4] = signal[2];
+			*(int *) &screen.wallpaper_name[8] = signal[3];
 			writejob_n(1, 0x0048 /* set wallpaper */);
 			goto fin_wrtjob;
 
@@ -2010,7 +2046,7 @@ void init_screen(const int x, const int y)
 	sgg_execcmd0(0x00b0, 0, 2, 0, x2y2, 0x000c, 0x0000); /* set info */
 
 	if (old_x != x || old_y != y) {
-		wallpaper_exist = 0;
+		screen.wallpaper_exist = 0;
 		old_x = x;
 		old_y = y;
 	}
@@ -2224,12 +2260,12 @@ void mousesignal(const unsigned int header, int dx, int dy)
 		_my += dy;
 		if (_mx < 0)
 			_mx = 0;
-		if (_mx >= x2)
-			_mx = x2 - 1;
+		if (_mx >= screen.x2)
+			_mx = screen.x2 - 1;
 		if (_my < 0)
 			_my = 0;
-		if (_my >= y2 - 15)
-			_my = y2 - 16;
+		if (_my >= screen.y2 - 15)
+			_my = screen.y2 - 16;
 		if (_mx != ox || _my != oy) {
 			mx = _mx;
 			my = _my;
@@ -2563,7 +2599,7 @@ void runjobnext()
 		#endif
 
 		case 0x0048 /* set wallpaper */:
-			wallpaper_exist = 0;
+			screen.wallpaper_exist = 0;
 			job_openwallpaper();
 			break;
 		}
@@ -2593,17 +2629,17 @@ void job_openwin0(struct WM0_WINDOW *win)
 	} else {
 		win->x0 = windef[0].x;
 		win->y0 = windef[0].y;
-		if (win->x0 + xsize > x2 || win->y0 < RESERVELINE0 || win->y0 + ysize + RESERVELINE1 > y2) {
-			win->x0 = (x2 - xsize) / 2;
-			win->y0 = RESERVELINE0 + (y2 - (RESERVELINE0 + RESERVELINE1) - ysize) / 2;
+		if (win->x0 + xsize > screen.x2 || win->y0 < RESERVELINE0 || win->y0 + ysize + RESERVELINE1 > screen.y2) {
+			win->x0 = (screen.x2 - xsize) / 2;
+			win->y0 = RESERVELINE0 + (screen.y2 - (RESERVELINE0 + RESERVELINE1) - ysize) / 2;
 		}
-		win->x0 &= ~(MOVEUNIT - 1); // オープン位置を8の倍数になるように調整
+		win->x0 &= ~(screen.moveunit - 1); // オープン位置を8の倍数になるように調整
 		for (i = 0; i < MAXWINDEF - 1; i++) {
 			windef[i].x = windef[i + 1].x;
 			windef[i].y = windef[i + 1].y;
 		}
 		windef[MAXWINDEF - 1].x = 0x10000000;
-		if (win->x0 < 0 || win->x0 > x2 || win->y0 < RESERVELINE0 || win->y0 + ysize + RESERVELINE1 > y2) {
+		if (win->x0 < 0 || win->x0 > screen.x2 || win->y0 < RESERVELINE0 || win->y0 + ysize + RESERVELINE1 > screen.y2) {
 			win->up = win->down = win; /* 孤立 */
 			sgg_wm0s_close(&win->sgg);
 			win->job_flag0 = WINFLG_NOWINDOW;
@@ -2861,14 +2897,14 @@ void job_movewin4(int sig)
 	int xsize = win0->x1 - win0->x0;
 	int ysize = win0->y1 - win0->y0;
 
-	if (sig == 0x00d0 && x0 >= MOVEUNIT)
-		x0 -= MOVEUNIT;
-	if (sig == 0x00d1 && x0 + xsize <= x2 - 4)
-		x0 += MOVEUNIT;
-	if (sig == 0x00d2 && y0 >= MOVEUNIT + RESERVELINE0)
-		y0 -= MOVEUNIT;
-	if (sig == 0x00d3 && y0 + ysize <= y2 - (RESERVELINE1 + MOVEUNIT))
-		y0 += MOVEUNIT;
+	if (sig == 0x00d0 && x0 >= screen.moveunit)
+		x0 -= screen.moveunit;
+	if (sig == 0x00d1 && x0 + xsize <= screen.x2 - 4)
+		x0 += screen.moveunit;
+	if (sig == 0x00d2 && y0 >= screen.moveunit + RESERVELINE0)
+		y0 -= screen.moveunit;
+	if (sig == 0x00d3 && y0 + ysize <= screen.y2 - (RESERVELINE1 + screen.moveunit))
+		y0 += screen.moveunit;
 
 	if ((x0 - pjob->movewin_x) | (y0 - pjob->movewin_y)) {
 		if (press->pos == NO_PRESS || press->pos == TITLE_BAR) {
@@ -2933,19 +2969,19 @@ void job_movewin4m(int x, int y)
 	struct STR_JOB *pjob = &job;
 	struct WM0_WINDOW *win0 = pjob->win;
 
-	int x0 = pjob->movewin_x0 + (x - press0.mx0) & ~(MOVEUNIT - 1);
+	int x0 = pjob->movewin_x0 + (x - press0.mx0) & ~(screen.moveunit - 1);
 	int y0 = pjob->movewin_y0 + y - press0.my0;
 	int xsize = win0->x1 - win0->x0;
 	int ysize = win0->y1 - win0->y0;
 
 	if (x0 < 0)
 		x0 = 0;
-	if (x0 > x2 - xsize)
-		x0 = (x2 - xsize) & ~(MOVEUNIT - 1);
+	if (x0 > screen.x2 - xsize)
+		x0 = (screen.x2 - xsize) & ~(screen.moveunit - 1);
 	if (y0 < RESERVELINE0)
 		y0 = RESERVELINE0;
-	if (y0 > y2 - ysize - RESERVELINE1)
-		y0 = y2 - ysize - RESERVELINE1;
+	if (y0 > screen.y2 - ysize - RESERVELINE1)
+		y0 = screen.y2 - ysize - RESERVELINE1;
 	/* deleted by I.Tak. (Jenny1.2) */
 //	if ((x0 - pjob->movewin_x) | (y0 - pjob->movewin_y)) {
 //		job_movewin3();
@@ -3295,7 +3331,7 @@ error:
 		win = win->up;
 		flag0 = win->job_flag0;
 		win->job_flag0 = 0;
-		if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01) && x2 != 0)
+		if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01) && screen.x2 != 0)
 			sgg_wm0s_accessenable(&win->sgg);
 	//	if (flag0 & WINFLG_MUSTREDRAW) {	/* deleted by I.Tak. (jenny1.2) */
 		if (flag0 & (WINFLG_MUSTREDRAW | WINFLG_MUSTREDRAWDIF)) {	/* added by I.Tak. (jenny1.2) */
@@ -3563,15 +3599,16 @@ void gapi_driverinit(int drv)
 		sgg_execcmd0(0x0088, 0x0000, drv, 0x0000);
 		if (drv == 3)
 			drv++;
-		if (vbecoldep != drv)
-			wallpaper_exist = 0;
-		vbecoldep = drv;
+		if (screen.vbecoldep != drv)
+			screen.wallpaper_exist = 0;
+		screen.vbecoldep = drv;
 	#elif (defined(TOWNS))
 		/* sggでドライバ切り替えを指定 */
 		sgg_execcmd0(0x0088, 0x0000, drv, 0x0000);
-		if (vbecoldep != drv)
-			wallpaper_exist = 0;
-		vbecoldep = drv;
+		if (screen.vbecoldep != drv)
+			screen.wallpaper_exist = 0;
+		screen.vbecoldep = drv;	/* 上位に入っているチップ情報は */
+		screen.driver = drv >> 8; /* ここに保存 */
 	#endif
 
 	sgg_wm0_gapicmd_0010_0000();
@@ -3608,7 +3645,7 @@ void job_setvgamode0(const int mode)
 		do {
 			int x;
 			win->job_flag0 = (WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED); // override-accessdisabled & must-redraw
-			if ((win->condition & 0x01) != 0 && x2 != 0) {
+			if ((win->condition & 0x01) != 0 && screen.x2 != 0) {
 				pjob->count++; // disable
 				sgg_wm0s_accessdisable(&win->sgg);
 			}
@@ -3667,7 +3704,7 @@ void job_setvgamode2()
 		  newdrv &= 0xff; /* CL8bppはTOWNSネイティヴ共用ドライバ */
 		newdrv |= bpp[newmode];
 
-		if ((width[newmode] < x2 || height[newmode] < y2) && (win = top)) {
+		if ((width[newmode] < screen.x2 || height[newmode] < screen.y2) && (win = top)) {
 			/* 全ウィンドウの座標範囲を確認(はみ出したら画面を切り替えない) */
 			do {
 				if (win->x1 > width[newmode] || win->y1 > height[newmode] - RESERVELINE1) {
@@ -3684,22 +3721,23 @@ void job_setvgamode2()
 		/* 画面モード3設定(512x480x16bpp) */
 		/* 画面モード4設定(1024x768x8bpp CLGD543x) */
 		/* 画面モード5設定(800x600x16bpp CLGD543x) */
-		x2 = width[newmode];
-		y2 = height[newmode];
-		if (mx > x2)
-			mx = x2 - 1;
-		if (my > y2 - 16)
-			my = y2 - 16;
+		screen.x2 = width[newmode];
+		screen.y2 = height[newmode];
+		if (mx > screen.x2)
+			mx = screen.x2 - 1;
+		if (my > screen.y2 - 16)
+			my = screen.y2 - 16;
+		screen.backcolor = screen.backcolors[newdrv & 0xff];
+		screen.moveunit = screen.moveunits[newdrv & 0xff];
 		#if (defined(VMODE))
-			backcol = BACKCOLOR;
 			if (job.int0 == 2)
-			  backcol = 0;
+			  screen.backcolor = 0;
 		#endif
 
 		/* GAPI差し替え vesa16のときは画面モード変更も同時にやる */
 		gapi_driverinit(newdrv);
 		if ((newdrv & 0xff) == 2) /* towns15/vesa16にx2,y2を知らせる */
-		  sgg_execcmd0(0x0050, 8 * 4, 0x001c, 0, 0x0020, x2, y2, 0x0000, 0x0000);
+		  sgg_execcmd0(0x0050, 8 * 4, 0x001c, 0, 0x0020, screen.x2, screen.y2, 0x0000, 0x0000);
 		else
 		  sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job.int0 /* mode */, 0x0000, 0x0000); /* 画面モード変更 */
  		if (job.int0 < 3)
@@ -3708,21 +3746,23 @@ void job_setvgamode2()
 			/* 不要なときも多いのだが…… */
 			sgg_execcmd0(0x0088, 1, job.int0, 0x0000); /* VRAM&CRT出力 切替え */
 		#endif
-		init_screen(x2, y2);
+		init_screen(screen.x2, screen.y2);
 		job_general1();
 		return;
 	#endif
 
 	#if (defined(PCAT))
 		struct STR_VBEMODE *p;
-		int drv, vram, x2_old = x2, y2_old = y2, mode = job.int0 & 0x3fff;
+		int drv, vram;
+		int x2_old = screen.x2, y2_old = screen.y2;
+		int mode = job.int0 & 0x3fff;
 
 		#if (defined(BOCHS))
-			x2 = 640; /* Bochsは仮想画面が使えない */
-			y2 = 480;
+			screen.x2 = 640; /* Bochsは仮想画面が使えない */
+			screen.y2 = 480;
 		#else
-			x2 = 800;
-			y2 = 600;
+			screen.x2 = 800;
+			screen.y2 = 600;
 		#endif
 
 		if (fromboot & 0x0001) {
@@ -3733,7 +3773,7 @@ void job_setvgamode2()
 		//	sgg_wm0_gapicmd_001c_0020(); // 画面モード設定(640x480)
 			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, 0x0012, 0x0000, 0x0000);
 			sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
-			init_screen(x2, y2);
+			init_screen(screen.x2, screen.y2);
 			job_general1();
 			return;
 		}
@@ -3752,15 +3792,15 @@ void job_setvgamode2()
 				vram = vbeoverride[drv - 1];
 			if (vram == 0)
 				goto skip;
-			x2 = p->x_res;
-			y2 = p->y_res;
+			screen.x2 = p->x_res;
+			screen.y2 = p->y_res;
 		}
 		if (win = top) {
 			do {
-				if (win->x1 > x2 || win->y1 > y2 - RESERVELINE1) {
+				if (win->x1 > screen.x2 || win->y1 > screen.y2 - RESERVELINE1) {
 skip:
-					x2 = x2_old;
-					y2 = y2_old;
+					screen.x2 = x2_old;
+					screen.y2 = y2_old;
 					job_general1();
 					sgg_wm0_putmouse(mx = mxx, my);
 					return;
@@ -3773,11 +3813,11 @@ skip:
 	#endif
 
 	#if (defined(NEC98))
-		x2 = 640;
-		y2 = 400;
+		screen.x2 = 640;
+		screen.y2 = 400;
 		sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job.int0 /* mode */, 0x0000, 0x0000);
 		sgg_wm0_gapicmd_001c_0004(); /* ハードウェア初期化 */
-		init_screen(x2, y2);
+		init_screen(screen.x2, screen.y2);
 		job_general1();
 		return;
 	#endif
@@ -3808,31 +3848,33 @@ void job_setvgamode3(const int sig, const int result)
 				vram = vbeoverride[drv - 1];
 			if (vram == 0)
 				goto skip;
-			x2 = p->x_res;
-			y2 = p->y_res;
+			screen.x2 = p->x_res;
+			screen.y2 = p->y_res;
 			/* linearを伝達 */
 			sgg_execcmd0(0x0088, 0x0001, vram, 0x0000);
 		}
-		if (mxx > x2 - 1 || my > y2 - 16) {
+		if (mxx > screen.x2 - 1 || my > screen.y2 - 16) {
 			mxx = my = 1;
 		}
-		x2y2[0] = x2;
-		x2y2[1] = y2 - (RESERVELINE0 + RESERVELINE1);
+		x2y2[0] = screen.x2;
+		x2y2[1] = screen.y2 - (RESERVELINE0 + RESERVELINE1);
 		sgg_execcmd0(0x00b0, 0, 2, 0, x2y2, 0x000c, 0x0000); /* set info */
 		if (drv == 0) {
 			/* linear = 0を伝達 */
 			sgg_execcmd0(0x0088, 0x0001, 0, 0x0000);
 		}
+		screen.backcolor = screen.backcolors[drv];
+		screen.moveunit = screen.moveunits[drv];
 		gapi_driverinit(drv);
 		if (drv == 0) {
 			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, mode | 0x01000000, 0x0000, 0x0000);
 				/* スクロールパラメータ初期化 */
 		}
 		if (drv != 0)
-			sgg_execcmd0(0x0050, 8 * 4, 0x001c, 0, 0x0020, x2, y2, 0x0000, 0x0000);
+			sgg_execcmd0(0x0050, 8 * 4, 0x001c, 0, 0x0020, screen.x2, screen.y2, 0x0000, 0x0000);
 		sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
 		if (win = top){
-			int mask = MOVEUNIT - 1;
+			int mask = screen.moveunit - 1;
 			int d;
 			/* こっそり位置を修正 */
 			do {
@@ -3847,7 +3889,7 @@ void job_setvgamode3(const int sig, const int result)
 		}
 		unlock_v86();
 		oldmode = job.int0;
-		init_screen(x2, y2);
+		init_screen(screen.x2, screen.y2);
 		job_general1();
 		return;
 	}
@@ -3856,11 +3898,11 @@ void job_setvgamode3(const int sig, const int result)
 skip:
 //	job.func = job_setvgamode3;
 	#if (defined(BOCHS))
-		x2 = 640; /* Bochsは仮想画面が使えない */
-		y2 = 480;
+		screen.x2 = 640; /* Bochsは仮想画面が使えない */
+		screen.y2 = 480;
 	#else
-		x2 = 800;
-		y2 = 600;
+		screen.x2 = 800;
+		screen.y2 = 600;
 	#endif
 	sgg_wm0_setvideomode(job.int0 = oldmode, 0x0014);
 	return;
@@ -4258,251 +4300,239 @@ void gapi_loadankfont()
 
 void job_savevram0()
 {
-	#if (defined(PCAT))
-		if (vbecoldep == 0 || x2 * y2 * vbecoldep > SCRNSHOTMAXSIZ - 2048) {
-			job.now = 0;
-			return;
-		}
-	#endif
-
+#if (defined(PCAT))
+  if (screen.vbecoldep == 0 || screen.x2 * screen.y2 * screen.vbecoldep > SCRNSHOTMAXSIZ - 2048) {
+    job.now = 0;
+    return;
+  }
+#endif
     /* 保存先用意 */
     lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
     job.func = &job_savevram1;
-    lib_steppath0(1, 0x0200, "SCRNSHOT.TIF", 0x0050 /* sig */);
+    lib_steppath0(1, 0x0200, "SCRNSHOT.BMP", 0x0050 /* sig */);
     return;
     /* SCRNSHOT.TIFは514KB以上になります */
     /* 事前にモジュールを作っておかなくてもいいです */
 }
 
+static int paletteSizeTable[] = {256, 3, 0, 3}; /* 256,64K/32K,,16M */
+
 void job_savevram1(int flag, int dmy)
 {
-    if (flag == 0) { /* open成功 */
-		lib_resizemodule(0, 0x0200, x2 * y2 * vbecoldep + 2048, 0x0050 /* sig */);
-		job.func = &job_savevram2;
-	} else {
-		job.now = 0;
-	}
-	return;
+  if (flag == 0) { /* open成功 */
+    lib_resizemodule(0, 0x0200, 0x38 + paletteSizeTable[screen.vbecoldep-1] * 4
+		     + screen.x2 * screen.y2 * screen.vbecoldep, 0x0050 /* sig */);
+    job.func = &job_savevram2;
+  } else {
+    job.now = 0;
+  }
+  return;
 }
 
-static int dummy = 0; /* for align */
+#if 0
+/* BMの後にパディングが入る可能性! どうやって防ぐんだっけ? */
+struct bmphead {
+  char BM[2];
+  int fileSize, reserved, imageOffset, infoheaderSize;
+  int width, height;
+  short plane, bit;
+  int compression, imageSize;
+  int XPPM, YPPM, colorUsed, colorImportant;
+};
+#endif
 
-static unsigned char tiffhead[] = {
-	0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x11,0x00,0xFE,0x00,0x04,0x00,0x01,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x01,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x01,
-	0x03,0x00,0x01,0x00,0x00,0x00,0x08,0x00,0x00,0x00,0x03,0x01,0x03,0x00,0x01,0x00,
-	0x00,0x00,0x01,0x00,0x00,0x00,0x06,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x03,0x00,
-	0x00,0x00,0x0A,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x11,0x01,
-	0x04,0x00,0x01,0x00,0x00,0x00,0x00,0x08,0x00,0x00,0x15,0x01,0x03,0x00,0x01,0x00,
-	0x00,0x00,0x01,0x00,0x00,0x00,0x16,0x01,0x04,0x00,0x01,0x00,0x00,0x00,0x5E,0x02,
-	0x00,0x00,0x17,0x01,0x04,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x19,0x01,
-	0x03,0x00,0x01,0x00,0x00,0x00,0xFF,0x00,0x00,0x00,0x1A,0x01,0x05,0x00,0x01,0x00,
-	0x00,0x00,0xF0,0x01,0x00,0x00,0x1B,0x01,0x05,0x00,0x01,0x00,0x00,0x00,0xF8,0x01,
-	0x00,0x00,0x1C,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x40,0x01,
-	0x03,0x00,0x00,0x03,0x00,0x00,0x00,0x02,0x00,0x00,0x31,0x01,0x02,0x00,0x1C,0x00,
-	0x00,0x00,0x80,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x4F,0x53,0x41,0x53,0x4B,0x2F,0x54,0x4F,0x57,0x4E,0x53,0x20,0x67,0x65,0x6E,0x65,
-	0x72,0x61,0x74,0x65,0x64,0x20,0x54,0x49,0x46,0x46,0x2E,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x4B,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x4B,0x00,0x00,0x00,0x01,0x00,0x00,0x00
+static int systemPalette[] = {  // OSASK system palette
+ 0x000000,
+ 0x840000,
+ 0x008400,
+ 0x848400,
+ 0x000084,
+ 0x840084,
+ 0x008484,
+ 0x848484,
+ 0xc6c6c6,
+ 0xff0000,
+ 0x00ff00,
+ 0xffff00,
+ 0x0000ff,
+ 0xff00ff,
+ 0x00ffff,
+ 0xffffff
 };
 
 void job_savevram2(int flag, int dmy)
 {
-	struct STR_PALETTE {
-		unsigned char r, g, b;
-	};
-	static struct STR_PALETTE palette[16] = {
-		{ 0x00, 0x00, 0x00 }, { 0x84, 0x00, 0x00 },
-		{ 0x00, 0x84, 0x00 }, { 0x84, 0x84, 0x00 },
-		{ 0x00, 0x00, 0x84 }, { 0x84, 0x00, 0x84 },
-		{ 0x00, 0x84, 0x84 }, { 0x84, 0x84, 0x84 },
-		{ 0xc6, 0xc6, 0xc6 }, { 0xff, 0x00, 0x00 },
-		{ 0x00, 0xff, 0x00 }, { 0xff, 0xff, 0x00 },
-		{ 0x00, 0x00, 0xff }, { 0xff, 0x00, 0xff },
-		{ 0x00, 0xff, 0xff }, { 0xff, 0xff, 0xff }
-	};
-	int i;
+  int paletteSize = paletteSizeTable[screen.vbecoldep-1];
+  int imageOffset = 0x38 + paletteSize * 4;
+  int imageSize = screen.x2 * screen.y2 * screen.vbecoldep;
+  int fileSize = imageOffset + imageSize;
 
-	if (flag == 0) { /* resize 成功 */
+  if (flag == 0 && 
+      lib_readmodulesize(0x0200) >= fileSize) {
+    char *fp = (char*)job.readCSd10;
+    int *fi = (int *)(fp + 2), i;
+
+    lib_mapmodule(0x0000, 0x0200, 0x7, SCRNSHOTMAXSIZ, fp, 0);
+    fp[0] = 'B';
+    fp[1] = 'M';
+    fi[0] = fileSize;
+    fi[1] = 0;
+    fi[2] = imageOffset;
+    fi[3] = 0x28;
+    fi[4] = screen.x2;
+    fi[5] = -screen.y2;		/* トップダウン格納 */
+    fi[6] = (screen.vbecoldep*8 << 16) + 1;
+    fi[7] = (screen.vbecoldep==1)?0:3;
+    fi[8] = imageSize;
+    fi[9] = fi[10] = fi[11] = fi[12] = 0;
+    fi = &fi[13];		/* palette/bitMask */
+    if (screen.vbecoldep == 1) {
+      for (i = 0; i < 16; i++)
+	fi[i] = systemPalette[i];
+      for (i = 0; i < 64; i++)
+	fi[i+192]=((i & 0x03)<<16|(i & 0x0c) << 6|(i & 0x30) >> 4) * 0x55;
+    } else if (screen.vbecoldep == 2) {
 #if (defined(PCAT))
-		if (lib_readmodulesize(0x0200) >= x2 * y2 * vbecoldep + 2048) {
+      fi[0] = 0xf800;		/* R */
+      fi[1] = 0x07e0;		/* G */
+      fi[2] = 0x001f;		/* B */
 #elif (defined(TOWNS))
-		if (lib_readmodulesize(0x0200) >= x2 * y2 + 2048) {
+#if (defined(CLGD543X))
+      if (screen.x2 == 800 && screen.y2 == 600) { /* CLGD……手抜き判定 */
+	fi[0] = 0xf800;		/* R */
+	fi[1] = 0x07e0;		/* G */
+	fi[2] = 0x001f;		/* B */
+      } else
 #endif
-			char *fp = (char *) job.readCSd10;
-			struct STR_PALETTE *pal = palette;
-			lib_mapmodule(0x0000, 0x0200, 0x7, SCRNSHOTMAXSIZ, fp, 0);
-			for (i = 0; i < 512 / 4; i++)
-				 ((int *) fp)[i] = ((int *) tiffhead)[i];
-			*(int *) &fp[0x1e] = x2;
-			*(int *) &fp[0x2a] = y2;
-			*(int *) &fp[0x8a] = x2 * y2;
-			do {
-				((int *) fp)[i] = 0;
-				i++;
-			} while (i < 2048 / 4);
-			for (i = 0; i < 16; i++, pal++) {
-				fp[i * 2 + 0x0200 + 0] = pal->r;
-				fp[i * 2 + 0x0200 + 1] = pal->r;
-				fp[i * 2 + 0x0400 + 0] = pal->g;
-				fp[i * 2 + 0x0400 + 1] = pal->g;
-				fp[i * 2 + 0x0600 + 0] = pal->b;
-				fp[i * 2 + 0x0600 + 1] = pal->b;
-			}
-			for (i = 192; i < 256; i++) {
-				fp[i * 2 + 0x0200 + 0] =  (i & 0x03)       * 0x55;
-				fp[i * 2 + 0x0200 + 1] =  (i & 0x03)       * 0x55;
-				fp[i * 2 + 0x0400 + 0] = ((i >> 2) & 0x03) * 0x55;
-				fp[i * 2 + 0x0400 + 1] = ((i >> 2) & 0x03) * 0x55;
-				fp[i * 2 + 0x0600 + 0] = ((i >> 4) & 0x03) * 0x55;
-				fp[i * 2 + 0x0600 + 1] = ((i >> 4) & 0x03) * 0x55;
-			}
-			#if (defined(PCAT))
-				sgg_debug00(0, x2 * y2 * vbecoldep, 0, 0xe0000000, 0x01280008,
-					(const int) fp + 2048, 0x000c);
-			#elif (defined(TOWNS))
-				sgg_debug00(0, x2 * y2, 0, 0xe0000000, 0x01280008,
-					(const int) fp + 2048, 0x000c);
-			#endif
-            lib_unmapmodule(0, SCRNSHOTMAXSIZ, fp);
-		    lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
-		//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-		//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
-        }
+      {
+	fi[0] = 0x03e0;		/* R */
+	fi[1] = 0x7c00;		/* G */
+	fi[2] = 0x001f;		/* B */
+      }
+#endif
+    } else { 			/* vbecoldep == 4 */
+      fi[0] = 0x00ff0000;
+      fi[1] = 0x0000ff00;
+      fi[2] = 0x000000ff;
     }
+    /* 本当は0x36だがalignする */
+    sgg_debug00(0, screen.x2 * screen.y2 * screen.vbecoldep, 0, 0xe0000000, 0x01280008,
+		(int)&fp[0x38 + paletteSize*4] , 0x000c);
+    lib_unmapmodule(0, SCRNSHOTMAXSIZ, fp);
     lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
-    job.now = 0;
-    return;
+    // send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+    //   0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+  }
+  lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
+  job.now = 0;
+  return;
 }
-
-#if 0
-
-void job_savevram0()
-{
-    /* 保存先用意 */
-    lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
-    job.func = &job_savevram1;
-    lib_steppath0(0, 0x0200, "VRAMIMAG.BIN", 0x0050 /* sig */);
-    return;
-    /* VRAMIMAG.BINは512KB以上のサイズのファイル */
-    /* 事前にcreateしてresizeしておいてください */
-}
-
-void job_savevram1(int flag, int dmy)
-{
-    if (flag == 0) { /* open成功 */
-        if (lib_readmodulesize(0x0200) >= 512 * 1024) {
-            char *fp = (char *) job.readCSd10;
-            lib_mapmodule(0x0000, 0x0200, 0x7, 512 * 1024, fp, 0);
-            sgg_debug00(0, 512 * 1024, 0, 0xe0000000, 0x01280008,
-			(const int) fp, 0x000c);
-            lib_unmapmodule(0, 512 * 1024, fp);
-            send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-			   0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
-        }
-    }
-    job.now = 0;
-    return;
-}
-
 #endif
 
-#endif
+/* 壁紙ロードルーチン, DLLバージョン */
 
-//static unsigned char wallpaper_search = 0;
-static unsigned char jpeg_used = 0;
-//#define WALLPAPERNUM 4	/* 名前は4種類 */
+static char picture0_mapped = 0;
+
+void job_mappicture0(int flag, int dmy)
+{
+  char *fp;
+  if (flag) {
+    job_loadwallpaper(1,0);
+    return;
+  }
+  /* PICTURE0.BINのスロットは0x210 */
+  fp = (char*)(lib_readCSd(0x10) + WALLPAPERMAXSIZE);
+  lib_mapmodule(0x0000, 0x220, 0x5, 65536, fp, 0);
+  lib_execcmd0(0x00f0, 0, 0x0200, 0x40fa, 65535, fp, 0x0008 ,0);
+  picture0_mapped = 1;
+  job_openwallpaper();
+}
+
 void job_openwallpaper()
 /* 2002.05.27 川合 : 壁紙表示がトグルになるように変更 */
 {
-//	static char *names[] =
-//	    {"OSASK0  .BMP", "OSASK0  .JPG", "OSASK   .BMP", "OSASK   .JPG"};
-	int bytepp = vbecoldep;
-	if (bytepp)
-		bytepp--;
-	bytepp++;
-	if (wallpaper_exist == 0 && x2 * y2 * bytepp <= WALLPAPERMAXSIZE) {
-		lib_initmodulehandle0(0x0008, 0x0200);
-		job.func = &job_loadwallpaper;
-	//	lib_steppath0(0, 0x0200, names[wallpaper_search], 0x0050 /* sig */);
-		lib_steppath0(0, 0x0200, wallpaper_name, 0x0050 /* sig */);
-		return;
+	int bytepp = screen.vbecoldep;
+	if (bytepp == 0)
+	  bytepp++;
+	if (screen.wallpaper_exist) {
+	  job_loadwallpaper(-1, 0); /* 解除 */
+	  return;
 	}
-	job_loadwallpaper(-1, 0);
-	return;
+	if (screen.x2 * screen.y2 * bytepp >= WALLPAPERMAXSIZE) {
+	  job_loadwallpaper(1,0);
+	} else if (picture0_mapped) {
+	  job.func = &job_loadwallpaper;
+	  lib_initmodulehandle0(0x0008, 0x0200);
+	  lib_steppath0(0, 0x0200, screen.wallpaper_name, 0x0050 /* sig */);
+	} else {
+	  job.func = &job_mappicture0;
+	  lib_initmodulehandle0(0x0008, 0x0210);
+	  lib_steppath0(0, 0x0220, "PICTURE0.BIN", 0x0050 /* sig */);
+	}
 }
-extern void betaclip(char *s, int sw, int sh, char *d, int dw, int dh, char cdep, int backcolor);
-extern int bmp2beta(unsigned char *s, unsigned int ms, char *d, char coldep, int w,int h, int backcolor);
+
+typedef struct {
+  int type, flag, width, height;
+  int typedepend[4];
+} PIC0_INFO;
+
+void wallpaperdecode(int *env, char *wallpaper, int buftype, int c, int x2, int y2, PIC0_INFO *info, int ms, char *fp)
+{
+  int bw, bh;			/* blank width/height */
+  int xsz = x2, ysz = y2, skip = 0, yskip = 0, x0 = 0, y0 = 0;
+
+  bh = y2 - info->height;
+  if (bh >= 0) {
+    ysz = info->height;
+    yskip = bh / 2;
+  } else
+    y0 = -bh / 2;
+  bw = x2 - info->width;
+  if (bw >= 0) {
+    xsz = info->width;
+    skip = bw;
+  } else
+    x0 = -bw / 2;
+  if ((bw & bh) >= 0) {
+    int i;
+    if (buftype & 2)
+      c *= 0x00010001;
+    if (buftype & 1)
+      c *= 0x01010101;
+    for (i = 0; i < x2 * y2 / (buftype & 7); i++)
+      ((int*)wallpaper)[i] = c;	/* 手抜き塗り潰し */
+  }
+  call_dll0207_48i(env, 5,0, info->type, xsz,ysz, x0,y0, ms, fp, buftype, wallpaper + (x2 * yskip + skip / 2) * (buftype & 7), skip * (buftype & 7), 0x0000);
+}
 
 void job_loadwallpaper(int flag, int dmy)
 /* 2002.05.27 川合 : わずかに改良 */
-/* 失敗した場合flag>=0 ならば次のファイルに挑戦, -1なら諦め */
+/* flag!=0なら壁紙なし, 0ならopen成功 */
 {
 	struct WM0_WINDOW *win;
-
-	wallpaper_exist = 0;
-	unsigned char *fp = (unsigned char *) lib_readCSd(0x0010);
+	screen.wallpaper_exist = 0;
+	unsigned char *const fp = (unsigned char *) lib_readCSd(0x0010);
 	if (flag == 0) {	/* opening succeeded. */
 		int ms = lib_readmodulesize(0x200);
+		int *env = (int*)(screen.wallpaper + WALLPAPERMAXSIZE);
+		static PIC0_INFO info;
+		static int cmd0[] = { 1,0, 2,0,(int)&info,0,0,0, 0 };
+
 		if (ms>WALLPAPERMAXSIZE)
 			ms = WALLPAPERMAXSIZE;
 		lib_mapmodule(0x0000, 0x0200, 0x5, ms, fp, 0);
-		if (*fp == 0xff) {
-			char *jpegbuf = wallpaper + WALLPAPERMAXSIZE;
-			static JPEG jpeg;
-			if (jpeg_used) {
-				int i = sizeof(JPEG)/4, *j = (int*)&jpeg;
-				do{
-					*j++=0;
-				}while(--i);
-			}else{
-				jpeg_init(&jpeg);
-				jpeg_used = 1;
-			}
-			jpeg.fp = fp;
-			jpeg.fp1 = fp + ms;
-			jpeg_header(&jpeg);
-			if (jpeg.width==0 || jpeg.width*jpeg.height*4>WALLPAPERMAXSIZE)
-				goto failed;
-			jpegbuf -= jpeg.width * jpeg.height * 4;
-			jpeg.width_buf = jpeg.width;
-			jpeg_decode(&jpeg, jpegbuf);
-			betaclip(jpegbuf, jpeg.width, jpeg.height, wallpaper, x2,y2, vbecoldep, backcolors[vbecoldep]);
-		}else{
-			int result = bmp2beta(fp, ms, wallpaper, vbecoldep, x2, y2, backcolors[vbecoldep]);
-			if (result)
-				goto failed;
+		cmd0[5] = ms;
+		cmd0[6] = (int)fp;
+		call_dll0207_48(env, cmd0);
+		if (info.type) {
+		  static const int buftype[5] = { 0x0201, 0x0801, 2, 3, 4 };
+		  wallpaperdecode(env, screen.wallpaper, buftype[screen.vbecoldep],
+				  screen.backcolor, screen.x2,screen.y2, &info, ms, fp);
+		  if (env[0] == 0)
+		    screen.wallpaper_exist = 1;
 		}
-		wallpaper_exist = 1;
 		lib_unmapmodule(0, WALLPAPERMAXSIZE, fp);
-
-	//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-	//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
-//	}else{
-	failed:	;
-//		if (flag>=0 && wallpaper_search++ < WALLPAPERNUM-1){
-//			lib_unmapmodule(0, WALLPAPERMAXSIZE, fp);
-//			job_openwallpaper();
-//			return;
-//		}
 	}
-//	wallpaper_search = 0;
 	lib_initmodulehandle0(0x0008, 0x0200);
 
 	/* 全ウィンドウ再描画 */
@@ -4512,15 +4542,13 @@ void job_loadwallpaper(int flag, int dmy)
 		mx = 0x80000000;
 	}
 
-	init_screen(x2, y2);
+	init_screen(screen.x2, screen.y2);
 	if (win = top) {
 		do {
 			win->job_flag0 |= WINFLG_MUSTREDRAW;
 		} while ((win = win->down) != top);
 	}
-	job_general1();
-
-//	job.now = 0; /* これはjob_general1()に含まれる */
+	job_general1();		// job.now = 0; /* ←を含む */
 	return;
 }
 #define	lib_putblock(mode, win, x, y, sx, sy, skip, p) \
@@ -4530,19 +4558,15 @@ void job_loadwallpaper(int flag, int dmy)
 void putwallpaper(int x0, int y0, int x1, int y1)
 /* 2002.05.27 川合 : x1, y1の値の扱いを仕様変更 */
 {
-	int bytepp = vbecoldep;
+	int bytepp = screen.vbecoldep;
 	if (bytepp)
 		bytepp--;
 	bytepp++;
-	if (wallpaper_exist)
+	if (screen.wallpaper_exist)
 		lib_putblock(bytepp, (void *) -1, x0, y0, x1 - x0, y1 - y0,
-			bytepp*(x2 - (x1 - x0)), &wallpaper[(x2 * y0 + x0)*bytepp]);
+			bytepp*(screen.x2 - (x1 - x0)), &screen.wallpaper[(screen.x2 * y0 + x0)*bytepp]);
 	else {
-		#if (defined(VMODE))
-			lib_drawline(0x0020, (void *) -1, backcol, x0, y0, x1 - 1, y1 - 1);
-		#else
-			lib_drawline(0x0020, (void *) -1, backcolors[0], x0, y0, x1 - 1, y1 - 1);
-		#endif
+		lib_drawline(0x0020, (void *) -1, screen.backcolors[0], x0, y0, x1 - 1, y1 - 1);
 	}
 	return;
 }
@@ -4744,10 +4768,10 @@ void write_time()
 	msg[21] = week[1];
 	msg[22] = week[2];
 	#if (TIMEX < 0)
-		msg[4] = x2 + TIMEX;
+		msg[4] = screen.x2 + TIMEX;
 	#endif
 	#if (TIMEY < 0)
-		msg[5] = y2 + TIMEY;
+		msg[5] = screen.y2 + TIMEY;
 	#endif
 	lib_execcmd(msg);
 	if (winmanerr_time > 0) {
@@ -4775,9 +4799,9 @@ void winmanerr(const unsigned char *s)
 		len++;
 	msg[8] = len;
 	if (ERRMSGX < 0)
-		msg[4] += x2; 
+		msg[4] += screen.x2; 
 	if (ERRMSGY < 0)
-		msg[5] += y2; 
+		msg[5] += screen.y2; 
 	lib_execcmd(msg);
 	return;
 }
@@ -4788,9 +4812,9 @@ void winmanerr_clr()
 	x0 = ERRMSGX;
 	y0 = ERRMSGY;
 	if (ERRMSGX < 0)
-		x0 += x2; 
+		x0 += screen.x2;
 	if (ERRMSGY < 0)
-		y0 += y2; 
+		y0 += screen.y2;
 	lib_drawline(0x0020, (void *) -1, ERRMSGCC, x0, y0, x0 + (8 * 40 - 1), y0 + 15);
 	return;
 }

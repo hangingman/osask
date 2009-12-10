@@ -1562,7 +1562,7 @@ PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 14; POP(DS);
 
 //	PUSH((int) EDX /* 0 */);
 	PUSH((int) 0x0010); /* ‰æ–Ê‰Šú‰»—v¿ */
-	#if (defined(VMWARE))
+	#if (defined(VMWARE3))
 		PUSH((int) 1 /* to_winman0 */); /* for VM ware */
 	#else
 		PUSH((int) swork_GS->to_winman0);
@@ -4323,7 +4323,7 @@ if (EBX == 0xffff)
 	ECX = (int) [SS:EBP + 0xfffffffc];
 	(int) [DS:EBX + 0xfffffff8] = EAX;
 	(int) [DS:EBX + 0xfffffffc] = ECX;
-	#if (VMWARE)
+	#if (VMWARE3)
 		if (EDX != 0)
 			LLDT(DX);
 	#else

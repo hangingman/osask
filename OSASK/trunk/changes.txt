@@ -1,5 +1,12 @@
 ●主な変更点 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
+Version 4.7(2005/2)
+[OSASK 7018][OSASK 7108][OSASK 7129]
+・sartolに関するバグ修正を行いました。
+・I.Tak.さんのBMPスクリーンショット出力に対応しました。
+・壁紙ロードがPICTURE0.BINに対応しました。
+・アーカイブ機能のバグを修正しました。
+
 Version 4.6(2004/6)
 [OSASK 6995][OSASK 6996][OSASK 6999]
 ・tek1/tek2/tek5の展開に対応しました。

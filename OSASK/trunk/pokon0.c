@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.4.6
+/* "pokon0.c":アプリケーションラウンチャー  ver.4.7
      copyright(C) 2004 I.Tak., 小柳雅明, 川合秀実
      stack:1m malloc:90k file:4096k */
 
@@ -52,9 +52,9 @@
    仕様もかなり流動的 */
 #include <stdlib.h>
 
-#include "pokon0.h"
+#include "../pokon0.h"
 
-#define POKON_VERSION "pokon46"
+#define POKON_VERSION "pokon47"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.7\n    Copyright (C) 2004 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -93,7 +93,8 @@ static struct STR_VIEWER viewers[MAX_VIEWERS] = {
 	{ ".U ", "MCOPYC1 BIN" },
 	{ "HEL", "HELO    BIN" },
 	{ "MML", "MMLPLAY BIN" },
-	{ "WRP", "WABA    BIN" }
+	{ "WRP", "WABA    BIN" },
+	{ "SH1", "SHIBAI1 BIN" }
 };
 
 typedef unsigned char UCHAR;
@@ -129,7 +130,7 @@ unsigned char *arcsub_srchname1(struct STR_ARCBUF *arc, unsigned char *p, unsign
 unsigned char *arcsub_srchnum(struct STR_ARCBUF *arc, unsigned char *p, int num);
 void arcsub_map(struct STR_ARCBUF *arc, unsigned char *fp0);
 void arcsub_unmap(struct STR_ARCBUF *arc, unsigned char *fp0);
-void osarjc(int siz, UCHAR *p0);
+int osarjc(int siz, UCHAR *p0);
 
 //static struct FILEBUF **large_cache;
 
@@ -198,10 +199,9 @@ void sendsignal1dw(int task, int sig)
 void unlinkfbuf(struct FILEBUF *fbuf)
 {
 	int dirslot;
+	arcsub_unlink(fbuf->arcbuf);
 	if (--fbuf->linkcount == 0) {
-		if (fbuf->arcbuf)
-			arcsub_unlink(fbuf->arcbuf);
-		else {
+		if (fbuf->arcbuf == NULL) {
 			dirslot = fbuf->dirslot;
 			if (fbuf->readonly)
 				dirslot = -1;
@@ -635,7 +635,7 @@ int jsub_fbufready1(int *sbp)
 		if (size0 < FILEAREA && size0 >= 16) {
 			fp1 = fp0 + (size0 = ((size0 + 0xfff) & ~0xfff));
 			sgg_execcmd0(0x0080, size0, fbuf->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
-			osarjc(fbuf->size, fp0);
+			fbuf->readonly |= osarjc(fbuf->size, fp0);
 			/* unmapする */
 		}
 
@@ -688,7 +688,8 @@ int jsub_fbufready1(int *sbp)
 										while ((i = gets7s(&p)) != 0) {
 											p += i; /* ファイル名スキップ */
 											i = gets7s(&p); /* 属性 */
-											gets7s(&p); /* 日時 */
+											if ((i & 0x20) == 0)
+												gets7s(&p); /* 日時 */
 											if (k & 1) {
 												j = gets7s(&p);
 												if (j & 1)
@@ -697,7 +698,7 @@ int jsub_fbufready1(int *sbp)
 												q += j * (align + 1);
 											}
 											j = gets7s(&p); /* サイズ */
-											if ((i & 0x70) == 0)
+											if ((i & 0x1f) == 0)
 												osarjc(j, q);
 											q += j;
 											q = fp0 + (((q - fp0) + align) & ~align);
@@ -810,6 +811,8 @@ int jsub_create_task1(int *sbp)
 		bank->Llv[2].inner  = i;
 		sgg_runtask(tss, 1 * 32);
 		bank->arcbuf = bank->fbuf->arcbuf;
+		if (bank->arcbuf)
+			bank->arcbuf->linkcount++;
 	}
 	(*pjob->retfunc)(retcond);
 	return 2; /* siglen */
@@ -1625,9 +1628,10 @@ unsigned char *arcsub_srchname0(struct STR_ARCBUF *arc, unsigned char *p, unsign
 					c |= p[j] ^ n[j];
 			}
 			p += j;
-			if (gets7s(&p) & 0x70)
+			if ((j = gets7s(&p)) & 0x1f)
 				c = 1;
-			gets7s(&p);
+			if ((j & 0x20) == 0x00)
+				gets7s(&p);
 			if (arc->flags & 2) {
 				j = gets7s(&p);
 				if (j & 1)
@@ -2147,6 +2151,13 @@ write_exe:
 					bootflags ^= 0x04;
 					goto bootflags_check;
 				#endif
+
+			case 3: /* launcher機能(run) わざわざ.PSFを作らなくてもいいし、作ってもいい */
+				siglen = 4; /* sbp[1～3]は"FILENAMEEXT\0" */
+				fp = searchfid1((const unsigned char *) &sbp[1]);
+				if (fp)
+					runfile(fp, (const unsigned char *) &sbp[1]);
+			//	break;
 
 			}
 		} else if (COMMAND_SIGNAL_START <= sig && sig < COMMAND_SIGNAL_END + 1) {
@@ -4186,7 +4197,7 @@ void rjc(UCHAR *p0, UCHAR *p1, int ofs0, int ofs, int ofs1)
 	return;
 }
 
-void osarjc(int siz, UCHAR *p0)
+int osarjc(int siz, UCHAR *p0)
 {
 	if (siz >= 0x20 && p0[16] == 0x00 && (p0[20] & 0x02) != 0
 		&& *(int *) &p0[8] == ('G' | 'U' << 8 | 'I' << 16 | 'G' << 24)
@@ -4197,8 +4208,9 @@ void osarjc(int siz, UCHAR *p0)
 		rjc(p0 + 0x20, p0 + siz, 0x20, 0x20, siz); /* decode */
 		/* 今のところ、0x02と0x06しか考えていない */
 		p0[20] &= 0x01;
+		return 1;
 	}
-	return;
+	return 0;
 }
 
 int poko_exec(const char *cmdlin)

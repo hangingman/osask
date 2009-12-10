@@ -1,76 +1,80 @@
-include ..\depend.mak
-include ..\rules.mak
+# Makefile for OSASK/AT
+#  ver. 0.0
 
-BASE = base.exe
-BASE_OBJ = $(BASE:.exe=.obj)
+TOOLPATH = ../../z_tools/
+INCPATH  = ../../z_tools/guigui00/
+VPATH = ..
 
-ASK_OBJS =  timerdrv.bin keymos0.bin fdcdrv0.bin vgadrv0.bin decode0.bin
+include ../make_inc.txt
+include ../make_com.txt
+include ../make_wm0.txt
+include ../make_pk0.txt
 
-ASK_OBJS += $(VESA_OBJS)
+DEFINES = $(DEFINES_AT) -DPCAT -D$(DESIGN)
 
-C_OBJS = 
+MKFL = Makefile ../Makefile ../make_inc.txt ../make_com.txt
 
-SUB_OBJS = 
+ALL :
+	$(MAKE) OSASK.EXE
 
-OBJS = $(SUB_OBJS) $(ASK_OBJS) $(C_OBJS)
+OSASK.EXE : $(MKFL) osalink1.opt base.exe boot32.bin ankfont0.tek tapi0.tek \
+			timerdrv.tek keymos0.tek fdcdrv0.tek pioneer0.tek vgadrv0.tek \
+			decode0.tek papi0.tek init.tek winman0.tek pokon0.tek vesa8.tek \
+			vesa16.tek vesa32.tek
+	$(OSALINK)
 
-INCPATH = ../include
-LIBPATH = ../lib 
-LIBS = guigui00.lib stdlib.lib $(SYSGGLIB)
+base.exe : $(MKFL) ../base.nap
+	$(CPP0) -P $(DEFINES) -o base.nas ../base.nap
+	$(NASK) base.nas base.exe base.lst
+	$(DELE) base.nas
 
-PREPROCESSOR_FLAGS += -I..
+ankfont0.bin : $(MKFL) ../ankfont0/$(FONTSRC)
+	$(TXT2BIN) ../ankfont0/$(FONTSRC) ankfont0.bin
 
-DISTDIR = ..
+%.ias : %.ask $(MKFL) 
+	$(CPP0) -P -I.. $(DEFINES) -o $@ $<
 
-ALL : $(OBJS)
-#	for %%i in ($(SUBDIRS)) do $(MAKE) -C %%i
-#	make $(TARGET)
+%.gas : %.c $(MKFL)
+	$(CC1) $(DEFINES) -I../sgg00lib -o $@ $<
 
-%.bin : %.ask makefile ..\depend.mak
-	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $*.i $<
-	$(ASKA) $*.i $*.3as
-	$(NASKCNV) $(NASKCNV_FLAGS) $*.3as $*.nas
-	$(NASK) $(NASK_FLAGS) $*.nas $*.bin $*.lst
-#	$(LINK) $*,$*,$*,nul,nul
-#	$(BIM2BIN) input:$*.exe output:$@ $(BIM2BIN_FLAGS_ASK)
-#	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
-	copy $@ ..
+winman0.bin : $(MKFL) ../make_wm0.txt winman0.obj
+	$(MAKE) -C ../sgg00lib
+	$(OBJ2BIM) @../linkrule.rul stack:$(STK_WM_AT) map:winman0.map \
+		out:winman0.bim winman0.obj ../sgg00lib/sgg00lib.lib
+	$(BIM2BIN) malloc:$(MLC_WM_AT) mmarea:$(MMA_WM_AT) input:winman0.bim \
+		output:winman0.bin $(BIM_WM_AT)
+	$(DELE) winman0.bim
 
-#$(BASE) : $(BASE_NAS) makefile ..\depend.mak
-#	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $(BASE:.exe=.i) $<
-#	$(NASK) $(NASK_FLAGS) $(BASE:.exe=.i) $(BASE) $(BASE:.exe=.lst)
-#	copy $@ ..
+pokon0.bin : $(MKFL) ../make_pk0.txt pokon0.obj
+	$(MAKE) -C ../sgg00lib
+	$(OBJ2BIM) @../linkrule.rul stack:$(STK_PK_AT) map:pokon0.map \
+		out:pokon0.bim pokon0.obj ../sgg00lib/sgg00lib.lib
+	$(BIM2BIN) malloc:$(MLC_PK_AT) mmarea:$(MMA_PK_AT) input:pokon0.bim \
+		output:pokon0.bin $(BIM_PK_AT)
+	$(DELE) pokon0.bim
 
-clean:
-#	del $(BASE)
-#	for %%i in ($(BASE:.exe=.obj)) do del %%i
-#	for %%i in ($(BASE:.exe=.i)) do del %%i
-#	for %%i in ($(BASE:.exe=.lst)) do del %%i
-#	for %%i in ($(BASE:.exe=.map)) do del %%i
-	for %%i in ($(ASK_OBJS)) do del %%i
-#	for %%i in ($(C_OBJS)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.lst)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
+%.bin : $(MKFL) %.ias
+	$(ASKA) $*.ias $*.3as
+	$(NASKCNV) $*.3as $*.nas
+	$(NASK) $*.nas $*.bin $*.lst
+	$(DELE) $*.3as
+	$(DELE) $*.nas
 
-dist_clean:
-#	for %%i in ($(BASE:.exe=.obj)) do del %%i
-	for %%i in ($(BASE:.exe=.lst)) do del %%i
-#	for %%i in ($(BASE:.exe=.map)) do del %%i
-#	for %%i in ($(ASK_OBJS)) do del %%i
-#	for %%i in ($(C_OBJS)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.lst)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
+%.obj : $(MKFL) %.gas
+	$(GAS2NASK) $*.gas $*.nas
+	$(NASK) $*.nas $*.obj $*.lst
+	$(DELE) $*.nas
 
+%.tek : $(MKFL) %.bin
+	$(BIM2BIN) in:$*.bin out:$*.tek -osacmp -tek0 rjc:0
 
+clean :
+	-$(DELE) OSASK.EXE
+	-$(DELE) *.lst
+	-$(DELE) *.ias
+	-$(DELE) *.gas
+	-$(DELE) *.map
+	-$(DELE) base.exe
+	-$(DELE) *.obj
+	-$(DELE) *.bin
+	-$(DELE) *.tek

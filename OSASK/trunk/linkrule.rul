@@ -7,11 +7,9 @@ file:
 	/* このセクションでコマンドラインに書ききれなかった
 		.ojbファイル、.libファイルを記載 */
 	/* なお、このセクションはフルパスで書いてもよい。 */
-	/* 例：  c:/osask/guigui00.lib;  */
-	lib/sysgg00.lib;
-	lib/guigui00.lib;
-	lib/stdlib.lib;
-//	lccwin32.lib;
+	/* 例：  c:/osask/gg00libc.lib;  */
+	../../z_tools/guigui00/gg00libc.lib;
+	../../z_tools/guigui00/golibc.lib;
 
 label:
 	/* 必ずリンクしなければいけないラベルを指定 */

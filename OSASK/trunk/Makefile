@@ -1,237 +1,111 @@
-include depend.mak
-include rules.mak
+# Makefile for OSASK
+#  ver. 0.0
 
-OSALINK = osalink1
-OSALINK_OPT = osalink1.opt
+TOOLPATH = ../z_tools/
 
-# make sub directory modules
-ANKFONT = ankfont0.bin
-BASE = base.exe
-BOOT = boot32.bin
-SYSGGLIB = sysgg00.lib
-SYSGGINC = sgg00lib
-
-SUBDIRS = ankfont0 $(SYSGGINC)
-SUBDIRS += $(ARCH)
-
-TARGET = OSASK.EXE
-BOOTIMAGE = $(TARGET:EXE=SYS)
-EXE2SYS = imgtol
-
-ARCH_OBJS = timerdrv.bin keymos0.bin fdcdrv0.bin vgadrv0.bin decode0.bin
-
-ARCH_OBJS += $(VESA_OBJS)
-
-ASK_OBJS =  init.bin tapi0.bin pioneer0.bin papi0.bin
-C_OBJS = winman0.bin pokon0.bin
-WINMAN_C_OBJS = kjpegls2.obj
-WINMAN_NASK_OBJS = betaclip.obj bmp2beta.obj
-WINMAN_OBJS = winman0.obj $(WINMAN_C_OBJS) $(WINMAN_NASK_OBJS)
-
-SUB_OBJS = $(ANKFONT)
-
-OBJS = $(SUB_OBJS) $(ASK_OBJS) $(C_OBJS) $(ARCH_OBJS)
-LINK_OBJS = $(BASE) $(BOOT) $(OBJS:.bin=.tek)
-
-INCPATH = ./include
-LIBPATH = ./lib 
-LIBS = guigui00.lib stdlib.lib $(SYSGGLIB)
-
-POKON_STACK = 1m
-POKON_MALLOC = 90k
-POKON_FILE = 4096k
-WINMAN_STACK = 36k
-WINMAN_MALLOC = 4208k
-WINMAN_FILE = 4096k
-
-# prevent automatic deletion of an intermediate file
-.SECONDARY : $(ASK_OBJS) $(ASK_OBJS:.bin=.3as) $(ASK_OBJS:.bin=.asm) \
-	$(ASK_OBJS:.bin=.nas) $(ASK_OBJS:.bin=.i) $(ASK_OBJS:.bin=.obj) \
-	$(ASK_OBJS:.bin=.exe) $(BASE:.exe=.asm) $(C_OBJS:.bin=.s) \
-	$(C_OBJS:.bin=.nas) $(BOOT:.bin=.i) $(BOOT:.bin=.3as) \
-	$(BOOT:.bin=.nas) $(WINMAN_C_OBJS:.obj=.s) $(WINMAN_C_OBJS:.obj=.nas) 
-
+include make_com.txt
 
 ALL :
-	for %%i in ($(SUBDIRS)) do $(MAKE) -C %%i
-	$(MAKE) $(TARGET)
+# デフォルト動作：各自好きなようにカスタマイズすればいい
+	$(MAKE) img_at
 
-$(TARGET) : $(OSALINK_OPT) $(LINK_OBJS)
-	$(OSALINK)
+all :
+	$(MAKE) at
+	$(MAKE) tw
+	$(MAKE) ne
 
-depend.mak :
+at :
+	$(MAKE) -C pcat
+	$(COPY) pcat\OSASK.EXE OSASK_AT.EXE
+	$(EDIMG) binin:OSASK_AT.EXE exe2bin seg:2048 binout:OSASK_AT.SYS
 
-$(OSALINK_OPT) : makefile depend.mak
-	echo on > $(OSALINK_OPT)
-	for %%i in ($(LINK_OBJS)) do echo %%i >> $(OSALINK_OPT)
+tw :
+	$(MAKE) -C towns
+	$(COPY) towns\OSASK.EXE OSASK_TW.EXE
+	$(EDIMG) binin:OSASK_TW.EXE exe2bin seg:2048 binout:OSASK_TW.SYS
 
-$(ANKFONT) :
+ne :
+	$(MAKE) -C nec98
+	$(COPY) nec98\OSASK.EXE OSASK_NE.EXE
+	$(EDIMG) binin:OSASK_NE.EXE exe2bin seg:2048 binout:OSASK_NE.SYS
 
-pcat : FORCE
-	echo ARCH = pcat>> depend.mak
-	$(MAKE)
+qe :
+	$(MAKE) -C qemu
+	$(COPY) qemu\OSASK.EXE OSASK_QE.EXE
+	$(EDIMG) binin:OSASK_QE.EXE exe2bin seg:2048 binout:OSASK_QE.SYS
 
-vmware : FORCE
-	echo ARCH = pcat>> depend.mak
-	echo VMWARE = y>> depend.mak
-	$(MAKE)
+run : Makefile qemu/edimgopt.txt $(TOOLPATH)osa_qemu/OSAIMGAT.BIN
+	$(MAKE) qe
+	$(EDIMG) imgin:$(TOOLPATH)osa_qemu/OSAIMGAT.BIN @qemu/edimgopt.txt \
+		imgout:qemu/OSAIMGQE.BIN imgout:$(TOOLPATH)qemu/FDIMAGE0.BIN
+	$(MAKE) -C $(TOOLPATH)qemu
 
-qemu : FORCE
-	echo ARCH = pcat>> depend.mak
-	echo QEMU = y>> depend.mak
-	$(MAKE)
+bo :
+	$(MAKE) -C bochs
+	$(COPY) bochs\OSASK.EXE OSASK_BO.EXE
+	$(EDIMG) binin:OSASK_BO.EXE exe2bin seg:2048 binout:OSASK_BO.SYS
 
-bochs : FORCE
-	echo ARCH = pcat>> depend.mak
-	echo BOCHS = 13>> depend.mak
-	$(MAKE)
+vm :
+	$(MAKE) -C vmware3
+	$(COPY) vmware3\OSASK.EXE OSASK_VM.EXE
+	$(EDIMG) binin:OSASK_VM.EXE exe2bin seg:2048 binout:OSASK_VM.SYS
 
-bochs12 : FORCE
-	echo ARCH = pcat>> depend.mak
-	echo BOCHS = 12>> depend.mak
-	$(MAKE)
+img_at :
+	$(MAKE) at
+	$(EDIMG) imgin:fdimg0at.tek wbinimg src:osaskbs1.bin len:512 from:0 to:0 \
+		bias:9 create file:@:osask.sys size:108k begin:5 \
+		ovrcopy from:OSASK_AT.SYS to:@:OSASK.SYS \
+		setattr file:@:OSASK.SYS attr:0x06 imgout:OSAIMGAT.BIN
 
-towns : FORCE 
-	echo ARCH = towns>> depend.mak
-	echo TWSCRL1 = n>> depend.mak
-	echo TWVSW = 1024>> depend.mak
-	echo VMODE = y>> depend.mak
-	echo CLGD543X = y>> depend.mak
-	$(MAKE)
+img_tw :
+	$(MAKE) tw
+	$(EDIMG) imgin:fdimg0tw.tek wbinimg src:osaiplt0.bin len:1024 from:0 to:0 \
+		bias:9 create file:@:osask.sys size:106k begin:7 \
+		ovrcopy from:OSASK_TW.SYS to:@:OSASK.SYS \
+		setattr file:@:OSASK.SYS attr:0x06 imgout:OSAIMGTW.BIN
 
-nec98 : FORCE 
-	echo ARCH = nec98>> depend.mak
-	$(MAKE)
+img_ne :
+	$(MAKE) ne
+	$(EDIMG) imgin:fdimg0tw.tek wbinimg src:osaipln0.bin len:1024 from:0 to:0 \
+		bias:9 create file:@:osask.sys size:106k begin:7 \
+		ovrcopy from:OSASK_NE.SYS to:@:OSASK.SYS \
+		setattr file:@:OSASK.SYS attr:0x06 imgout:OSAIMGNE.BIN
 
-FORCE:
-	echo on > depend.mak
-	echo #DESIGN = WIN9X#       Win9x style>> depend.mak
-	echo #DESIGN = WIN31#       Win3.1 style>> depend.mak
-	echo #DESIGN = TMENU#       T-OSASK>> depend.mak
-	echo #DESIGN = CHO_OSASK#   Cho-Kanji style OSASK>> depend.mak
-	echo #DESIGN = NEWSTYLE#    NWSOS style>> depend.mak
+img_qe :
+	$(MAKE) qe
+	$(EDIMG) imgin:fdimg0at.tek wbinimg src:osaskbs1.bin len:512 from:0 to:0 \
+		bias:9 create file:@:osask.sys size:108k begin:5 \
+		ovrcopy from:OSASK_QE.SYS to:@:OSASK.SYS \
+		setattr file:@:OSASK.SYS attr:0x06 imgout:OSAIMGQE.BIN
 
-bootimg : $(BOOTIMAGE)
+img_bo :
+	$(MAKE) bo
+	$(EDIMG) imgin:fdimg0at.tek wbinimg src:osaskbs1.bin len:512 from:0 to:0 \
+		bias:9 create file:@:osask.sys size:108k begin:5 \
+		ovrcopy from:OSASK_BO.SYS to:@:OSASK.SYS \
+		setattr file:@:OSASK.SYS attr:0x06 imgout:OSAIMGBO.BIN
 
-$(BOOTIMAGE) : $(TARGET)
-	$(EXE2SYS) s $< $@ 2048
+img_vm :
+	$(MAKE) vm
+	$(EDIMG) imgin:fdimg0at.tek wbinimg src:osaskbs1.bin len:512 from:0 to:0 \
+		bias:9 create file:@:osask.sys size:108k begin:5 \
+		ovrcopy from:OSASK_VM.SYS to:@:OSASK.SYS \
+		setattr file:@:OSASK.SYS attr:0x06 imgout:OSAIMGVM.BIN
 
-$(BASE) : $(BASE_NAS) makefile depend.mak
-	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $(BASE:.exe=.nai) $<
-	$(NASK) $(NASK_FLAGS) $(BASE:.exe=.nai) $(BASE) $(BASE:.exe=.lst)
+clean :
+# OSASK_??.EXE/SYSやディスクイメージは残るが中間生成物は全て消される
+	$(MAKE) -C pcat     clean
+	$(MAKE) -C towns    clean
+	$(MAKE) -C nec98    clean
+	$(MAKE) -C sgg00lib clean
+	$(MAKE) -C qemu     clean
+	$(MAKE) -C bochs    clean
+	$(MAKE) -C vmware3  clean
 
-
-
-pokon0.bim : pokon0.obj
-	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:$(POKON_STACK) $<
-
-pokon0.bin : pokon0.bim
-	$(BIM2BIN) malloc:$(POKON_MALLOC) file:$(POKON_FILE) input:$< output:$@
-
-winman0.bim : $(WINMAN_OBJS)
-	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:$(WINMAN_STACK) $(WINMAN_OBJS)
-
-winman0.bin : winman0.bim
-	$(BIM2BIN) malloc:$(WINMAN_MALLOC) file:$(WINMAN_FILE) input:$< output:$@
-
-%.i : %.ask .\depend.mak
-	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $*.i $<
-
-%.3as : %.i
-	$(ASKA) $< $@
-
-%.nas : %.3as
-	$(NASKCNV) $(NASKCNV_FLAGS) $< $@
-
-%.bin : %.nas
-	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
-
-%.tek : %.bin
-	$(BIM2BIN) $(BIM2BIN_FLAGS_TEK) input:$< output:$@
-
-%.s : %.c .\depend.mak
-	$(CC) $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC) -o $@ $<
-
-%.nas : %.s .\depend.mak
-	$(GAS2NASK) $(GAS2NASK_FLAGS) $< $@
-
-%.obj : %.nas .\depend.mak
-	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
-
-#%.obj : %.s .\depend.mak
-#	$(ASM) $(ASM_FLAGS) -o $@ $<
-
-#%.obj : %.c .\depend.mak
-#	$(CC) $< $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC)
-
-#%.bin : %.exe # for ASM objs
-#	$(BIM2BIN) input:$< output:$@ $(BIM2BIN_FLAGS_ASK)
-#	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
-
-clean:
-	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i clean
-	del $(TARGET) $(BOOTIMAGE) $(BOOT:.bin=.o)
-	for %%i in ($(OBJS)) do del %%i
-	for %%i in ($(LINK_OBJS)) do del %%i
-	for %%i in ($(BOOT:.bin=.lst)) do del %%i
-	for %%i in ($(BOOT:.bin=.i)) do del %%i
-	for %%i in ($(BOOT:.bin=.3as)) do del %%i
-	for %%i in ($(BOOT:.bin=.nas)) do del %%i
-#	for %%i in ($(BASE:.exe=.obj)) do del %%i
-	for %%i in ($(BASE:.exe=.nai)) do del %%i
-	for %%i in ($(BASE:.exe=.lst)) do del %%i
-#	for %%i in ($(BASE:.exe=.map)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.lst)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.s)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.nas)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.bim)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.lst)) do del %%i
-	for %%i in ($(WINMAN_C_OBJS)) do del %%i
-	for %%i in ($(WINMAN_C_OBJS:.obj=.s)) do del %%i
-	for %%i in ($(WINMAN_C_OBJS:.obj=.nas)) do del %%i
-	for %%i in ($(WINMAN_C_OBJS:.obj=.lst)) do del %%i
-	for %%i in ($(WINMAN_NASK_OBJS)) do del %%i
-	for %%i in ($(WINMAN_NASK_OBJS:.obj=.lst)) do del %%i
-
-dist_clean:
-	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i dist_clean
-#	del $(TARGET) $(BOOTIMAGE)
-	for %%i in ($(OBJS)) do del %%i
-	for %%i in ($(LINK_OBJS)) do del %%i
-	for %%i in ($(BOOT:.bin=.lst)) do del %%i
-	for %%i in ($(BOOT:.bin=.i)) do del %%i
-	for %%i in ($(BOOT:.bin=.3as)) do del %%i
-	for %%i in ($(BOOT:.bin=.nas)) do del %%i
-#	for %%i in ($(BASE:.exe=.obj)) do del %%i
-	for %%i in ($(BASE:.exe=.i)) do del %%i
-	for %%i in ($(BASE:.exe=.lst)) do del %%i
-#	for %%i in ($(BASE:.exe=.map)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.lst)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
-#	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.s)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.nas)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.bim)) do del %%i
-	for %%i in ($(WINMAN_C_OBJS)) do del %%i
-	for %%i in ($(WINMAN_C_OBJS:.obj=.s)) do del %%i
-	for %%i in ($(WINMAN_C_OBJS:.obj=.nas)) do del %%i
-	for %%i in ($(WINMAN_C_OBJS:.obj=.lst)) do del %%i
-	for %%i in ($(WINMAN_NASK_OBJS)) do del %%i
-	for %%i in ($(WINMAN_NASK_OBJS:.obj=.lst)) do del %%i
-
-# dependencies
-pokon0.obj : pokon0.c pokon0.h
+src_only :
+	$(MAKE) clean
+	-$(DELE) sgg00lib\sgg00lib.lib
+	-$(DELE) OSASK_*.EXE
+	-$(DELE) OSASK_*.SYS
+	-$(DELE) OSAIMG*.BIN
+	-$(DELE) qemu\OSAIMGQE.BIN
