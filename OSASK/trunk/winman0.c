@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.0
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.1
 		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
     stack:8k malloc:4208k file:4096k */
 
@@ -22,8 +22,9 @@
 							/* CLGDには1024のパラメータしか作ってない */
 #endif
 
-#define WALLPAPERMAXSIZE	(4* 1024 * 1024)
+#define WALLPAPERMAXSIZE	(4 * 1024 * 1024)
 #define	SCRNSHOTMAXSIZ		2048 * 1024
+#define MAXWINDEF			16
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -169,6 +170,9 @@ unsigned char *wallpaper, wallpaper_exist;
 struct WM0_WINDOW *window, *top = NULL, *unuse = NULL, *iactive = NULL, *pokon0 = NULL;
 int x2 = 0, y2, mx = 0x80000000, my = 1, mbutton = 0, mxx = 1;
 int fromboot = 0;
+struct {
+	int x, y;
+} windef[MAXWINDEF];
 int mouseaccel = 2;	/* これより大きいと加速度倍増 */
 int mousescale = 2; /* 加速スケールにしよう */
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
@@ -1302,6 +1306,9 @@ void OsaskMain()
 		defsigbuf[i].win = NULL;
 	defsigbuf[DEFSIGBUFSIZ - 1].win = -1;
 
+	for (i = 0; i < MAXWINDEF; i++)
+		windef[i].x = 0x10000000;
+
 	sgg_execcmd(tapisigvec);
 
 	#if (defined(TOWNS))
@@ -1476,7 +1483,7 @@ void OsaskMain()
 				mws->sig[1] = signal[i + 1];
 			}
 			moswinsig_flagset();
-			if (siglen == 10)
+			if ((sig4 & 0xff) == 0x12 && mx != 0x80000000)
 				mousesignal(mbutton, 0, 0); /* eyeなどのため */
 			break;
 
@@ -1689,6 +1696,16 @@ void OsaskMain()
 				}
 				break;
 			#endif
+
+		case 0x0230 /* setwindef */:
+			siglen = 3;
+			for (i = 0; i < MAXWINDEF - 1; i++) {
+				if (windef[i].x == 0x10000000)
+					break;
+			}
+			windef[i].x = signal[1];
+			windef[i].y = signal[2];
+			break;
 
 		case 0x0240 /* load JPN16$.FNT */:
 		//	siglen = 1;
@@ -2462,6 +2479,7 @@ void job_openwin0(struct WM0_WINDOW *win)
 {
 	int xsize = sgg_wm0_winsizex(&win->sgg);
 	int ysize = sgg_wm0_winsizey(&win->sgg);
+	int i;
 
 	// まず、座標を決める
 	if (top == NULL) {
@@ -2470,9 +2488,18 @@ void job_openwin0(struct WM0_WINDOW *win)
 		win->y0 = 32;
 		pokon0 = win;
 	} else {
-		win->x0 = (x2 - xsize) / 2;
+		win->x0 = windef[0].x;
+		win->y0 = windef[0].y;
+		if (win->x0 + xsize > x2 || win->y0 < RESERVELINE0 || win->y0 + ysize + RESERVELINE1 > y2) {
+			win->x0 = (x2 - xsize) / 2;
+			win->y0 = RESERVELINE0 + (y2 - (RESERVELINE0 + RESERVELINE1) - ysize) / 2;
+		}
 		win->x0 &= ~(MOVEUNIT - 1); // オープン位置を8の倍数になるように調整
-		win->y0 = RESERVELINE0 + (y2 - (RESERVELINE0 + RESERVELINE1) - ysize) / 2;
+		for (i = 0; i < MAXWINDEF - 1; i++) {
+			windef[i].x = windef[i + 1].x;
+			windef[i].y = windef[i + 1].y;
+		}
+		windef[MAXWINDEF - 1].x = 0x10000000;
 	}
 
 	// 各種パラメーターの初期化

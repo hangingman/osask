@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" for TOWNS ver.1.9 copyright(C) 2003 H.Kawai(川合秀実)
+// "fdcdrv0.ask" for TOWNS ver.2.1 copyright(C) 2003 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -109,8 +109,8 @@ nextcmd:
 		goto cmd0104; // FDC_intのベクタ提供
 	if (EAX == 0x011c)
 		goto cmd011c; // FDC_format
-	if (EAX == 0x0120)
-		goto cmd0120; // FDC_writeIPL
+//	if (EAX == 0x0120)
+//		goto cmd0120; // FDC_writeIPL
 	if (EAX == 0x0124)
 		goto cmd0124; // FDC motor control
 	if (EAX == 0x0128)
@@ -263,6 +263,7 @@ cmd011c:
 	(offset) cmd += 12;
 	goto nextcmd;
 
+#if 0
 cmd0120:
 	// FDC_writeIPL
 	INT(0x03);
@@ -273,6 +274,7 @@ cmd0120:
 	POP((offset) cmd);
 	(offset) cmd += 12;
 	goto nextcmd;
+#endif
 
 cmd0124:
 	// FDC motor control
@@ -1802,7 +1804,7 @@ pass00:
 		/* track */ work->dosload_FAT = EAX;
 	} while ((unsigned) EAX < 160);
 #endif
-	EDI = 87 /* 7 + 8 * 10 */; // システムクラスタ
+	EDI = 111 /* 7 + 8 * 13 */; // システムクラスタ(104KB)
 
 	asmout("JMP FDC_format99");
 }
@@ -1846,7 +1848,7 @@ void FDC_writeIPL2()
 	PUSH(ESI);
 	EAX = 0; /* とりあえず0クリア */
 	ESI = 0x104000;
-	ECX = 80 * 1024 / 4; /* max:80KB */
+	ECX = 512 * 1024 / 4; /* max:512KB */
 	do {
 		[DS:ESI] = EAX;
 		ESI += 4;
@@ -1875,13 +1877,13 @@ void FDC_writeIPL2()
 		ESI += 4;
 		ECX--;
 	} while (!= 0);
-	EAX = [FS:EBX + 12];
-	EAX += 1024 - 512 - 1;
-	EAX &= 0xfffffc00; // KB単位に切り上げ
-	EAX += 8191;
-	(unsigned int) EAX /= 8192;
-	AL += 2;
-	[DS:0x10002f] = AL;
+//	EAX = [FS:EBX + 12];
+//	EAX += 1024 - 512 - 1;
+//	EAX &= 0xfffffc00; // KB単位に切り上げ
+//	EAX += 8191;
+//	(unsigned int) EAX /= 8192;
+//	AL += 2;
+//	[DS:0x10002f] = AL;
 	POP(ESI);
 	POP(DS);
 
@@ -1893,10 +1895,16 @@ void FDC_writeIPL2()
 		[ECX - 4 + work->WBFS] = EAX;
 		ECX -= 4;
 	} while (!= 0);
-	(int) work->WBFS[0] = 0xffff0001; /* bit0, 16-31 */
-	(int) work->WBFS[4] = 0xffffffff; /* bit32-63 */
-	(int) work->WBFS[8] = 0xffffffff; /* bit64-95 */
-	/* 80KB */
+	(char) work->WBFS[0] = 0x01; /* bit0 */
+	ECX = [FS:EBX + 12];
+	EDX = 16;
+	ECX += 1023 - 512;
+	ECX /= 1024;
+	do {
+		BTS((int) work->WBFS[0], EDX);
+		EDX++;
+		ECX--;
+	} while (!= 0);
 
 	asmout("JMP FDC_format98");
 }

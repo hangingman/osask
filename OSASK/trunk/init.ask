@@ -1,4 +1,4 @@
-/* "init.ask" ver.3.1 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
+/* "init.ask" ver.3.2 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -477,15 +477,7 @@ void far Init()
 		CALLFAR0(papi_sel);
 		ESP += 40;
 	#elif (defined(TOWNS))
-		PUSH(EDX);
-		DX = 0x055c;
-		IN(AL, DX);		/* output switch */
-		POP(EDX);
-		TEST(AL, 0x01);
 		EBX = 0x80100000;
-	//	if (!= 0)
-	//		EBX = 0x89400000;	/* CLGD */
-
 		IN(AX, 0x0030); /* CPU識別レジスタ */
 		AL &= 0x07;
 		CMP(AL, 0x03);
@@ -7240,7 +7232,7 @@ cmd0054:
 	// setvideomode
 	// opt, mode, sig0(送り先と長さ), sig1, sig2
 	#if (defined(PCAT))
-		/* V98タスク */
+		/* V86タスク */
 		PUSH(syswork_sel);
 		POP(DS);
 		PUSH(all_sel);
@@ -7726,9 +7718,14 @@ cmd008c:
 		ECX &= 0x30307070; EBP &= 0xf0f0f010;
 		EAX |= ECX;        EDX |= EBP;
 		cmd[8] = EAX;      cmd[12] = EDX;
-		(char) cmd[14] = 0x19;
+		AL = 0x19;
 		if ((unsigned) DH < 0x89)	/* 初代FMTOWNSは1989年製だから……ってことでOK? */
-			(char) cmd[14] = 0x20;
+			AL = 0x20;
+		if ((unsigned) DH > 0x99) {	/* 2003年=0xa3年ということもあるようだ。*/
+			AL = 0x20;
+			(char)cmd[13] -= 0xa0;
+		}
+		(char)cmd[14] = AL;
 		(offset) cmd += 16;
 		goto nextcmd;
 	#endif
@@ -7737,7 +7734,7 @@ cmd0090:
 	// get videomode info
 	//	opt, EAX, ECX, sig0(送り先と長さ), sig1, sig2
 	#if (defined(PCAT))
-		/* V98タスク */
+		/* V86タスク */
 		PUSH(syswork_sel);
 		POP(DS);
 		PUSH(all_sel);

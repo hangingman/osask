@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" ver.1.7 copyright(C) 2003 川合秀実, I.Tak., ODP */
+/* "VGADRV0.ASK" ver.1.9 copyright(C) 2003 川合秀実, I.Tak., ODP */
 
 #include "osaskinc.ask"
 
@@ -206,7 +206,7 @@ fontload:
 				EDI++;
 				ECX--;
 			} while (!= 0);
-			EDI += 48;
+			EDI += 48 + 64;
 			(int) [SS:ESP]--;
 		} while (!= 0);
 		POP(EAX); /* dummy */
@@ -247,7 +247,7 @@ fontload:
 				EDI++;
 				ECX--;
 			} while (!= 0);
-			EDI += 24;
+			EDI += 24 + 32;
 			(int) [SS:ESP]--;
 		} while (!= 0);
 		POP(EAX); /* dummy */
@@ -268,8 +268,11 @@ font_attr:
 font_attr_table:
 	DB(4 /*  16bytes/font (8x16 mono) */);
 	DB(3 /*   8bytes/font (8x 8 mono half height) */);
-	DB(6 /*  64bytes/font (8x16 4bit color) */);
-	DB(5 /*  32bytes/font (8x 8 4bit color half height) */);
+	DB(7 /* 128bytes/font (8x16 4bit color) */);
+	DB(6 /*  64bytes/font (8x 8 4bit color half height) */);
+
+//	DB(6 /*  64bytes/font (8x16 4bit color) */);
+//	DB(5 /*  32bytes/font (8x 8 4bit color half height) */);
 }
 
 // マウスには非表示カウントというのがある
@@ -1323,10 +1326,7 @@ skip_flush:
 		AL = 0x80;
 		CL = (char) [SS:ESP];
 		(unsigned char) AL >>= CL;
-		TEST((char) cmd[12], 0x01);
 		(char) [SS:ESP + 1] = AL;
-//		if (!= 0)
-//			(char) [SS:ESP + 2] = 0x02;
 		do {
 			ECX = cmd[16]; /* xsize */
 			PUSH((offset) q);
@@ -1372,7 +1372,6 @@ skip_flush:
 			POP((offset) q);
 			(offset) q += XBYTES;
 			(offset) p += cmd[24]; /* yskip */
-//			(char) [SS:ESP + 2] ^= 0x02;
 			EBP--;
 		} while (!= 0);
 		(offset) cmd += 36;
@@ -1391,10 +1390,7 @@ skip_flush:
 		AL = 0x80;
 		CL = (char) [SS:ESP];
 		(unsigned char) AL >>= CL;
-		TEST((char) cmd[12], 0x01);
 		(char) [SS:ESP + 1] = AL;
-//		if (!= 0)
-//			(char) [SS:ESP + 2] = 0x02;
 		do {
 			ECX = cmd[16]; /* xsize */
 			PUSH((offset) q);
@@ -1440,7 +1436,6 @@ skip_flush:
 			POP((offset) q);
 			(offset) q += XBYTES;
 			(offset) p += cmd[24]; /* yskip */
-//			(char) [SS:ESP + 2] ^= 0x02;
 			EBP--;
 		} while (!= 0);
 		(offset) cmd += 36;
@@ -1457,13 +1452,14 @@ skip_flush:
 		/* [SS:ESP] : xの端数 */
 		/* p, qは準備済み */
 		EBP = ECX;
-		AL = 0x80;
 		CL = (char) [SS:ESP];
+		AL = 0x80;
+		CH = (char) cmd[12];
 		(unsigned char) AL >>= CL;
-		TEST((char) cmd[12], 0x01);
+		CH *= 2;
 		(char) [SS:ESP + 1] = AL;
-		if (!= 0)
-			(char) [SS:ESP + 2] = 0x02;
+		CH &= 0x02;
+		(char) [SS:ESP + 2] = CH;
 		do {
 			ECX = cmd[16]; /* xsize */
 			PUSH((offset) q);
@@ -1471,101 +1467,57 @@ skip_flush:
 			PUSH(EBX);
 			BL = (char) [SS:ESP + 13];
 			do {
-				EAX = *ps;
+				EBP = *ps;
 				(offset) ps += 2;
-				PUSH(EAX);
-				EDX = EAX;
-				EBP = EAX;
-				EAX >>= 15;
-				EDX >>=  9;
-				EBP >>=  2;
-				EAX &= 0x01;
-				EDX &= 0x02;
-				EBP &= 0x04;
-				EAX |= EDX;
-				EAX |= EBP;
-				POP(EDX);
-				/* AL : カラー番号 */
-				TEST(AL, 0x01);
-				if (== 0) {
-					/* red = 0ff */
-					EDX |= 0x6000; /* 011 */
-				}
-				TEST(AL, 0x02);
-				if (== 0) {
-					/* green = 0ff */
-					EDX |= 0x0300; /* 011 */
-				}
-				TEST(AL, 0x04);
-				if (== 0) {
-					/* blue = 0ff */
-					EDX |= 0x000c; /* 011 */
-				}
-				EBP = EDX;
+				PUSH(ECX);
 				TEST(BL, 0x55);
-				BH = (char) [SS:ESP + 14];
+				ECX = (unsigned char) [SS:ESP + 18];
 				if (!= 0)
-					BH |= 0x01;
-				/* red */
-			//	EDX = EBP;
-				EDX >>= 13;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (BH != 0x00)
-						EAX--;
+					ECX++;
+				asmout("MOV BH,[CS:.table+ECX]"); /* { 0, 3, 7, 1 }[ECX] */
+
+				/* AL : カラー番号 */
+				ECX = EBP; /* red */
+				EAX = EBP;
+				ECX >>= 13;
+				EAX >>= 15;
+				CL &= 0x03;
+				AL &= 0x01;
+				CH = BH;
+				if (!= 0) {
+					CL++;
+					CH >>= CL;
+					SBB(AL, 0); /* if (CF != 0) AL = 0; */
 				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (BH == 0x01)
-						EAX--;
-					if (BH == 0x02)
-						EAX--;
-				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (BH == 0x02)
-						EAX--;
-				}
-				/* green */
+				ECX = EBP; /* green */
 				EDX = EBP;
-				EDX >>= 8;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (BH != 0x00)
-						AL -= 2;
-				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (BH == 0x01)
-						AL -= 2;
-					if (BH == 0x02)
-						AL -= 2;
-				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (BH == 0x02)
-						AL -= 2;
-				}
-				/* blue */
-				EBP >>= 2;
-				EBP &= 0x03;
-				if (== 0) { /* 00 */
-					if (BH != 0x00)
-						AL -= 4;
-				}
-				EBP--;
-				if (== 0) { /* 01 */
-					if (BH == 0x01)
-						AL -= 4;
-					if (BH == 0x02)
-						AL -= 4;
-				}
-				EBP--;
-				if (== 0) { /* 10 */
-					if (BH == 0x02)
-						AL -= 4;
-				}
-				if (AL != 0)
+				ECX >>= 8;
+				EDX >>= 9;
+				CL &= 0x03;
+				DL &= 0x02;
+				CH = BH;
+			//	if (!= 0) {
+					CL++;
+					CH >>= CL;
+					if (CF != 0)
+						DL = 0;
+			//	}
+				AL |= DL;
+				ECX = EBP; /* blue */
+				EDX = EBP;
+				ECX >>= 2;
+				EDX >>= 2;
+				CL &= 0x03;
+				DL &= 0x04;
+			//	if (!= 0) {
+					CL++;
+					BH >>= CL;
+					if (CF != 0)
+						DL = 0;
+			//	}
+				AL |= DL;
+				POP(ECX);
+				if (!= 0)
 					AL += 8;
 				EDX = 0x03ce;
 				EBP = EAX;
@@ -1610,13 +1562,14 @@ skip_flush:
 		/* [SS:ESP] : xの端数 */
 		/* p, qは準備済み */
 		EBP = ECX;
-		AL = 0x80;
 		CL = (char) [SS:ESP];
+		AL = 0x80;
+		CH = (char) cmd[12];
 		(unsigned char) AL >>= CL;
-		TEST((char) cmd[12], 0x01);
+		CH *= 2;
 		(char) [SS:ESP + 1] = AL;
-		if (!= 0)
-			(char) [SS:ESP + 2] = 0x02;
+		CH &= 0x02;
+		(char) [SS:ESP + 2] = CH;
 		do {
 			ECX = cmd[16]; /* xsize */
 			PUSH((offset) q);
@@ -1624,101 +1577,57 @@ skip_flush:
 			PUSH(EBX);
 			BL = (char) [SS:ESP + 13];
 			do {
-				EAX = *pi;
+				EBP = *pi;
 				(offset) pi += 4;
-				PUSH(EAX);
-				EDX = EAX;
-				EBP = EAX;
-				EAX >>= 23;
-				EDX >>= 14;
-				EBP >>=  5;
-				EAX &= 0x01;
-				EDX &= 0x02;
-				EBP &= 0x04;
-				EAX |= EDX;
-				EAX |= EBP;
-				POP(EDX);
-				/* AL : カラー番号 */
-				TEST(AL, 0x01);
-				if (== 0) {
-					/* red = 0ff */
-					EDX |= 0x600000; /* 011 */
-				}
-				TEST(AL, 0x02);
-				if (== 0) {
-					/* green = 0ff */
-					EDX |= 0x006000; /* 011 */
-				}
-				TEST(AL, 0x04);
-				if (== 0) {
-					/* blue = 0ff */
-					EDX |= 0x000060; /* 011 */
-				}
-				EBP = EDX;
+				PUSH(ECX);
 				TEST(BL, 0x55);
-				BH = (char) [SS:ESP + 14];
+				ECX = (unsigned char) [SS:ESP + 18];
 				if (!= 0)
-					BH |= 0x01;
-				/* red */
-			//	EDX = EBP;
-				EDX >>= 21;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (BH != 0x00)
-						EAX--;
+					ECX++;
+				asmout("MOV BH,[CS:.table+ECX]"); /* { 0, 3, 7, 1 }[ECX] */
+
+				/* AL : カラー番号 */
+				ECX = EBP; /* red */
+				EAX = EBP;
+				ECX >>= 21;
+				EAX >>= 23;
+				CL &= 0x03;
+				AL &= 0x01;
+				CH = BH;
+				if (!= 0) {
+					CL++;
+					CH >>= CL;
+					SBB(AL, 0); /* if (CF != 0) AL = 0; */
 				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (BH == 0x01)
-						EAX--;
-					if (BH == 0x02)
-						EAX--;
-				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (BH == 0x02)
-						EAX--;
-				}
-				/* green */
+				ECX = EBP; /* green */
 				EDX = EBP;
-				EDX >>= 13;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (BH != 0x00)
-						AL -= 2;
-				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (BH == 0x01)
-						AL -= 2;
-					if (BH == 0x02)
-						AL -= 2;
-				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (BH == 0x02)
-						AL -= 2;
-				}
-				/* blue */
-				EBP >>= 5;
-				EBP &= 0x03;
-				if (== 0) { /* 00 */
-					if (BH != 0x00)
-						AL -= 4;
-				}
-				EBP--;
-				if (== 0) { /* 01 */
-					if (BH == 0x01)
-						AL -= 4;
-					if (BH == 0x02)
-						AL -= 4;
-				}
-				EBP--;
-				if (== 0) { /* 10 */
-					if (BH == 0x02)
-						AL -= 4;
-				}
-				if (AL != 0)
+				ECX >>= 13;
+				EDX >>= 14;
+				CL &= 0x03;
+				DL &= 0x02;
+				CH = BH;
+			//	if (!= 0) {
+					CL++;
+					CH >>= CL;
+					if (CF != 0)
+						DL = 0;
+			//	}
+				AL |= DL;
+				ECX = EBP; /* blue */
+				EDX = EBP;
+				ECX >>= 5;
+				EDX >>= 5;
+				CL &= 0x03;
+				DL &= 0x04;
+			//	if (!= 0) {
+					CL++;
+					BH >>= CL;
+					if (CF != 0)
+						DL = 0;
+			//	}
+				AL |= DL;
+				POP(ECX);
+				if (!= 0)
 					AL += 8;
 				EDX = 0x03ce;
 				EBP = EAX;
@@ -1758,6 +1667,8 @@ skip_flush:
 		asmout("JMP next_command");
 	}
 	INT(0x03);
+table:
+	DB(0, 3, 7, 1);
 
 putbox1:
 	EAX = cmd[36]; /* 透明色 */

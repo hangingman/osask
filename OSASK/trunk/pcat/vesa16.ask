@@ -1,4 +1,4 @@
-/* "VESA16.ASK" for PC/AT ver.0.1 copyright(C) 2003 川合秀実 */
+/* "VESA16.ASK" for PC/AT ver.0.2 copyright(C) 2003 川合秀実 */
 
 segment CODE(USE32, PARA);
 default(code == CODE);
@@ -1396,123 +1396,77 @@ mode22:
 	if (AL == 0x04) {
 		/* ダイレクトカラー32bit(24bit) */
 		/* タイリングあり */
-		ECX = 0;
-		TEST((char) cmd[12], 0x01);
-		if (!= 0)
-			CL = 0x02;
+		ECX = cmd[12];
+		ECX *= 2;
+		ECX &= 0x02;
 		PUSH(ECX);
 		do {
 			ECX = cmd[16]; /* xsize */
 			PUSH(EBP);
 			PUSH(EDX);
+			PUSH(EBX);
 			do {
-				EAX = *pi;
+				EBP = *pi;
 				(offset) pi += 4;
-				EBP = EAX;
-				EDX = EAX;
-				PUSH(EAX);
-				EAX >>= 3;
-				EBP >>= 5;
-				EDX >>= 8;
-				EAX &= 0x001f;
-				EBP &= 0x07e0;
-				EDX &= 0xf800;
-				EAX |= EBP;
-				EAX |= EDX;
-				POP(EDX);
-				/* AX : カラー番号 */
-				TEST(EAX, 0xf800);
-				if (== 0) {
-					/* red = 00000ff */
-					EDX |= 0x060000; /* 0000011 */
-				}
-				TEST(EAX, 0x07e0);
-				if (== 0) {
-					/* green = 000000ff */
-					EDX |= 0x000300; /* 00000011 */
-				}
-				TEST(AL, 0x001f);
-				if (== 0) {
-					/* bluse = 00000ff */
-					EDX |= 0x000006; /* 0000011 */
-				}
 				PUSH(ECX);
-				EBP = EDX;
-				TEST((offset) q, 0x02);
-				CL = (char) [SS:ESP + 12];
-				if (!= 0)
-					CL |= 0x01;
-				/* red */
-			//	EDX = EBP;
-				EDX >>= 17;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (CL != 0x00)
-						EAX -= 0x0800;
+				ECX = (offset) q;
+				ECX &= 0x01;
+				ECX |= [SS:ESP + 16];
+				asmout("MOV BH,[CS:.table+ECX]"); /* { 0, 3, 7, 1 }[ECX] */
+
+				/* AX : カラー番号 */
+				ECX = EBP; /* red */
+				EAX = EBP;
+				ECX >>= 17;
+				EAX >>= 19;
+				CL &= 0x03;
+				EAX &= 0x1f;
+				CH = BH;
+				if (!= 0) {
+					CL++;
+					CH >>= CL;
+					SBB(EAX, 0); /* if (CF != 0) EAX--; */
 				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (CL == 0x01)
-						EAX -= 0x0800;
-					if (CL == 0x02)
-						EAX -= 0x0800;
-				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (CL == 0x02)
-						EAX -= 0x0800;
-				}
-				/* green */
+				EAX <<= 11;
+				ECX = EBP; /* green */
 				EDX = EBP;
-				EDX >>= 8;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (CL != 0x00)
-						EAX -= 0x0020;
+				ECX >>= 8;
+				EDX >>= 10;
+				CL &= 0x03;
+				EDX &= 0x3f;
+				CH = BH;
+				if (!= 0) {
+					CL++;
+					CH >>= CL;
+					SBB(EDX, 0); /* if (CF != 0) EDX--; */
 				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (CL == 0x01)
-						EAX -= 0x0020;
-					if (CL == 0x02)
-						EAX -= 0x0020;
-				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (CL == 0x02)
-						EAX -= 0x0020;
-				}
-				/* blue */
-				EBP >>= 1;
-				EBP &= 0x03;
-				if (== 0) { /* 00 */
-					if (CL != 0x00)
-						EAX--;
-				}
-				EBP--;
-				if (== 0) { /* 01 */
-					if (CL == 0x01)
-						EAX--;
-					if (CL == 0x02)
-						EAX--;
-				}
-				EBP--;
-				if (== 0) { /* 10 */
-					if (CL == 0x02)
-						EAX--;
+				EDX <<= 5;
+				ECX = EBP; /* blue */
+				EAX |= EDX;
+				EDX = EBP;
+				ECX >>= 1;
+				EDX >>= 3;
+				CL &= 0x03;
+				EDX &= 0x1f;
+				if (!= 0) {
+					CL++;
+					BH >>= CL;
+					SBB(EDX, 0); /* if (CF != 0) EDX--; */
 				}
 				POP(ECX);
+				EAX |= EDX;
 				*q = AX;
 				(offset) q += 2;
 				ECX--;
 			} while (!= 0);
+			POP(EBX);
 			POP(EDX);
 			POP(EBP);
 			(offset) p += cmd[24]; /* yskip */
 			(offset) q += EBP;
 			(char) [SS:ESP] ^= 0x02;
 			EDX--;
-		} while (!= 0);
+		} while (!= 0); /* 45行削減 */
 		POP(EAX);
 		(offset) cmd += 36;
 		POP(EBP);
@@ -1520,7 +1474,8 @@ mode22:
 		asmout("JMP next_command");
 	}
 	INT(0x03);
-
+table:
+	DB(0, 3, 7, 1);
 putbox1:
 	do {
 		ECX = cmd[16]; /* xsize */

@@ -73,9 +73,8 @@ make pcat DESIGN=WIN9X
 ンを付けて make -i clean あるいはmake -i dist_clean して下さい。
 
 ・make towns を行った後 make bootimg を実行すると OSASK.EXEを 0x8000～用に
-リロケートした OSASK.SYS を生成します。生成には exe2sys.exe が必要です。
-http://homepage1.nifty.com/dreaming/osask/index.html
-からたどって下さい。
+リロケートした OSASK.SYS を生成します。生成には imgtol.com が必要です。
+imgtol.com は tolset05 の中にあります。
 
 
 ◎著作権

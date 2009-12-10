@@ -1,4 +1,4 @@
-;	"base.nas" ver.2.3
+;	"base.nas" ver.2.4
 ;	OSASK/PCAT用のブートプログラム
 ;	Copyright(C) 2003 H.Kawai (川合秀実)
 
@@ -75,6 +75,12 @@ Entry:
 	RESB	8-$ ; MASMORG(0x0008)
 
 ;	JMP		V86TaskEntry
+
+; KHBIOS用スクリプト
+	DB		0x10,0x89,0x00,0xd8,0x00,0x00
+	DD		0x8000,36
+	DB		0x1a
+	DW		0x0000,0x0800
 
 .entry2:
 	MOV		 SI, DS

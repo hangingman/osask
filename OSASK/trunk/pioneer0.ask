@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.3.0
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.3.1
     copyright(C) 2003 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -11,6 +11,12 @@
 
 segment CODE(USE32, PARA);
 default(code == CODE);
+default(data == CODE);
+
+#define SAFEAPI_FLAG 2
+#if defined(SAFEAPI_FLAG)
+	void near signal_cut_mode();
+#endif
 
 #if (defined(WIN9X))
 	#define	DEFAULT_TBOX_BCOL	8
@@ -294,6 +300,9 @@ void far cmd004()
 	work->softint_mask_buf[ 8] = 0xff80;
 	work->softint_mask_buf[12] = EAX /* 0x0000 */;
 	work->signaldw = EAX /* 0 */;
+#if defined (SAFEAPI_FLAG)
+	work->signalbox_status = AL;
+#endif
 //	work->signalbox_write_ptr = 0xfffffffe;
 	work->ending_count = 0x80; /* bit7:生存フラグ, bit6-0:終了カウント */
 	EAX--;
@@ -901,7 +910,9 @@ void near cmd020()
 	LEA(EAX, work->children_back);
 	cmd0020_win->chain_back = ECX;
 	cmd0020_win->chain_next = EAX;
-	// signatureも初期化しなければいけない
+	// signatureも初期化
+	asmout("mov dword[ds:edi], 'WIND'");
+	asmout("mov dword[ds:edi+4], 'OW00'");
 
 	EAX = cmd[ 8]; // slot-no
 	ECX = cmd[12]; // x-size
@@ -979,6 +990,8 @@ void near cmd024()
 	PUSH((int) 0 /* EOC */);
 	PUSH(cmd0024_win->slot);
 	PUSH((int) 0x0104 /* cmd-no */);
+	[DS:EDI] = EDI;
+	[DS:EDI+4] = EDI;	/* signatureつぶし */
 	EBX = ESP;
 	CALL(0x0017,0); // shell-call
 	ESP += 12;
@@ -996,6 +1009,7 @@ void near cmd028()
 	TEXTBOX *cmd0028_textbox == DS:EBX;
 	(offset) cmd0028_textbox = cmd[ 8]; // work_ptr
 	(offset) cmd0028_win = cmd[32]; // window
+	/* 新しいtextboxをchainの一番後ろにつなぐ */
 	(int) cmd0028_textbox->signature[0] = 0x54584554; // 'TEXT'
 	LEA(EAX, cmd0028_textbox->chain_back);
 	ECX = cmd0028_win->children_back;
@@ -1023,7 +1037,21 @@ void near cmd028()
 		ECX *= 8;
 		ECX += 80 + 16;
 		if (cmd0028_win->x_size < ECX)
-			INT(0x03);
+#if defined(SAFEAPI_FLAG)
+		{
+			EAX = cmd0028_textbox->chain_back;
+			LEA(EDI, cmd0028_win->children_back);
+			[DS:EAX+4] = EDI;	/* win->back->back->next=win */
+			[DS:EDI] = EAX;		/* win->back = win->back->back */
+			/* 切らないで不正なまま残しておくと死亡 */
+			signal_cut_mode();	/* ポインタをPUSH */
+			if (!=0)			/* 長さの自動計算 */
+				asmout("db 'opentextbox:Too long titlebox(WinW must be >=',1,').'");
+				/* DB("hoge");だとdataセグメントに逝ってしまう。 */
+		}
+#else
+			INT(3);
+#endif
 		EDX = 24;
 		ECX =  4;
 	}
@@ -1519,6 +1547,14 @@ void near cmd044()
 	ECX = cmd[12]; // color
 	EDX = EDI;
 	if ((unsigned) (offset) win != 0xffffffff) {
+#if defined(SAFEAPI_FLAG)
+		asmout("cmp dword[ds:ebx],'WIND'");
+		if (!=){
+			signal_cut_mode();
+			if (!=)
+				asmout("db 'drawline:invalid window: ',6");
+		}
+#endif
 		EDX = win->slot;
 	}
 	(int) [SS:EBP +  0] = 0x0400; // cmd
@@ -2459,6 +2495,14 @@ void near cmd03c()
 
 	EAX = cmd[4];
 	(offset) win = cmd[8];
+#if defined(SAFEAPI_FLAG)
+	TEST(EAX, 0xfffffcfc);
+	if (!=0){
+		signal_cut_mode();
+		if (!=0)
+			asmout("db 'winctl:invalid option: ',0");
+	}
+#endif
 	TEST(AL, 0x01);
 	if (!= 0) {
 		// EBP, ESI, EDI以外は全て破壊
@@ -3795,23 +3839,29 @@ headercut:
 	ECX = EAX;
 	EAX++;
 	ES = EDX;
-	PUSH(EAX);
 //	EDI = (offset) signal + 4;
 	LEA(EDI, [ESI + 4]);
+#if defined(SAFEAPI_FLAG)
+	TEST(work->signalbox_status, SAFEAPI_FLAG);
+	if (!=0)
+		goto ignore;
+#endif
+	PUSH(EAX);
 	sendusersignal();
 	POP(EAX);
 	if (ZF == 1 /* succeeded */) {
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+	ignore:
 		work->signaldw += EAX;
 		LEA(ESI, [ESI + EAX * 4]);
-		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
 		goto nextsignal;
 	}
 //	goto usersigboxfull;
 
 usersigboxfull:
 	// nestを0x02だけ減らす。
-	work->signalbox_status |= 0x01 /* buffer-full */;
-	work->signalbox_write_ptr |= 0x01 /* buffer-full */;
+	// work->signalbox_status |= 0x01 /* 誰も見てくれないbuffer-full */;
+	work->signalbox_write_ptr |= 0x01 /* 専らこちらが見られるbuffer-full */;
 	EAX = work->signaldw; // それまでに処理できたシグナル
 	POP(GS);
 	POP(ES);
@@ -3826,6 +3876,11 @@ sig0080:
 	// システムタイマータイムアウト
 	(offset) signal += 4;
 	work->signaldw++;
+#if defined(SAFEAPI_FLAG)
+	  TEST(work->signalbox_status, SAFEAPI_FLAG);
+	  if (!=0)
+	    goto nextsignal;
+#endif
 	(char) [SS:ESP + 12 /* GS, ES, DS */ + 16 /* ESP */] = 0x02; // リターン時にLlv2へ。
 	goto nextsignal;
 
@@ -3835,7 +3890,6 @@ sig00c0:
 	EAX = signal[8]; // system-id
 	(offset) signal += 12;
 	work->signaldw += 3;
-	(char) [SS:ESP + 12 /* GS, ES, DS */ + 16 /* ESP */] = 0x02; // リターン時にLlv2へ。
 	EDX |= 0x01; // system-id defined
 	PUSH((int) 0);
 	PUSH(EAX);
@@ -3844,6 +3898,11 @@ sig00c0:
 	EBX = ESP;
 	CALL(0x0017,0); // GUIGUI統合shellcall
 	ESP += 16;
+#if defined(SAFEAPI_FLAG)
+	TEST(work->signalbox_status, SAFEAPI_FLAG);
+	if (==0)
+#endif
+	(char) [SS:ESP + 12 /* GS, ES, DS */ + 16 /* ESP */] = 0x02; // リターン時にLlv2へ。
 	goto nextsignal;
 
 sig00c8:
@@ -3877,6 +3936,10 @@ sig0040:
 //	*win_x0 = EAX; // win_x0
 //	*win_y0 = ECX; // win_y0
 	AL = sig0040_win->sigflag;
+#if defined(SAFEAPI_FLAG)
+	  TEST(work->signalbox_status, SAFEAPI_FLAG);
+	  if (==0){
+#endif
 	TEST(AL, 0x02);
 	if (!= 0) {
 		EDI = 4;
@@ -3898,6 +3961,9 @@ sig0040:
 			goto usersigboxfull;
 		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
 	}
+#if defined(SAFEAPI_FLAG)
+	  }
+#endif
 	(offset) signal += 16;
 	work->signaldw += 4;
 	goto nextsignal;
@@ -3914,6 +3980,10 @@ sig0041:
 	AL = (char) signal[8];
 	sig0041_win->mode0 = AL;
 	AL = sig0041_win->sigflag;
+#if defined(SAFEAPI_FLAG)
+	  TEST(work->signalbox_status, SAFEAPI_FLAG);
+	  if (==0){
+#endif
 	TEST(AL, 0x04);
 	if (!= 0) {
 		EDI = 5;
@@ -3935,6 +4005,9 @@ sig0041:
 			goto usersigboxfull;
 		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
 	}
+#if defined(SAFEAPI_FLAG)
+	  }
+#endif
 	(offset) signal += 12;
 	work->signaldw += 3;
 	goto nextsignal;
@@ -3945,6 +4018,10 @@ sig0042:
 	(offset) sig0042_win = signal[4];
 	AL = sig0042_win->sigflag;
 	sig0042_win->draw_enable = 1; // 自由表示enable（随時更新）
+#if defined(SAFEAPI_FLAG)
+	  TEST(work->signalbox_status, SAFEAPI_FLAG);
+	  if (==0){
+#endif
 	TEST(AL, 0x10);
 	if (!= 0) {
 		PUSH(sig0042_win->signalhead[0]);
@@ -3958,6 +4035,9 @@ sig0042:
 			goto usersigboxfull;
 		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
 	}
+#if defined(SAFEAPI_FLAG)
+	}
+#endif
 	(offset) signal += 8;
 	work->signaldw += 2;
 	goto nextsignal;
@@ -3967,6 +4047,10 @@ sig0043:
 	WINDOW *sig0043_win == DS:EBX;
 	(offset) sig0043_win = signal[4];
 	AL = sig0043_win->sigflag;
+#if defined(SAFEAPI_FLAG)
+	  TEST(work->signalbox_status, SAFEAPI_FLAG);
+	  if (==0){
+#endif
 	TEST(AL, 0x08);
 	if (!= 0) {
 		EDI = 6;
@@ -3989,7 +4073,9 @@ sig0043:
 		work->signaldw += 2;
 		goto nextsignal;
 	}
-
+#if defined(SAFEAPI_FLAG)
+	}
+#endif
 sig0020:
 	PUSH((int) 0);
 	PUSH((int) 0x0001); // opt(close all handle)
@@ -4017,9 +4103,14 @@ sig0044:
 	WINDOW *sig0044_win == DS:EBX;
 	(offset) sig0044_win = signal[4];
 	AL = sig0044_win->sigflag;
-	TEST(AL, 0x10);
 	sig0044_win->draw_enable = 0; // 自由表示disable（更新抑制）
+	TEST(AL, 0x10);
 	if (!= 0) {
+#if defined(SAFEAPI_FLAG)
+	  TEST(work->signalbox_status, SAFEAPI_FLAG);
+	  if (!=0)
+		goto recieve;
+#endif
 		EDI = 1;
 		TEST(AL, 0x80);
 		EDX = sig0044_win->signalhead[0];
@@ -4037,6 +4128,7 @@ sig0044:
 			goto usersigboxfull;
 		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
 	} else {
+	recieve:
 		// 受理したことをシェルにシステムコールで伝える
 		PUSH((int) 0);
 		PUSH(sig0044_win->slot);
@@ -4054,6 +4146,10 @@ sig0045:
 	WINDOW *sig0045_win == DS:EBX;
 	(offset) sig0045_win = signal[4];
 	AL = sig0045_win->sigflag;
+#if defined(SAFEAPI_FLAG)
+	  TEST(work->signalbox_status, SAFEAPI_FLAG);
+	  if (==0){
+#endif
 	TEST(AL, 0x20);
 	if (!= 0) {
 		EDI = 7;
@@ -4073,6 +4169,9 @@ sig0045:
 			goto usersigboxfull;
 		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
 	}
+#if defined(SAFEAPI_FLAG)
+	}
+#endif
 sig00c4:
 sig00cc:
 	(offset) signal += 8;
@@ -4101,6 +4200,11 @@ sig0048:
 	AL = sig0048_win->sigflag;
 	TEST(AL, 0x01);
 	if (!= 0) {
+#if defined(SAFEAPI_FLAG)
+	  TEST(work->signalbox_status, SAFEAPI_FLAG);
+	  if (!=0)
+	    goto call_draw_window;
+#endif
 		EDI = 2;
 		TEST(AL, 0x80);
 		EDX = sig0048_win->signalhead[0];
@@ -4118,6 +4222,7 @@ sig0048:
 			goto usersigboxfull;
 		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
 	} else {
+	call_draw_window:
 		EDI = (offset) sig0048_win;
 		// EBP, ESI, EDI以外は全て破壊
 		drawwindow();
@@ -4577,7 +4682,18 @@ void near drawcomponent()
 				CALL(0x0017,0); // GUIGUI統合shellcall
 				ESP += 44;
 			} else {
-				INT(0x03);
+				#if 0	/* APIがシグナル処理で呼ぶこともあるので対処できない */
+					ESP += 56;
+					EAX = ESI;
+					POP(EBP);
+					POP(ESI);
+					POP(ECX);
+					signal_cut_mode();
+					if (!=0)
+						asmout("db 'drawcompo:destroyed component@',0");
+				#else
+					INT(0x03);
+				#endif
 			}
 			LEA(EAX, win->children_back);
 			ESI = (int) [DS:ESI + 12 /* chain_next */];
@@ -5129,3 +5245,109 @@ void near lineconv()
 	//	}
 //	}
 }
+
+#if defined(SAFEAPI_FLAG)
+asmout("hextable: db '0123456789abcdef'");
+
+void near signal_cut_mode(){
+  WORK *work == SS:EBP;
+  int *cmd == DS:ESI;
+
+  PUSHAD();
+  EAX = 0;
+
+  /* 溜っているシグナルをもみ消す */
+  work->signalbox_read_free = EAX;
+  /* フラグに記録, 以後シグナルは握りつぶされアプリに制御が渡らない */
+  work->signalbox_status |= SAFEAPI_FLAG;
+
+  /* メッセージ */
+  EBP = ESP;
+  EBX = [SS:EBP+4*8];				/* ret-eip */
+  EDX = (unsigned char)[CS:EBX+1];	/* message length */
+  EDI = EDX;
+  do{
+    AL = [CS:EBX+2 +EDX-1];
+    if ((unsigned)AL < 16){
+      EDI += 7;
+      EAX *= 4;
+      ECX = 0;
+      if ((unsigned)AL < 8*4){
+        AL ^= 7*4;
+        do{							/* レジスタダンプ */
+          CL = 0x0f;
+          CL &= [SS:EBP+EAX];
+          asmout("mov cl, byte[cs:hextable+ecx]");
+          PUSH(ECX);
+          CL = [SS:EBP+EAX];
+          ECX >>= 4;
+          asmout("mov cl, byte[cs:hextable+ecx]");
+          EAX++;
+          PUSH(ECX);
+          TEST(AL,3);
+        }while(!=0);
+      }else{	/* コマンドダンプ */
+        do{
+          CL = 0x0f;
+          CL &= [DS:ESI+EAX-8*4];
+          asmout("mov cl, byte[cs:hextable+ecx]");
+          PUSH(ECX);
+          CL = [DS:ESI+EAX-8*4];
+          ECX >>= 4;
+          asmout("mov cl, byte[cs:hextable+ecx]");
+          PUSH(ECX);
+          EAX++;
+          TEST(AL,3);
+        }while(!=0);
+      }
+    }else
+      PUSH(EAX);
+    EDX--;
+  }while(!=0);
+
+  EBX = ESP;
+  PUSH(EDX);			/* eoc */
+  PUSH(SS);
+  PUSH(EBX);
+  PUSH(EDI);			/* length */
+  PUSH(EDX);			/* base */
+  PUSH(0xc0);			/* ascii */
+  PUSH(EDX);			/* backcolor */
+  PUSH(15);			/* color */
+  PUSH(EDX);			/* y */
+  PUSH(EDX);			/* x */
+  PUSH(EDX);			/* no slot for window */
+  PUSH(EDX);			/* opt */
+  PUSH(0x0404);			/* put text */
+  EBX = ESP;
+  CALL(0x0017,0);		/* GUIGUI統合shellcall */
+
+  /* waitsignalコマンドを捏造, 永眠せよ */
+  cmd[0] = 0x18;		/* wait signal */
+  cmd[4] = 0x01;
+  cmd[8] = EDX;
+  cmd[12] = EDX;
+  cmd[16] = EDX;		/* end of command */
+
+  ESP = EBP;
+  POPAD();
+  asmout("JMP nextcmd");
+}
+/*
+   処理の流れ:
+   user:	waitsignal
+   pion:	cmd018:shell call to sleep (LocalLevel=30).
+   TAPI(?):
+   pion.sint:	called by TAPI(?), sendusersignal.
+		if succeeded, set LocalLevel (of after sint ends) to 2, and
+		if user signal handler is present, prepare for it to be called.
+   (user.sint:)
+   TAPI(?):
+   pion:	return into cmd018, return to user program.
+   user:	waken.
+*/
+/*
+   あと書くべき事:
+   メッセージ表示。
+*/
+#endif

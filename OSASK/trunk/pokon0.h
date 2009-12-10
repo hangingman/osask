@@ -82,8 +82,8 @@ enum {
 	SIGNAL_CURSOR_UP = 4,
 	SIGNAL_CURSOR_DOWN,
 	SIGNAL_ENTER = 6,
-	SIGNAL_PAGE_UP = 10,
-	SIGNAL_PAGE_DOWN,
+	SIGNAL_CURSOR_PAGE_UP = 10,
+	SIGNAL_CURSOR_PAGE_DOWN,
 	SIGNAL_TOP_OF_LIST = 12,
 	SIGNAL_BOTTOM_OF_LIST,
 	SIGNAL_DISK_CHANGED = 14,
@@ -96,14 +96,22 @@ enum {
 	SIGNAL_CHANGE_SORT_MODE, /* 21 */
 	SIGNAL_DISK_CHANGE0, /* 10個必要(22-31) */
 	SIGNAL_LETTER_START = '!', /* 33 */
-	SIGNAL_LETTER_END = 'Z',
+	SIGNAL_LETTER_END = 'Z',	/* 5a */
+	SIGNAL_PAGE_UP = 0x60,
+	SIGNAL_PAGE_DOWN,
+	SIGNAL_MOSPOS,
+	SIGNAL_MOSBTN,
+	SIGNAL_WINDOW_ENABLE_DRAW = 120,
+	SIGNAL_WINDOW_DISABLE_DRAW,
+	SIGNAL_WINDOW_REDRAW,
+	SIGNAL_WINDOW_REDRAW_PARTIAL,
 	SIGNAL_WINDOW_CLOSE0 = 126,
 	SIGNAL_WINDOW_CLOSE1 = 127,
 };
 
 /* command signals */
 enum {
-	COMMAND_SIGNAL_START = 0xc0,
+	COMMAND_SIGNAL_START = 0xc0,					/* 192 */
 	COMMAND_TO_FORMAT_MODE = COMMAND_SIGNAL_START,  /* to format-mode */
 	COMMAND_TO_RUN_MODE,                            /* to run-mode */
 	COMMAND_CHANGE_FORMAT_MODE,                     /* change format-mode */
@@ -177,11 +185,16 @@ struct STR_BANK { /* 84bytes */
 	} Llv[8];
 };
 
+#define FILESELWINFLAG_DRAWENABLED	1
+#define FILESELWINFLAG_GRABBED		2
 struct FILESELWIN { /* 1つあたり、5.6KB必要 */
-	int ext, cur, winslot, sigbase;
+	int ext, cur, winslot, sigbase, listsize;
 	int task, mdlslot, num, siglen, sig[16];
+	int shndly0, shndly1, grabbedy;
+	int mosx, mosy, mosbtns;
 	char subtitle_str[24];
-	struct FILELIST *lp, list[256] /* 4KB */;
+	char flags;
+	struct FILELIST *lp, list[256] /* 4KB */, *grabbedlp;
 	struct LIB_WINDOW window; /* (128B) */
 	struct {
 		struct LIB_TEXTBOX tbox;
@@ -315,6 +328,8 @@ int poko_setvesa(const char *cmdlin);
 int poko_detectpcivga(const char *cmdlin);
 int poko_defkeybind(const char *cmdlin);
 int poko_defspkeybind(const char *cmdlin);
+int poko_setwindef(const char *cmdlin);
+int poko_run(const char *cmdlin);
 
 /* */
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);

@@ -16,7 +16,7 @@ SUBDIRS += $(ARCH)
 
 TARGET = OSASK.EXE
 BOOTIMAGE = $(TARGET:EXE=SYS)
-EXE2SYS = exe2sys
+EXE2SYS = imgtol
 
 ARCH_OBJS = timerdrv.bin keymos0.bin fdcdrv0.bin vgadrv0.bin decode0.bin
 
@@ -107,7 +107,7 @@ FORCE:
 bootimg : $(BOOTIMAGE)
 
 $(BOOTIMAGE) : $(TARGET)
-	$(EXE2SYS) $< $@	
+	$(EXE2SYS) s $< $@ 2048
 
 #$(BASE) : $(BASE:.exe=.nas)
 #	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 

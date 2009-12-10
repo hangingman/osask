@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" for TOWNS ver.1.8 copyright(C) 2003 I.Tak., 川合秀実 */
+/* "VGADRV0.ASK" for TOWNS ver.1.9 copyright(C) 2003 I.Tak., 川合秀実 */
 
 #if (defined(VMODE) || defined(CLGD543X))
 	#undef TWVSW			/* 1024でないとインターレースできない */
@@ -1518,120 +1518,76 @@ void near GAPI_putbox()
 	if (AL == 0x02) {
 		/* ダイレクトカラー16bit, RRRRRGGG_GGGBBBBB */
 		/* タイリングあり */
-		ECX = 0;
-		TEST((char) cmd[12], 0x01);
-		if (!= 0)
-			CL = 0x02;
+		ECX = cmd[12];
+		ECX *= 2;
+		ECX &= 0x02;
 		PUSH(ECX);
 		do {
 			ECX = cmd[16]; /* xsize */
 			PUSH(EDX);
 			PUSH(EBP);
+			PUSH(EBX);
 			do {
-				EAX = *ps;
+				EBP = *ps;
 				(offset) ps += 2;
-				EDX = EAX;
-				EBP = EAX;
-				PUSH(EAX);
-				EAX >>= 14; /* red */
-				EDX >>=  7; /* green */
-				EBP <<=  1; /* blue */
-				EAX &= 0x03;
-				EDX &= 0x0c;
-				EBP &= 0x30;
-				EAX |= EDX;
-				EBP |= 0xc0;
-				EAX |= EBP;
-				POP(EDX);
+				PUSH(ECX);
+				ECX = (offset) q;
+				ECX &= 0x01;
+				ECX |= [SS:ESP + 16];
+				asmout("MOV BH,[CS:.table+ECX]"); /* { 0, 3, 7, 1 }[ECX] */
+
 				/* AL : カラー番号 */
-				TEST(AL, 0x03);
-				if (== 0) {
-					/* red = 00ff */
-					EDX |= 0x3000; /* 0011 */
+				ECX = EBP; /* red */
+				EAX = EBP;
+				ECX >>= 12;
+				EAX >>= 14;
+				CL &= 0x03;
+				AL &= 0x03;
+				CH = BH;
+				if (!= 0) {
+					CL++;
+					CH >>= CL;
+					SBB(AL, 0); /* if (CF != 0) AL--; */
 				}
-				TEST(AL, 0x0c);
-				if (== 0) {
-					/* green = 00ff */
-					EDX |= 0x0180; /* 0011 */
-				}
-				TEST(AL, 0x30);
-				if (== 0) {
-					/* bluse = 00ff */
-					EDX |= 0x0006; /* 0011 */
-				}
-				EBP = EDX;
-				TEST((offset) q, 0x01);
-				AH = (char) [SS:ESP + 8];
-				if (!= 0)
-					AH |= 0x01;
-				/* red */
-			//	EDX = EBP;
-				EDX >>= 12;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (AH != 0x00)
-						EAX--;
-				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (AH == 0x01)
-						EAX--;
-					if (AH == 0x02)
-						EAX--;
-				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (AH == 0x02)
-						EAX--;
-				}
-				/* green */
+				AL |= 0xc0;
+				ECX = EBP; /* green */
 				EDX = EBP;
-				EDX >>= 7;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (AH != 0x00)
-						AL -= 4;
+				ECX >>= 7;
+				EDX >>= 9;
+				CL &= 0x03;
+				DL &= 0x03;
+				CH = BH;
+				if (!= 0) {
+					CL++;
+					CH >>= CL;
+					SBB(DL, 0); /* if (CF != 0) DL--; */
 				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (AH == 0x01)
-						AL -= 4;
-					if (AH == 0x02)
-						AL -= 4;
+				DL <<= 2;
+				ECX = EBP; /* blue */
+				AL |= DL;
+				EDX = EBP;
+				ECX >>= 1;
+				EDX >>= 3;
+				CL &= 0x03;
+				DL &= 0x03;
+				if (!= 0) {
+					CL++;
+					BH >>= CL;
+					SBB(DL, 0); /* if (CF != 0) DL--; */
 				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (AH == 0x02)
-						AL -= 4;
-				}
-				/* blue */
-				EBP >>= 1;
-				EBP &= 0x03;
-				if (== 0) { /* 00 */
-					if (AH != 0x00)
-						AL -= 16;
-				}
-				EBP--;
-				if (== 0) { /* 01 */
-					if (AH == 0x01)
-						AL -= 16;
-					if (AH == 0x02)
-						AL -= 16;
-				}
-				EBP--;
-				if (== 0) { /* 10 */
-					if (AH == 0x02)
-						AL -= 16;
-				}
+				DL <<= 4;
+				POP(ECX);
+				AL |= DL;
 				*q = AL;
 				(offset) q++;
 				ECX--;
 			} while (!= 0);
+			POP(EBX);
 			POP(EBP);
 			POP(EDX);
 			(offset) p += cmd[24]; /* yskip */
 			(offset) q += EBP;
-			(char) [SS:ESP] ^= 0x02;
+			(int) [SS:ESP] ^= 0x02;
 			EDX--;
 		} while (!= 0);
 		POP(EAX);
@@ -1643,120 +1599,76 @@ void near GAPI_putbox()
 	if (AL == 0x04) {
 		/* ダイレクトカラー32bit(24bit) */
 		/* タイリングあり */
-		ECX = 0;
-		TEST((char) cmd[12], 0x01);
-		if (!= 0)
-			CL = 0x02;
+		ECX = cmd[12];
+		ECX *= 2;
+		ECX &= 0x02;
 		PUSH(ECX);
 		do {
 			ECX = cmd[16]; /* xsize */
 			PUSH(EDX);
 			PUSH(EBP);
+			PUSH(EBX);
 			do {
-				EAX = *pi;
+				EBP = *pi;
 				(offset) pi += 4;
-				EDX = EAX;
-				EBP = EAX;
-				PUSH(EAX);
-				EAX >>= 22; /* red */
-				EDX >>= 12; /* green */
-				EBP >>=  2; /* blue */
-				EAX &= 0x03;
-				EDX &= 0x0c;
-				EBP &= 0x30;
-				EAX |= EDX;
-				EBP |= 0xc0;
-				EAX |= EBP;
-				POP(EDX);
+				PUSH(ECX);
+				ECX = (offset) q;
+				ECX &= 0x01;
+				ECX |= [SS:ESP + 16];
+				asmout("MOV BH,[CS:.table+ECX]"); /* { 0, 3, 7, 1 }[ECX] */
+
 				/* AL : カラー番号 */
-				TEST(AL, 0x03);
-				if (== 0) {
-					/* red = 00ff */
-					EDX |= 0x300000; /* 0011 */
+				ECX = EBP; /* red */
+				EAX = EBP;
+				ECX >>= 20;
+				EAX >>= 22;
+				CL &= 0x03;
+				AL &= 0x03;
+				CH = BH;
+				if (!= 0) {
+					CL++;
+					CH >>= CL;
+					SBB(AL, 0); /* if (CF != 0) AL--; */
 				}
-				TEST(AL, 0x0c);
-				if (== 0) {
-					/* green = 00ff */
-					EDX |= 0x003000; /* 0011 */
-				}
-				TEST(AL, 0x30);
-				if (== 0) {
-					/* bluse = 00ff */
-					EDX |= 0x000030; /* 0011 */
-				}
-				EBP = EDX;
-				TEST((offset) q, 0x01);
-				AH = (char) [SS:ESP + 8];
-				if (!= 0)
-					AH |= 0x01;
-				/* red */
-			//	EDX = EBP;
-				EDX >>= 20;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (AH != 0x00)
-						EAX--;
-				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (AH == 0x01)
-						EAX--;
-					if (AH == 0x02)
-						EAX--;
-				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (AH == 0x02)
-						EAX--;
-				}
-				/* green */
+				AL |= 0xc0;
+				ECX = EBP; /* green */
 				EDX = EBP;
-				EDX >>= 12;
-				EDX &= 0x03;
-				if (== 0) { /* 00 */
-					if (AH != 0x00)
-						AL -= 4;
+				ECX >>= 12;
+				EDX >>= 14;
+				CL &= 0x03;
+				DL &= 0x03;
+				CH = BH;
+				if (!= 0) {
+					CL++;
+					CH >>= CL;
+					SBB(DL, 0); /* if (CF != 0) DL--; */
 				}
-				EDX--;
-				if (== 0) { /* 01 */
-					if (AH == 0x01)
-						AL -= 4;
-					if (AH == 0x02)
-						AL -= 4;
+				DL <<= 2;
+				ECX = EBP; /* blue */
+				AL |= DL;
+				EDX = EBP;
+				ECX >>= 4;
+				EDX >>= 6;
+				CL &= 0x03;
+				DL &= 0x03;
+				if (!= 0) {
+					CL++;
+					BH >>= CL;
+					SBB(DL, 0); /* if (CF != 0) DL--; */
 				}
-				EDX--;
-				if (== 0) { /* 10 */
-					if (AH == 0x02)
-						AL -= 4;
-				}
-				/* blue */
-				EBP >>= 4;
-				EBP &= 0x03;
-				if (== 0) { /* 00 */
-					if (AH != 0x00)
-						AL -= 16;
-				}
-				EBP--;
-				if (== 0) { /* 01 */
-					if (AH == 0x01)
-						AL -= 16;
-					if (AH == 0x02)
-						AL -= 16;
-				}
-				EBP--;
-				if (== 0) { /* 10 */
-					if (AH == 0x02)
-						AL -= 16;
-				}
+				DL <<= 4;
+				POP(ECX);
+				AL |= DL;
 				*q = AL;
 				(offset) q++;
 				ECX--;
 			} while (!= 0);
+			POP(EBX);
 			POP(EBP);
 			POP(EDX);
 			(offset) p += cmd[24]; /* yskip */
 			(offset) q += EBP;
-			(char) [SS:ESP] ^= 0x02;
+			(int) [SS:ESP] ^= 0x02;
 			EDX--;
 		} while (!= 0);
 		POP(EAX);
@@ -1766,7 +1678,8 @@ void near GAPI_putbox()
 		asmout("JMP next_command");
 	}
 	INT(0x03);
-
+table:
+	DB(0, 3, 7, 1);
 putbox1:
 	AH = (char) cmd[36];
 	do {

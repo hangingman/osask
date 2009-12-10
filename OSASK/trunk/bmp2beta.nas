@@ -479,8 +479,7 @@ _bmp2beta:
 	      mov edx, [esp+edx*4]
 	      call [ebp+bmp2beta.output]
 	      mov eax, edx
-	      mov edx, [ebp+bmp2beta.output]
-	      call edx
+	      call [ebp+bmp2beta.output]
 	      inc ebx
 		jnz ..@95.do
 	..@93.ifnot:
