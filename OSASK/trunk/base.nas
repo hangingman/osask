@@ -1,4 +1,4 @@
-;	"base.nas" ver.3.0
+;	"base.nas" ver.3.1
 ;	OSASK用のブートプログラム
 ;	Copyright(C) 2004 H.Kawai (川合秀実)
 
@@ -297,7 +297,11 @@ modulelist:
 	DD	"pioneer0",0,BootMdl	;  8 * 16
 	DD	"winman0 ",0,BootMdl	;  9 * 16
 	DD	"pokon0  ",0,BootMdl	; 10 * 16
+#if (!defined(TOWNS))
 	DD	"vesa8   ",0,BootMdl	; 11 * 16
+#else
+	DD	"towns15 ",0,BootMdl	; 11 * 16
+#endif
 	DD	"ankfont0",0,BootMdl	; 12 * 16 256バイトだけ必要
 	DD	"papi0   ",0,BootMdl	; 13 * 16
 	DD	"vesa16  ",0,BootMdl	; 14 * 16

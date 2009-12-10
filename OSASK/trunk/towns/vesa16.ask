@@ -1,4 +1,10 @@
-/* "VESA16.ASK" for TOWNS ver.0.0 copyright(C) 2004 I.Tak, 川合秀実 */
+/* "VESA16.ASK" for TOWNS ver.0.1 copyright(C) 2004 I.Tak, 川合秀実 */
+
+/* + CLGD / TOWNS 両対応
+ * こいつから TOWNS15 と VESA16 (CLGD用。PCATと同じだけど) が作れます
+ * 普通は VESA16, TOWNS15をdefineしておくとTOWNS15
+ * towns15.askで #define TOWNS15 / #include "vesa16.ask" してます:)
+ */
 
 segment CODE(USE32, PARA);
 default(code == CODE);
@@ -172,7 +178,7 @@ font_attr_table:
 
 void colortable16()
 {
-#if (defined(TOWNS))
+#if (defined(TOWNS15))
 	// masks: g=0x7c00, r=0x03e0, b=0x001f
 	DD(0x00000000, 0x02000200, 0x40004000, 0x42004200);
 	DD(0x00100010, 0x02100210, 0x40104010, 0x42104210);
@@ -1341,7 +1347,7 @@ mode22:
 		/* ダイレクトカラー16bit, RRRRRGGG_GGGBBBBB */
 		do {
 			ECX = cmd[16]; /* xsize */
-#if (defined(TOWNS))
+#if (defined(TOWNS15))
 			PUSH(EDX);
 			PUSH(EBP);
 
@@ -1356,7 +1362,7 @@ mode22:
 				EAX >>= 6;		/* 000000rr rrr00000 */
 				 EBP &= 0x1f;		/* 00000000 000bbbbb */
 				EDX <<= 4;		/* 0ggggg00 00000000 */
-				 EAX |= EBP;		/* rrrrr000 000bbbbb */
+				 EAX |= EBP;		/* 000000rr rrrbbbbb */
 				EAX |= EDX;
 				 ECX--;
 				*q = AX;
@@ -1375,7 +1381,7 @@ mode22:
 				(unsigned int)EAX >>= 6;/* 000000rr rrr00000 */
 				 (offset) qi += 4;
 				EDX <<= 4;		/* 0ggggg00 00000000 */
-				 EAX |= EBP;		/* rrrrr000 000bbbbb */
+				 EAX |= EBP;		/* 000000rr rrrbbbbb */
 				(offset)pi += 4;
 				 EAX |= EDX;
 				ECX--;
@@ -1394,7 +1400,7 @@ mode22:
 				EAX >>= 6;		/* 000000rr rrr00000 */
 				 EBP &= 0x1f;		/* 00000000 000bbbbb */
 				EDX <<= 4;		/* 0ggggg00 00000000 */
-				 EAX |= EBP;		/* rrrrr000 000bbbbb */
+				 EAX |= EBP;		/* 000000rr rrrbbbbb */
 				EAX |= EDX;
 				*q = AX;
 				 (offset) q += 2;
@@ -1431,43 +1437,35 @@ mode22:
 			ECX = cmd[16]; /* xsize */
 			PUSH(EDX);
 			PUSH(EBP);
-#if (defined(TOWNS))
 			do {
 				EAX = *pi;
-				 EBP = 0x000000f8;	/* 00000000 00000000 bbbbb000 */
-				EDX = 0x0000f800;	/* 00000000 ggggg000 00000000 */
-				 EBP &= EAX;
-				EDX &= EAX;
+				 EBP = 0x000000f8;	/* 00000000 00000000 11111000 */
+#if (defined(TOWNS15))
+				EDX = 0x0000f800;	/* 00000000 11111000 00000000 */
+				 EBP &= EAX;		/* 00000000 00000000 bbbbb000 */
+				EDX &= EAX;		/* 00000000 ggggg000 00000000 */
 				 EAX &= 0x00f80000;	/* rrrrr000 00000000 00000000 */
 				EBP >>= 3;		/* 00000000 00000000 000bbbbb */
 				 (offset)q += 2;
 				EAX >>= 14;		/* 00000000 000000rr rrr00000 */
 				 (offset)pi += 4;
 				EDX >>= 1;		/* 00000000 0ggggg00 00000000 */
-				 EAX |= EBP;		/* 000000rr rrrbbbbb */
-				EAX |= EDX;
-				 ECX--;
-				q[-2] = AX;
-			} while (!= 0);
-#elif (defined(PCAT))
-			do {
-				EAX = *pi;
-				 EBP = 0x000000f8;	/* 00000000 00000000 bbbbb000 */
-				EDX = 0x0000fc00;	/* 00000000 gggggg00 00000000 */
-				 EBP &= EAX;
-				EDX &= EAX;
+#else
+				EDX = 0x0000fc00;	/* 00000000 11111100 00000000 */
+				 EBP &= EAX;		/* 00000000 00000000 bbbbb000 */
+				EDX &= EAX;		/* 00000000 gggggg00 00000000 */
 				 EAX &= 0x00f80000;	/* rrrrr000 00000000 00000000 */
 				EBP >>= 3;		/* 00000000 00000000 000bbbbb */
 				 (offset)q += 2;
 				EAX >>= 8;		/* 00000000 rrrrr000 00000000 */
 				 (offset)pi += 4;
 				EDX >>= 5;		/* 00000000 00000ggg ggg00000 */
-				 EAX |= EBP;		/* rrrrr000 000bbbbb */
+#endif
+				 EAX |= EBP;
 				EAX |= EDX;
 				 ECX--;
 				q[-2] = AX;
 			} while (!= 0);
-#endif
 			POP(EBP);
 			POP(EDX);
 			(offset) p += cmd[24]; /* yskip */
@@ -1477,80 +1475,6 @@ mode22:
 	} else if (AL == 0x04) {
 		/* ダイレクトカラー32bit(24bit) */
 		/* タイリングあり */
-#if (defined(PCAT))
-		ECX = cmd[12];
-		ECX *= 2;
-		ECX &= 0x02;
-		PUSH(ECX);
-		do {
-			ECX = cmd[16]; /* xsize */
-			PUSH(EBP);
-			PUSH(EDX);
-			PUSH(EBX);
-			do {
-				EBP = *pi;
-				(offset) pi += 4;
-				PUSH(ECX);
-				ECX = (offset) q;
-				ECX &= 0x01;
-				ECX |= [SS:ESP + 16];
-				asmout("MOV BH,[CS:.table+ECX]"); /* { 0, 3, 7, 1 }[ECX] */
-
-				/* AX : カラー番号 */
-				ECX = EBP; /* red */
-				EAX = EBP;
-				ECX >>= 17;
-				EAX >>= 19;
-				CL &= 0x03;
-				EAX &= 0x1f;
-				CH = BH;
-				if (!= 0) {
-					CL++;
-					CH >>= CL;
-					SBB(EAX, 0); /* if (CF != 0) EAX--; */
-				}
-				EAX <<= 11;
-				ECX = EBP; /* green */
-				EDX = EBP;
-				ECX >>= 8;
-				EDX >>= 10;
-				CL &= 0x03;
-				EDX &= 0x3f;
-				CH = BH;
-				if (!= 0) {
-					CL++;
-					CH >>= CL;
-					SBB(EDX, 0); /* if (CF != 0) EDX--; */
-				}
-				EDX <<= 5;
-				ECX = EBP; /* blue */
-				EAX |= EDX;
-				EDX = EBP;
-				ECX >>= 1;
-				EDX >>= 3;
-				CL &= 0x03;
-				EDX &= 0x1f;
-				if (!= 0) {
-					CL++;
-					BH >>= CL;
-					SBB(EDX, 0); /* if (CF != 0) EDX--; */
-				}
-				POP(ECX);
-				EAX |= EDX;
-				*q = AX;
-				(offset) q += 2;
-				ECX--;
-			} while (!= 0);
-			POP(EBX);
-			POP(EDX);
-			POP(EBP);
-			(offset) p += cmd[24]; /* yskip */
-			(offset) q += EBP;
-			(char) [SS:ESP] ^= 0x02;
-			EDX--;
-		} while (!= 0); /* 45行削減 */
-		POP(EAX);
-#elif (defined(TOWNS))
 		/* yskip(src), yskip(dest), xcount, bias, ycount */
 		PUSH(EBX);	/* cmd */
 		PUSH(EBP);	/* yskip(dest) */
@@ -1585,6 +1509,7 @@ mode22:
 				 (offset)pi += 4;
 				LEA(EAX, [EAX+EBP*2+0x000100*32]);
 				 LEA(ECX, [ECX+EBP*2+0x010001*32]);
+#if (defined(TOWNS15))
 				EAX &= 0x001f0000; /* 00000000 000ggggg 00000000 00000000 */
 				 ECX &= 0x1f001f00;/* 000rrrrr 00000000 000bbbbb 00000000 */
 				EAX >>= 6;	   /* 00000000 00000000 0ggggg00 00000000 */
@@ -1592,6 +1517,15 @@ mode22:
 				ECX >>= 8;	   /* 00000000 000rrrrr 00000000 000bbbbb */
 				 (offset)q += 2;
 				EDX >>= 19;	   /* 00000000 00000000 000000rr rrr00000 */
+#else
+				EAX &= 0x001f8000; /* 00000000 000ggggg g0000000 00000000 */
+				 ECX &= 0x1f001f00;/* 000rrrrr 00000000 000bbbbb 00000000 */
+				EAX >>= 10;	   /* 00000000 00000000 00000ggg ggg00000 */
+				 EDX = ECX;	   /* 000rrrrr 00000000 000bbbbb 00000000 */
+				ECX >>= 8;	   /* 00000000 000rrrrr 00000000 000bbbbb */
+				 (offset)q += 2;
+				EDX >>= 13;	   /* 00000000 00000000 rrrrr000 00000000 */
+#endif
 				 EAX |= ECX;
 				EAX |= EDX;
 				 EBX--;
@@ -1607,7 +1541,6 @@ mode22:
 		POP(EAX);
 		POP(ECX);
 		POP(EBX);
-#endif
 	}
 	(offset) cmd += 36;
 	PUSH(ES);

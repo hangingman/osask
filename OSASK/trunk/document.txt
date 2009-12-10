@@ -1,28 +1,23 @@
-"src45"の使い方の説明                      2004/05/10 川合秀実
+"src46"の使い方の説明                      2004/08/10 川合秀実
 
 １．これは何か？
 
-  "src45"は、OSASK ver.4.5の「OSASK.EXE」を生成するのに必要なモジュールのソース
+  "src46"は、OSASK ver.4.6の「OSASK.EXE」を生成するのに必要なモジュールのソース
 プログラムのセットです。ただし、以前のバージョンのものをそのまま利用しているも
 のついては、このアーカイブに含まれていません。OSASK.EXEを生成するのに必要なモジ
 ュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.NAP     : ver.3.0
-    INIT.ASK     : ver.3.9
-    PIONEER0.ASK : ver.3.5
-    WINMAN0.C    : ver.3.7
-    POKON0.C     : ver.4.5
-    PCAT/
-      TIMERDRV.ASK : type-A ver.1.3
-      VESA8.ASK    : ver.0.4
-      VESA16.ASK   : ver.0.5
-      VESA32.ASK   : ver.0.4
+    BASE.NAP     : ver.3.1
+    INIT.ASK     : ver.4.0
+    PIONEER0.ASK : ver.3.6
+    WINMAN0.C    : ver.3.8
+    POKON0.C     : ver.4.6
     TOWNS/
-      OSALINK1.OPT : ver.0.1
-      KEYMOS0.BIN  : ver.0.5
-      VESA16.ASK   : ver.0.0
+      OSALINK1.OPT : ver.0.2
+      VESA16.ASK   : ver.0.1
+      TOWNS15.ASK  : ver.0.0
 
   (以前のバージョンのものを利用するもの)
 
@@ -30,28 +25,32 @@
     BOOT32.ASK   : ver.0.3
     TAPI0.ASK    : ver.0.4
     PAPI0.ASK    : ver.0.6
-    IBMANK0.TXT  : ver.0.4
     DECODE0.ASK  : ver.1.0
+    IBMANK0.TXT  : ver.0.4
     SYSGG00.LIB  : ver.0.9
     BMP2BETA.NAS : ver.0.1
     BETACLIP.NAS : ver.0.0
     KJPEGLS2.C   : ver.0.0
     PCAT/
       OSALINK1.OPT : ver.0.1
+      TIMERDRV.ASK : type-A ver.1.3
       VGADRV0.ASK  : ver.2.0
-      KEYMOS0.BIN  : ver.0.6
-      FDCDRV0.BIN  : ver.2.6
+      KEYMOS0.ASK  : ver.0.6
+      FDCDRV0.ASK  : ver.2.6
+      VESA8.ASK    : ver.0.4
+      VESA16.ASK   : ver.0.5
+      VESA32.ASK   : ver.0.4
     TOWNS/
-      OSALINK1.OPT : ver.0.0
       TIMERDRV.ASK : type-A ver.1.2
       VGADRV0.ASK  : ver.1.9
-      FDCDRV0.BIN  : ver.2.4
+      KEYMOS0.ASK  : ver.0.5
+      FDCDRV0.ASK  : ver.2.4
     NEC98/
       OSALINK1.OPT : ver.0.0
       TIMERDRV.ASK : type-A ver.1.1
       VGADRV0.ASK  : ver.1.9
-      KEYMOS0.BIN  : ver.0.4
-      FDCDRV0.BIN  : ver.2.1
+      KEYMOS0.ASK  : ver.0.4
+      FDCDRV0.ASK  : ver.2.1
 
   このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
 るだけです。
@@ -60,8 +59,8 @@
 
   使用したアセンブラ、コンパイラ、コンバータ、ライブラリは以下の通りです。
 
-・tolset07
-  (ASKA + GO + osalink1 + obj2bim3 + bim2bin3 + golibc + gg00libc)
+・tolset07 + いろいろ
+  (ASKA + GO + osalink1 + obj2bim3 + bim2bin4o + golibc + gg00libc)
 
 tolset07はOSASKの開発者向けページからダウンロードできます。
 
@@ -99,12 +98,12 @@ et07内のdoc_link.txtで説明されている方法でリンクします。ただしAT互換機版を生成
 >cc1 -Os -quiet -I. -DPCAT -DWIN9X -o winman0.s winman0.c
 >gas2nask -a winman0.s winman0.nas
 >nask winman0.nas winman0.obj winman0.lst
->obj2bim3 @guigui00.rul stack:8k map:winman0.map out:winman0.bim winman0.obj
->bim2bin3 malloc:4208k mmare:4096k in:winman0.bim out:winman0.bin
+>obj2bim3 @guigui00.rul stack:36k map:winman0.map out:winman0.bim winman0.obj
+>bim2bin malloc:4208k mmare:4096k in:winman0.bim out:winman0.bin
 
-  そしてさらに、たいていの場合は.BINファイルを.TEKファイルに変換する必要がある
-でしょう。それはbim2bin3の-osacmpモードで行ないます。具体的な手順はtolset07内の
-doc_link.txtでの説明を参照してください。
+  そしてさらに、たいていの場合は.BINファイルを.TEKファイル(tek0)に変換する必要
+があるでしょう。それはbim2binの"-osacmp -tek0"モードで行ないます。具体的な手順
+はtolset07内のdoc_link.txtでの説明を参照してください。
 
   BASE.EXEの生成は、以下のように行います。
 

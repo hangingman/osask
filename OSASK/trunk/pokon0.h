@@ -18,6 +18,7 @@
 #define JOBLIST_SIZE		1024
 #define MAX_ORDER			16	/* 256B */ //	256 /* 4KB */
 #define MAX_ARCBUF			32
+#define MAX_LARGECACHE		MAX_FILEBUF
 
 /* key defines */
 #define DEFSIG_EXT1     0x00001000
@@ -303,7 +304,7 @@ struct STR_PROCESS {
 
 struct STR_ARCBUF {
 	int dirslot, linkcount, size, paddr, clu2;
-	int dir0, info0;
+	int dir0, info0, flags, align;
 };
 
 /* functions */

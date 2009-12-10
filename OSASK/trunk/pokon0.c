@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.4.5
+/* "pokon0.c":アプリケーションラウンチャー  ver.4.6
      copyright(C) 2004 I.Tak., 小柳雅明, 川合秀実
-     stack:4k malloc:89k file:4096k */
+     stack:1m malloc:90k file:4096k */
 
 /* scrollbar & mouse by I.Tak. */
 /* シグナル受信通知を*sbp==0のときに一回だけする……ほとんど意味無し
@@ -54,7 +54,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon45"
+#define POKON_VERSION "pokon46"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.7\n    Copyright (C) 2004 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -96,6 +96,8 @@ static struct STR_VIEWER viewers[MAX_VIEWERS] = {
 	{ "WRP", "WABA    BIN" }
 };
 
+typedef unsigned char UCHAR;
+
 struct STR_BANK *banklist;
 struct SGG_FILELIST *file;
 struct FILEBUF *filebuf;
@@ -122,11 +124,14 @@ struct STR_ARCBUF *arcsub_getfree();
 struct STR_ARCBUF *arcsub_srchdslt(int dirslot);
 void arcsub_unlink(struct STR_ARCBUF *arc);
 int arcsub_gethex(unsigned char *p);
-unsigned char *arcsub_srchname0(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name);
+unsigned char *arcsub_srchname0(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name, unsigned int *siz, unsigned int *ofs);
 unsigned char *arcsub_srchname1(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name);
 unsigned char *arcsub_srchnum(struct STR_ARCBUF *arc, unsigned char *p, int num);
 void arcsub_map(struct STR_ARCBUF *arc, unsigned char *fp0);
 void arcsub_unmap(struct STR_ARCBUF *arc, unsigned char *fp0);
+void osarjc(int siz, UCHAR *p0);
+
+//static struct FILEBUF **large_cache;
 
 #if (defined(PCAT))
 	#define	LASTPCIBUS	255
@@ -568,13 +573,24 @@ void jsub_fbufready0(void *func)
 	return;
 }
 
+unsigned int gets7s(unsigned char **pp)
+{
+	unsigned char *p = *pp;
+	unsigned int i = *p++;
+	while ((i & 1) == 0)
+		i = i << 7 | *p++;
+	i >>= 1;
+	*pp = p;
+	return i;
+}
+
 int jsub_fbufready1(int *sbp)
 {
 	struct STR_JOBLIST *pjob = &job;
 	struct FILEBUF *fbuf = pjob->fbuf;
-	unsigned char *fp0 = (char *) readCSd10, *fp1;
+	unsigned char *fp0 = (char *) readCSd10, *fp1, *p = fp0 + 16, *q;
 	int retcond = 0;
-	int i, j = 0, size0, size1;
+	int i, j = 0, size0, size1, align, k;
 	fbuf->paddr = sbp[1];
 	fbuf->size = sbp[2];
 	fbuf->linkcount = 0;
@@ -585,17 +601,24 @@ int jsub_fbufready1(int *sbp)
 		if (auto_decomp) {
 			size0 = fbuf->size;
 			if (size0 < FILEAREA / 2 && size0 >= 20) {
-				static unsigned char signature[16] = "\x82\xff\xff\xff\x01\x00\x00\x00OSASKCMP";
+				static unsigned char signature[15] = "\xff\xff\xff\x01\x00\x00\x00OSASKCMP";
 				fp1 = fp0 + (size0 = ((size0 + 0xfff) & ~0xfff));
 				sgg_execcmd0(0x0080, size0, fbuf->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
-				for (i = 0; i < 16; i++)
-					j |= fp0[i] ^ signature[i];
-				if (j == 0) {
-					size1 = *((int *) (fp0 + 16));
+				for (i = 0; i < 15; i++)
+					j |= fp0[i + 1] ^ signature[i];
+				if (j == 0 && (fp0[0] == 0x82 || fp0[0] == 0x83 || fp0[0] == 0x85 || fp0[0] == 0x89)) {
+					if (fp0[0] == 0x82)
+						size1 = *((int *) (fp0 + 16));
+					else
+						size1 = gets7s(&p);
 					if (size0 + size1 <= FILEAREA) {
 						if ((i = sgg_execcmd1(2 * 4 + 12, 0x0084, size1, 0, 0x0000)) != -1) { /* メモリをもらう */
 							sgg_execcmd0(0x0080, size1, i, fp1, 0x0000); /* スロットを使わないマッピング */
-							lib_decodetek0(size1, (int) (fp0 + 20), 0x000c, (int) fp1, 0x000c);
+							if (fp0[0] == 0x82)
+								lib_decodetek0(size1, (int) (fp0 + 20), 0x000c, (int) fp1, 0x000c);
+							else
+								lib_execcmd0(0x007c, 0xfffffff9, fp1, 0xfffffff7, fp0 + fbuf->size,
+									*(int *) &fp0[0], size1, p, 0x000c, 0x0000, 0x0000);
 							/* ↓圧縮されたイメージを捨てる */
 							sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, -1, fbuf->size, fbuf->paddr, 0x0000);
 							fbuf->readonly = 1;
@@ -608,14 +631,91 @@ int jsub_fbufready1(int *sbp)
 			}
 		}
 
+		size0 = fbuf->size;
+		if (size0 < FILEAREA && size0 >= 16) {
+			fp1 = fp0 + (size0 = ((size0 + 0xfff) & ~0xfff));
+			sgg_execcmd0(0x0080, size0, fbuf->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
+			osarjc(fbuf->size, fp0);
+			/* unmapする */
+		}
+
 		if (auto_dearc) {
+			static unsigned char signature[29] = "format_id:     \"OSASKARC0000\"";
+			struct STR_ARCBUF *abuf;
 			size0 = fbuf->size;
-			if (size0 < FILEAREA && size0 >= 0x00050000 + 29) {
-			//	fp1 = fp0 + (size0 = ((size0 + 0xfff) & ~0xfff));
+			if (size0 < FILEAREA) {
 				sgg_execcmd0(0x0080, FILEAREA, fbuf->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
-				if (fp0[0x00] != 0xcc && fp0[0x0b] == 0x00 && fp0[0x0c] == 0x02 && (*(int *) &fp0[0x40]) == 0x36314653) {
-					static unsigned char signature[29] = "format_id:     \"OSASKARC0000\"";
-					struct STR_ARCBUF *abuf;
+				if (size0 >= 23 && (*(int *) &fp0[16]) == 0x484b0072 && (fp0[14] | fp0[15] << 8 | fp0[20] << 16 | fp0[21] << 24) == 0x30426173 && fp0[22] == 0x01) {
+					p = fp0 + (14 + 9);
+					goto sar;
+				}
+				if (size0 >= 9 && (*(int *) &fp0[0]) == 0x00726173 && (*(int *) &fp0[4]) == 0x3042484b && fp0[8] == 0x01) {
+					p = fp0 + 9;
+			sar:
+					k = gets7s(&p);
+					if ((k & ~1) == 0) {
+						for (i = 0; i < 5; i++)
+							gets7s(&p);
+						align = (1 << gets7s(&p)) - 1;
+						if (align >= 0xfff) { /* 4KB以上のアラインが必要 */
+							j = gets7s(&p);
+							q = fp0 + (((p - fp0) + align) & ~align) + j * (align + 1);
+							j &= 0;
+							for (i = 0; i < 29; i++)
+								j |= q[i] ^ signature[i];
+							for (i = 0; i < 8; i++)
+								j |= (q[i + 0x030] ^ '0') | (q[i + 0x050] ^ '0');
+							if (j == 0 && (q[0x0b5] & 0x01) != 0) { /* 最初のエントリが必ず主ファイル */
+								abuf = arcsub_srchdslt(fbuf->dirslot);
+								if (abuf) {
+									abuf->linkcount++;
+									sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, -1, fbuf->size, fbuf->paddr, 0x0000);
+									/* unmap */
+									arcsub_map(abuf, fp0);
+								} else {
+									abuf = arcsub_getfree();
+									if (abuf) {
+										abuf->dirslot = fbuf->dirslot;
+										abuf->linkcount = 1;
+										abuf->size  = fbuf->size;
+										abuf->paddr = fbuf->paddr;
+										abuf->dir0  = p - fp0;
+										abuf->info0 = q - fp0;
+										abuf->clu2  = q - fp0;
+										abuf->flags = k + k; /* bit0 : 0=sar, bit1:link */
+										abuf->align = align;
+										/* ここでアーカイブ内の全てのファイルに対して、osarjcする */
+										while ((i = gets7s(&p)) != 0) {
+											p += i; /* ファイル名スキップ */
+											i = gets7s(&p); /* 属性 */
+											gets7s(&p); /* 日時 */
+											if (k & 1) {
+												j = gets7s(&p);
+												if (j & 1)
+													j ^= -1;
+												j >>= 1;
+												q += j * (align + 1);
+											}
+											j = gets7s(&p); /* サイズ */
+											if ((i & 0x70) == 0)
+												osarjc(j, q);
+											q += j;
+											q = fp0 + (((q - fp0) + align) & ~align);
+										}
+									}
+								}
+								if (abuf) {
+									p = arcsub_srchname0(abuf, fp0, &fp0[abuf->info0 + 0x090], &fbuf->size, &fbuf->paddr);
+									fbuf->paddr += abuf->paddr;
+									fbuf->readonly = 1;
+									fbuf->arcbuf = abuf;
+									fbuf->dirslot = fbuf->paddr;
+								}
+							}
+						}
+					}
+				}
+				if (size0 >= 0x00050000 + 29 && fp0[0x00] != 0xcc && fp0[0x0b] == 0x00 && fp0[0x0c] == 0x02 && (*(int *) &fp0[0x40]) == 0x36314653) {
 					j &= 0;
 					for (i = 0; i < 29; i++)
 						j |= fp0[i + 0x00050000] ^ signature[i];
@@ -638,13 +738,21 @@ int jsub_fbufready1(int *sbp)
 								abuf->dir0  = 0x00048000;
 								abuf->info0 = 0x00050000;
 								abuf->clu2  = 0x00050000;
+								abuf->flags |= 1; /* bit0 : 1=SF16 */
+								abuf->align = fp0[0x0d];
+								/* ここでアーカイブ内の全てのファイルに対して、osarjcする */
+								for (p = fp0 + abuf->dir0; *p != 0; p += 32) {
+									if (*p == 0xe5)
+										continue;
+									q = fp0 + abuf->clu2 + 512 * fp0[0x0d] * ((*(unsigned short *) &p[26]) - 2);
+									osarjc(*(int *) &p[28], q);
+								} 
 							}
 						}
 						if (abuf) {
-							fp1 = arcsub_srchname0(abuf, fp0, &fp0[0x00050090]);
+							arcsub_srchname0(abuf, fp0, &fp0[0x00050090], &fbuf->size, &fbuf->paddr);
 							fbuf->readonly = 1;
-							fbuf->paddr = abuf->paddr + abuf->clu2 + 512 * fp0[0x0d] * ((*(unsigned short *) &fp1[26]) - 2);
-							fbuf->size = *(int *) &fp1[28];
+							fbuf->paddr += abuf->paddr;
 							fbuf->arcbuf = abuf;
 							fbuf->dirslot = fbuf->paddr;
 						}
@@ -1352,6 +1460,9 @@ void openselwin(struct FILESELWIN *win, const char *title, const char *subtitle)
 	struct LIB_WINDOW *window;
 	char *ss;
 
+	win->lp = win->list;
+	win->listsize = 0;
+
 	lib_openwindow1_nm(window = &win->window, win->winslot, 160, 40 + LIST_HEIGHT * 16, 0x29, win->sigbase + 120 /* +6 */);
 	lib_opentextbox_nm(0x1000, &win->wintitle.tbox,  0, 10, 1,  0,  0, window, 0x00c0, 0);
 	lib_opentextbox_nm(0x0000, &win->subtitle.tbox,  0, 20, 1,  0,  0, window, 0x00c0, 0);
@@ -1468,27 +1579,78 @@ int arcsub_gethex(unsigned char *p)
 	return k;
 }
 
-unsigned char *arcsub_srchname0(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name)
+unsigned char *arcsub_srchname0(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name, unsigned int *siz, unsigned int *pofs)
+/* ディレクトリの中を探索 */
 {
-	unsigned char n[11], c;
-	int i;
-	for (i = 0; i < 8; i++)
-		n[i] = name[i];
-	n[ 8] = name[ 9];
-	n[ 9] = name[10];
-	n[10] = name[11];
-
-	for (p += arc->dir0; *p != 0; p += 32) {
-		c = 0;
-		for (i = 0; i < 11; i++)
-			c |= p[i] ^ n[i];
-		if (c == 0)
-			return p;
+	unsigned char n[11], c, *q;
+	int i, j, ofs;
+	if (arc->flags & 1) { /* SF16 */
+		for (i = 0; i < 8; i++)
+			n[i] = name[i];
+		n[ 8] = name[ 9];
+		n[ 9] = name[10];
+		n[10] = name[11];
+		for (p += arc->dir0; *p != 0; p += 32) {
+			c = 0;
+			for (i = 0; i < 11; i++)
+				c |= p[i] ^ n[i];
+			if (c == 0) {
+				if (siz)
+					*siz = *(int *) &p[28];
+				if (pofs)
+					*pofs = arc->clu2 + 512 * arc->align * ((*(unsigned short *) &p[26]) - 2);
+				return p;
+			}
+		}
+	} else { /* sar */
+		for (i = 0; i < 8 && name[i] > ' '; i++)
+			n[i] = name[i];
+		if (name[9] > ' ') {
+			n[i++] = '.';
+			n[i++] = name[9];
+			if (name[10] > ' ') {
+				n[i++] = name[10];
+				if (name[11] > ' ')
+					n[i++] = name[11];
+			}
+		}
+		ofs = arc->clu2;
+		p += arc->dir0;
+		while ((j = gets7s(&p)) != 0) {
+			c = 1;
+			if (j == i) {
+				c = 0;
+				q = p;
+				for (j = 0; j < i; j++)
+					c |= p[j] ^ n[j];
+			}
+			p += j;
+			if (gets7s(&p) & 0x70)
+				c = 1;
+			gets7s(&p);
+			if (arc->flags & 2) {
+				j = gets7s(&p);
+				if (j & 1)
+					j ^= -1;
+				j >>= 1;
+				ofs += j * (arc->align + 1);
+			}
+			j = gets7s(&p);
+			if (c == 0) {
+				if (siz)
+					*siz = j;
+				if (pofs)
+					*pofs = ofs;
+				return q;
+			}
+			ofs = (ofs + j + arc->align) & ~arc->align;
+		}
 	}
 	return NULL;
 }
 
 unsigned char *arcsub_srchname1(struct STR_ARCBUF *arc, unsigned char *p, unsigned char *name)
+/* infoの中を探索 */
 {
 	unsigned char c;
 	int i;
@@ -1512,6 +1674,7 @@ unsigned char *arcsub_srchname1(struct STR_ARCBUF *arc, unsigned char *p, unsign
 }
 
 unsigned char *arcsub_srchnum(struct STR_ARCBUF *arc, unsigned char *p, int num)
+/* infoの中を探索 */
 {
 	unsigned char c;
 	int i;
@@ -2222,8 +2385,10 @@ write_exe:
 				case SIGNAL_WINDOW_REDRAW:
 					lib_controlwindow(0x03, &win->window);
 					win->flags &= ~FILESELWINFLAG_SBARDIRTY;
-					draw_sbar_frame(win);
-					draw_sbar(win->listsize, win->lp - win->list, win);
+					if (win->lp) {
+						draw_sbar_frame(win);
+						draw_sbar(win->listsize, win->lp - win->list, win);
+					}
 					lib_controlwindow(0x200, &win->window);
 					break;
 
@@ -2231,8 +2396,10 @@ write_exe:
 					lib_controlwindow(0x0b, &win->window);
 					if (win->flags & FILESELWINFLAG_SBARDIRTY) {
 						win->flags &= ~FILESELWINFLAG_SBARDIRTY;
-						draw_sbar_frame(win);
-						draw_sbar(win->listsize, win->lp - win->list, win);
+						if (win->lp) {
+							draw_sbar_frame(win);
+							draw_sbar(win->listsize, win->lp - win->list, win);
+						}
 					}
 					lib_controlwindow(0x200, &win->window);
 				//	break;
@@ -2685,10 +2852,11 @@ nextsig:
 						i = (arcsub_gethex(&p[0x30]) >> 4) & 0x07; /* optionsのbit4-6 */
 						if ((i == 1 && fp == NULL) || i == 0) {
 							/* 反応する */
-							p = arcsub_srchname0(bank->arcbuf, fp0, &p[0x10]);
-							if (p) {
+							int size3;
 			arcmatch:
-								i = bank->arcbuf->paddr + bank->arcbuf->clu2 + 512 * fp0[0x0d] * ((*(unsigned short *) &p[26]) - 2);
+							p = arcsub_srchname0(bank->arcbuf, fp0, &p[0x10], &size3, &i);
+							if (p) {
+								i += bank->arcbuf->paddr;
 								fbuf = searchfbuf0(i);
 								if (fbuf)
 									fbuf->linkcount++;
@@ -2697,7 +2865,7 @@ nextsig:
 										fbuf->linkcount = 1;
 										fbuf->readonly = 1;
 										fbuf->paddr = i;
-										fbuf->size = *(int *) &p[28];
+										fbuf->size = size3;
 										fbuf->arcbuf = bank->arcbuf;
 										fbuf->dirslot = fbuf->paddr;
 										fbuf->virtualmodule = sgg_createvirtualmodule(fbuf->size, fbuf->paddr);
@@ -2739,8 +2907,7 @@ nextsig:
 					if (p) {
 						i = arcsub_gethex(&p[0x30]) & 0x07; /* optionsのbit0-2 */
 						if ((i == 1 && fp == NULL) || i == 0) {
-							p = arcsub_srchname0(bank->arcbuf, fp0, &p[0x10]);
-							if (p)
+							if (arcsub_srchname0(bank->arcbuf, fp0, &p[0x10], NULL, NULL))
 								goto arcmatch;
 						}
 					}
@@ -3984,6 +4151,55 @@ struct STR_VIEWER *search_viewer1(const unsigned char *ext)
 	return v;
 }
 #endif
+
+void rjc(UCHAR *p0, UCHAR *p1, int ofs0, int ofs, int ofs1)
+{
+	UCHAR *p = p0, *pp = p0 - 4;
+	int i, j, k;
+	while (p < p1) {
+		if (0xe8 <= *p && *p <= 0xe9 && &p[4] < p1) {	/* e8 (call32), e9 (jmp32) */
+	r32:
+			p++;
+			if (p - pp < 4)
+				continue;
+			i = p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
+			j = (p - p0) + ofs + 4; /* 相対アドレス基点 */
+			k = i;
+			if (ofs0 <= i && i < ofs1)
+				i -= j;
+			else if (ofs0 - j <= i && i < ofs0)
+				i += ofs1 - ofs0;
+			pp = p;
+			if (i != k ) {
+				p[0] =  i        & 0xff;
+				p[1] = (i >>  8) & 0xff;
+				p[2] = (i >> 16) & 0xff;
+				p[3] = (i >> 24) & 0xff;
+				p += 4;
+			}
+			continue;
+		}
+		p++;
+		if (p[-1] == 0x0f && &p[4] < p1 && (p[0] & 0xf0) == 0x80)	/* 0f 8x (jcc32) */
+			goto r32;
+	}
+	return;
+}
+
+void osarjc(int siz, UCHAR *p0)
+{
+	if (siz >= 0x20 && p0[16] == 0x00 && (p0[20] & 0x02) != 0
+		&& *(int *) &p0[8] == ('G' | 'U' << 8 | 'I' << 16 | 'G' << 24)
+		&& *(int *) &p0[12] == ('U' | 'I' << 8 | '0' << 16 | '0' << 24)) {
+		/* エンコードしてあるものをデコード */
+		if ((p0[20] & 0xfe) == 0x06)
+			siz = *(int *) &p0[0x2c];
+		rjc(p0 + 0x20, p0 + siz, 0x20, 0x20, siz); /* decode */
+		/* 今のところ、0x02と0x06しか考えていない */
+		p0[20] &= 0x01;
+	}
+	return;
+}
 
 int poko_exec(const char *cmdlin)
 {

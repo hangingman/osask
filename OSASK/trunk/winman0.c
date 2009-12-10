@@ -1,6 +1,6 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.7
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.8
 		copyright(C) 2004 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
-    stack:8k malloc:4208k file:4096k */
+    stack:36k malloc:4208k file:4096k */
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -1725,12 +1725,14 @@ void OsaskMain()
 
 			#if (defined(TOWNS)) && (defined(CLGD543X))
 		case 0x0220:	/* PF13だけど……0x210ではまずいな */
+		case 0x0221:	/* PF14 */
 			//	siglen = 1;
-				if (pf13mode < 0)
-					pf13mode = sgg_execcmd1(1 * 4 + 12, 0x00a0, 0, 0x0000);
+			/* HW code(5430=0x100, 5434=0x200, none=0) が返ってくる */
+		  if (pf13mode < 0)
+		    pf13mode = sgg_execcmd1(1 * 4 + 12, 0x00a0, 0, 0x0000);
 				if (pf13mode) {
-					writejob_n(2, 0x0034 /* change VGA mode */, pf13mode);
-					goto fin_wrtjob;
+				  writejob_n(2, 0x0034 /* change VGA mode */, pf13mode + i-0x220+1);
+				  goto fin_wrtjob;
 				}
 				break;
 			#endif
@@ -2671,7 +2673,7 @@ void redirect_input(struct WM0_WINDOW *win)
 			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0244); /* CAPTURE */
 	#endif
 	#if (defined(TOWNS) & defined(CLGD543X))
-		sgg_wm0_definesignal3(0, 0x0100, 0x0070108d /* PF13 */,
+		sgg_wm0_definesignal3(1, 0x0100, 0x0070108d /* PF13 */,
 			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0220);
 	#endif
 	#if (defined(NEC98))
@@ -3069,7 +3071,9 @@ void job_closewin0(struct WM0_WINDOW *win0)
 	}
 
 	/* 最初から描画禁止で, ジョブ終了後も描画禁止
-	   のウィンドウはjob_generalで再描画されない */
+	   のウィンドウはjob_generalで再描画されない (Jenny1.2) */
+	/* 上記条件に該当するウィンドウはありえない気がするので、
+		I.Tak.さんのその判定部分を殺してみる。 by K, Twitchell1 */
 	win1 = top;
 	do {
 		/* deleted by I.Tak. (Jenny1.2) */
@@ -3084,7 +3088,7 @@ void job_closewin0(struct WM0_WINDOW *win0)
 	//	}
 	//	win1->job_flag0 = flag0;
 		/* added by I.Tak. (Jenny1.2) */
-		if ((win1->condition & 1) == 0 && overrapwin(win0, win1))
+		if (/* (win1->condition & 1) == 0 && */ overrapwin(win0, win1)) /* by K, Twitchell1 */
 			win1->job_flag0 |= WINFLG_MUSTREDRAW;
 	} while ((win1 = win1->down) != top);
 
@@ -3643,14 +3647,27 @@ void job_setvgamode2()
 {
 	struct WM0_WINDOW *win;
 	#if (defined(TOWNS))
-		int width[] = { TWVSW, TWVSW, TWVSW, 512, 1024 };
-		int height[] = { 1024*512/TWVSW, 1024*512/TWVSW, 1024*512/TWVSW, 480, 768 };
-		int newcol = (job.int0 == 3) ? 2 : 1, newmode;
+		int width[]
+		  = { TWVSW, TWVSW, TWVSW, 512, 1024, 800 };
+		int height[]
+		  = { 1024*512/TWVSW, 1024*512/TWVSW, 1024*512/TWVSW,
+		      480, 768, 600 };
+		char bpp[] = {1,1,1,2,1,2};
+		int newmode, newdrv;
 
+		/* drvcode: TOWNS15 = 0x002, VESA16 = 0x102/0x202 とした。
+		 * job.int0は画面モード番号 0,1,2,3, 0x101, 0x102 のどれか。
+		 * gapi_drvinit (sgg(0x0088)) にはdrvcodeを与える。
+		 * 1:8bpp, 2:16bpp | 0x000=FM, 0x100=CL5430, 0x200=CL5434
+		 */
 		newmode = job.int0;
-		if (newmode >= 4)
-			newmode = 4;
-		if (job.int0 < 0x100 && (win = top)) {
+		if ((newdrv = job.int0 & 0xff00))
+		  newmode = (newmode & 0xff) + 3;
+		if (newmode == 4)
+		  newdrv &= 0xff; /* CL8bppはTOWNSネイティヴ共用ドライバ */
+		newdrv |= bpp[newmode];
+
+		if ((width[newmode] < x2 || height[newmode] < y2) && (win = top)) {
 			/* 全ウィンドウの座標範囲を確認(はみ出したら画面を切り替えない) */
 			do {
 				if (win->x1 > width[newmode] || win->y1 > height[newmode] - RESERVELINE1) {
@@ -3666,6 +3683,7 @@ void job_setvgamode2()
 		/* 画面モード2設定(640x480ビデオ) */
 		/* 画面モード3設定(512x480x16bpp) */
 		/* 画面モード4設定(1024x768x8bpp CLGD543x) */
+		/* 画面モード5設定(800x600x16bpp CLGD543x) */
 		x2 = width[newmode];
 		y2 = height[newmode];
 		if (mx > x2)
@@ -3679,8 +3697,8 @@ void job_setvgamode2()
 		#endif
 
 		/* GAPI差し替え vesa16のときは画面モード変更も同時にやる */
-		gapi_driverinit(newcol);
-		if (newcol == 2) /* vesa16にx2,y2を知らせる */
+		gapi_driverinit(newdrv);
+		if ((newdrv & 0xff) == 2) /* towns15/vesa16にx2,y2を知らせる */
 		  sgg_execcmd0(0x0050, 8 * 4, 0x001c, 0, 0x0020, x2, y2, 0x0000, 0x0000);
 		else
 		  sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job.int0 /* mode */, 0x0000, 0x0000); /* 画面モード変更 */
@@ -3872,14 +3890,21 @@ void job_loadfont1(int flag, int dmy)
 	if ((pjob->fontflag & 0x01) == 0) {
 		char *fp = (char *) pjob->readCSd10 /* malloc領域の終わり == mapping領域の始まり */;
 		if (flag == 0 /* ロード成功 */) {
-			lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
+			int siz = lib_readmodulesize(0x0200);
+			lib_mapmodule(0x0000, 0x0200, 0x5, 320 * 1024, fp, 0);
 
 			/* ここでslot:0x0210にgapidataを配備 */
 			/* ロードが終わってから配備するのが重要で、そうでないとgapidataの拡張が終わってないかもしれないから */
 			sgg_execcmd0(0x007c, 0, 0x0210, 0x0000);
-
-			lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 304 * 1024, fp + 256 * 1024, (8 + 16) * 1024);
-			lib_decodetek0(304 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
+			lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 304 * 1024, fp + 320 * 1024, (8 + 16) * 1024);
+			if (siz != 304 * 1024)
+				lib_decodetek0(304 * 1024, (int) fp, 0x000c, (int) fp + 320 * 1024, 0x000c);
+			else {
+				for (siz = 0; siz < 304 * 1024; siz += 8) {
+					*(int *) (fp + siz +  320 * 1024)      = *(int *) (fp + siz);
+					*(int *) (fp + siz + (320 * 1024 + 4)) = *(int *) (fp + siz + 4);
+				}
+			}
 			lib_unmapmodule(0, 768 * 1024, fp);
 			pjob->fontflag |= 0x01;
 			lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
@@ -3919,14 +3944,22 @@ void job_loadfont3(int flag, int dmy)
 	struct STR_JOB *pjob = &job;
 	if ((pjob->fontflag & 0x02) == 0 && flag == 0 /* ロード成功 */) {
 		char *fp = (char *) pjob->readCSd10 /* malloc領域の終わり == mapping領域の始まり */;
-		lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
+		int siz = lib_readmodulesize(0x0200);
+		lib_mapmodule(0x0000, 0x0200, 0x5, 320 * 1024, fp, 0);
 
 		/* ここでslot:0x0210にgapidataを配備 */
 		/* ロードが終わってから配備するのが重要で、そうでないとgapidataの拡張が終わってないかもしれないから */
 		sgg_execcmd0(0x007c, 0, 0x0210, 0x0000);
 
-		lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 288 * 1024, fp + 256 * 1024, (8 + 320) * 1024);
-		lib_decodetek0(288 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
+		lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 288 * 1024, fp + 320 * 1024, (8 + 320) * 1024);
+		if (siz != 288 * 1024)
+			lib_decodetek0(288 * 1024, (int) fp, 0x000c, (int) fp + 320 * 1024, 0x000c);
+		else {
+			for (siz = 0; siz < 288 * 1024; siz += 8) {
+				*(int *) (fp + siz +  288 * 1024)      = *(int *) (fp + siz);
+				*(int *) (fp + siz + (288 * 1024 + 4)) = *(int *) (fp + siz + 4);
+			}
+		}
 		lib_unmapmodule(0, 768 * 1024, fp);
 		pjob->fontflag |= 0x02;
 		lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
