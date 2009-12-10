@@ -1,7 +1,9 @@
-/* "VESA32.ASK" for PC/AT ver.0.2 copyright(C) 2003 ì‡GŽÀ */
+/* "VESA32.ASK" for PC/AT ver.0.3 copyright(C) 2004 ì‡GŽÀ */
 
 segment CODE(USE32, PARA);
 default(code == CODE);
+
+//	#define QEMU	1
 
 struct GAPI_WORK {
 	signed int mx, my, mx0, my0, mx1, my1;
@@ -280,7 +282,12 @@ void GAPI_fontwrite()
 		} while (!= 0);
 		EAX = work->linebytes;
 		POP(ECX);
-		IMUL(EAX, -16);
+		#if (!defined(QEMU))
+			IMUL(EAX, -16);
+		#else
+			EAX *= 16;
+			NEG(EAX);
+		#endif
 		LEA(ESI, [ESI + EAX + 32]);
 		ECX--;
 	} while (!= 0);
@@ -355,7 +362,12 @@ opt1:
 		} while (!= 0);
 		EAX = work->linebytes;
 		POP(ECX);
-		IMUL(EAX, -8);
+		#if (!defined(QEMU))
+			IMUL(EAX, -8);
+		#else
+			EAX *= 8;
+			NEG(EAX);
+		#endif
 		LEA(ESI, [ESI + EAX + 32]);
 		ECX--;
 	} while (!= 0);
@@ -417,7 +429,12 @@ opt2:
 		} while (!= 0);
 		EAX = work->linebytes;
 		POP(ECX);
-		IMUL(EAX, -16);
+		#if (!defined(QEMU))
+			IMUL(EAX, -16);
+		#else
+			EAX *= 16;
+			NEG(EAX);
+		#endif
 		LEA(ESI, [ESI + EAX + 8]);
 		ECX--;
 	} while (!= 0);
@@ -479,7 +496,12 @@ opt3:
 		} while (!= 0);
 		EAX = work->linebytes;
 		POP(ECX);
-		IMUL(EAX, -8);
+		#if (!defined(QEMU))
+			IMUL(EAX, -8);
+		#else
+			EAX *= 8;
+			NEG(EAX);
+		#endif
 		LEA(ESI, [ESI + EAX + 32]);
 		ECX--;
 	} while (!= 0);

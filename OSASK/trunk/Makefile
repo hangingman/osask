@@ -76,6 +76,11 @@ vmware : FORCE
 	echo VMWARE = y>> depend.mak
 	$(MAKE)
 
+qemu : FORCE
+	echo ARCH = pcat>> depend.mak
+	echo QEMU = y>> depend.mak
+	$(MAKE)
+
 bochs : FORCE
 	echo ARCH = pcat>> depend.mak
 	echo BOCHS = 13>> depend.mak

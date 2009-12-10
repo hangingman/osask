@@ -284,7 +284,7 @@ struct STR_OPEN_ORDER {
 };
 
 struct STR_VIEWER {
-	char binary[12];
+	unsigned char ext[4], binary[12];
 	int signal[4];
 };
 
@@ -335,9 +335,15 @@ int poko_run(const char *cmdlin);
 int poko_drvfd(const char *cmdlin);
 int poko_drvata(const char *cmdlin);
 int poko_drvcf(const char *cmdlin);
+int poko_drvbfd(const char *cmdlin);
+int poko_setwallpaper(const char *cmdlin);
+int poko_setext(const char *cmdlin);
 
 /* */
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);
+
+struct STR_VIEWER *search_viewer0(const unsigned char *ext);
+//struct STR_VIEWER *search_viewer1(const unsigned char *ext);
 
 #if 0
 void fileselect(struct FILESELWIN *win, int fileid);

@@ -1,40 +1,40 @@
-"src43"の使い方の説明                      2003/12/03 川合秀実
+"src44"の使い方の説明                      2004/04/14 川合秀実
 
 １．これは何か？
 
-  "src43"は、OSASK ver.4.3の「OSASK.EXE」を生成するのに必要なモジュールのソース
+  "src44"は、OSASK ver.4.4の「OSASK.EXE」を生成するのに必要なモジュールのソース
 プログラムのセットです。ただし、以前のバージョンのものをそのまま利用しているも
 のついては、このアーカイブに含まれていません。OSASK.EXEを生成するのに必要なモジ
 ュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
-    INIT.ASK     : ver.3.7
-    PIONEER0.ASK : ver.3.4
-    SYSGG00.LIB  : ver.0.9
-    WINMAN0.C    : ver.3.5
-    POKON0.C     : ver.4.3
+    BASE.NAP     : ver.2.9
+    BOOT32.ASK   : ver.0.3
+    INIT.ASK     : ver.3.8
+    WINMAN0.C    : ver.3.6
+    POKON0.C     : ver.4.4
     PCAT/
-      VGADRV0.ASK  : ver.2.0
-      VESA8.ASK    : ver.0.2
+      VESA8.ASK    : ver.0.3
+      VESA16.ASK   : ver.0.4
+      VESA32.ASK   : ver.0.3
+      FDCDRV0.BIN  : ver.2.6
 
   (以前のバージョンのものを利用するもの)
-    BASE.NAP     : ver.2.8
     OSASKINC.ASK : ver.0.2
-    BOOT32.ASK   : ver.0.2
     TAPI0.ASK    : ver.0.4
     PAPI0.ASK    : ver.0.6
     IBMANK0.TXT  : ver.0.4
     DECODE0.ASK  : ver.1.0
+    PIONEER0.ASK : ver.3.4
+    SYSGG00.LIB  : ver.0.9
     BMP2BETA.NAS : ver.0.1
     BETACLIP.NAS : ver.0.0
     KJPEGLS2.C   : ver.0.0
     PCAT/
       OSALINK1.OPT : ver.0.1
       TIMERDRV.ASK : type-A ver.1.2
-      VESA16.ASK   : ver.0.3
-      VESA32.ASK   : ver.0.2
+      VGADRV0.ASK  : ver.2.0
       KEYMOS0.BIN  : ver.0.6
-      FDCDRV0.BIN  : ver.2.5
     TOWNS/
       OSALINK1.OPT : ver.0.0
       TIMERDRV.ASK : type-A ver.1.2
@@ -119,6 +119,9 @@ doc_link.txtでの説明を参照してください。
   Bochs 1.2.1対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指定
 してください。
 
+  qemu(CVS 040408版)対応バイナリを生成する場合は、-DPCATに加えて-DQEMUを指定し
+てください。
+
 ３．説明＆注意点
 
   これらのソースは、単にOSASKを改良するためだけではなく、他のOSのために利用した
@@ -152,8 +155,8 @@ doc_link.txtでの説明を参照してください。
 
   このドキュメントに関係のあるいくつかのURLを挙げておきます。
 
-    OSASKの開発者向けページ   http://www.imasy.org/~kawai/osask/developers.html
+    OSASKの開発者向けページ   http://osask.jp/developers.html
     小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
-    OSASKのページ             http://www.imasy.org/~kawai/osask/
+    OSASKのページ             http://osask.jp/
     OSASK伝言板               http://koya.marokun.net/osask/form/
-    川合秀実のページ          http://www.imasy.org/~kawai/
+    川合秀実のページ          http://k.osask.jp/

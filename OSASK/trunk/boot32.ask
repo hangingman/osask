@@ -1,4 +1,4 @@
-/* "boot32.ask" ver.0.2 copyright(C) 2003 H.Kawai(川合秀実) */
+/* "boot32.ask" ver.0.3 copyright(C) 2004 H.Kawai(川合秀実) */
 
 #include "osaskinc.ask"
 
@@ -21,6 +21,7 @@ void decode_tek0();
 	CR3 = 1MB+4KB (8K, 12KはPTE)
 
 	なおリアルの最後の4KB(636KB)はV86用のスタックになる
+	さらに12KBがBIOSとの交信用
 
 	リアルの640KB(+128KB)と次の1MBについては一切チェックしない。
 	そこが疑わしいようでは、OSASKを起動するのは絶望的だから。
@@ -61,62 +62,46 @@ void far boot32()
 	POP(ES); /* ES = all_sel */
 
 	/* プロテクトメモリテスト */
+	EBX = 16 * 1024 * 1024; /* i386DX, i486, Pentium */
+	EAX =  2 * 1024 * 1024;
+	testmemory();
+	ECX += 1024 * 1024;
+	swork->bootmalloc_fre2 = ECX;
+	/* A24-31が生きているかどうかのチェック */	
+	EDI = 0x102c00; /* PTE 3MB */
+	EAX = 0x01000007;
+	TEST(DL, 0x04);
+	if (!= 0 /* 486 */)
+		AL= 0x1f /* キャッシュ禁止(PCD = 1, PWT = 1) */;
+	STOSD();
+	EAX = CR3;
+	CR3 = EAX;
+	EBX = 0;
+	EAX = 0xaa55aa55;
+	ECX = [ES:EBX];
+	[ES:EBX] = EAX;
+	NOT(EAX);
+	[ES:0x00300000] = EAX;
+	NOT(EAX);
+	CMP(EAX, [ES:EBX]);
+	[ES:EBX] = ECX;
+	if (==) {
+		EAX =   16 * 1024 * 1024;
+		EBX = 1024 * 1024 * 1024;
+		testmemory();
+		swork->bootmalloc_fre3 = ECX;
+	}
 	#if (defined(PCAT))
-		EBX = 16 * 1024 * 1024; /* i386DX, i486, Pentium */
-		EAX =  2 * 1024 * 1024;
-		testmemory();
-		ECX += 1024 * 1024;
-		swork->bootmalloc_fre2 = ECX;
-		if ((unsigned) ECX >= 14 * 1024 * 1024) {
-			EAX =   16 * 1024 * 1024;
-			EBX = 1024 * 1024 * 1024;
-			testmemory();
-			swork->bootmalloc_fre3 = ECX;
-		}
 		EAX = 160 * 9 * 1024; /* PCAT diskbuf */
-		swork->bootmalloc_adr2 += EAX;
-		swork->bootmalloc_fre2 -= EAX;
-	//	if ((unsigned) <= 0)
-	//		INT(0x03);
 	#elif (defined(TOWNS))
-		IN(AX, 0x0030); /* CPU識別レジスタ */
-		EBX = 16 * 1024 * 1024; /* i386DX, i486, Pentium */
-		AL &= 0x07;
-		if (AL == 0x03)
-			EBX = 10 * 1024 * 1024; /* i386SX */
-		EAX =  2 * 1024 * 1024;
-		testmemory();
-		ECX += 1024 * 1024;
-		swork->bootmalloc_fre2 = ECX;
-		if ((unsigned) ECX >= 14 * 1024 * 1024) {
-			EAX =   16 * 1024 * 1024;
-			EBX = 1024 * 1024 * 1024;
-			testmemory();
-			swork->bootmalloc_fre3 = ECX;
-		}
 		EAX = 160 * 8 * 1024; /* TOWNS diskbuf */
-		swork->bootmalloc_adr2 += EAX;
-		swork->bootmalloc_fre2 -= EAX;
-	//	if ((unsigned) <= 0)
-	//		INT(0x03);
 	#elif (defined(NEC98))
-		EBX = 16 * 1024 * 1024; /* i386DX, i486, Pentium */
-		EAX =  2 * 1024 * 1024;
-		testmemory();
-		ECX += 1024 * 1024;
-		swork->bootmalloc_fre2 = ECX;
-		if ((unsigned) ECX >= 14 * 1024 * 1024) {
-			EAX =   16 * 1024 * 1024;
-			EBX = 1024 * 1024 * 1024;
-			testmemory();
-			swork->bootmalloc_fre3 = ECX;
-		}
 		EAX = 160 * 8 * 1024; /* NEC98 diskbuf */
-		swork->bootmalloc_adr2 += EAX;
-		swork->bootmalloc_fre2 -= EAX;
-	//	if ((unsigned) <= 0)
-	//		INT(0x03);
 	#endif
+	swork->bootmalloc_adr2 += EAX;
+	swork->bootmalloc_fre2 -= EAX;
+//	if ((unsigned) <= 0)
+//		INT(0x03);
 
 	/* モジュール転送先確保 */
 	AL = 16;
@@ -209,6 +194,11 @@ void far boot32()
 		[ES:EDI + 0x0e0c] = EAX;
 		EAX += 4096;
 		EBX += 4096;
+		/* PCIデバイス用空間 (0xac00_0000) */
+		[ES:EDI + 0x1ac0] = EBX;
+		[ES:EDI + 0x0ac0] = EAX;
+		EAX += 4096;
+		EBX += 4096;
 	#endif
 	PUSH(ECX);
 	ECX -= EAX;
@@ -222,7 +212,7 @@ void far boot32()
 	#if (!defined(PCAT))
 		EDI = 0x303000;
 	#else
-		EDI = 0x306000;
+		EDI = 0x307000;
 	#endif
 	ECX = 3 * 1024 / 4;
 	EAX = 7;
@@ -234,11 +224,11 @@ fillpte:
 
 	/* ptepdeのマッピング */
 	/* +0xxx:link, +1xxx:pde, +2xxx:VRAM, +3xxx:PTE(0-4) : 非PCAT */
-	/* +0xxx:link, +1xxx:pde, +2xxx:VRAM, +6xxx:PTE(0-4) : PCAT */
+	/* +0xxx:link, +1xxx:pde, +2xxx:VRAM, +6xxx:c0000000 +7xxx:PTE(0-4) : PCAT */
 	#if (!defined(PCAT))
 		EDI = 0x303000 + 0x1200; /* 4.5MB */
 	#else
-		EDI = 0x306000 + 0x1200; /* 4.5MB */
+		EDI = 0x307000 + 0x1200; /* 4.5MB */
 	#endif
 	EAX = swork->alloclist[ENT_PDEPTE + 12];
 	AL = 7;

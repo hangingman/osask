@@ -1,11 +1,9 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.5
-		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.6
+		copyright(C) 2004 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
     stack:8k malloc:4208k file:4096k */
 
-/* job_flag0 関係をいじった */
-
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
-#include "kjpegls.h"
+#include "../kjpegls.h"
 #if (defined(WIN31))
 	static int backcolors[5] = {8, 8, 0xc618, 0x00c0c0c0, 0x00c0c0c0};
 #else
@@ -235,6 +233,8 @@ void job_loadfont2();
 void job_loadfont3(int flag, int dmy);
 void moswinsig_flagset();
 struct WM0_WINDOW *searchwin(int x, int y);
+int lock_v86();
+void unlock_v86();
 
 #if (defined(PCAT) || defined(TOWNS))
 	void job_savevram0(void);
@@ -1274,6 +1274,8 @@ static struct KEYTABLE {
 	};
 #endif
 
+static unsigned char wallpaper_name[13] = "OSASK   .BMP";
+
 void OsaskMain()
 {
 	int *signal, *signal0, i, j;
@@ -1745,6 +1747,14 @@ void OsaskMain()
 		case 0x0248 /* load wallpaper */:
 		//	siglen = 1;
 			writejob_n(1, 0x0040 /* load wallpaper */);
+			goto fin_wrtjob;
+
+		case 0x024c /* set wallpaper */:
+			siglen = 4;
+			*(int *) &wallpaper_name[0] = signal[1];
+			*(int *) &wallpaper_name[4] = signal[2];
+			*(int *) &wallpaper_name[8] = signal[3];
+			writejob_n(1, 0x0048 /* set wallpaper */);
 			goto fin_wrtjob;
 
 			#if (defined(PCAT))
@@ -2485,6 +2495,11 @@ void runjobnext()
 				job_vesacheck0();
 				break;
 		#endif
+
+		case 0x0048 /* set wallpaper */:
+			wallpaper_exist = 0;
+			job_openwallpaper();
+			break;
 		}
 		if (func1)
 			(*func1)(readjob());
@@ -3628,6 +3643,8 @@ void job_setvgamode2()
 			job_general1();
 			return;
 		}
+		if (lock_v86())
+			goto skip; /* V86タスクが使用中なら切換え失敗 */
 		if (mode != 0x0012 && mode != 0x0102) {
 			struct STR_VBEMODE *p = vbe_modeinfo(mode);
 			int drv, vram;
@@ -3734,6 +3751,7 @@ void job_setvgamode3(const int sig, const int result)
 				}
 			} while ((win = win->down) != top);
 		}
+		unlock_v86();
 		oldmode = job.int0;
 		init_screen(x2, y2);
 		job_general1();
@@ -4294,14 +4312,14 @@ void job_savevram1(int flag, int dmy)
 
 #endif
 
-static unsigned char wallpaper_search = 0;
+//static unsigned char wallpaper_search = 0;
 static unsigned char jpeg_used = 0;
-#define WALLPAPERNUM 4	/* 名前は4種類 */
+//#define WALLPAPERNUM 4	/* 名前は4種類 */
 void job_openwallpaper()
 /* 2002.05.27 川合 : 壁紙表示がトグルになるように変更 */
 {
-	static char *names[] =
-	    {"OSASK0  .BMP", "OSASK0  .JPG", "OSASK   .BMP", "OSASK   .JPG"};
+//	static char *names[] =
+//	    {"OSASK0  .BMP", "OSASK0  .JPG", "OSASK   .BMP", "OSASK   .JPG"};
 	int bytepp = vbecoldep;
 	if (bytepp)
 		bytepp--;
@@ -4309,7 +4327,8 @@ void job_openwallpaper()
 	if (wallpaper_exist == 0 && x2 * y2 * bytepp <= WALLPAPERMAXSIZE) {
 		lib_initmodulehandle0(0x0008, 0x0200);
 		job.func = &job_loadwallpaper;
-		lib_steppath0(0, 0x0200, names[wallpaper_search], 0x0050 /* sig */);
+	//	lib_steppath0(0, 0x0200, names[wallpaper_search], 0x0050 /* sig */);
+		lib_steppath0(0, 0x0200, wallpaper_name, 0x0050 /* sig */);
 		return;
 	}
 	job_loadwallpaper(-1, 0);
@@ -4325,16 +4344,16 @@ void job_loadwallpaper(int flag, int dmy)
 	struct WM0_WINDOW *win;
 
 	wallpaper_exist = 0;
-	char *fp = (char *)lib_readCSd(0x10);
+	unsigned char *fp = (unsigned char *) lib_readCSd(0x0010);
 	if (flag == 0) {	/* opening succeeded. */
 		int ms = lib_readmodulesize(0x200);
 		if (ms>WALLPAPERMAXSIZE)
 			ms = WALLPAPERMAXSIZE;
 		lib_mapmodule(0x0000, 0x0200, 0x5, ms, fp, 0);
-		if (wallpaper_search&1){
+		if (*fp == 0xff) {
 			char *jpegbuf = wallpaper + WALLPAPERMAXSIZE;
 			static JPEG jpeg;
-			if (jpeg_used){
+			if (jpeg_used) {
 				int i = sizeof(JPEG)/4, *j = (int*)&jpeg;
 				do{
 					*j++=0;
@@ -4362,15 +4381,15 @@ void job_loadwallpaper(int flag, int dmy)
 
 	//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
 	//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
-	}else{
-	failed:
-		if (flag>=0 && wallpaper_search++ < WALLPAPERNUM-1){
-			lib_unmapmodule(0, WALLPAPERMAXSIZE, fp);
-			job_openwallpaper();
-			return;
-		}
+//	}else{
+	failed:	;
+//		if (flag>=0 && wallpaper_search++ < WALLPAPERNUM-1){
+//			lib_unmapmodule(0, WALLPAPERMAXSIZE, fp);
+//			job_openwallpaper();
+//			return;
+//		}
 	}
-	wallpaper_search = 0;
+//	wallpaper_search = 0;
 	lib_initmodulehandle0(0x0008, 0x0200);
 
 	/* 全ウィンドウ再描画 */
@@ -4455,8 +4474,12 @@ ret:
 
 void job_vesacheck0()
 {
-	job.func = &job_vesacheck1;
-	sgg_execcmd0(0x0090, 0, 0x4f00, 0, 0x3240 + 3, 0x7f000002, 0x0014, 0x0000);
+	if (lock_v86())
+		job.now = 0;
+	else {
+		job.func = &job_vesacheck1;
+		sgg_execcmd0(0x0090, 0, 0x4f00, 0, 0x3240 + 3, 0x7f000002, 0x0014, 0x0000);
+	}
 	return;
 }
 
@@ -4541,6 +4564,20 @@ void job_vesacheck2()
 {
 	send_signal3dw(0x4243, 0x7f000002, 0x00be /* sig_vbelist */, (int) vbelist);
 	job.now = 0;
+	unlock_v86();
+	return;
+}
+
+int lock_v86()
+{
+	static int cmd[4] = { 0x0058, 0x0001, 0x0000, 0x0000 };
+	sgg_execcmd(cmd);
+	return cmd[2];
+}
+
+void unlock_v86()
+{
+	sgg_execcmd0(0x0058, 0x0000, 0x0000);
 	return;
 }
 

@@ -1,6 +1,6 @@
-;	"base.nas" ver.2.8
+;	"base.nas" ver.2.9
 ;	OSASK用のブートプログラム
-;	Copyright(C) 2003 H.Kawai (川合秀実)
+;	Copyright(C) 2004 H.Kawai (川合秀実)
 
 ;	TAB = 4
 
@@ -87,7 +87,7 @@ Entry:
 	ADD		 SI,16
 	CMP		 AX, SI
 	#if (defined(PCAT))
-		MOV		ECX,(640-4)*1024 ; for PCAT
+		MOV		ECX,(640-16)*1024 ; for PCAT
 	#elif (defined(TOWNS))
 		MOV		ECX,(640+128)*1024 ; for TOWNS
 	#elif (defined(NEC98))
@@ -119,10 +119,10 @@ Entry:
 		INT		0x18 ; グラフィック画面表示(BIOS)
 		MOV		AH,0x0d
 		INT		0x18 ; テキスト画面非表示(BIOS)
-		MOV		AL,0xff
-		OUT		0x0002,AL ; 割り込みマスク
-		MOV		AH,0x03
-		INT		0x18 ; キーボード初期化
+	;	MOV		AL,0xff
+	;	OUT		0x0002,AL ; 割り込みマスク
+	;	MOV		AH,0x03
+	;	INT		0x18 ; キーボード初期化
 	#endif
 
 	MOV		AX,[CS:0x0002]
@@ -143,7 +143,15 @@ Entry:
 
 ;	ここでA20を有効にする
 
-	CLI
+	CLI		; IDTが設定されるまで、割り込みを禁止する
+
+	#if (defined(QEMU))
+		MOV AL,0xff
+		OUT 0x21,AL
+		NOP
+		OUT 0xa1,AL
+		STI
+	#endif
 
 	#if (defined(PCAT))
 		CALL	waitkbdout
@@ -187,8 +195,6 @@ Entry:
 	#endif
 
 ;	AC = 1となるので、SPをdwordアラインしておくこと
-
-;	CLI		; IDTが設定されるまで、割り込みを禁止する
 
 	MOV		 AX,0xff00
 	MOV		 ES, AX

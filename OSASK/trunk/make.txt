@@ -1,5 +1,5 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2002.8.5 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
+2004.4.18 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 Linux/Free BSDでのコンパイル方法は、OsaskWikiを御覧下さい。
@@ -15,13 +15,15 @@ http://www.imasy.org/~kawai/osask/developers.html
 make pcat
 (2) VMware
 make vmware
-(3) Bochs ver 1.3
+(3) QEMU
+make qemu
+(4) Bochs ver 1.3
 make bochs
-(4) Bochs ver 1.2.1
+(5) Bochs ver 1.2.1
 make bochs12
-(5) FM-TOWNS
+(6) FM-TOWNS
 make towns
-(6) NEC PC-98x1
+(7) NEC PC-98x1
 make nec98
 
 するとOSASK.EXE が生成されます。

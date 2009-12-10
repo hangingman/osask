@@ -49,11 +49,12 @@ BIM2BIN_FLAGS_TEK = -osacmp
 OBJ2BIM_ALIGN_FLAGS = text_align:1 data_align:4 bss_align:4
 DEFAULT_RULE_FILE = osask.rul
 
+BASE_NAS = base.nas
 # architecture dependency
 # for FM-TOWNS
 ifeq ($(ARCH),towns)
 #BASE_ASM = base.asm
-BASE_NAS = base.nas
+#BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DTOWNS
 CFLAGS += -DTOWNS
 # enable 1-pixel scroll
@@ -83,7 +84,7 @@ endif
 # for PC/AT
 ifeq ($(ARCH),pcat)
 #BASE_ASM = base.asm
-BASE_NAS = base.nas
+#BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DPCAT
 CFLAGS += -DPCAT
 VESA_OBJS = vesa8.bin vesa16.bin vesa32.bin
@@ -91,16 +92,21 @@ ifeq ($(VMWARE),y)
 PREPROCESSOR_FLAGS += -DVMWARE
 CFLAGS += -DVMWARE
 endif
+ifeq ($(QEMU),y)
+PREPROCESSOR_FLAGS += -DQEMU
+CFLAGS += -DQEMU
+endif
 ifeq ($(BOCHS),13)
 #BASE_ASM = base_bch.asm
 #BASE_NAS = base_bch.nas
-BASE_NAS = base.nas
+#BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DBOCHS
 CFLAGS += -DBOCHS
 endif
 ifeq ($(BOCHS),12)
 #BASE_ASM = base_bch.asm
-BASE_NAS = base_bch.nas
+#BASE_NAS = base_bch.nas
+#BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DBOCHS -DNOHLT
 CFLAGS += -DBOCHS -DNOHLT
 endif

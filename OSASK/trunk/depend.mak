@@ -3,8 +3,4 @@
 #DESIGN = TMENU#       T-OSASK
 #DESIGN = CHO_OSASK#   Cho-Kanji style OSASK
 #DESIGN = NEWSTYLE#    NWSOS style
-ARCH = towns
-TWSCRL1 = n
-TWVSW = 1024
-VMODE = y
-CLGD543X = y
+ARCH = pcat

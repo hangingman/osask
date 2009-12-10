@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.4.3
-     copyright(C) 2003 小柳雅明, 川合秀実
-    stack:4k malloc:88k file:4096k */
+/* "pokon0.c":アプリケーションラウンチャー  ver.4.4
+     copyright(C) 2004 I.Tak., 小柳雅明, 川合秀実
+     stack:4k malloc:88k file:4096k */
 
 /* scrollbar & mouse by I.Tak. */
 /* シグナル受信通知を*sbp==0のときに一回だけする……ほとんど意味無し
@@ -54,9 +54,9 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon43"
+#define POKON_VERSION "pokon44"
 
-#define POKO_VERSION "Heppoko-shell \"poko\" version 2.6\n    Copyright (C) 2003 OSASK Project\n"
+#define POKO_VERSION "Heppoko-shell \"poko\" version 2.7\n    Copyright (C) 2004 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
 
 #define	FILEAREA		(4 * 1024 * 1024)
@@ -78,17 +78,23 @@ const static char *pokon_error_message[] = {
 	"\nIllegal parameter(s).\n",
 };
 
+#define MAX_VIEWERS				30
+
 static struct STR_JOBLIST job;
-static struct STR_VIEWER BINEDIT = { "BEDITC00BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER TXTEDIT = { "TEDITC02BIN", 2, 0x7f000001, 42, 0 };
-static struct STR_VIEWER PICEDIT = { "PICTURE0BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER RESIZER = { "RESIZER0BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER HELPLAY = { "HELO    BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER MMLPLAY = { "MMLPLAY BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER MCOPY   = { "MCOPYC1 BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER CMPTEK0 = { "CMPTEK0 BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER JPGVIEW = { "PICTURE0BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER WABA    = { "WABA    BIN", 0, 0, 0, 0 };
+static struct STR_VIEWER viewers[MAX_VIEWERS] = {
+	{ "***", "BEDITC00BIN" },
+	{ "TXT", "TEDITC02BIN", 2, 0x7f000001, 42 },
+	{ "BMP", "PICTURE0BIN" },
+	{ "JPG", "PICTURE0BIN" },
+	{ ".B ", "BEDITC00BIN" },
+	{ "..S", "RESIZER0BIN" },
+	{ ".T ", "TEDITC02BIN", 2, 0x7f000001, 42 },
+	{ ".P ", "CMPTEK0 BIN" },
+	{ ".U ", "MCOPYC1 BIN" },
+	{ "HEL", "HELO    BIN" },
+	{ "MML", "MMLPLAY BIN" },
+	{ "WRP", "WABA    BIN" }
+};
 
 struct STR_BANK *banklist;
 struct SGG_FILELIST *file;
@@ -961,7 +967,10 @@ void poko_exec_cmd(const char *p)
 			#endif
 			#if (defined(PCAT))
 				poko_drvata,		"drvata", 6, 1,
+				poko_drvbfd,		"drvbfd", 6, 1,
 			#endif
+			poko_setwallpaper,	"setwallpaper", 12, 2,
+			poko_setext,		"setext", 6, 1,
 			poko_exec,			"exec", 4, 1,
 			#if defined(DEBUG)
 				poko_debug,			"debug", 5, 1,
@@ -1832,21 +1841,23 @@ write_exe:
 				break;
 
 			case COMMAND_BINEDIT:
-				i = (int) &BINEDIT;
+				i = (int) ".B ";
 		runviewer_ij:
-				run_viewer((void *) i, fp);
+				i = (int) search_viewer0((const unsigned char *) i);
+				if (i)
+					run_viewer((void *) i, fp);
 				break;
 
 			case COMMAND_TXTEDIT:
-				i = (int) &TXTEDIT;
+				i = (int) ".T ";
 				goto runviewer_ij;
 
 			case COMMAND_CMPTEK0:
-				i = (int) &CMPTEK0;
+				i = (int) ".P ";
 				goto runviewer_ij;
 
 			case COMMAND_MCOPY:
-				i = (int) &MCOPY;
+				i = (int) ".U ";
 				goto runviewer_ij;
 
 		//	case 99:
@@ -2328,7 +2339,7 @@ listup:
 					break;
 
 				case SIGNAL_RESIZE:
-					i = (int) &RESIZER;
+					i = (int) "..S";
 					goto runviewer_ij;
 
 				case SIGNAL_CHANGE_SORT_MODE:
@@ -3116,20 +3127,11 @@ void runfile(struct SGG_FILELIST *fp, char *name)
 		);
 		goto ret;
 	}
-	i = (int) &BINEDIT;
-	if (j == ('B' | 'M' << 8 | 'P' << 16))
-		i = (int) &PICEDIT;
-	if (j == ('T' | 'X' << 8 | 'T' << 16))
-		i = (int) &TXTEDIT;
-	if (j == ('H' | 'E' << 8 | 'L' << 16))
-		i = (int) &HELPLAY;
-	if (j == ('M' | 'M' << 8 | 'L' << 16))
-		i = (int) &MMLPLAY;
-	if (j == ('J' | 'P' << 8 | 'G' << 16))
-		i = (int) &JPGVIEW;
-	if (j == ('W' | 'R' << 8 | 'P' << 16))
-		i = (int) &WABA;
-	run_viewer((void *) i, fp);
+	i = (int) search_viewer0(&name[8]);
+	if (i == 0)
+		i = (int) search_viewer0("***");
+	if (i != 0)
+		run_viewer((void *) i, fp);
 ret:
 	return;
 }
@@ -3540,6 +3542,136 @@ error:
 
 }
 
+int poko_drvbfd(const char *cmdlin)
+{
+	int i;
+	if (*cmdlin == '\0')
+		goto error;
+	i = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin != '\0')
+		goto error;
+	if (i > 255 || i < 0)
+		goto error;
+
+	writejob_n(3,
+		JOB_CHECK_WB_CACHE,
+		JOB_CHANGE_DEVICE, i | 0x4000
+	);
+	return 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+
+}
+
+#endif
+
+int poko_setwallpaper(const char *cmdlin)
+{
+	union {
+		char s[12];
+		int i[3];
+	} filename = { 0 };
+	cmdlin = pokosub_getfilename(cmdlin, filename.s);
+//	if (filename.s[0] == '\0')
+//		goto error;
+	if (*cmdlin != '\0')
+		goto error;
+	sgg_execcmd0(0x0020, 0x80000000 + 6, 0x3245, 0x7f000004,
+		0x024c, filename.i[0], filename.i[1], filename.i[2], 0x0000);
+
+	return 1;
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+
+int poko_setext(const char *cmdlin)
+{
+	union {
+		char s[12];
+		int i[3];
+	} filename = { 0 };
+	unsigned char ext[3];
+	int i;
+	struct STR_VIEWER *v, *v1 = viewers + MAX_VIEWERS;
+
+	while (*cmdlin <= ' ' && *cmdlin != '\0')
+		cmdlin++;
+	if (*cmdlin == '\0')
+		goto error;
+	i = 0;
+	ext[1] = ext[2] = ' ';
+	do {
+		if (i == 3)
+			goto error;
+		ext[i] = *cmdlin++;
+		if ('a' <= ext[i] && ext[i] <= 'z')
+			ext[i] += 'A' - 'a';
+		i++;
+	} while (*cmdlin > ' ');
+	v = search_viewer0(ext);
+	if (v)
+		v->ext[0] = '\0';
+	if (*cmdlin == '\0')
+		return 1; /* 削除 */
+	cmdlin = pokosub_getfilename(cmdlin, filename.s);
+	if (filename.s[0] == '\0')
+		goto error;
+	v = viewers;
+	do {
+		if (v->ext[0] == '\0')
+			goto find;
+		v++;
+	} while (v < v1);
+	consoleout("\next-table full");
+	return 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+
+find:
+	filename.i[2] >>= 8; /* ピリオドを消す */
+	v->ext[0] = ext[0];
+	v->ext[1] = ext[1];
+	v->ext[2] = ext[2];
+	for (i = 0; i < 11; i++)
+		v->binary[i] = filename.s[i];
+	for (i = 0; i < 4; i++)
+		v->signal[i] = 0;
+
+	i = 1;
+	while (*cmdlin) {
+		if (i == 4) {
+			v->ext[0] = '\0';
+			goto error;
+		}
+		v->signal[i++] = cons_getdec_skpspc(&cmdlin);
+	}
+	v->signal[0] = i - 1;
+	return 1;
+}
+
+struct STR_VIEWER *search_viewer0(const unsigned char *ext)
+{
+	struct STR_VIEWER *v = viewers, *v1 = v + MAX_VIEWERS;
+	do {
+		if (ext[0] == v->ext[0] && ext[1] == v->ext[1] && ext[2] == v->ext[2])
+			goto find;
+		v++;
+	} while (v < v1);
+	v = NULL;
+find:
+	return v;
+}
+
+#if 0
+struct STR_VIEWER *search_viewer1(const unsigned char *ext)
+{
+	struct STR_VIEWER *v = search_viewer0(ext);
+	if (v == NULL)
+		v = &viewers[0];
+	return v;
+}
 #endif
 
 int poko_exec(const char *cmdlin)

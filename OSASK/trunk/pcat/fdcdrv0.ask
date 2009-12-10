@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.2.5 copyright(C) 2003 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.2.6 copyright(C) 2004 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -24,6 +24,10 @@ default(code == CODE);
 #define	TOTAL_SECTORS	2880		/* 1.44MBでは2880, 1.2MBでは1232 */
 
 #define	CARDBUS_POFF_TIMEOUT	4000000		/* 4GHzで2ms以上だろう */
+#define CARDBUS_BASE0p			0x0ac0d000
+#define CARDBUS_BASE10			0xac0d1000
+#define CARDBUS_BASE18			0xac0d1800
+#define CARDBUS_BASE24			0xac
 
 struct FDC_WORK {
 	int MC_ptr, MC_free, jmpvec_fdcint /* 0x0008 */;
@@ -57,7 +61,7 @@ struct FDC_WORK {
 	int CFIDE_name[12], CFport, CFbaseLBA;
 	char CFdev, CFerrflg, CFpower, CFdev2;
 	int readsecs, writesecs, formatsecs, loadfat, cardbus; /* test4, test6, test5 */
-	int PCCardDriveList[32], wait400count, [68];
+	int PCCardDriveList[32], wait400count, BIOS_S, BIOS_H, [60];
 
 	/* 0x0800～0xfff */
 	void [2048];
@@ -159,6 +163,8 @@ nextcmd:
 		goto cmd0194; /* change_device */
 	if (EAX == 0x0198)
 		goto cmd0198; /* PC-Card Reset */
+	if (EAX == 0x019c)
+		goto cmd019c; /* INT13H終了ハンドラ呼び出し */
 	INT(0x03);
 
 cmd0000:
@@ -498,6 +504,38 @@ cmd0194:
 			#endif
 		}
 	}
+#if 0
+	if (CH == 0x40) {
+		/* BIOS-FDD */
+		asmout("MOV EAX,FDC_MC_test4_bios");
+		work->readsecs = EAX;
+		asmout("MOV EAX,FDC_MC_test6_bios");
+		work->writesecs = EAX;
+		asmout("MOV EAX,FDC_MC_test5_fd");
+		work->formatsecs = EAX;
+		asmout("MOV EAX,FDC_loadFAT_fd");
+		work->loadfat = EAX;
+		work->CFdev = CL;
+		work->CFerrflg = 0; /* bit0-1:拡張INT13Hテスト、bit2-3:CHS取得 */
+		work->CFbaseLBA = 0;
+	}
+#endif
+#if 0
+	if (CH == 0x41) {
+		/* BIOS-HDD */
+		asmout("MOV EAX,FDC_MC_test4_bios");
+		work->readsecs = EAX;
+		asmout("MOV EAX,FDC_MC_test6_bios");
+		work->writesecs = EAX;
+		asmout("MOV EAX,FDC_MC_test5_fd");
+		work->formatsecs = EAX;
+		asmout("MOV EAX,FDC_loadFAT_cfide");	/* これはいまいち */
+		work->loadfat = EAX;
+		CL |= 0x80;
+		work->CFdev = CL;
+		work->CFerrflg = 0; /* bit0-1:拡張INT13Hテスト、bit2-3:CHS取得 */
+	}
+#endif
 	(offset) cmd += 8;
 	goto nextcmd;
 
@@ -505,6 +543,17 @@ cmd0198:
 	ECX = cmd[4]; /* 完了シグナル */
 	PCC_reset();
 	(offset) cmd += 8;
+	goto nextcmd;
+
+cmd019c:
+	PUSHAD();
+	EBX = work->MC_ptr;
+	EBP = work->MC_free;
+	CALL(work->jmpvec_fdcint);
+	work->MC_ptr = EBX;
+	work->MC_free = EBP;
+	POPAD();
+	(offset) cmd += 4;
 	goto nextcmd;
 }
 
@@ -605,11 +654,30 @@ void far FDC_int()
 	DS = AX;	
 	asmout("INC BYTE PTR SS:[0FFFFFFF0H]");
 
-	AL = 0x66 /* IRQ-06を終了 */;
-	OUT(PIC_mastar_OCW2, AL);
-
 	(offset) cmd = work->MC_ptr;
 	cmd_free = work->MC_free;
+
+#if 0
+	if (cmd_free == 192) {
+		/* 待機中じゃないのに割り込みが来た */
+		POP(EAX); /* DSを破棄 */
+		POPAD();
+		PUSH(EAX); /* (ec) */
+		PUSHAD();
+		PUSH(SEL_STACK);
+		POP(DS);
+		EAX = 6;
+		asmout("CALL FAR DWORD [DS:0xffffdeec]");	/* work->v86irq_ofs */
+		POPAD();
+		ESP += 4;
+		(char) [SS:0xfffffff0]--; /* 0にはならない */
+		(char) [SS:0xffffffe0]--; /* 0にはならない */
+		IRETD();
+	}
+#endif
+
+	AL = 0x66 /* IRQ-06を終了 */;
+	OUT(PIC_mastar_OCW2, AL);
 
 	// FDC_MCを実行中は、CLI();しておくこと
 	asmout("CALL DWORD PTR DS:[0008H]"); // jmpvec_fdcint
@@ -1643,9 +1711,9 @@ skip:
 
 	(offset) cmd = work->MC_ptr;
 	if ((unsigned) (offset) cmd == 0x0100) {
-		asmout("MOV DWORD PTR DS:[EBX+ 0],OFFSET FDC_MC_WaitNms");
+		asmout("MOV DWORD PTR DS:[EBX+ 0],FDC_MC_WaitNms");
 		cmd[ 4] = 2;
-		asmout("MOV DWORD PTR DS:[EBX+ 8],OFFSET FDC_MC_MakeSignal");
+		asmout("MOV DWORD PTR DS:[EBX+ 8],FDC_MC_MakeSignal");
 		cmd[12] = 2;
 		EAX = work->TAPI_sendsignalofs;
 		ECX = work->TAPI_sendsignalsel;
@@ -1706,9 +1774,9 @@ void FDC_MC_test6_cfide()
 
 	(offset) cmd = work->MC_ptr;
 	if ((unsigned) (offset) cmd == 0x0100) {
-		asmout("MOV DWORD PTR DS:[EBX+ 0],OFFSET FDC_MC_WaitNms");
+		asmout("MOV DWORD PTR DS:[EBX+ 0],FDC_MC_WaitNms");
 		cmd[ 4] = 2;
-		asmout("MOV DWORD PTR DS:[EBX+ 8],OFFSET FDC_MC_MakeSignal");
+		asmout("MOV DWORD PTR DS:[EBX+ 8],FDC_MC_MakeSignal");
 		cmd[12] = 2;
 		EAX = work->TAPI_sendsignalofs;
 		ECX = work->TAPI_sendsignalsel;
@@ -1730,6 +1798,577 @@ void FDC_MC_test6_cfide()
 	return;
 err:
 	INT(0x03);
+}
+
+void FDC_MC_test4_bios()
+// EDX:ロードする物理アドレス, ECX:シグナル番号
+// read 1track(512x18) 
+// このバージョンではシークの必要があるときだけシークする
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+
+	PUSHAD();
+	PUSHFD();
+	CLI();
+	(offset) cmd = work->MC_ptr;
+	if ((unsigned) (offset) cmd == 0x0100) {
+		asmout("MOV DWORD DS:[EBX+ 0],FDC_MC_GetSemV86"); /* 取れなければ100ミリ秒スリープ */
+		asmout("MOV DWORD DS:[EBX+ 4],FDC_MC_TestBios");
+		asmout("MOV DWORD DS:[EBX+ 8],FDC_MC_ReadBios18");
+		EAX = EDX;
+		EAX -= TRACK0_ADDR0;
+		EAX /= 512;
+		EAX += work->CFbaseLBA;
+		cmd[12] = EAX;
+		cmd[16] = EDX;
+		asmout("MOV DWORD DS:[EBX+20],FDC_MC_WaitNms");
+		cmd[24] = 10000; /* 2 */
+		asmout("MOV DWORD DS:[EBX+28],FDC_MC_MakeSignal");
+		cmd[32] = 2;
+		EAX = work->TAPI_sendsignalofs;
+		ECX = work->TAPI_sendsignalsel;
+		cmd[36] = EAX;
+		cmd[40] = ECX;
+		EAX = [SS:ESP + 28 /* ECX */];
+		cmd[44] = 0x1241;
+		cmd[48] = EAX;
+		asmout("MOV DWORD DS:[EBX+52],FDC_MC_FreeSemV86");
+		asmout("MOV DWORD DS:[EBX+56],FDC_MC_Finish");
+		(offset) cmd = 0x100;
+		asmout("CALL DWORD DS:[EBX]");
+		work->MC_ptr = (offset) cmd;
+		work->MC_free = cmd_free;
+	}
+	POPFD();
+	POPAD();
+	return;
+}
+
+void FDC_MC_test6_bios()
+// ECX:転送サイズ, EDX:物理アドレス, EDI:シグナル番号
+// write block 
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+
+	(unsigned int) ECX /= 512;
+	if (ECX > 28)
+		INT(0x03); /* 14KB以上はアウト */
+
+	PUSHAD();
+	PUSHFD();
+	CLI();
+	(offset) cmd = work->MC_ptr;
+	if ((unsigned) (offset) cmd == 0x0100) {
+		asmout("MOV DWORD DS:[EBX+ 0],FDC_MC_GetSemV86"); /* 取れなければ100ミリ秒スリープ */
+		asmout("MOV DWORD DS:[EBX+ 4],FDC_MC_TestBios");
+		asmout("MOV DWORD DS:[EBX+ 8],FDC_MC_WriteBios");
+		EAX = EDX;
+		EAX -= TRACK0_ADDR0;
+		EAX /= 512;
+		EAX += work->CFbaseLBA;
+		cmd[12] = ECX;
+		cmd[16] = EAX;
+		cmd[20] = EDX;
+		asmout("MOV DWORD DS:[EBX+24],FDC_MC_WaitNms");
+		cmd[28] = 2;
+		asmout("MOV DWORD DS:[EBX+32],FDC_MC_MakeSignal");
+		cmd[36] = 2;
+		EAX = work->TAPI_sendsignalofs;
+		ECX = work->TAPI_sendsignalsel;
+		cmd[40] = EAX;
+		cmd[44] = ECX;
+		cmd[48] = 0x1241;
+		cmd[52] = EDI;
+		asmout("MOV DWORD DS:[EBX+56],FDC_MC_FreeSemV86");
+		asmout("MOV DWORD DS:[EBX+60],FDC_MC_Finish");
+		(offset) cmd = 0x100;
+		asmout("CALL DWORD DS:[EBX]");
+		work->MC_ptr = (offset) cmd;
+		work->MC_free = cmd_free;
+	}
+	POPFD();
+	POPAD();
+	return;
+}
+
+/* 後で移動 */
+
+void FDC_MC_GetSemV86()
+// 100ミリ秒wait付き
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+	char *sem == DS:0xffffeff4;
+
+	AL = 1;
+	PUSH(DS);
+	PUSH(SEL_STACK);
+	POP(DS);
+	XCHG(AL, *sem);
+	POP(DS);
+	if (AL == 0) {
+		(offset) cmd += 4;
+		cmd_free++;
+		asmout("JMP DWORD DS:[EBX]");
+	}
+
+	asmout("CMP DWORD DS:[004CH],.timer_int"); /* 再入用 */
+	if (==) {
+		POP(EAX);
+		EAX = 100;
+		ECX = 0;
+		EDX = 0;
+		work->MC_ptr = (offset) cmd;
+		work->MC_free = cmd_free;
+		POP(ESI);
+		POP(DS);
+		STC();
+		RETF();
+	}
+
+	MOV(EAX, DS);
+	PUSH(FS);
+	FS = AX;
+	PUSH(EBX);
+	EAX = 100;
+	ECX = 0;
+	work->time_add0 = EAX;
+	work->time_add4 = ECX;
+	work->time_add8 = ECX;
+	/* work->jmpvec_timer_EIP = */ asmout("MOV DWORD DS:[004CH],#timer_int"); 
+	EBX = /* (offset) &work->timer_cmd1 */ 0x0028;
+	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
+	POP(EBX);
+	POP(FS);
+	return; // リターン先で、cmdやcmd_freeを書き戻してくれる。rewindは、コマンドライト時にチェックする
+
+timer_int:
+	MOV(EAX, CS);
+	PUSH(DS);
+	PUSH(ESI);
+	EAX += 8;
+	DS = AX;	
+
+	(offset) cmd = work->MC_ptr;
+	cmd_free = work->MC_free;
+
+	asmout("CALL DWORD DS:[EBX]"); /* 自分自身を呼ぶことになる */
+	/* work->jmpvec_timer_EIP = */ asmout("MOV DWORD PTR DS:[004CH],0"); 
+
+	work->MC_ptr = (offset) cmd;
+	work->MC_free = cmd_free;
+
+	POP(ESI);
+	POP(DS);
+	CLC();
+	RETF(); // (far) return;
+}
+
+void FDC_MC_FreeSemV86()
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+	char *sem == DS:0xffffeff4;
+
+	PUSH(DS);
+	PUSH(SEL_STACK);
+	POP(DS);
+	*sem = 0;
+	POP(DS);
+	(offset) cmd += 4;
+	cmd_free++;
+	asmout("JMP DWORD DS:[EBX]");
+}
+
+struct TAPI_TSS386 {  /* 全てTL-0 */
+	short BackLink, [2];
+	int stack0_ESP; short stack0_SS, [2];
+	int stack1_ESP; short stack1_SS, [2];
+	int stack2_ESP; short stack2_SS, [2];
+	int CR3;
+	int EIP;
+	int EFLAGS;
+	int EAX, ECX, EDX, EBX;
+	int ESP, EBP, ESI, EDI;
+	short ES, [2], CS, [2], SS, [2];
+	short DS, [2], FS, [2], GS, [2];
+	short LDTR, [2], TaskFlags, IOBitMap;
+	/* 合計104bytes */
+};
+
+struct TAPI_GlvPrm { /* 計64bytes */
+	int run[12];
+//	struct Tss near *Pointer;
+	int pointer;
+	int totalIlv; // +0x10
+	int tasks;
+	int MinIlv, MaxIlv;
+	char flags; /* フラグによっては、Ilvを考慮しない。 */
+	/* bit0:Ilv変更フラグ(0で変更あり)、bit1:時分割抑制フラグ(1で抑制)。 */
+	void [31];
+};
+
+struct TAPI_LlvPrm { // 32bytes
+	int run[12];
+	int Glv;
+	int short_run[12]; /* 0x10～0x1b  0x1bが-1なら、invalid */
+	int Ilv;
+};
+
+struct TAPI_TSS {
+	TAPI_TSS386 tss386;  /* TL-0ブロック(104bytes) */
+
+	/* system-signal処理のブロック(24bytes) */
+	int sysbox_write_free, sysbox_write_ptr, sysbox_write_ptr0, sysbox_write_ptr1;
+	int sysbox_read_ptr;
+	unsigned char msgbox_status, softint_nest, [2];
+		// bit0 : buffer write overrun
+		// bit6 : sysbox empty(0:empty)
+		// bit7 : msgbox empty(0:empty)
+
+	int set[12], tr[4], run[12], ldt_img; /* TL-1ブロック(48bytes) */
+	int fpu_reg_img, sse_reg_img /* for SSE & SSE2 */;
+//	TAPI_TSS near *back, near *next;
+	int back, next;
+
+	int softint_EIP /* +0x00b0 */; short softint_CS; /* signal処理のブロック(48bytes) */
+	short softint_oldCS;
+	int softint_oldEIP;
+	unsigned char softint_Llv, sysint_Llv /* このフィールドは使わない。softintと共通 */, now_Llv, softint_oldLlv;
+	int msgbox_write_free, msgbox_write_ptr, msgbox_write_ptr0, msgbox_write_ptr1;
+	int msgbox_eom_code, msgbox_rewind_code, [8];
+
+/*	softint_oldLlvは、スタックにつむと0xffに変化する...で、0xffのときに、ストアされる
+	softint_CS == 0のとき、CS:EIPの変化無し
+	softint_Llv == 0のとき、Llvの変化無し */
+
+/* TL-2ブロック 32bytes */
+//	GlvPrm near *Glv /* +0x00e0 */; /* TapiWorkSelの中のオフセット */
+//	LlvPrm near *Llv; /* TapiWorkSelの中のオフセット */
+	int Glv, Llv; // 0xe0～0xe7
+	int Ilv, Llv_base; // Inner-level
+	int short_run[12]; // +0x00f0
+	char flags, [3];  /* Setの再評価要求フラグ */
+
+
+/* このタスクの全実行時間は、runではない。runは、現在のLlvのrunningタイムを示しているに過ぎない。 */
+/* 現在のLlvのLlvPrm.runは無効。 */
+
+};
+
+void FDC_MC_TestBios()
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+	TAPI_TSS *v86tss == DS:EDI;
+
+	TEST(work->CFerrflg, 0x04);
+	if (!= 0) {
+		/* テスト済み */
+		(offset) cmd += 4;
+		cmd_free++;
+		asmout("JMP DWORD DS:[EBX]");
+	}
+	work->CFerrflg |= 0x04;
+	EDX = (unsigned char) work->CFdev;
+
+	/* V86タスク */
+	PUSH(DS);
+	PUSH(SEL_ALL);
+	POP(DS);
+	EAX = 0x9f800;
+	(int) [DS:EAX] = 0x00cc13cd; /* 13か10かをみろ。＞int03ハンドラ */
+	#if (defined(V86LOG))
+		(int) [DS:0x108000] = 0x108010;
+	#endif
+	PUSH(SEL_TAPIWORK);
+	POP(DS);
+	(offset) v86tss = TSS_V86 /* cmd0090_work->tasklist[128].tskptr */;
+	(unsigned int) EAX >>= 4;
+	v86tss->tss386.EIP = 0;
+	v86tss->tss386.EAX = 0x0800;
+	v86tss->tss386.EDX = EDX;
+	v86tss->tss386.ESP = 14 * 1024;
+	v86tss->tss386.SS = 0x9c00;
+	v86tss->tss386.CS = EAX;
+	v86tss->tss386.EFLAGS = 0x00020202; /* STI&VM=1 */
+	POP(DS);
+	asmout("MOV DWORD DS:[0008H],.biosfin");
+	PUSH(FS);
+	PUSH((offset) cmd);
+	PUSH((int) 0);
+	PUSH((int) 1 /* Llv */);
+	PUSH((offset) v86tss);
+	PUSH((int) 0x0100 /* TAPI_ChangeLlv */);
+	EBX = ESP;
+	PUSH(SS);
+	POP(FS);
+	CALL(SEL_TAPI, 0);
+	ESP += 16;
+	POP((offset) cmd);
+	POP(FS);
+	return;
+
+biosfin:
+	// これでくる→	asmout("CALL DWORD DS:[0008H]"); // jmpvec_fdcint
+
+	PUSH(DS);
+	PUSH(SEL_TAPIWORK);
+	POP(DS);
+	(offset) v86tss = TSS_V86 /* cmd0090_work->tasklist[128].tskptr */;
+	ECX = v86tss->tss386.EFLAGS;
+	EAX = v86tss->tss386.ECX;
+	EDX = v86tss->tss386.EDX;
+	POP(DS);
+	work->BIOS_S = 18;
+	work->BIOS_H = 2;
+	TEST(CL, 0x01);
+	if (== 0) {
+		ECX = (unsigned char) DH;
+		EAX &= 0x3f;
+		ECX++;
+		work->BIOS_S = EAX;
+		work->BIOS_H = ECX;
+	}
+	(offset) cmd += 4;
+	cmd_free++;
+	asmout("JMP DWORD DS:[EBX]");
+}
+
+void FDC_MC_ReadBios18()
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+	TAPI_TSS *v86tss == DS:EDI;
+
+	/* LBAをCHSに変換 */
+	EAX = cmd[4];
+	EDX = 0;
+	DIV(work->BIOS_S);
+	ECX = EDX;
+	EDX = 0;
+	ECX++;
+	DIV(work->BIOS_H);
+	/* EAX:C, EDX:H, ECX:S */
+	DH = DL;
+	DL = work->CFdev;
+	CH = AL;
+	AH <<= 6;
+	CL |= AH;
+
+	/* V86タスク */
+	PUSH(DS);
+	PUSH(SEL_ALL);
+	POP(DS);
+
+/* 差分待避 */
+PUSHAD();
+EBX = 0;
+EDX = 2048 * 1024;
+do {
+	EAX = [DS:EBX];
+	EBX += 4;
+	[DS:EDX] = EAX;
+	EDX += 4;
+} while ((unsigned) EBX < 0x2000); /* 8KB */
+#if 0
+EBX = 0x9c000;
+EAX = 0xaa55aa55;
+do {
+	[DS:EBX] = EAX;
+	EBX += 4;
+} while ((unsigned) EBX < 0x9f000); /* 12KB */
+#endif
+POPAD();
+	EAX = 0x9f800;
+	(int) [DS:EAX] = 0x00cc13cd; /* 13か10かをみろ。＞int03ハンドラ */
+	EAX = 0x9f900;
+	(int) [DS:EAX + 0] = 0x079c0068; /* PUSH(0x9c00); POP(ES); */
+	(int) [DS:EAX + 4] = 0x900000bb; /* BX = 0; NOP(); */
+	(int) [DS:EAX + 8] = 0x00cc13cd;
+	#if (defined(V86LOG))
+		(int) [DS:0x108000] = 0x108010;
+	#endif
+
+	PUSH(SEL_TAPIWORK);
+	POP(DS);
+	(offset) v86tss = TSS_V86 /* cmd0090_work->tasklist[128].tskptr */;
+	(unsigned int) EAX >>= 4;
+	v86tss->tss386.EIP = 0;
+	v86tss->tss386.EAX = 0x0212; /* read 18 */
+	v86tss->tss386.ECX = ECX;
+	v86tss->tss386.EDX = EDX;
+	v86tss->tss386.EBX = 0;
+	v86tss->tss386.ESP = 14 * 1024;
+	v86tss->tss386.EBP = 0;
+	v86tss->tss386.ESI = 0;
+	v86tss->tss386.EDI = 0;
+	v86tss->tss386.SS = 0x9c00;
+	v86tss->tss386.CS = EAX;
+	v86tss->tss386.ES = 0x9c00;
+	v86tss->tss386.DS = 0x9c00;
+	v86tss->tss386.FS = 0x9c00;
+	v86tss->tss386.GS = 0x9c00;
+	v86tss->tss386.EFLAGS = 0x00020202; /* STI&VM=1 */
+	POP(DS);
+	asmout("MOV DWORD DS:[0008H],.biosfin");
+	PUSH(FS);
+	PUSH((offset) cmd);
+	PUSH((int) 0);
+	PUSH((int) 1 /* Llv */);
+	PUSH((offset) v86tss);
+	PUSH((int) 0x0100 /* TAPI_ChangeLlv */);
+	EBX = ESP;
+	PUSH(SS);
+	POP(FS);
+	CALL(SEL_TAPI, 0);
+	ESP += 16;
+	POP((offset) cmd);
+	POP(FS);
+	return;
+
+biosfin:
+	// これでくる→	asmout("CALL DWORD DS:[0008H]"); // jmpvec_fdcint
+	PUSH(DS);
+	PUSH(cmd[8]);
+	PUSH(SEL_TAPIWORK);
+	POP(DS);
+	(offset) v86tss = TSS_V86 /* cmd0090_work->tasklist[128].tskptr */;
+	EAX = v86tss->tss386.EFLAGS;
+	TEST(AL, 0x01);
+	POP(EDI);
+	if (== 0) {
+		PUSH(SEL_ALL);
+		POP(DS);
+
+/* 差分強制回復 */
+PUSHAD();
+EBX = 0;
+ECX = 0;
+EDX = 2048 * 1024;
+ESI = 0xffffffff;
+do {
+	EAX = [DS:EDX];
+	EDX += 4;
+	[DS:EBX] = EAX;
+	EBX += 4;
+} while ((unsigned) EBX < 0x2000); /* 8KB */
+#if 0
+INT(3);
+EBX = 0x9c000;
+ECX = 0;
+do {
+	EAX = [DS:EBX];
+	EAX ^= 0xaa55aa55;
+	ECX |= EAX;
+	EBX += 4;
+} while ((unsigned) EBX < 0x9f000); /* 12KB */
+INT(3);
+#endif
+POPAD();
+
+		EDX = 0x9c000;
+		ECX = 18 * 512 / 4;
+		do {
+			EAX = [DS:EDX];
+			EDX += 4;
+			[DS:EDI] = EAX;
+			EDI += 4;
+			ECX--;
+		} while (!= 0);
+		POP(DS);
+		(offset) cmd += 12;
+		cmd_free += 3;
+		asmout("JMP DWORD DS:[EBX]");
+	}
+	POP(DS);
+	INT(0x03);/* BIOSエラー発生 */
+}
+
+void FDC_MC_WriteBios()
+{
+	FDC_WORK *work == DS:0;
+	int *cmd == DS:EBX, cmd_free == EBP;
+	TAPI_TSS *v86tss == DS:EDI;
+
+	/* 作業用バッファへ転送 */
+	PUSH(DS);
+	EDX = cmd[8];
+	ECX = cmd[4];
+	PUSH(SEL_ALL);
+	POP(DS);
+	EDI = 0x9c000;
+	ECX *= 128; 
+	do {
+		EAX = [DS:EDX];
+		EDX += 4;
+		[DS:EDI] = EAX;
+		EDI += 4;
+		ECX--;
+	} while (!= 0);
+	POP(DS);
+
+	/* LBAをCHSに変換 */
+	EAX = cmd[8];
+	EDX = 0;
+	DIV(work->BIOS_S);
+	EDX++;
+	ECX = EDX;
+	EDX = 0;
+	DIV(work->BIOS_H);
+	/* EAX:C, EDX:H, ECX:S */
+	DH = DL;
+	DL = work->CFdev;
+	CH = AL;
+	AH <<= 6;
+	CL |= AH;
+	EAX = 0;
+	AH = 0x03;
+	AL = cmd[4];
+
+	/* V86タスク */
+	PUSH(DS);
+	PUSH(SEL_ALL);
+	POP(DS);
+	(int) [DS:0x9f800] = 0x00cc13cd; /* 13か10かをみろ。＞int03ハンドラ */
+	PUSH(SEL_TAPIWORK);
+	POP(DS);
+	(offset) v86tss = TSS_V86 /* cmd0090_work->tasklist[128].tskptr */;
+	v86tss->tss386.EIP = 0;
+	v86tss->tss386.EAX = EAX; /* read 18 */
+	v86tss->tss386.ECX = ECX;
+	v86tss->tss386.EDX = EDX;
+	v86tss->tss386.EBX = 0;
+	v86tss->tss386.ESP = 2048;
+	v86tss->tss386.SS = 0x9f80;
+	v86tss->tss386.CS = 0x9f80;
+	v86tss->tss386.ES = 0x9c00;
+	v86tss->tss386.EFLAGS = 0x00020202; /* STI&VM=1 */
+	POP(DS);
+	asmout("MOV DWORD DS:[0008H],#biosfin");
+	PUSH(FS);
+	PUSH((offset) cmd);
+	PUSH((int) 0);
+	PUSH((int) 1 /* Llv */);
+	PUSH((offset) v86tss);
+	PUSH((int) 0x0100 /* TAPI_ChangeLlv */);
+	EBX = ESP;
+	PUSH(SS);
+	POP(FS);
+	CALL(SEL_TAPI, 0);
+	ESP += 16;
+	POP((offset) cmd);
+	POP(FS);
+	return;
+
+biosfin:
+	// これでくる→	asmout("CALL DWORD DS:[0008H]"); // jmpvec_fdcint
+	/* エラーでも無視！ */
+	(offset) cmd += 16;
+	cmd_free += 4;
+	asmout("JMP DWORD DS:[EBX]");
 }
 
 void FDC_dosload()
@@ -3697,7 +4336,7 @@ void FDC_MC_WaitNms()
 	FDC_WORK *work == DS:0;
 	int *cmd == DS:EBX, cmd_free == EBP;
 
-	asmout("CMP DWORD DS:[004CH],OFFSET #timer_int"); 
+	asmout("CMP DWORD DS:[004CH],.timer_int"); /* タイマーで始まってまたタイマーになる場合 */
 	if (==) {
 		POP(EAX);
 		EAX = cmd[4];
@@ -4135,7 +4774,7 @@ void set_cardbus_base()
 	LEA(EAX, [EDI + 0x10]);
 	OUT(DX, EAX);
 	DL = 0xfc;
-	EAX = 0x000d1000;
+	EAX = CARDBUS_BASE10;
 	OUT(DX, EAX);
 	DL = 0xf8;
 	LEA(EAX, [EDI + 0x44]); /* 16bit-PCIC-compatible */
@@ -4190,7 +4829,7 @@ void close_cardbus()
 	PUSH(DS);
 	PUSH(SEL_ALL);
 	POP(DS);
-	EDX = 0x000d1000;
+	EDX = CARDBUS_BASE10;
 	EAX = 0;
 	(int) [DS:EDX +  4] = EAX; /* all IRQ mask */
 	(int) [DS:EDX + 16] = EAX; /* Vcc=off */
@@ -4277,15 +4916,16 @@ void open_cf()
 		EDI <<= 8;
 		EDI |= 0x80000000;
 		EDI &= 0x80ffff00;
+		work->CFport = CARDBUS_BASE0p;
 		work->cardbus = EDI;
 		work->CFdev2 = 0; /* CardBusではこれは使ってない */
 		set_cardbus_base();
 		PUSH(DS);
 		PUSH(all_sel);
 		POP(DS);
-		EDX = 0x000d1000;
+		EDX = CARDBUS_BASE10;
 		(int) [DS:EDX + 0x04] = 0; /* all IRQ mask */
-		EDX = 0x000d1800;
+		EDX = CARDBUS_BASE18;
 		(char) [DS:EDX + 0x03] = 0x40; /* Interrupt and General Control : mem-card */
 		(char) [DS:EDX + 0x06] = 0x20; /* Address Window Enable : all off */
 		(char) [DS:EDX + 0x10] = 0xd0; /* System Memory Address Mapping Start Low : d0 */
@@ -4294,7 +4934,7 @@ void open_cf()
 		(char) [DS:EDX + 0x13] = 0x00; /* System Memory Address Mapping Stop High : 0 */
 		(char) [DS:EDX + 0x14] = 0x30; /* Card Memory Offset Address Low : -BH */
 		(char) [DS:EDX + 0x15] = 0x3f; /* Card Memory Offset Address High : 0x3f(MEM) */
-		(char) [DS:EDX + 0x40] = 0x00; /* Address Window A24-31 : 00 */
+		(char) [DS:EDX + 0x40] = CARDBUS_BASE24; /* Address Window A24-31 : cc */
 		(char) [DS:EDX + 0x06] = 0x21; /* Address Window Enable : only mem0 */
 		POP(DS);
 		POPAD();
@@ -4414,7 +5054,7 @@ void PCC_reset()
 				PUSH(DS);
 				PUSH(all_sel);
 				POP(DS);
-				EAX = 0x000d1803;
+				EAX = CARDBUS_BASE18 + 3;
 				(char) [DS:EAX] = 0x00; /* Interrupt and General Control : mem-card, reset */
 				POP(DS);
 				asmout("MOV EDX,FDC_MC_pcc32resetsub");

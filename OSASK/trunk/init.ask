@@ -1,4 +1,4 @@
-/* "init.ask" ver.3.7 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
+/* "init.ask" ver.3.8 copyright(C) 2004 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -23,7 +23,7 @@ void dumpreg();
 #endif
 
 #ifdef BOCHS
-	#define DEBUG031127		1
+//	#define DEBUG031127		1
 #endif
 
 struct SS0_struct {
@@ -96,7 +96,9 @@ struct GUIGUI_work { /* SS:0xffffd000; */
 	area_man_struct dummy_man[1024];
 	void [512];
 	int infobuf[128];
-	void [120];
+	void [108];
+	unsigned int v86irq_ofs, v86irq_sel;
+	unsigned char v86flag, [3];
 	unsigned int timer_sec4, root_Paddr;
 	unsigned int dosload_phase, dosload_work[16];
 	unsigned int diskcache_Laddr, diskbuf_Paddr, diskbuf_Laddr;
@@ -378,6 +380,17 @@ void far Init()
 	//	ECX = 0;
 	//	PUSH((int) ECX /* eoc */);
 
+		/* mapping PC-Card Window (0xac000000～0xac3fffff) */
+		PUSH((int) ECX /* addr64(high) */);
+		PUSH((int) 0xac000000 /* addr64(low) */);
+		PUSH((int) ECX /* offset64(high) */);
+		PUSH((int) ECX /* offset64(low) */);
+		PUSH((int) ECX /* pageset */);
+		PUSH((int) 0xac000000 /* linear */);
+		PUSH((int) 4 * 1024 * 1024 /* size */);
+		PUSH((int) EAX /* opt(PCD, present, R/W, user, override) */);
+		PUSH((int) ESI /* cmd(mapping) */);
+
 		/* mapping BIOS (for VESA call) (0x000c0000～0x000fffff) */
 		/* mapping high memory (0x00100000～0x002fffff) */
 
@@ -406,7 +419,7 @@ void far Init()
 
 		EBX = ESP;
 		CALLFAR0(SEL_PAPI);
-		ESP += 36; /* eocが残っている */
+		ESP += 36 + 36; /* eocが残っている */
 	#elif (defined(TOWNS))
 		EBX = 0x80100000;
 		IN(AX, 0x0030); /* CPU識別レジスタ */
@@ -922,14 +935,19 @@ PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 1; POP(DS);
 		(short) [DS:EBX + 2] = SEL_TIMERINT;
 		(short) [DS:EBX + 6] = AX;
 		ESP += 24; /* ?, ?, eocは残っている */
-		PUSH(0x000c); /* calc_count1ms */
-		PUSH(0x0004); /* special */
-		EBX = ESP;
-		CALLFAR0(SEL_TIMERINT);
-		POP(EAX);
-		POP(EAX);
+		#if (!defined(QEMU))
+			PUSH(0x000c); /* calc_count1ms */
+			PUSH(0x0004); /* special */
+			EBX = ESP;
+			CALLFAR0(SEL_TIMERINT);
+			POP(EAX);
+			POP(EAX);
+		#endif
 		POP(EDX);
 		POP(EAX); /* eocが残っている */
+	#endif
+	#if (defined(QEMU))
+		EDX = 1000;
 	#endif
 
 #ifdef DEBUG031127
@@ -1472,7 +1490,7 @@ PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 14; POP(DS);
 		PUSH((int) swork_GS->modulelist[ENT_INIT + 12]);
 		PUSH((int) swork_GS->modulelist[ENT_INIT +  8]);
 		EBX = ESP;
-		create_task(); /* 0x5000 */
+		create_task(); /* TSS_V86(0x5000) */
 		ESP += 60;
 		PUSH(SEL_TAPIWORK);
 		(offset) tss = EBP;
@@ -1491,6 +1509,50 @@ PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 14; POP(DS);
 		EBX = ESP;
 		CALLFAR0(SEL_TAPI);
 		ESP += 16 - 4;
+		asmout("MOV EBX,v86irq");
+		work->v86flag = 0;
+		work->v86irq_ofs = EBX;
+		work->v86irq_sel = SEL_INIT;
+
+#if 0
+		PUSH(DS);
+		PUSH(SEL_IDTGDT);
+		EBX = 0x100; /* INT(0x20);のベース */
+		EAX = 0x00008e00;
+		POP(DS);
+		asmout("MOV DWORD [DS:EBX+0x18+0],int35+0x00100000");
+		(int) [DS:EBX + 0x18 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x20+0],int36+0x00100000");
+		(int) [DS:EBX + 0x20 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x28+0],int37+0x00100000");
+		(int) [DS:EBX + 0x28 + 4] = EAX;
+	//	asmout("MOV DWORD [DS:EBX+0x38+0],int39+0x00100000");
+	//	(int) [DS:EBX + 0x38 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x40+0],int40+0x00100000");
+		(int) [DS:EBX + 0x40 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x48+0],int41+0x00100000");
+		(int) [DS:EBX + 0x48 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x50+0],int42+0x00100000");
+		(int) [DS:EBX + 0x50 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x58+0],int43+0x00100000");
+		(int) [DS:EBX + 0x58 + 4] = EAX;
+	//	asmout("MOV DWORD [DS:EBX+0x60+0],int44+0x00100000");
+	//	(int) [DS:EBX + 0x60 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x68+0],int45+0x00100000");
+		(int) [DS:EBX + 0x68 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x70+0],int46+0x00100000");
+		(int) [DS:EBX + 0x70 + 4] = EAX;
+		asmout("MOV DWORD [DS:EBX+0x78+0],int47+0x00100000");
+		(int) [DS:EBX + 0x78 + 4] = EAX;
+		POP(DS);
+		IN(AL, 0x21); /* IMR */
+		AL &= 0xc7; /* IRQ:3-5を許可 */
+		OUT(0x21, AL); /* master, OCW1 */
+		NOP();
+		IN(AL, 0xa1); /* IMR */
+		AL &= 0x10; /* IRQ:8-11, 13-15を許可 */
+		OUT(0xa1, AL);
+#endif
 	#endif
 
 //	PUSH((int) EDX /* 0 */);
@@ -2907,7 +2969,7 @@ gapidata_mdl:
 	asmout("DW 0x048f,int_other,2*8");
 	asmout("DW 0x058f,int_other,2*8");
 	asmout("DW 0x068f,int06,2*8");
-	asmout("DW 0x088f,int_other_ec,2*8");
+	asmout("DW 0x088f,int08,2*8");
 	asmout("DW 0x098f,int_other,2*8");
 	asmout("DW 0x0a8f,int10,2*8");
 	asmout("DW 0x0b8f,int_other_ec,2*8");
@@ -4192,7 +4254,7 @@ if (EBX == 0xffff)
 	/* ldt:00cc sysgg00 */
 //	LEA(EBX, ldt_img[0x0010]);
 //	(short) [DS:EBX + 0] = (offset) &GUIGUI_shellcall2;
-	asmout("MOV EAX,OFFSET GUIGUI_shellcall2");
+	asmout("MOV EAX,GUIGUI_shellcall2");
 	(short) ldt_img[0x00c8 + 0] = AX;
 	(short) ldt_img[0x00c8 + 2] = (short) init_sel;
 	(int) ldt_img[0x00c8 + 4] = 0x0000ec00; // call-gate
@@ -7073,6 +7135,8 @@ nextcmd:
 		goto cmd0050; /* GAPIへのダイレクトコマンド */
 	if (EAX == 0x0054)
 		goto cmd0054; /* setvideomode */
+	if (EAX == 0x0058)
+		goto cmd0058; /* control v86flag */
 	if (EAX == 0x0060)
 		goto cmd0060; /* keymosへのダイレクトコマンド */
 	if (EAX == 0x0064)
@@ -7321,6 +7385,9 @@ cmd0054:
 	//	if (==)
 	//		EAX = 0x0800;
 		(int) [ES:EAX] = 0x00cc10cd;
+		#if (defined(V86LOG))
+			(int) [ES:0x108000] = 0x108010;
+		#endif
 		PUSH(tapiwork_sel);
 		POP(DS);
 		PUSH(stack_sel);
@@ -7369,6 +7436,29 @@ cmd0054:
 	#else
 		INT(0x03);
 	#endif
+
+cmd0058:
+	/* control v86flag */
+	#if (defined(PCAT))
+		PUSH(stack_sel);
+		POP(DS);
+		GUIGUI_work *cmd0058_work == DS:0xffffd000;
+		EAX = cmd[4];
+		if (EAX == 0) {
+			/* セマフォ開放 */
+			cmd0058_work->v86flag = AL;
+			(offset) cmd += 8;
+			goto nextcmd;
+		}
+		if (EAX == 1) {
+			/* セマフォ取得 */
+			XCHG(AL, cmd0058_work->v86flag);
+			cmd[12] = EAX;
+			(offset) cmd += 8;
+			goto nextcmd;
+		}
+	#endif
+	INT(0x03);
 
 cmd0060:
 	/* keymosへのダイレクトコマンド */
@@ -7824,6 +7914,9 @@ cmd0090:
 	//		EAX = 0x0800;
 		(int) [ES:EAX] = 0x00cc10cd;
 		(int) [ES:0x9f000] = 0x32454256 /* 'VBE2' */;
+		#if (defined(V86LOG))
+			(int) [ES:0x108000] = 0x108010;
+		#endif
 		PUSH(tapiwork_sel);
 		POP(DS);
 		PUSH(stack_sel);
@@ -8225,6 +8318,13 @@ void near ui32toa()
 	return;
 }
 
+void far int08()
+{
+	PUSHAD();
+	ESI = CODE::"INT 0x08 Double Fault\0";
+	goto put_int_status_ec;
+}
+
 void far int10()
 {
 	PUSHAD();
@@ -8269,12 +8369,10 @@ void far int13()
 		EAX = (unsigned short) [SS:ESP + 32 + 4]; // IP
 	//	PUSH(DS);
 		ECX *= 16;
-		PUSH((int) all_sel);
+		PUSH(SEL_ALL);
 		EAX += ECX;
 		POP(DS);
 		CL = [DS:EAX]; // 命令フェッチ
-
-		// seg:を判定してない
 
 		// とりあえず、STIやCLIは全て無視。
 	//	if (CL == 0x67)
@@ -8504,6 +8602,20 @@ op_inbDX:
 	IN(AL, DX);
 	[SS:ESP + 28 /* EAX */] = AL;
 	// 必要なら、ここでlogをとる
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x01;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 #if 0
 	if (EDX == 0x03da) {
 		(char) [SS:ESP + 28 /* EAX */] ^= 0x09;
@@ -8549,6 +8661,20 @@ op_inwDX:
 	IN(AX, DX);
 	[SS:ESP + 28 /* EAX */] = AX;
 	// 必要なら、ここでlogをとる
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x02;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 #if 0
 	ESP -= 80;
 	MOV(EAX, SS);
@@ -8590,6 +8716,20 @@ op_indDX:
 	IN(EAX, DX);
 	[SS:ESP + 28 /* EAX */] = EAX;
 	// 必要なら、ここでlogをとる
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x04;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 #if 0
 	ESP -= 80;
 	MOV(EAX, SS);
@@ -8631,6 +8771,20 @@ op_outbDX:
 	EDX = [SS:ESP + 20 /* EDX */];
 	OUT(DX, AL);
 	// 必要なら、ここでlogをとる
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x11;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 	(int) [SS:ESP + 32 + 4]++; // EIP
 	POPAD();
 	ESP += 4; // skip EC
@@ -8641,6 +8795,20 @@ op_outwDX:
 	EDX = [SS:ESP + 20 /* EDX */];
 	OUT(DX, AX);
 	// 必要なら、ここでlogをとる
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x12;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 	(int) [SS:ESP + 32 + 4]++; // EIP
 	POPAD();
 	ESP += 4; // skip EC
@@ -8650,6 +8818,20 @@ op_outdDX:
 	EAX = [SS:ESP + 28 /* EAX */];
 	EDX = [SS:ESP + 20 /* EDX */];
 	OUT(DX, EAX);
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x14;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 	// 必要なら、ここでlogをとる
 	(int) [SS:ESP + 32 + 4] += 2; // EIP
 	POPAD();
@@ -8686,6 +8868,20 @@ op_inbIb:
 	IN(AL, DX);
 	[SS:ESP + 28 /* EAX */] = AL;
 	// 必要なら、ここでlogをとる
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x01;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 #if 0
 	PUSH(EDX);
 	ESP -= 80;
@@ -8728,6 +8924,19 @@ op_inwIb:
 	IN(AX, DX);
 	[SS:ESP + 28 /* EAX */] = AX;
 	// 必要なら、ここでlogをとる
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x02;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 #if 0
 	PUSH(EDX);
 	ESP -= 80;
@@ -8770,6 +8979,20 @@ op_indIb:
 	IN(EAX, DX);
 	[SS:ESP + 28 /* EAX */] = EAX;
 	// 必要なら、ここでlogをとる
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x04;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 #if 0
 	PUSH(EDX);
 	ESP -= 80;
@@ -8829,6 +9052,19 @@ op_outbIb:
 	EAX = [SS:ESP + 28 /* EAX */];
 	OUT(DX, AL);
 	// 必要なら、ここでlogをとる
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x11;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 	(int) [SS:ESP + 32 + 4] += 2; // EIP
 	POPAD();
 	ESP += 4; // skip EC
@@ -8839,6 +9075,19 @@ op_outwIb:
 	EAX = [SS:ESP + 28 /* EAX */];
 	OUT(DX, AX);
 	// 必要なら、ここでlogをとる
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x12;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 	(int) [SS:ESP + 32 + 4] += 2; // EIP
 	POPAD();
 	ESP += 4; // skip EC
@@ -8849,6 +9098,19 @@ op_outdIb:
 	EAX = [SS:ESP + 28 /* EAX */];
 	OUT(DX, EAX);
 	// 必要なら、ここでlogをとる
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x14;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 	(int) [SS:ESP + 32 + 4] += 3; // EIP
 	POPAD();
 	ESP += 4; // skip EC
@@ -8891,6 +9153,20 @@ op_seg_outsb:
 	// 必要なら、ここでlogをとる
 	if (!= 0)
 		ECX =- ECX;
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x11;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 	(unsigned short) [SS:ESP + 4 /* SI */] += CX;
 	(int) [SS:ESP + 32 + 4]++; // EIP
 	POPAD();
@@ -8910,6 +9186,20 @@ op_seg_outsw:
 	// 必要なら、ここでlogをとる
 	if (!= 0)
 		ECX =- ECX;
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x12;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 	(unsigned short) [SS:ESP + 4 /* SI */] += CX;
 	(int) [SS:ESP + 32 + 4]++; // EIP
 	POPAD();
@@ -8959,6 +9249,21 @@ op_rep_seg_outsb:
 			AL  = (char) [DS:ESI + EDI];
 			ESI++;
 			OUT(DX, AL);
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x11;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
+
 			ESI &= 0xffff;
 			ECX--;
 		} while (!= 0);
@@ -8967,6 +9272,20 @@ op_rep_seg_outsb:
 			AL  = (char) [DS:ESI + EDI];
 			ESI--;
 			OUT(DX, AL);
+
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x11;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 			ESI &= 0xffff;
 			ECX--;
 		} while (!= 0);
@@ -8990,7 +9309,20 @@ op_rep_seg_outsw:
 		do {
 			AX  = (short) [DS:ESI + EDI];
 			ESI += 2;
-			OUT(DX, AL);
+			OUT(DX, AX);
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x12;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 			ESI &= 0xffff;
 			ECX--;
 		} while (!= 0);
@@ -8998,7 +9330,20 @@ op_rep_seg_outsw:
 		do {
 			AX  = (short) [DS:ESI + EDI];
 			ESI -= 2;
-			OUT(DX, AL);
+			OUT(DX, AX);
+#if (defined(V86LOG))
+PUSHAD();
+EBX = [DS:0x108000];
+if ((unsigned) EBX < 0x200000) {
+(char) [DS:EBX + 0] = 0x12;
+[DS:EBX + 2] = DX;
+[DS:EBX + 4] = EAX;
+EBX += 8;
+[DS:0x108000] = EBX;
+}
+POPAD();
+#endif
+
 			ESI &= 0xffff;
 			ECX--;
 		} while (!= 0);
@@ -9046,6 +9391,57 @@ op_rep_ES_outsw:
 //	INT(0x03);
 }
 
+#if (defined(PCAT))
+
+void v86irq()
+/* EAXにベクタ */
+{
+	/* v86irq時のルール：スタックのつみ方 */
+	/* ESP0 = 0xffffffc0 */
+	/* 0xffffffb0 : ES, DS, FS, GS */
+	/* 0xffffffa0 : CS, EFLAGS, ESP, SS */
+	/* 0xffffff90 : ECX, EAX, (ec), EIP */
+	/* 0xffffff80 : EBP, ESP, EBX, EDX */
+	/* 0xffffff78 : EDI, ESI */
+
+	/* INT(0x03);のあとにIRQは起きないと仮定 */
+	/* INT13Hの完了の間にのみ起こる */
+
+INT(3);
+	PUSH(DS);
+	PUSHAD();
+	STR(CX);
+	if (CX != 0x140)
+		INT(0x03);	/* 手抜き */
+
+	PUSH(SEL_ALL);
+	POP(DS);
+	LEA(EBX, [EAX + 8]);
+	if (AL >= 8)
+		EBX += 0x60;
+	EBP = 0;
+	EDI = (unsigned short) [SS:EBP + 0xffffffac]; // SS
+	ESI = (unsigned short) [SS:EBP + 0xffffffa8]; // SP
+	EDI *= 16;
+	EAX = (unsigned short) [SS:EBP + 0xffffff9c]; // IP
+	ECX = [SS:EBP + 0xffffffa0]; // CS
+	(short) [DS:ESI - 6] = AX;
+	asmout("MOV EAX,[DS:EBX*4]");
+	EBX = [SS:EBP + 0xffffffa4]; // EFLAGS
+	(short) [DS:ESI - 4] = CX;
+	(short) [SS:EBP + 0xffffff9c] /* IP */ = AX;
+	(short) [DS:ESI - 2] = BX;
+	(unsigned int) EAX >>= 16;
+	(short) [SS:EBP + 0xffffffa8] -= 6; // SP
+	[SS:EBP + 0xffffffa0] /* CS */ = EAX;
+
+	POPAD();
+	POP(DS);
+	RETF();
+}
+
+#endif
+
 /*
 void far int14()
 {
@@ -9053,6 +9449,158 @@ void far int14()
 	ESI = CODE::"INT 0x0E Page Protect\0";
 }
 */
+
+#if (defined(PCAT) & 0)
+
+void far int35()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 3;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+void far int36()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 4;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+void far int37()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 5;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+#if 0
+void far int39()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 7;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+#endif
+
+void far int40()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 8;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+void far int41()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 9;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+void far int42()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 10;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+void far int43()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 11;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+#if 0
+void far int44()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 12;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+#endif
+
+void far int45()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 13;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+void far int46()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 14;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+void far int47()
+{
+	PUSH(EAX);
+	PUSHAD();
+	EAX = 15;
+	PUSH(CS);
+	v86irq();
+	POPAD();
+	POP(EAX);
+	IRETD();
+}
+
+#endif
 
 void near put_int_status_ec()
 // エラーコードあり(フラグを表示していない)
@@ -9398,48 +9946,126 @@ asmout("MOV EDX,DR0");
 		goto put_int_status;
 	}
 
-#if (defined(PCAT))
+	#if (defined(PCAT))
+		// from V86モード
+		PUSH(FS);
+		PUSH(SEL_ALL);
+		POP(FS);
+		ECX = [FS:0x9f800];
+		if (ECX == 0x00cc10cd) {
+			/* VESA呼び出し後のシグナル */
+			GUIGUI_work *work == FS:0xffffd000;
+			PUSH(SEL_STACK);
+			POP(FS);
+			EAX = 0;
+			EBX = [SS:ESP + 4 + 28 /* EAX */];
+			PUSH(EAX /* eoc */);
+			PUSH(EAX /* Llv(0) */);
+			PUSH((int) TSS_V86 /* work->tasklist[128].tskptr */);
+			PUSH((int) 0x0100 /* TAPI_ChangeLlv */); // 自身のスリープ
+			if ((unsigned) work->setvideomode_mode > 0xff) {
+				if (BX != 0x004f)
+					EAX++;
+			}
+			PUSH(EAX /* error-code */);
+			PUSH(work->setvideomode_sig[8]);
+			PUSH(work->setvideomode_sig[4]);
+			PUSH(work->setvideomode_sig[0]);
+			PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */); // シグナル発生
+			EBX = ESP;
+			PUSH(SS);
+			POP(FS);
+			CALLFAR0(SEL_TAPI);
+			INT(0x03); /* ここには来ない */
+		}
+		if (ECX == 0x00cc13cd) {
+			/* ディスクBIOS */
+			TAPI_TSS *v86tss == FS:EDI;
+			PUSH(SEL_TAPIWORK);
+			POP(FS);
+			(offset) v86tss = TSS_V86;
+			ECX = [SS:ESP + 4 + 32 + 4 + 0];
+			v86tss->tss386.EFLAGS = EAX;
+			v86tss->tss386.EIP = ECX;
+			EAX = [SS:ESP + 4 + 28];
+			ECX = [SS:ESP + 4 + 24];
+			EDX = [SS:ESP + 4 + 20];
+			EBX = [SS:ESP + 4 + 16];
+			v86tss->tss386.EAX = EAX;
+			v86tss->tss386.ECX = ECX;
+			v86tss->tss386.EDX = EDX;
+			v86tss->tss386.EBX = EBX;
+		//	EAX = [SS:ESP + 4 + 12];
+			ECX = [SS:ESP + 4 +  8];
+			EDX = [SS:ESP + 4 +  4];
+			EBX = [SS:ESP + 4 +  0];
+		//	v86tss->tss386.ESP = EAX;
+			v86tss->tss386.EBP = ECX;
+			v86tss->tss386.ESI = EDX;
+			v86tss->tss386.EDI = EBX;
 
-	// from V86モード
+			PUSH(SS);
+			POP(FS);
+			PUSH(0 /* eoc */);
+			PUSH((int) 0x019c /* INT13Hハンドラ呼び出し */);
+			EBX = ESP;
+			CALLFAR0(SEL_FDCDRIVE);
 
-	// CS:EIPが所定の位置にあるかどうかを確認
-//	CX = [SS:ESP + 32 + 8]; // CS
-//	EAX = [SS:ESP + 32 + 4]; // EIP
-
-	// シグナルを送って、自分はスリープ
-
-	PUSH(FS);
-	PUSH((int) stack_sel);
-	POP(FS);
-	// 横のドット数を800にする、ラッチ初期化領域の初期設定...
-	// などのために、GAPIの初期化コマンドを実行...こんなことは、winman0がやる
-
-	// 最後にシグナルを起こす
-	GUIGUI_work *work == FS:0xffffd000;
-	EAX = 0;
-	EBX = [SS:ESP + 4 + 28 /* EAX */];
-	PUSH(EAX /* eoc */);
-	PUSH(EAX /* Llv(0) */);
-	PUSH((int) TSS_V86 /* work->tasklist[128].tskptr */);
-	PUSH((int) 0x0100 /* TAPI_ChangeLlv */); // 自身のスリープ
-	if ((unsigned) work->setvideomode_mode > 0xff) {
-		if (BX != 0x004f)
-			EAX++;
-	}
-	PUSH(EAX /* error-code */);
-	PUSH(work->setvideomode_sig[8]);
-	PUSH(work->setvideomode_sig[4]);
-	PUSH(work->setvideomode_sig[0]);
-	PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */); // シグナル発生
-	EBX = ESP;
-	PUSH(SS);
-	POP(FS);
-	CALLFAR0(tapi_sel);
-//	ESP += 36;
-//	POP(FS);
-
-#endif
-
+			PUSH(SEL_TAPIWORK);
+			POP(FS);
+			(offset) v86tss = TSS_V86;
+			EAX = v86tss->tss386.EIP;
+			if (AL == 0) {
+				/* 再突入決定 */
+				ESP += 12;
+				ECX = v86tss->tss386.CS;
+				EDX = v86tss->tss386.EFLAGS;
+				EBX = v86tss->tss386.ESP;
+				EBP = v86tss->tss386.SS;
+				[SS:ESP + 32 + 4 +  0] = EAX;
+				[SS:ESP + 32 + 4 +  4] = ECX;
+				[SS:ESP + 32 + 4 +  8] = EDX;
+				[SS:ESP + 32 + 4 + 12] = EBX;
+				[SS:ESP + 32 + 4 + 16] = EBP;
+				EAX = v86tss->tss386.ES;
+				ECX = v86tss->tss386.DS;
+				EDX = v86tss->tss386.FS;
+				EBX = v86tss->tss386.GS;
+				[SS:ESP + 32 + 4 + 20] = EAX;
+				[SS:ESP + 32 + 4 + 24] = ECX;
+				[SS:ESP + 32 + 4 + 28] = EDX;
+				[SS:ESP + 32 + 4 + 32] = EBX;
+				EAX = v86tss->tss386.EAX;
+				ECX = v86tss->tss386.ECX;
+				EDX = v86tss->tss386.EDX;
+				EBX = v86tss->tss386.EBX;
+				[SS:ESP + 28] = EAX;
+				[SS:ESP + 24] = ECX;
+				[SS:ESP + 20] = EDX;
+				[SS:ESP + 16] = EBX;
+			//	EAX = v86tss->tss386.ESP;
+				ECX = v86tss->tss386.EBP;
+				EDX = v86tss->tss386.ESI;
+				EBX = v86tss->tss386.EDI;
+			//	[SS:ESP + 12] = EAX;
+				[SS:ESP +  8] = ECX;
+				[SS:ESP +  4] = EDX;
+				[SS:ESP +  0] = EBX;
+				POPAD();
+				ESP += 4;
+				IRETD();
+			}
+			PUSH(SS);
+			POP(FS);
+			POP(EAX);
+			PUSH(0 /* Llv(0) */);
+			PUSH((int) TSS_V86 /* work->tasklist[128].tskptr */);
+			PUSH((int) 0x0100 /* TAPI_ChangeLlv */); // 自身のスリープ
+			EBX = ESP;
+			CALLFAR0(SEL_TAPI);
+			INT(0x03); /* ここには来ない */
+		}
+	#endif
 	INT(0x03);
 }
 
