@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.1.1
+/* "pokon0.c":アプリケーションラウンチャー  ver.1.2
      copyright(C) 2001 川合秀実, 小柳雅明
     exe2bin0 pokon0 -s 36k */
 
@@ -112,58 +112,9 @@ void sgg_format2(const int sub_cmd, const int bsc_size, const int bsc_addr,
 	return;
 }
 
-
-struct LIB_WINDOW *lib_openwindow2(struct LIB_WINDOW *window, const int slot,
-	const int x_size, const int y_size, const int flags, const int base)
+void putselector0(const int pos, const char *str)
 {
-	static struct {
-		int cmd;
-		struct LIB_WINDOW *work_ptr;
-		int slot;
-		int x_size, y_size;
-		char signal_length /* 1にする */, signal_flags, dummy[2];
-		int signal_base;
-		int eoc;
-	} command = { 0x0020, 0, 0, 0, 0, 1, 0, { 0, 0 }, 0, 0x0000 };
-
-	if (window)
-		command.work_ptr = window;
-	else
-		command.work_ptr = (struct LIB_WINDOW *) malloc(sizeof (struct LIB_WINDOW));
-	command.slot = slot | 0x01;
-	command.x_size = x_size;
-	command.y_size = y_size;
-	command.signal_flags = flags;
-	command.signal_base = base;
-	lib_execcmd(&command);
-	return command.work_ptr;
-}
-
-void lib_closewindow(const int opt, struct LIB_WINDOW *window)
-{
-	static struct {
-		int cmd, opt;
-		struct LIB_WINDOW *window;
-		int eoc;
-	} command = { 0x0024, 0, 0, 0x0000 };
-
-	command.opt = opt;
-	command.window = window;
-	lib_execcmd(&command);
-	return;
-}
-
-void lib_controlwindow(const int opt, struct LIB_WINDOW *window)
-{
-	static struct {
-		int cmd, opt;
-		struct LIB_WINDOW *window;
-		int eoc;
-	} command = { 0x003c, 0, 0, 0x0000 };
-
-	command.opt = opt;
-	command.window = window;
-	lib_execcmd(&command);
+	lib_putstring_ASCII(0x0000, 0, pos, selector, 0, 0, str);
 	return;
 }
 
@@ -188,7 +139,8 @@ void put_file(const char *name, const int pos, const int col)
 		else
 			lib_putstring_ASCII(0x0001, 0, pos, selector,  0, 15, charbuf16);
 	} else
-		lib_putstring_ASCII(0x0000, 0, pos, selector, 0, 0, "                ");
+	//	lib_putstring_ASCII(0x0000, 0, pos, selector, 0, 0, "                ");
+		putselector0(pos, "                ");
 	return;
 }
 
@@ -381,38 +333,39 @@ void main()
 	mode     = lib_opentextbox(0x0000, AUTO_MALLOC,  0, 20, 1,  0,  0, window, 0x00c0, 0); // 256bytes
 	selector = lib_opentextbox(0x0001, AUTO_MALLOC, 15, 16, 8, 16, 32, window, 0x00c0, 0); // 1.1KB
 
-	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon11");
+	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon12");
 	lib_opentimer(SYSTEM_TIMER);
 	lib_definesignal1p0(0, 0x0010 /* timer */, SYSTEM_TIMER, 0, 287);
 
-	// キー操作を登録
-	lib_definesignal1p0(1, 0x0100, 0x00ae /* cursor-up */,   window,  4);
-//	lib_definesignal1p0(0, 0x0100, 0x00af /* cursor-down */, window,  5);
-	lib_definesignal1p0(0, 0x0100, 0x00a0 /* Enter */,       window,  6);
-	lib_definesignal1p0(0, 0x0100, 'F',                      window,  7);
-	lib_definesignal1p0(0, 0x0100, 'f',                      window,  7);
-	lib_definesignal1p0(0, 0x0100, 'R',                      window,  8);
-	lib_definesignal1p0(0, 0x0100, 'r',                      window,  8);
-	lib_definesignal1p0(0, 0x0100, 'S',                      window,  9);
-	lib_definesignal1p0(0, 0x0100, 's',                      window,  9);
-	lib_definesignal1p0(1, 0x0100, 0x00a8 /* page-up */,     window, 10);
-//	lib_definesignal1p0(0, 0x0100, 0x00a9 /* page-down */,   window, 11);
-	lib_definesignal1p0(1, 0x0100, 0x00ac /* cursor-left */, window, 10);
-//	lib_definesignal1p0(0, 0x0100, 0x00ad /* cursor-right */,window, 11);
-	lib_definesignal1p0(1, 0x0100, 0x00a6 /* Home */,        window, 12);
-//	lib_definesignal1p0(0, 0x0100, 0x00a7 /* End */,         window, 13);
-	lib_definesignal1p0(0, 0x0100, 0x00a4 /* Insert */,      window, 14);
-	lib_definesignal1p0(0, 0x0100, 'C',                      window, 15);
-	lib_definesignal1p0(0, 0x0100, 'c',                      window, 15);
-	lib_definesignal1p0(0, 0x0100, 'M',                      window, 16);
-	lib_definesignal1p0(0, 0x0100, 'm',                      window, 16);
-	lib_definesignal0p0(0, 0, 0, 0);
+	/* キー操作を登録 */
+	{
+		static struct {
+			int code;
+			char opt, signum;
+		} table[] = {
+			{ 0x00ae /* cursor-up, down */,    1,  4 },
+			{ 0x00a0 /* Enter */,              0,  6 },
+			{ 'F' | 0x00701000,                0,  7 },
+			{ 'R' | 0x00701000,                0,  8 },
+			{ 'S' | 0x00701000,                0,  9 },
+			{ 0x00a8 /* page-up, down */,      1, 10 },
+			{ 0x00ac /* cursor-left, right */, 1, 10 },
+			{ 0x00a6 /* Home, End */,          1, 12 },
+			{ 0x00a4 /* Insert */,             0, 14 },
+			{ 'C' | 0x00701000,                0, 15 },
+			{ 'M' | 0x00701000,                0, 16 },
+			{ 0,                               0,  0 }
+		};
+		for (i = 0; table[i].code; i++)
+			lib_definesignal1p0(table[i].opt, 0x0100, table[i].code, window, table[i].signum);
+		lib_definesignal0p0(0, 0, 0, 0);
+	}
 
 	lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Run Application > ");
-	wait99(); // finish signalが来るまで待つ
+	wait99(); /* finish signalが来るまで待つ */
 	cur = list_set(ext = ext_BIN);
 
-	for (i = 0; i < 24; i++)
+	for (i = 0; i < MAX_BANK; i++)
 		banklist[i].size = banklist[i].tss = 0;
 
 	for (;;) {
@@ -550,10 +503,14 @@ find_freebank:
 					break; /* switch文から抜ける */
 
 				for (i = 0; i < LIST_HEIGHT; i++)
-					lib_putstring_ASCII(0x0000, 0, i, selector, 0, 0, "                ");
-				lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "    Loaded.     ");
-				lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, " Change disks.  ");
-				lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, " Hit Enter key. ");
+				//	lib_putstring_ASCII(0x0000, 0, i, selector, 0, 0, "                ");
+					putselector0(i, "                ");
+			//	lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "    Loaded.     ");
+			//	lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, " Change disks.  ");
+			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, " Hit Enter key. ");
+				putselector0(1, "    Loaded.     ");
+				putselector0(3, " Change disks.  ");
+				putselector0(5, " Hit Enter key. ");
 
 				// 6, 7, 8, 9を待つ
 				while (*sbp != 6 && *sbp != 7 && *sbp != 8 && *sbp != 9)
@@ -566,20 +523,25 @@ find_freebank:
 				if (sig == 8)
 					goto signal_8;
 
-				lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
+			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
+				putselector0(5, "  Please wait.  ");
 				if (sig == 6) {
-					lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "  Formating...  ");
-					lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, "                ");
+				//	lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "  Formating...  ");
+				//	lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, "                ");
 				//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
+					putselector0(1, "  Formating...  ");
+					putselector0(3, "                ");
 					i = 0x0124;
 					if (fmode)
 						i = 0x0118;
 					sgg_format(i, 99 /* finish signal */); // format
 					wait99(); // finish signalが来るまで待つ
 				}
-				lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, " Writing        ");
-				lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, "   system image.");
+			//	lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, " Writing        ");
+			//	lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, "   system image.");
 			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
+				putselector0(1, " Writing        ");
+				putselector0(3, "   system image.");
 				i = 0x0128;
 				if (fmode)
 					i = 0x011c;
@@ -591,9 +553,12 @@ find_freebank:
 				sgg_freememory2(exe_size, exe_addr);
 				sgg_freememory2(bsc_size, bsc_addr);
 
-				lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "   Completed.   ");
-				lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, " Change disks.  ");
-				lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Hit 'R' key.  ");
+			//	lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "   Completed.   ");
+			//	lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, " Change disks.  ");
+			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Hit 'R' key.  ");
+				putselector0(1, "   Completed.   ");
+				putselector0(3, " Change disks.  ");
+				putselector0(5, "  Hit 'R' key.  ");
 
 				// 7, 8を待つ
 				while (*sbp != 7 && *sbp != 8)
@@ -613,7 +578,7 @@ find_freebank:
 
 		case 7 /* to format-mode */:
 		signal_7:
-			lib_putstring_ASCII(0x0000, 0, 0, mode, fmode, 0, "< Load Systemimage >");
+			lib_putstring_ASCII(0x0000, 0, 0, mode, fmode * 9, 0, "< Load Systemimage >");
 			cur = list_set(ext = ext_EXE);
 			break;
 
@@ -772,25 +737,30 @@ find_freebank:
 					while (*p == ' ')
 						p++;
 					if (*p) {
-						if (poko_cmdchk(p, "memory"))
-							poko_memory(p);
-						else if (poko_cmdchk(p, "color"))
-							poko_color(p);
-						else if (poko_cmdchk(p, "cls"))
-							poko_cls(p);
-						else if (poko_cmdchk(p, "mousespeed"))
-							poko_mousespeed(p);
-						else if (poko_cmdchk(p, "setdefaultIL"))
-							poko_setdefaultIL(p);
-						else if (poko_cmdchk(p, "tasklist"))
-							poko_tasklist(p);
-						else if (poko_cmdchk(p, "sendsignalU"))
-							poko_sendsignalU(p);
-						else if (poko_cmdchk(p, "debug"))
-							poko_debug(p);
-						else
-							consoleout("\nBad command.\n");
+						static struct {
+							void (*fnc)(const char *);
+							const char *cmd;
+						} cmdlist[] = {
+							poko_memory,		"memory",
+							poko_color,			"color",
+							poko_cls,			"cls",
+							poko_mousespeed,	"mousespeed",
+							poko_setdefaultIL,	"setdefaultIL",
+							poko_tasklist,		"tasklist",
+							poko_sendsignalU,	"sendsignalU",
+						//	poko_debug,			"debug",
+							NULL,				NULL
+						};
+						int i = 0;
+						do {
+							if (poko_cmdchk(p, cmdlist[i].cmd)) {
+								(*cmdlist[i].fnc)(p);
+								goto prompt;
+							}
+						} while (cmdlist[++i].fnc);
+						consoleout("\nBad command.\n");
 					}
+			prompt:
 					consoleout("\npoko>");
 					if (cursoractive) {
 						lib_settimer(0x0001, SYSTEM_TIMER);
@@ -882,7 +852,7 @@ void open_console()
 	struct LIB_TEXTBOX *console_tit;
 	int i, j;
 	char *bp;
-	console_win = lib_openwindow2(AUTO_MALLOC, 0x0210, CONSOLESIZEX * 8, CONSOLESIZEY * 16, 0x0d, 256);
+	console_win = lib_openwindow1(AUTO_MALLOC, 0x0210, CONSOLESIZEX * 8, CONSOLESIZEY * 16, 0x0d, 256);
 	console_tit = lib_opentextbox(0x1000, AUTO_MALLOC,  0, 16,  1,  0,  0, console_win, 0x00c0, 0);
 	console_txt = lib_opentextbox(0x0001, AUTO_MALLOC,  0, CONSOLESIZEX, CONSOLESIZEY,  0,  0, console_win, 0x00c0, 0); // 5KB
 	lib_putstring_ASCII(0x0000, 0, 0, console_tit, 0, 0, "pokon11 console");
@@ -1132,6 +1102,8 @@ void poko_sendsignalU(const char *cmdlin)
 	return;
 }
 
+#if 0
+
 void poko_puthex2(int i)
 {
 	char str[3];
@@ -1175,3 +1147,5 @@ void poko_debug(const char *cmdlin)
 	poko_puthex2(base[ofs + 7]); consoleout("\n");
 	return;
 }
+
+#endif

@@ -1,4 +1,4 @@
-// "VGADRV0.ASK" ver.0.4 copyright(C) 2001 川合秀実, ODP
+// "VGADRV0.ASK" ver.0.6 copyright(C) 2001 川合秀実, ODP
 
 segment GapiMdl(USE32, PARA);
 
@@ -76,7 +76,7 @@ syscmd:
 	CX += 8;
 	ES = CX;
 
-#if 0
+/*
 	// for debug
 	PUSHFD();
 	POP(EAX);
@@ -85,9 +85,9 @@ syscmd:
 		STI();
 		INT(0x03);
 	}
-#endif
+*/
 
-#if 0
+/*
 	// taskcountを取得
 	CLI();
 	EAX = work->nextcount;
@@ -95,7 +95,7 @@ syscmd:
 	EAX++;
 	work->nextcount = EAX;
 	STI();
-#endif
+*/
 
 asmout("next_command:");
 
@@ -112,7 +112,10 @@ asmout("next_command:");
 		goto GAPI_init;
 	if (EAX == 0x001c)
 		goto GAPI_resetdevice;
-
+	if (EAX == 0x0104)
+		goto fontload;
+//	if (EAX == 0x0108)
+//		goto allocarea; /* cmd, opt, size, (addr) */
 
 	if (EAX != 0)
 		goto GAPI_error;
@@ -122,6 +125,24 @@ asmout("next_command:");
 	POP(ES);
 	POP(DS);
 	return;
+
+fontload:
+	/* cmd, opt, type, len, to, from */
+	PUSH(DS);
+	asmout("LDS ESI,FWORD PTR FS:[EBX+20]");
+	ECX = cmd[12];
+	EDI = cmd[16];
+	ECX *= 4; /* 16bytes/font */
+	(offset) cmd += 28;
+	do {
+		EAX = [DS:ESI];
+		ESI += 4;
+		[ES:EDI] = EAX;
+		EDI += 4;
+		ECX--;
+	} while (!= 0);
+	POP(DS);
+	asmout("JMP next_command");
 }
 
 // マウスには非表示カウントというのがある
@@ -160,7 +181,7 @@ void near GAPI_fontwrite()
 
 	int *font == ES:EDI;
 	EAX = cmd[20]; // bgcolor
-	ES = [FS:EBX + 28];
+//	ES = [FS:EBX + 28];
 	// fontsizeチェックはしなくなった。その方が速い。
 	// チェックが必要なら、上位ルーチンでやる。
 	CL = [DS:EAX + 0xafff0]; // ラッチセット
@@ -201,9 +222,9 @@ void near GAPI_fontwrite()
 		ECX--;
 	} while (!= 0);
 	STI();
-	AX = CS;
-	AX += 8;
-	ES = AX;
+//	AX = CS;
+//	AX += 8;
+//	ES = AX;
 	asmout("JMP next_command");
 
 error:
@@ -772,7 +793,7 @@ void near GAPI_init()
 	work->mouseflag = /* 0 */ CL;
 	ECX++;
 	work->nextcount = /* 1 */ ECX;
-#if 0
+/*
 	EAX = syswork_sel;
 	DS = AX;
 	EAX = [DS:32 + bootseg_ent + 12];
@@ -781,7 +802,7 @@ void near GAPI_init()
 	(unsigned int) ECX >>= 4; // stack000_ent
 	workES->V86CS = AX;
 	workES->V86SS = CX;
-#endif
+*/
 
 	STI();
 //	EBP++; // EBP = 1;
@@ -954,7 +975,7 @@ palette_table: // Red, Green, Blue
 	asmout("DB 000H, 000H, 0FFH,   0FFH, 000H, 0FFH,   000H, 0FFH, 0FFH,   0FFH, 0FFH, 0FFH");
 }
 
-#if 0
+/*
 void near GAPI_setmode()
 // 001c, 0020, priority, mode(00, 12, 92, 6a, ea, 0102, 8102)
 {
@@ -967,7 +988,7 @@ void near GAPI_disconnect()
 {
 
 }
-#endif
+*/
 
 void near GAPI_error()
 {
@@ -1107,49 +1128,6 @@ void near GAPI_accesslock()
 	GAPI_WORK *work == ES:0x0000;
 
 	EAX = cmd[8]; // opt
-#if 0
-	// 時々マウスが消えてしまうので、一時的にアルゴリズムを簡略化
-	TEST(AL, 0x01);
-	if (== 0) {
-		// lock
-		CLI();
-		if (work->lockcount == 0) {
-			// 範囲に関係なく、マウスを消す
-			if (work->mouseflag != 0) {
-				GAPI_removemouse(); // remove mouse (mouseflag = 0)
-			}
-		}
-		work->lockcount++;
-		STI();
-		EAX = cmd[8]; // opt
-		(offset) cmd += 28;
-		if (AL == 0) {
-			(offset) cmd += 4;
-		}
-		asmout("JMP next_command");
-	}
-
-	// unlock
-	CLI();
-	work->lockcount--;
-	if (== 0) {
-		if (work->mx1 != 0x80000000 /* mx1がこの値の時は、非表示を意味する */) {
-			GAPI_clippingmouse(); // mx0, my0, mx1, my1を設定
-			GAPI_putmouse(); // put mouse (mouseflag = 1)
-		}
-	}
-	STI();
-	EAX = cmd[8]; // opt
-	if (AL == 1) {
-		(offset) cmd += 12;
-		asmout("JMP next_command");
-	}
-	(offset) cmd += 28;
-	asmout("JMP next_command");
-
-////////////////////////////////////////////////////////////////////////////////
-#endif
-
 	if (AL == 0)
 		goto lock_bitset;
 	if (AL == 0x02)
@@ -1542,7 +1520,7 @@ skip_imul:
 	return;
 }
 
-#if 0
+/*
 
 // 16ライン以外のマウスカーソルルーチン
 
@@ -1596,6 +1574,6 @@ GAPI_mouse_erasesub_EDX	proc	near
 
 GAPI_mouse_erasesub_EDX	endp
 
-#endif
+*/
 
 

@@ -17,7 +17,7 @@ TARGET = OSASK.EXE
 
 ARCH_OBJS = timerdrv.bin keymos0.bin fdcdrv0.bin vgadrv0.bin decode0.bin
 
-ASK_OBJS =  tapi0.bin pioneer0.bin
+ASK_OBJS =  tapi0.bin pioneer0.bin papi0.bin
 
 #ASK_OBJS += vesadrv0.bin 
 

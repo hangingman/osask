@@ -26,12 +26,13 @@ void sgg_wm0s_accessdisable(const struct SGG_WINDOW *window);
 void sgg_wm0s_redraw(const struct SGG_WINDOW *window);
 void sgg_wm0_openwindow(struct SGG_WINDOW *window, const int handle);
 const int sgg_wm0_win2sbox(const struct SGG_WINDOW *window);
-void sgg_wm0_definesignal2(const int opt, const int device, const int code,
-	const int signalbox, const int signal0, const int signal1);
-void sgg_wm0_definesignal0(const int opt, const int device, const int code);
+//void sgg_wm0_definesignal2(const int opt, const int device, const int code,
+//	const int signalbox, const int signal0, const int signal1);
+//void sgg_wm0_definesignal0(const int opt, const int device, const int code);
 const int sgg_wm0_winsizex(const struct SGG_WINDOW *window);
 const int sgg_wm0_winsizey(const struct SGG_WINDOW *window);
 void sgg_wm0s_close(const struct SGG_WINDOW *window);
+void sgg_wm0s_windowclosed(const struct SGG_WINDOW *window);
 void sgg_wm0_setvideomode(const int mode, const int signal);
 void sgg_wm0_gapicmd_0010_0000();
 void sgg_wm0_gapicmd_001c_0004();

@@ -44,5 +44,17 @@ void lib_settimer(const int opt, const int slot);
 void lib_definesignalhandler(void (*lib_signalhandler)(struct LIB_SIGHNDLREG *));
 void lib_opensoundtrack(const int slot);
 void lib_controlfreq(const int slot, const int freq);
+struct LIB_WINDOW *lib_openwindow1(struct LIB_WINDOW *window, const int slot,
+	const int x_size, const int y_size, const int flags, const int base);
+void lib_closewindow(const int opt, struct LIB_WINDOW *window);
+void lib_controlwindow(const int opt, struct LIB_WINDOW *window);
+void lib_close(const int opt);
+void lib_loadfontset(const int opt, const int slot, const int len, void *font);
+void lib_loadfontset0(const int opt, const int slot);
+void lib_makecharset(const int opt, const int charset, const int fontset,
+	const int len, const int from, const int base);
+void lib_drawline(const int opt, struct LIB_WINDOW *window, const int color,
+	const int x0, const int y0, const int x1, const int y1);
+void lib_closetextbox(const int opt, const struct LIB_TEXTBOX *textbox);
 
 #endif

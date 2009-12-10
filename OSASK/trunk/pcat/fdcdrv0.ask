@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.0.9 copyright(C) 2001 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.1.0 copyright(C) 2001 H.Kawai(川合秀実)
 
 segment FDC_Mdl(USE32, PARA);
 
@@ -16,13 +16,13 @@ struct FDC_WORK {
 	int timer_cmd5; // 0x005c
 	int timer_cmd6 /* タイマー取り消し (5 * 4) */, timer_node5; // 0x0060
 	int timer_cmd7; // 0x0068
-	int wait0_0, wait0_4, wait0_8; // モーターONにしてから、アクセスまでのウェイト(0x006c)
-	int wait1_0, wait1_4, wait1_8; // 最後のアクセスから、アクセスまでのウェイト(0x0078)
+	int wait0_0, wait0_4, wait0_8; /* モーターONにしてから、アクセスまでのウェイト(0x006c) */
+	int wait1_0, wait1_4, wait1_8; /* 最後のアクセスから、アクセスまでのウェイト(0x0078) */
 	char cylinder[4];
 	int track[20], dosload_phase, dosload_name[12], dosload_addr; // 0x0088
 	int dosload_sigtmp, dosload_sigfin, dosload_FAT, dosload_size0, dosload_size1; // 0x00b0
 	int TAPI_sendsignalofs, TAPI_sendsignalsel, [52]; // 0x00c4
-	// 0x0100～0x03ff : マイクロコマンドキュー(0.75KB)...192DW
+	/* 0x0100～0x03ff : マイクロコマンドキュー(0.75KB)...192DW */
 };
 
 void near FDC_Init();
@@ -61,9 +61,9 @@ nextcmd:
 	if (EAX == 0x010c)
 		goto cmd010c; // FDC_diskcache1
 	if (EAX == 0x0100)
-		goto cmd0100; // 初期化
+		goto cmd0100; /* 初期化 */
 	if (EAX == 0x0104)
-		goto cmd0104; // FDC_intのベクタ提供
+		goto cmd0104; /* FDC_intのベクタ提供 */
 	if (EAX == 0x011c)
 		goto cmd011c; // FDC_format
 	if (EAX == 0x0120)
@@ -75,7 +75,7 @@ nextcmd:
 	if (EAX == 0x012c)
 		goto cmd012c; // FDC_writeIPL(512)
 	if (EAX == 0x0018)
-		goto cmd0018; // バージョン要求
+		goto cmd0018; /* バージョン要求 */
 
 	INT(0x03);
 
@@ -86,7 +86,7 @@ cmd0000:
 	return;
 
 cmd0100:
-	// 初期化
+	/* 初期化 */
 	PUSH((offset) cmd);
 	AL = cmd[4];
 	FDC_Init();
@@ -95,7 +95,7 @@ cmd0100:
 	goto nextcmd;
 
 cmd0104:
-	// FDC_intのベクタ提供
+	/* FDC_intのベクタ提供 */
 	asmout("MOV DWORD PTR FS:[EBX+4],OFFSET FDC_int");
 	(short) cmd[8] = CS;
 	(offset) cmd += 12;
@@ -115,7 +115,7 @@ cmd0108:
 
 cmd010c:
 	// FDC_diskcache1
-	//	 直接起動ディスクのIPLが読み込んだデーターをキャッシュバッファに転送
+	/* 直接起動ディスクのIPLが読み込んだデーターをキャッシュバッファに転送 */
 	PUSH(DS);
 	EAX = all_sel;
 	DS = AX;
@@ -137,8 +137,8 @@ cmd010c:
 cmd0110:
 	// FDC_loadFAT
 	PUSH((offset) cmd);
-	EDX = cmd[4]; // EDX:完了のシグナル
-	ECX = cmd[8]; // ECX:作業中のシグナル
+	EDX = cmd[4]; /* EDX:完了のシグナル */
+	ECX = cmd[8]; /* ECX:作業中のシグナル */
 	FDC_loadFAT();
 	POP((offset) cmd);
 	(offset) cmd += 12;
@@ -157,10 +157,10 @@ cmd0118:
 	// FDC_dosload
 	PUSH(GS);
 	PUSH((offset) cmd);
-	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); // ディレクトリエントリ
-	EAX = cmd[12]; // ロードアドレス（４バイトアライン）
-	EDX = cmd[16]; // 完了シグナル
-	ECX = cmd[20]; // 作業中のシグナル
+	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); /* ディレクトリエントリ */
+	EAX = cmd[12]; /* ロードアドレス（４バイトアライン） */
+	EDX = cmd[16]; /* 完了シグナル */
+	ECX = cmd[20]; /* 作業中のシグナル */
 	FDC_dosload();
 	POP((offset) cmd);
 	POP(GS);
@@ -170,8 +170,8 @@ cmd0118:
 cmd011c:
 	// FDC_format
 	PUSH((offset) cmd);
-	EDX = cmd[4]; // EDX:完了のシグナル
-	ECX = cmd[8]; // ECX:作業中のシグナル
+	EDX = cmd[4]; /* EDX:完了のシグナル */
+	ECX = cmd[8]; /* ECX:作業中のシグナル */
 	FDC_format();
 	POP((offset) cmd);
 	(offset) cmd += 12;
@@ -180,16 +180,17 @@ cmd011c:
 cmd0120:
 	// FDC_writeIPL
 	PUSH((offset) cmd);
-	EDX = cmd[4]; // EDX:完了のシグナル
-	ECX = cmd[8]; // ECX:作業中のシグナル
+	EDX = cmd[20]; // EDX:完了のシグナル
+	ECX = cmd[24]; // ECX:作業中のシグナル
 	FDC_writeIPL();
 	POP((offset) cmd);
-	(offset) cmd += 12;
+	(offset) cmd += 12 + 16;
 	goto nextcmd;
 
 cmd0124:
 	// FDC motor control
-	unsigned int cmd0124_fdc_control == 0x03f2; // bit7-4はmotor制御(1でON)、bit3はDMA許可、bit2はFDCリセット(0でリセット)、bit1-0はドライブ番号
+	unsigned int cmd0124_fdc_control == 0x03f2;
+		/* bit7-4はmotor制御(1でON)、bit3はDMA許可、bit2はFDCリセット(0でリセット)、bit1-0はドライブ番号 */
 	AL = cmd[4];
 	EDX = cmd0124_fdc_control;
 	work->motor = AL;
@@ -210,11 +211,11 @@ cmd0128:
 cmd012c:
 	// FDC_writeIPL 512
 	PUSH((offset) cmd);
-	EDX = cmd[4]; // EDX:完了のシグナル
-	ECX = cmd[8]; // ECX:作業中のシグナル
+	EDX = cmd[20]; // EDX:完了のシグナル
+	ECX = cmd[24]; // ECX:作業中のシグナル
 	FDC_writeIPL2();
 	POP((offset) cmd);
-	(offset) cmd += 12;
+	(offset) cmd += 12 + 16;
 	goto nextcmd;
 
 cmd0018:
@@ -227,6 +228,7 @@ cmd0018:
 	(offset) cmd += 24;
 	goto nextcmd;
 }
+
 
 // O6B#で604、O7B#で302、O8B#で151。
 
@@ -587,7 +589,7 @@ void near FDC_MC_ReadData()
 		AL &= 0xc0;
 	} while (AL != 0x80);
 	EDX++;
-	AL = 0x01; // GAP2 ・・・ 分からないので適当
+	AL = 0x01; /* GAP2 ・・・ 分からないので適当 */
 	OUT(DX, AL);
 	EDX--;
 
@@ -596,7 +598,7 @@ void near FDC_MC_ReadData()
 		AL &= 0xc0;
 	} while (AL != 0x80);
 	EDX++;
-	AL = 0xff; // データー長 ・・・ 分からないので適当
+	AL = 0xff; /* データー長 ・・・ 分からないので適当 */
 	OUT(DX, AL);
 	EDX--;
 
@@ -606,7 +608,7 @@ void near FDC_MC_ReadData()
 	return;
 
 fdcint:
-	// リザルトステータス受信
+	/* リザルトステータス受信 */
 	(offset) status_buf = cmd[0];
 	(offset) cmd += 4;
 	cmd_free += 6;
@@ -774,7 +776,7 @@ void near FDC_MC_WriteData()
 		AL &= 0xc0;
 	} while (AL != 0x80);
 	EDX++;
-	AL = 18; // GAP2 ・・・ 分からないので適当
+	AL = 18; /* GAP2 ・・・ 分からないので適当 */
 	OUT(DX, AL);
 	EDX--;
 
@@ -783,7 +785,7 @@ void near FDC_MC_WriteData()
 		AL &= 0xc0;
 	} while (AL != 0x80);
 	EDX++;
-	AL = 0xff; // データー長 ・・・ 分からないので適当
+	AL = 0xff; /* データー長 ・・・ 分からないので適当 */
 	OUT(DX, AL);
 	EDX--;
 
@@ -984,7 +986,7 @@ void near FDC_MC_test4()
 			cmd[ 4 - 24] = EDI;
 			EDI++;
 			EDI /= 2;
-			ECX += EDI; // CHに加算
+			ECX += EDI; /* CHに加算 */
 			EDX += 9 * 1024;
 			EDI = EDX;
 			EDX &= 0xffff0000;
@@ -1934,44 +1936,53 @@ void near FDC_writeIPL2()
 	work->dosload_sigtmp = ECX;
 	work->dosload_sigfin = EDX;
 
-	EAX = syswork_sel;
+	/* [FS:EBX +  4] : boot-sector-code size */
+	/* [FS:EBX +  8] : boot-sector-code addr */
+	/* [FS:EBX + 12] : osask.exe size */
+	/* [FS:EBX + 16] : osask.exe addr */
+
+//	EAX = syswork_sel;
 	ECX = all_sel;
 	PUSH(DS);
-	PUSH(ES);
-	ES = AX;
+//	PUSH(ES);
+//	ES = AX;
 	DS = CX;
-	EDX = [ES:32 + empty01_ent + 0x0c];
-	EBX = 0x100000;
+	PUSH(ESI);
+	EDX = [FS:EBX +  8];
+	ESI = 0x100000;
 	ECX = 512 / 4;
 	do {
 		EAX = [DS:EDX];
 		EDX += 4;
-		[DS:EBX] = EAX;
-		EBX += 4;
+		[DS:ESI] = EAX;
+		ESI += 4;
 		ECX--;
 	} while (!= 0);
-	EDX = [ES:32 + empty00_ent + 0x0c];
-	EBX = 0x101000;
+	EDX = [FS:EBX + 16];
+	ESI = 0x101000;
 	EDX += 512; // ヘッダを読み飛ばす
-	ECX = [ES:32 + empty00_ent + 0x08];
+	ECX = [FS:EBX + 12];
 	ECX += 1024 - 512 - 1;
 	ECX &= 0xfffffc00; // KB単位に切り上げ
+	PUSH(ECX);
 	(unsigned int) ECX /= 4;
 	do {
 		EAX = [DS:EDX];
 		EDX += 4;
-		[DS:EBX] = EAX;
-		EBX += 4;
+		[DS:ESI] = EAX;
+		ESI += 4;
 		ECX--;
 	} while (!= 0);
-	ECX = [ES:32 + empty00_ent + 0x08];
-	ECX += 1024 - 512 - 1;
-	ECX &= 0xfffffc00; // KB単位に切り上げ
+//	ECX = [FS:EBX + 12];
+//	ECX += 1024 - 512 - 1;
+//	ECX &= 0xfffffc00; // KB単位に切り上げ
+	POP(ECX);
 	EAX = ECX;
 	(unsigned int) ECX /= 256;
 	ECX += 18 * 4;
 	(short) [DS:0x100020] = CX;
-	POP(ES);
+	POP(ESI);
+//	POP(ES);
 	POP(DS);
 
 	work->dosload_size0 = EAX;
@@ -2048,4 +2059,3 @@ subphase:
 	DD(0x02010104); DD(0x110c00);
 	DD(0xffffffff); DD(0x113000);
 }
-

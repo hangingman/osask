@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.1
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.2
     copyright(C) 2001 H.Kawai (川合秀実) */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -17,7 +17,7 @@ struct WORK { /* 256bytes */
 	int signalbox_read_free, signalbox_eos, signalbox_rewind, signaldw /* user用 */;
 	int signalbox_write_free, signalbox_write_ptr,
 		signalbox_write_ptr0, signalbox_write_ptr1; /* user用 */
-	char signalbox_status, [15];
+	char signalbox_status, ending_count, [14];
 	/* 空きは144バイト */
 };
 
@@ -37,7 +37,8 @@ struct TEXTBOX { /* 64bytes */
 	int chain_back, chain_next;
 	int x_size, y_size, x0, y0;
 	int option, backcolor, charset, window;
-	void [16]; /* 空きは16バイト */
+	int blank;
+	void [12]; /* 空きは16バイト */
 	int buffer[0];
 };
 
@@ -82,7 +83,7 @@ void far pioneer0()
 
 asmout("nextcmd:");
 	EAX = cmd[0];
-	if ((unsigned) EAX < 0x00e0) {
+	if ((unsigned) EAX < 0x00f0) {
 		TEST(EAX, 0x03);
 		if (== 0)
 			asmout("JMP DWORD PTR CS:[EAX+#cmd_jumptable]");
@@ -117,6 +118,7 @@ cmd_jumptable:
 	asmout("DD OFFSET cmd0b0,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
 	asmout("DD OFFSET cmd0c0,  OFFSET cmd0c4,  OFFSET cmd0c8,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd0d0,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
+	asmout("DD OFFSET cmd0e0,  OFFSET cmd0e4,  OFFSET cmd0e8,  OFFSET #cmderr");
 
 }
 
@@ -249,6 +251,7 @@ void near cmd004()
 	work->softint_mask_buf[12] = 0x0000;
 	work->signaldw = 0;
 	work->signalbox_write_ptr = 0xfffffffe;
+	work->ending_count = 0;
 	/* ベクタ初期化 */
 	AX = CS;
 	PUSH(FS);
@@ -283,11 +286,30 @@ void near cmd008()
    オプションで、アプリ自体も終了するか、それともアプリは終了しないかを選べる
    現在は、オプションを確認することもなく、終了 */
 {
+	WORK *work == SS:EBP;
+	int *cmd == DS:ESI;
+	(offset) cmd += 8;
 	PUSH((int) 0);
-	PUSH((int) 0); // reserve
+	PUSH((int) 0x0001); // opt(close all handle)
 	PUSH((int) 0x0040); /* タスク終了 */
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	AL = [SS:ESP + 6];
+	ESP += 12;
+	work->ending_count = AL;
+	if (AL != 0) {
+		/* sleep */
+		LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更する) */
+		work->softint_mask_buf[ 8] = 0x0080;
+		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		INT(0x03);
+	}
+	PUSH((int) 0);
+	PUSH((int) 0x0002); // opt(close task)
+	PUSH((int) 0x0040); /* タスク終了 */
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	INT(0x03);
 }
 
 void near cmd010()
@@ -426,7 +448,7 @@ void near cmd020()
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
 
-	// WINDOW構造体の初期化など
+	/* WINDOW構造体の初期化など */
 	WINDOW *cmd0020_win == DS:EDI;
 	(offset) cmd0020_win = cmd[ 4]; // work_ptr
 	LEA(EAX, cmd0020_win->children_back); 
@@ -448,8 +470,11 @@ void near cmd020()
 	TEST(AL, 0x01);
 	(int) cmd0020_win->mode0 = 0;
 	if (!= 0) {
-		// シグナルハンドリング
+		/* シグナルハンドリング */
 		EBX = cmd[0];
+		TEST(BH, 0x01);
+		if (!= 0)
+			BH ^= 0x10;
 		(short) cmd0020_win->siglen = BX;
 		/* シグナル長(bit0-3), ハンドリング範囲(bit8-15)
 		   値0 : ハンドリングしない
@@ -457,6 +482,9 @@ void near cmd020()
 		   bit1 : move(4)
 		   bit2 : setmode(5)
 		   bit3 : close(6)
+		   bit4 : opt for bit0
+		   bit5 : closed(7)
+		   bit6 : resize(8)
 		   bit7は加算量scale(0はx1、1はx4)
 		   残りの4bitはリザーブ
 		   最小化はdisableで処理されるので、検知できない
@@ -558,6 +586,7 @@ void near cmd028()
 	EDX = cmd[36]; // キャラクターセット(slot-no)
 	ECX = cmd[40]; // space code.
 	(offset) cmd += 44;
+	cmd0028_textbox->blank = ECX;
 
 	// バッファの初期化
 	cmd0028_textbox->charset = EDX;
@@ -567,6 +596,7 @@ void near cmd028()
 	EDX = cmd0028_textbox->backcolor;
 	EDX <<= 16;
 	(offset) cmd0028_textbox += 64;
+	EDX++;
 	do {
 		(int) [cmd0028_textbox    ] = ECX;
 		(int) [cmd0028_textbox + 4] = EDX;
@@ -576,7 +606,7 @@ void near cmd028()
 	POP((offset) cmd0028_textbox);
 
 	if (AL != cmd0028_win->draw_enable) { // AL == 0
-		// もし、描画フラグが1なら、更新する(フレームを描くとか、背景色をセットするとか)。
+		/* もし、描画フラグが1なら、更新する(フレームを描くとか、背景色をセットするとか)。 */
 		EAX = cmd0028_textbox->option;
 		TEST(EAX, 0xf000);
 		if (== 0) {
@@ -596,10 +626,64 @@ void near cmd028()
 }
 
 void near cmd02c()
-// close text box
+/* close text box */
+/* cmd, opt, textbox */
 {
-	// 全く未完成
-	INT(0x03);
+	int *cmd == DS:ESI;
+	WINDOW *win == DS:EDI;
+	TEXTBOX *textbox == DS:EBX;
+	(offset) textbox = cmd[8];
+	(offset) cmd += 12;
+
+	int *back == DS:EAX, *next == DS:ECX;
+	(offset) back = textbox->chain_back;
+	(offset) next = textbox->chain_next;
+	(offset) win = textbox->window;
+	back[4 /* next */] = (offset) next;
+	next[0 /* back */] = (offset) back;
+
+	EAX = 0;
+	if (AL != win->draw_enable) {
+		/* もし描画フラグが1なら、消去する。 */
+		PUSH(EAX);
+		EAX = textbox->x0;
+		ECX = textbox->y0;
+		EDX = textbox->option;
+		PUSH((int) 8);
+		PUSH(EDX);
+		PUSH(EDX);
+		PUSH(ECX);
+		PUSH(EAX);
+		EAX = textbox->x_size;
+		ECX = textbox->y_size;
+		EAX *= 8;
+		ECX *= 8;
+		TEST(DL, 0x10);
+		if (== 0)
+			ECX *= 2;
+		EAX += textbox->x0;
+		ECX += textbox->y0;
+		EAX--;
+		ECX--;
+		TEST(DL, 0x01);
+		(int) [SS:ESP +  8] = EAX;
+		(int) [SS:ESP + 12] = ECX;
+		if (!= 0) {
+			EAX += 3;
+			ECX += 3;
+			(int) [SS:ESP +  8] = EAX;
+			(int) [SS:ESP + 12] = ECX;
+			(int) [SS:ESP     ] -= 3;
+			(int) [SS:ESP +  4] -= 3;
+		}
+		PUSH(win->slot);
+		PUSH((int) 0x0020 /* boxfill */);
+		PUSH((int) 0x0400 /* line cmd */);
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		ESP += 36;
+	}
+	asmout("JMP nextcmd");
 }
 
 void near cmd040()
@@ -681,6 +765,8 @@ void near cmd040()
 	}
 	(offset) cmd += 32;
 	if (ECX != 0) {
+		if (EDX == 0)
+			goto blank;
 		LEA(EBX, [(offset) cmd0040_textbox + EAX * 8 + 64]);
 		do {
 			EAX = *cmd;
@@ -691,6 +777,18 @@ void near cmd040()
 			ECX--;
 		} while (!= 0);
 	}
+	asmout("JMP nextcmd");
+blank:
+	EDX++;
+	EDI = cmd0040_textbox->blank;
+	LEA(EBX, [(offset) cmd0040_textbox + EAX * 8 + 64]);
+	LEA((offset) cmd, [(offset) cmd + ECX * 4]);
+	do {
+		(int) [DS:EBX    ] = EDI;
+		(int) [DS:EBX + 4] = EDX;
+		EBX += 8;
+		ECX--;
+	} while (!= 0);
 	asmout("JMP nextcmd");
 	ALIGN(4);
 	asmout("wintitle_colortable DD 0008H, 0708H, 0, 040FH");
@@ -1368,6 +1466,74 @@ void near cmd0d0()
 	asmout("JMP nextcmd");
 }
 
+void near cmd0e0()
+/* load font */
+/* cmd, opt, slot, len, from(far) */
+{
+	int *cmd == DS:ESI;
+	EAX = cmd[ 4];
+	PUSH((int) 0);
+	if ((signed) EAX > 0) {
+		PUSH(cmd[20]);
+		PUSH(cmd[16]);
+		PUSH(cmd[12]);
+		PUSH(cmd[ 8]);
+		PUSH(EAX);
+		PUSH((int) 0x0408);
+		(offset) cmd += 24;
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		ESP += 28;
+		asmout("JMP nextcmd");
+	}
+	if ((unsigned) EAX >= 0x80000001) {
+		PUSH(cmd[ 8]);
+		PUSH(EAX);
+		PUSH((int) 0x0408);
+		(offset) cmd += 12;
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		ESP += 16;
+		asmout("JMP nextcmd");
+	}
+	INT(0x03);
+}
+
+void near cmd0e4()
+/* free font */
+/* cmd, opt, slot */
+{
+	int *cmd == DS:ESI;
+	PUSH((int) 0);
+	PUSH(cmd[ 8]);
+	PUSH(cmd[ 4]);
+	PUSH((int) 0x040c);
+	(offset) cmd += 12;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 16;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0e8()
+/* make charset */
+/* cmd, opt, slot(charset), slot(font), range, from, to */
+{
+	int *cmd == DS:ESI;
+	PUSH((int) 0);
+	PUSH(cmd[24]);
+	PUSH(cmd[20]);
+	PUSH(cmd[16]);
+	PUSH(cmd[12]);
+	PUSH(cmd[ 8]);
+	PUSH(cmd[ 4]);
+	PUSH((int) 0x0410);
+	(offset) cmd += 28;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 32;
+	asmout("JMP nextcmd");
+}
 
 void near sendusersignal()
 // ES:EDIからのECX[dw]を送信
@@ -1477,10 +1643,14 @@ void far pioneer_softint()
 			goto sig0043; // close window
 		if (EAX == 0x44)
 			goto sig0044; // VRAM access disable(window)
+		if (EAX == 0x45)
+			goto sig0045; // closed window
 		if (EAX == 0x48)
 			goto sig0048; // redraw window
 		if (EAX == 0xc0)
 			goto sig00c0; // open sound track
+		if (EAX == 0xc4)
+			goto sig00c4; // closed sound track
 		if (EAX == 0xc8)
 			goto sig00c8; // enable sound track
 		INT(0x03);
@@ -1650,7 +1820,7 @@ sig0042:
 	(offset) sig0042_win = signal[4];
 	AL = sig0042_win->sigflag;
 	sig0042_win->draw_enable = 1; // 自由表示enable（随時更新）
-	TEST(AL, 0x01);
+	TEST(AL, 0x10);
 	if (!= 0) {
 		CX = SS;
 		PUSH(sig0042_win->signalhead[0]);
@@ -1694,18 +1864,32 @@ sig0043:
 		work->signaldw += 2;
 		goto nextsignal;
 	}
+
 	PUSH((int) 0);
-	PUSH((int) 0); // reserve
-	PUSH((int) 0x0040); // タスク終了
+	PUSH((int) 0x0001); // opt(close all handle)
+	PUSH((int) 0x0040); /* タスク終了 */
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	AL = [SS:ESP + 6];
+	ESP += 12;
+	work->ending_count = AL;
+	(offset) signal += 8;
+	work->signaldw += 2;
+	if (AL != 0)
+		goto nextsignal;
+	PUSH((int) 0);
+	PUSH((int) 0x0002); // opt(close task)
+	PUSH((int) 0x0040); /* タスク終了 */
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	INT(0x03);
 
 sig0044:
 	// VRAMアクセスの凍結
 	WINDOW *sig0044_win == DS:EBX;
 	(offset) sig0044_win = signal[4];
 	AL = sig0044_win->sigflag;
-	TEST(AL, 0x01);
+	TEST(AL, 0x10);
 	sig0044_win->draw_enable = 0; // 自由表示disable（更新抑制）
 	if (!= 0) {
 		EDI = 1;
@@ -1736,6 +1920,50 @@ sig0044:
 	(offset) signal += 8;
 	work->signaldw += 2;
 	goto nextsignal;
+
+sig0045:
+	/* ウィンドウクローズ完了報告 */
+	WINDOW *sig0045_win == DS:EBX;
+	(offset) sig0045_win = signal[4];
+	AL = sig0045_win->sigflag;
+	TEST(AL, 0x20);
+	if (!= 0) {
+		EDI = 7;
+		TEST(AL, 0x80);
+		EDX = sig0045_win->signalhead[0];
+		if (!= 0)
+			EDI *= 4;
+		CX = SS;
+		EDX += EDI;
+		ES = CX;
+		PUSH(EDX);
+		ECX = 1;
+		EDI = ESP;
+		sendusersignal();
+		POP(EAX);
+		if (ZF == 0 /* error */)
+			goto usersigboxfull;
+		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
+	}
+sig00c4:
+	(offset) signal += 8;
+	work->signaldw += 2;
+	/* カウンタを減少させる */
+	/* 0になったら、終了 */
+	AL = work->ending_count;
+	if (AL == 0)
+		goto nextsignal;
+	AL--;
+	work->ending_count = AL;
+	if (!= 0)
+		goto nextsignal;
+
+	PUSH((int) 0);
+	PUSH((int) 0x0002); // opt(close task)
+	PUSH((int) 0x0040); // タスク終了
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	INT(0x03);
 
 sig0048:
 	// 再描画(他のタスクによって、持ち場が荒らされた)

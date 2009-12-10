@@ -1,4 +1,4 @@
-;	"boot.asm" ver.1.20
+;	"boot.asm" ver.1.30
 ;	OSASK/AT用のブートプログラム
 ;	Copyright(C) 2001 H.Kawai (川合秀実)
 
@@ -412,7 +412,7 @@ stackseg		dd	offset StackSiz,StackMdl
 vesadrv_sizadr		dd	0,BootMdl
 			db	"ankfont0"	; 14 * 16
 			dd	0,BootMdl
-			db	"dummy02 "	; 15 * 16
+			db	"papi0   "	; 15 * 16
 			dd	0,BootMdl
 
 loaded_modules		equ	($ - modulelist) / 16
@@ -428,7 +428,7 @@ alloclist		db	"pdepte  "	; 0
 			db	"keydata "	; 4
 			dd	4096,-1
 			db	"gapidata"
-			dd	4096,-1
+			dd	4096*16,-1
 			db	"timerdat"
 			dd	4096*2,-1
 			db	"tapiwork"
@@ -437,66 +437,6 @@ alloclist		db	"pdepte  "	; 0
 			dd	4096*6,-1
 			db	"fdcwork "
 			dd	4096,-1
-		;	db	"dummy00 "
-		;	dd	0,0
-		;	db	"dummy01 "
-		;	dd	0,0
-		;	db	"dummy02 "	; 12
-		;	dd	0,0
-		;	db	"empty1  "
-		;	dd	0,0
-		;	db	"dummy03 "
-		;	dd	0,0
-		;	db	"dummy04 "
-		;	dd	0,0
-		;	db	"empty00 "	; 16
-		;	dd	0,0
-		;	db	"empty01 "
-		;	dd	0,0
-		;	db	"empty02 "
-		;	dd	0,0
-		;	db	"empty03 "
-		;	dd	0,0
-		;	db	"empty04 "
-		;	dd	0,0
-		;	db	"empty05 "
-		;	dd	0,0
-		;	db	"empty06 "
-		;	dd	0,0
-		;	db	"empty07 "
-		;	dd	0,0
-		;	db	"empty08 "	; 24
-		;	dd	0,0
-		;	db	"empty09 "
-		;	dd	0,0
-		;	db	"empty10 "
-		;	dd	0,0
-		;	db	"empty11 "
-		;	dd	0,0
-		;	db	"empty12 "
-		;	dd	0,0
-		;	db	"empty13 "
-		;	dd	0,0
-		;	db	"empty14 "
-		;	dd	0,0
-		;	db	"empty15 "
-		;	dd	0,0
-		;	db	"empty16 "	; 32
-		;	dd	0,0
-		;	db	"empty17 "
-		;	dd	0,0
-		;	db	"empty18 "
-		;	dd	0,0
-		;	db	"empty19 "
-		;	dd	0,0
-		;	db	"empty20 "
-		;	dd	0,0
-		;	db	"empty21 "
-		;	dd	0,0
-		;	db	"empty22 "
-		;	dd	0,0
-		;	db	"empty23 "
-		;	dd	0,0
 
 		;	dd	"_shell  ",offset ShellSiz,  ShellMdl
 

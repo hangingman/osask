@@ -1,33 +1,36 @@
-"sb12"の使い方の説明                      2001/04/28 川合秀実
+"sb13"の使い方の説明                      2001/05/29 川合秀実
 
 １．これは何か？
 
-  "sb12"は、OSASK ver.1.2の「OSASK12.EXE」を生成するのに必要なモジュールのソー
+  "sb13"は、OSASK ver.1.3の「OSASK13.EXE」を生成するのに必要なモジュールのソー
 スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
-そのまま利用しているものついては、このアーカイブに含まれていません。OSASK12.EXE
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK13.EXE
 を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.EXE     : ver.1.20
-    OSALINK0.OPT : ver.1.20
+    BASE.EXE     : ver.1.30
+    OSALINK0.OPT : ver.1.30
     PIONEER0.BIN : ver.1.1
-    WINMAN0.BIN  : ver.0.8
-    POKON0.BIN   : ver.1.1
-    SYSGG00.LIB  : ver.0.3
+    WINMAN0.BIN  : ver.0.9
+    POKON0.BIN   : ver.1.2
+    PAPI0.BIN    : ver.0.0
+    SYSGG00.LIB  : ver.0.4
     PCAT/
-      TIMERDRV.BIN  : type-A ver.0.9
+      FDCDRV0.BIN  : ver.1.0
+      VGADRV0.BIN  : ver.0.6
+      DECODE0.BIN  : ver.0.9
     TOWNS/
-      TIMERDRV.BIN  : type-A ver.0.9
+      FDCDRV0.BIN  : ver.1.0
+      VGADRV0.BIN  : ver.0.6
+      DECODE0.BIN  : ver.0.9
 
   (以前のバージョンのものを利用するもの)
 
     TAPI0.BIN    : ver.0.1
     ANKFONT0.BIN : ver.0.0
+    TIMERDRV.BIN : type-A ver.0.9
     KEYMOS0.BIN  : ver.0.3
-    FDCDRV0.BIN  : ver.0.9
-    VGADRV0.BIN  : ver.0.4
-    DECODE0.BIN  : ver.0.8
 
   このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
 いるだけです。
@@ -43,11 +46,11 @@
 ・Microsoft (R) Segmented Executable Linker  Version 5.60.339 Dec  5 1994
 ・lcc-win32 (LCC.EXEのタイムスタンプ2000/09/10、サイズ438,304バイト)
 ・Microsoft (R) Incremental Linker Version 5.12.8078
-・gg00lib2
+・gg00lib3
 ・stdlib1
 
 これらの入手先・使い方の説明は、大半がOSASKの開発者向けページにあり、その他のも
-のについては、masmcnv2、exe2bin0に付属のドキュメントを参照してください。
+のについては、masmcnv2、exe2bin1に付属のドキュメントを参照してください。
 
   BASE.EXEの生成は、MAKEBASE.BATで行いました。MAKEBASE.BATを読んでアセンブル手
 順を把握してください。TOWNS版を生成する時は、少し書き換える必要があります。

@@ -124,6 +124,8 @@ const int sgg_wm0_win2sbox(const struct SGG_WINDOW *window)
 	return window->image[WINSTR_SIGNALEBOX];
 }
 
+#if 0
+
 void sgg_wm0_definesignal2(const int opt, const int device, const int code,
 	const int signalbox, const int signal0, const int signal1)
 {
@@ -159,6 +161,8 @@ void sgg_wm0_definesignal0(const int opt, const int device, const int code)
 	return;
 }
 
+#endif
+
 const int sgg_wm0_winsizex(const struct SGG_WINDOW *window)
 {
 	return window->image[WINSTR_XSIZE];
@@ -185,6 +189,23 @@ void sgg_wm0s_close(const struct SGG_WINDOW *window)
 	sgg_execcmd(&command);
 	return;
 }
+
+void sgg_wm0s_windowclosed(const struct SGG_WINDOW *window)
+{
+	static struct {
+		int cmd, opt;
+		int data[3];
+		int eoc;
+	} command = { 0x0020, 0x80000000 + 3, { 0 }, 0x0000 };
+
+	command.data[0] = window->image[WINSTR_SIGNALEBOX] | 2;
+	command.data[1] = window->image[WINSTR_SIGNALBASE] + 5;
+	command.data[2] = window->image[WINSTR_USERID];
+
+	sgg_execcmd(&command);
+	return;
+}
+
 
 void sgg_wm0_setvideomode(const int mode, const int signal)
 {

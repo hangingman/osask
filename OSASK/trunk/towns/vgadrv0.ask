@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" for TOWNS ver.0.4 copyright(C) 2001 川合秀実 */
+/* "VGADRV0.ASK" for TOWNS ver.0.6 copyright(C) 2001 川合秀実 */
 
 segment GapiMdl(USE32, PARA);
 
@@ -6,17 +6,19 @@ default(code == GapiMdl);
 
 struct GAPI_WORK {
 	signed int mx, my, mx0, my0, mx1, my1;
-//	int mouseline, masktype;
 	int cursor_addr, pattern_addr;
 //	int backup_addr;
 //	int p, q, b;
 	unsigned int lockcount, mouselock; /* +32 */
 	char mouseflag, maskflag, mouseline, V86flag;
-	int taskcount, nextcount;
+//	int mouseline, masktype;
+//	int taskcount, nextcount;
 	int VGA_mode;
-	short V86CS, V86SS, [4];
+	short V86CS, V86SS, [4], [8];
 	int backup_buf[320]; /* +64 */
-	int mouse_pattern[2560 /* 0x0a00 */];
+	int mouse_pattern[2560 /* 0x0a00 */]; /* +0x0180 */
+	void [1152];
+	/* 以上4KB */
 };
 
 void far GAPI_entry()
@@ -68,7 +70,10 @@ asmout("next_command:");
 		goto GAPI_init;
 	if (EAX == 0x001c)
 		goto GAPI_resetdevice;
-
+	if (EAX == 0x0104)
+		goto fontload;
+//	if (EAX == 0x0108)
+//		goto allocarea; /* cmd, opt, size, (addr) */
 
 	if (EAX != 0)
 		goto GAPI_error;
@@ -78,6 +83,24 @@ asmout("next_command:");
 	POP(ES);
 	POP(DS);
 	return;
+
+fontload:
+	/* cmd, opt, type, len, to, from */
+	PUSH(DS);
+	asmout("LDS ESI,FWORD PTR FS:[EBX+20]");
+	ECX = cmd[12];
+	EDI = cmd[16];
+	ECX *= 4; /* 16bytes/font */
+	(offset) cmd += 28;
+	do {
+		EAX = [DS:ESI];
+		ESI += 4;
+		[ES:EDI] = EAX;
+		EDI += 4;
+		ECX--;
+	} while (!= 0);
+	POP(DS);
+	asmout("JMP next_command");
 }
 
 /* マウスには非表示カウントというのがある
@@ -138,7 +161,7 @@ void near GAPI_fontwrite()
 	EAX = EBP; ECX = EDX; EAX &= 0xff000000; ECX &= 0x00ffffff; EAX |= ECX; PUSH(EAX); // 0001
 	PUSH(EDX); // 0000
 
-	ES = [FS:EBX + 28];
+//	ES = [FS:EBX + 28];
 	/* fontsizeチェックはしなくなった。その方が速い。
 	   チェックが必要なら、上位ルーチンでやる。 */
 
@@ -211,9 +234,9 @@ void near GAPI_fontwrite()
 	} while (!= 0);
 	ESP += 64;
 	(offset) cmd = (offset) string;
-	AX = CS;
-	AX += 8;
-	ES = AX;
+//	AX = CS;
+//	AX += 8;
+//	ES = AX;
 
 	asmout("JMP next_command");
 
@@ -1172,13 +1195,13 @@ void near GAPI_init()
 	EAX = all_sel;
 	work->mx1 = 0x80000000; /* 非表示 */
 //	work->backup_addr = 0xa0000 + 800 * 600 / 8; /* 画面外 */
-	work->taskcount = /* 0 */ ECX;
+//	work->taskcount = /* 0 */ ECX;
 	work->lockcount = /* 0 */ ECX;
 	work->mouselock = /* 0 */ ECX;
 	work->VGA_mode = /* 0 */ ECX;
 	work->mouseflag = /* 0 */ CL;
-	ECX++;
-	work->nextcount = /* 1 */ ECX;
+//	ECX++;
+//	work->nextcount = /* 1 */ ECX;
 /*
 	EAX = syswork_sel;
 	DS = AX;

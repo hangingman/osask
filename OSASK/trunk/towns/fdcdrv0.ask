@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" for TOWNS ver.0.9 copyright(C) 2001 H.Kawai(川合秀実)
+// "fdcdrv0.ask" for TOWNS ver.1.0 copyright(C) 2001 H.Kawai(川合秀実)
 
 segment FDC_Mdl(USE32, PARA);
 
@@ -33,6 +33,7 @@ void near FDC_format();
 void near FDC_writeIPL();
 void near FDC_format2();
 void near FDC_writeIPL2();
+void near FDC_MC_test4();
 
 void far FDC_syscmd()
 {
@@ -77,6 +78,9 @@ nextcmd:
 		goto cmd012c; // FDC_writeIPL(512)
 	if (EAX == 0x0018)
 		goto cmd0018; // バージョン要求
+	if (EAX == 0x00140)
+		goto cmd0140; /* リードトラック */
+
 
 	INT(0x03);
 
@@ -231,6 +235,26 @@ cmd0018:
 	cmd[16] = 0;
 	cmd[20] = 0;
 	(offset) cmd += 24;
+	goto nextcmd;
+
+cmd0140:
+	/* read track */
+	/* +00 : cmd, opt, priority, length(be 1), signal-header, signal */
+	/* +24 : cmd, opt, error-code, addr, track-no */
+	/* アドレスは物理アドレス */
+	/* 完了したことを報告させたかったら、そういうコマンドを後ろにつける */
+	/* シグナルヘッダもつけられるが、今は対応していない */
+	/* キャンセルした場合、どこまでが完了したのかは報告されない */
+	AL = cmd[40 /* track */];
+	ECX = cmd[20 /* signal */];
+	EDX = cmd[36 /* addr */];
+	(offset) cmd += 44;
+	PUSH((offset) cmd);
+	AH = AL;
+	AL /= 2;
+	AH &= 0x01;
+	FDC_MC_test4();
+	POP((offset) cmd);
 	goto nextcmd;
 }
 
@@ -468,7 +492,7 @@ void near FDC_MC_Finish()
 	return;
 }
 
-#if 0
+/*
 void near FDC_MC_WaitFdcInt()
 {
 	FDC_WORK *work == DS:0;
@@ -482,7 +506,7 @@ void near FDC_MC_WaitFdcInt()
 
 	return;
 }
-#endif
+*/
 
 void near FDC_MC_Seek()
 {
@@ -791,17 +815,14 @@ void near FDC_MC_test4()
 // AH:side番号(0 or 1), AL:シリンダー番号
 // 1trackロード for DOS(64KB境界に注意しているので効率アップ)
 // このバージョンではシークの必要があるときだけシークする
+/* 汎用レジスタ破壊。DSはworkに初期化されていることを前提にしている */
 {
 	FDC_WORK *work == DS:0;
 	int *cmd == DS:EBX, cmd_free == EBP;
 
-	PUSHAD();
-	CX = CS;
-	PUSH(DS);
-	CX += 8;
-	DS = CX;
 	PUSHFD();
 	CLI();
+	PUSH(ECX);
 
 	(offset) cmd = work->MC_ptr;
 	if ((unsigned) (offset) cmd == 0x0100) {
@@ -836,7 +857,7 @@ void near FDC_MC_test4()
 		ECX = work->TAPI_sendsignalsel;
 		cmd[16] = EAX;
 		cmd[20] = ECX;
-		EAX = [SS:ESP + 32];
+		EAX = [SS:ESP /* ECX */];
 		cmd[24] = 0x1241;
 		cmd[28] = EAX;
 		asmout("MOV DWORD PTR DS:[EBX+32],OFFSET FDC_MC_Finish");
@@ -847,10 +868,8 @@ void near FDC_MC_test4()
 		work->MC_free = cmd_free;
 	}
 
-	POPFD(); // 0
-
-	POP(DS); // 4
-	POPAD(); // 8
+	POP(ECX);
+	POPFD();
 	return;
 }
 

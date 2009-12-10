@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.8
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.9
 		copyright(C) 2001 川合秀実
 	exe2bin1 winman0 -s 96k	*/
 
@@ -10,11 +10,12 @@
    仕様もかなり流動的 */
 #include <stdlib.h>
 
-#define	AUTO_MALLOC			  0
-#define NULL				  0
-#define	MAX_WINDOWS			 80		// 80KB
-#define JOBLIST_SIZE		256		// 1KB
-#define	MAX_SOUNDTRACK		 16		// 0.5KB
+#define	AUTO_MALLOC			   0
+#define NULL				   0
+#define	MAX_WINDOWS		 	  80		// 8.1KB
+#define JOBLIST_SIZE		 256		// 1KB
+#define	MAX_SOUNDTRACK		  16		// 0.5KB
+#define	DEFSIGBUFSIZ		2048
 
 #define WINFLG_MUSTREDRAW		0x80000000	/* bit31 */
 #define WINFLG_OVERRIDEDISABLED	0x01000000	/* bit24 */
@@ -23,15 +24,16 @@
 
 #define	DEBUG	1
 
-struct DEFINESIGNAL {
-	int opt, res, dev, cod, len, sig[3];
+struct DEFINESIGNAL { // 32bytes
+	int win, opt, dev, cod, len, sig[3];
 };
 
-struct WM0_WINDOW {	// total 1KB
-	struct DEFINESIGNAL defsig[29]; // 928bytes
+struct WM0_WINDOW {	// total 104bytes
+//	struct DEFINESIGNAL defsig[29]; // 928bytes
 	struct SGG_WINDOW sgg; // 68bytes
-	struct DEFINESIGNAL *ds1;
+//	struct DEFINESIGNAL *ds1;
 	int condition, x0, y0, x1, y1, job_flag0, job_flag1;
+	int tx0, ty0, tx1, ty1; /* ウィンドウ移動のためのタブ */
 	struct WM0_WINDOW *up, *down;
 };
 
@@ -48,9 +50,8 @@ struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
 struct WM0_WINDOW *job_win;
 int job_count, job_int0, job_movewin4_ready = 0, mousescale = 1;
 int job_movewin_x, job_movewin_y, job_movewin_x0, job_movewin_y0;
+struct DEFINESIGNAL *defsigbuf;
 
-void lib_drawline(const int opt, const int reserve, const int color,
-	const int x0, const int y0, const int x1, const int y1);
 void init_screen(const int x, const int y);
 struct WM0_WINDOW *handle2window(const int handle);
 void chain_unuse(struct WM0_WINDOW *win);
@@ -85,6 +86,14 @@ void lib_drawletters_ASCII(const int opt, const int win, const int charset, cons
 	const int color, const int backcolor, const char *str);
 void debug_bin2hex(unsigned int i, unsigned char *s);
 
+void sgg_wm0_definesignal3(const int opt, const int device, int keycode,
+	const int sig0, const int sig1, const int sig2);
+void sgg_wm0_definesignal3sub(const int keycode);
+void sgg_wm0_definesignal3sub2(const int rawcode, const int shiftmap);
+void sgg_wm0_definesignal3sub3(const int rawcode, const int shiftmap);
+void sgg_wm0_definesignal3com();
+
+
 /* キー操作：
       F9:一番下のウィンドウへ
       F10:上から２番目のウィンドウを選択
@@ -92,6 +101,10 @@ void debug_bin2hex(unsigned int i, unsigned char *s);
       F12:ウィンドウクローズ */
 
 //int allclose = 0;
+
+static int tapisigvec[] = {
+	0x006c, 6 * 4, 0x011c /* cmd fot tapi */, 0, 0, 0x0000, 0x0000
+};
 
 void main()
 {
@@ -102,7 +115,7 @@ void main()
 		static int TOWNS_mouseinit[] = {
 			0x0064, 17 * 4, 0x0030 /* SetMouseParam */, 0x020d,
 			20 /* サンプリングレート 20ミリ秒 */,
-			0x08c8, 0x0060, /* TAPIのシグナル処理ベクタ(TAPI_SignalMessageTimer) */
+			0, 0, /* TAPIのシグナル処理ベクタ(TAPI_SignalMessageTimer) */
 			0x3245, 0x7f000004, 0x73756f6d, 0,
 			0x000d0019 /* wait0=25, wait1=13 */, 0x0f3f0f0f /* strobe */,
 			0x00000000, 0x000000, 0x0f0f0f3f, 0x00000030,
@@ -129,8 +142,17 @@ void main()
 	*(jobrp = jobwp = joblist) = 0; /* たまった仕事はない */
 	jobfree = JOBLIST_SIZE - 1;
 
+	defsigbuf = (struct DEFINESIGNAL *) malloc (DEFSIGBUFSIZ * sizeof (struct DEFINESIGNAL));
+	for (i = 0; i < DEFSIGBUFSIZ - 1; i++)
+		defsigbuf[i].win = NULL;
+	defsigbuf[DEFSIGBUFSIZ - 1].win = -1;
+
+	sgg_execcmd(tapisigvec);
+
 	#if (defined(TOWNS))
-		sgg_execcmd(&TOWNS_mouseinit);
+		TOWNS_mouseinit[5] = tapisigvec[3];
+		TOWNS_mouseinit[6] = tapisigvec[4];
+		sgg_execcmd(TOWNS_mouseinit);
 	#endif
 
 	for (;;) {
@@ -198,7 +220,7 @@ void main()
 			sgg_wm0_openwindow(&win->sgg, signal[1]);
 			signal += 2;
 			lib_waitsignal(0x0000, 2, 0);
-			win->ds1 = win->defsig;
+		//	win->ds1 = win->defsig;
 
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
@@ -238,21 +260,23 @@ void main()
 			       default-device, default-code, len(2), 0x7f000001, signal) */
 
 			win = handle2window(signal[2]);
-			if (win->ds1 < win->defsig
-				+ sizeof (win->defsig) / sizeof (struct DEFINESIGNAL)) {
-				struct DEFINESIGNAL *dsp = win->ds1;
-				dsp->opt = signal[1];
-				dsp->dev = signal[4];
-				dsp->cod = signal[5];
-				dsp->len = 2;
-				dsp->sig[0] = signal[7];
-				dsp->sig[1] = signal[8];
-				if (iactive == win) {
-					int sigbox = sgg_wm0_win2sbox(&win->sgg);
-					sgg_wm0_definesignal2(dsp->opt, dsp->dev,
-						dsp->cod, sigbox, dsp->sig[0], dsp->sig[1]);
+			{
+				struct DEFINESIGNAL *dsp;
+				for (dsp = defsigbuf; dsp->win != NULL && dsp->win != -1; dsp++);
+				if (dsp->win == NULL) {
+					dsp->win = (int) win;
+					dsp->opt = signal[1];
+					dsp->dev = signal[4];
+					dsp->cod = signal[5];
+					dsp->len = 2;
+					dsp->sig[0] = signal[7];
+					dsp->sig[1] = signal[8];
+					if (iactive == win) {
+						int sigbox = sgg_wm0_win2sbox(&win->sgg);
+						sgg_wm0_definesignal3(dsp->opt, dsp->dev,
+							dsp->cod, sigbox, dsp->sig[0], dsp->sig[1]);
+					}
 				}
-				win->ds1++;
 			}
 			signal += 9;
 			lib_waitsignal(0x0000, 9, 0);
@@ -280,9 +304,11 @@ void main()
 		case 0x0044: /* close sound track (handle) */
 			{
 				struct SOUNDTRACK *sndtrk = (struct SOUNDTRACK *) signal[1];
-				free_sndtrk(sndtrk);
 				signal += 2;
 				lib_waitsignal(0x0000, 2, 0);
+				/* close完了をしらせる */
+				send_signal2dw(sndtrk->sigbox, sndtrk->sigbase + 4 /* close */, sndtrk->slot);
+				free_sndtrk(sndtrk);
 				if (sndtrk == sndtrk_active) {
 					/* 違うやつをアクティブにする */
 					sndtrk = NULL;
@@ -430,51 +456,29 @@ void main()
 
 		default:
 		mikannsei:
-			lib_drawline(0x0020, -1, 0, 0, 0, 15, 15); /* ここに来たことを知らせる */
+			lib_drawline(0x0020, (void *) -1, 0, 0, 0, 15, 15); /* ここに来たことを知らせる */
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 		}
 	}
 }
 
-void lib_drawline(const int opt, const int reserve, const int color,
-	const int x0, const int y0, const int x1, const int y1)
-{
-	static struct {
-		int cmd, opt;
-		int reserve, color;
-		int x0, y0, x1, y1;
-		int eoc;
-	} command = { 0x0044, 0, -1, 0, 0, 0, 0, 0, 0x0000 };
-
-	command.opt = opt;
-//	command.reserve = reserve;
-	command.color = color;
-	command.x0 = x0;
-	command.y0 = y0;
- 	command.x1 = x1;
-	command.y1 = y1;
-
-	lib_execcmd(&command);
-	return;
-}
-
 void init_screen(const int x, const int y)
 {
-	lib_drawline(0x0020, -1,  6,      0,      0, x -  1, y - 29);
-	lib_drawline(0x0020, -1,  8,      0, y - 28, x -  1, y - 28);
-	lib_drawline(0x0020, -1, 15,      0, y - 27, x -  1, y - 27);
-	lib_drawline(0x0020, -1,  8,      0, y - 26, x -  1, y -  1);
-	lib_drawline(0x0020, -1, 15,      3, y - 24,     59, y - 24);
-	lib_drawline(0x0020, -1, 15,      2, y - 24,      2, y -  4);
-	lib_drawline(0x0020, -1,  7,      3, y -  4,     59, y -  4);
-	lib_drawline(0x0020, -1,  7,     59, y - 23,     59, y -  5);
-	lib_drawline(0x0020, -1,  0,      2, y -  3,     59, y -  3);
-	lib_drawline(0x0020, -1,  0,     60, y - 24,     60, y -  3);
-	lib_drawline(0x0020, -1,  7, x - 47, y - 24, x -  4, y - 24);
-	lib_drawline(0x0020, -1,  7, x - 47, y - 23, x - 47, y -  4);
-	lib_drawline(0x0020, -1, 15, x - 47, y -  3, x -  4, y -  3);
-	lib_drawline(0x0020, -1, 15, x -  3, y - 24, x -  3, y -  3);
+	lib_drawline(0x0020, (void *) -1,  6,      0,      0, x -  1, y - 29);
+	lib_drawline(0x0020, (void *) -1,  8,      0, y - 28, x -  1, y - 28);
+	lib_drawline(0x0020, (void *) -1, 15,      0, y - 27, x -  1, y - 27);
+	lib_drawline(0x0020, (void *) -1,  8,      0, y - 26, x -  1, y -  1);
+	lib_drawline(0x0020, (void *) -1, 15,      3, y - 24,     59, y - 24);
+	lib_drawline(0x0020, (void *) -1, 15,      2, y - 24,      2, y -  4);
+	lib_drawline(0x0020, (void *) -1,  7,      3, y -  4,     59, y -  4);
+	lib_drawline(0x0020, (void *) -1,  7,     59, y - 23,     59, y -  5);
+	lib_drawline(0x0020, (void *) -1,  0,      2, y -  3,     59, y -  3);
+	lib_drawline(0x0020, (void *) -1,  0,     60, y - 24,     60, y -  3);
+	lib_drawline(0x0020, (void *) -1,  7, x - 47, y - 24, x -  4, y - 24);
+	lib_drawline(0x0020, (void *) -1,  7, x - 47, y - 23, x - 47, y -  4);
+	lib_drawline(0x0020, (void *) -1, 15, x - 47, y -  3, x -  4, y -  3);
+	lib_drawline(0x0020, (void *) -1, 15, x -  3, y - 24, x -  3, y -  3);
 	sgg_wm0_putmouse(mx, my);
 	return;
 }
@@ -576,6 +580,44 @@ void mousesignal(const unsigned int header, int dx, int dy)
 			// bit3:always 1
 			// bit4:reserve(dx bit8)
 			// bit5:reserve(dy bit8)
+#if 0
+			// どのwindowをクリックしたのかを検出
+			if (win = top) {
+				do {
+					if (win->x0 <= mx && mx < win->x1 && win->y0 <= my && my < win->y1)
+						goto found_window;
+					win = win->down;
+				} while (win != top);
+				win = NULL;
+			}
+			if (win != NULL) {
+found_window:
+
+/*
+	tx0 = x0 +  3
+	ty0 = y0 +  3
+	tx1 = x1 -  4
+	ty1 = y0 + 21
+*/
+				if (win == top) {
+					/* ウィンドウタイトル部分のプレスか？ */
+						if (win->tx0 <= mx && mx < win->tx1 && win->ty0 <= my && my < win->ty0) {
+							/* title-barをプレスした */
+							if (jobfree >= 2) {
+								/* 空きが十分にある */
+								press_win = win;
+								press_pos = TITLE_BAR;
+								press_mx0 = mx;
+								press_my0 = my;
+								writejob(0x0028 /* move */);
+								writejob((int) win);
+								*jobwp = 0; /* ストッパー */
+							//	if (jobnow == 0)
+							//		runjobnext();
+							}
+						}
+#endif
+
 			if ((mbutton & 0x01) == 0x00 && (header & 0x01) == 0x01) {
 				// 左ボタンが押された
 
@@ -774,21 +816,25 @@ void job_openwin0(struct WM0_WINDOW *win)
 void redirect_input(struct WM0_WINDOW *win)
 {
 	// キー入力シグナルの対応づけを初期化
-	sgg_wm0_definesignal0(255, 0x0100, 0);
+//	sgg_wm0_definesignal0(255, 0x0100, 0);
+	sgg_wm0_definesignal3com();
 
 	// winman0のキー操作を登録(F9～F12)
-	sgg_wm0_definesignal2(3, 0x0100, 0x0089 /* F9 */,
+	sgg_wm0_definesignal3(3, 0x0100, 0x0089 /* F9 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0200);
-	sgg_wm0_definesignal2(1, 0x0100, 0x0081 /* F1 */,
+	sgg_wm0_definesignal3(1, 0x0100, 0x0081 /* F1 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
 
 	if (win) {
 		struct DEFINESIGNAL *dsp;
 		int sigbox = sgg_wm0_win2sbox(&win->sgg);
-		for (dsp = win->defsig; dsp < win->ds1; dsp++) {
-			if (dsp->len == 2)
-				sgg_wm0_definesignal2(dsp->opt, dsp->dev,
-					dsp->cod, sigbox, dsp->sig[0], dsp->sig[1]);
+		for (dsp = defsigbuf; dsp->win != -1; dsp++) {
+			if (dsp->win == (int) win) {
+				if (dsp->len == 2) {
+					sgg_wm0_definesignal3(dsp->opt, dsp->dev,
+						dsp->cod, sigbox, dsp->sig[0], dsp->sig[1]);
+				}
+			}
 		}
 	}
 	return;
@@ -836,7 +882,8 @@ void job_movewin0(struct WM0_WINDOW *win)
 	job_win = top /* win */;
 
 	// キー入力シグナルの対応づけを初期化
-	sgg_wm0_definesignal0(255, 0x0100, 0);
+//	sgg_wm0_definesignal0(255, 0x0100, 0);
+	sgg_wm0_definesignal3com();
 
 	// とりあえず、全てのウィンドウの画面更新権を一時的に剥奪する
 	job_count = 0;
@@ -879,9 +926,9 @@ void job_movewin1(const int cmd, const int handle)
 void job_movewin2()
 {
 	// シグナルを宣言(0x00d0～0x00d3, 0x00f0)
-	sgg_wm0_definesignal2(3, 0x0100, 0x00ac /* left */,
+	sgg_wm0_definesignal3(3, 0x0100, 0x00ac /* left */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x00d0);
-	sgg_wm0_definesignal2(0, 0x0100, 0x00a0 /* Enter */,
+	sgg_wm0_definesignal3(0, 0x0100, 0x00a0 /* Enter */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x00f0);
 
 	// 枠を描く
@@ -909,10 +956,10 @@ void job_movewin3()
 	x1 = x0 + win->x1 - win->x0 - 1;
 	y1 = y0 + win->y1 - win->y0 - 1;
 
-	lib_drawline(0x00e0, -1, 9, x0,     y0,     x1 - 3, y0 + 2);
-	lib_drawline(0x00e0, -1, 9, x0 + 3, y1 - 2, x1,     y1    );
-	lib_drawline(0x00e0, -1, 9, x0,     y0 + 3, x0 + 2, y1    );
-	lib_drawline(0x00e0, -1, 9, x1 - 2, y0,     x1,     y1 - 3);
+	lib_drawline(0x00e0, (void *) -1, 9, x0,     y0,     x1 - 3, y0 + 2);
+	lib_drawline(0x00e0, (void *) -1, 9, x0 + 3, y1 - 2, x1,     y1    );
+	lib_drawline(0x00e0, (void *) -1, 9, x0,     y0 + 3, x0 + 2, y1    );
+	lib_drawline(0x00e0, (void *) -1, 9, x1 - 2, y0,     x1,     y1 - 3);
 	return;
 }
 
@@ -973,7 +1020,7 @@ void job_movewin4(int sig)
 		} while ((win1 = win1->down) != win0);
 
 		// ウィンドウを消す
-		lib_drawline(0x0020, -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
+		lib_drawline(0x0020, (void *) -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
 
 		win0->x0 = x0;
 		win0->y0 = y0;
@@ -1031,21 +1078,26 @@ void job_closewin0(struct WM0_WINDOW *win0)
 	win_up->down = win_down;
 	win_down->up = win_up;	
 
-	// sgg_wm0s_windowclosed(&win0->sgg);
+	sgg_wm0s_windowclosed(&win0->sgg);
+
+	struct DEFINESIGNAL *dsp;
+	for (dsp = defsigbuf; dsp->win != -1; dsp++) {
+		if (dsp->win == (int) win0)
+			dsp->win = NULL;
+	}
 
 	job_count = 0;
 	jobfunc = &job_closewin1;
 
 #if 0
 	if (allclose) {
-		lib_drawline(0x0020, -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
+		lib_drawline(0x0020, (void *) -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
 		chain_unuse(win0);
 		allclose--;
 		return;
 	}
 #endif
 
-	/* ウィンドウを消す */
 	if (win0 == top) {
 		top = win_down;
 		if (win_up == win0) {
@@ -1075,7 +1127,7 @@ void job_closewin0(struct WM0_WINDOW *win0)
 no_window:
 
 	/* ウィンドウを消す */
-	lib_drawline(0x0020, -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
+	lib_drawline(0x0020, (void *) -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
 	chain_unuse(win0);
 	if (job_count == 0)
 		job_general1();
@@ -1174,8 +1226,8 @@ void job_general1()
 		}
 	} while ((win0 = win0->down) != bottom);
 
-	// redrawを予定しているウィンドウで、他のredraw予定ウィンドウとオーバーラップしているものは、
-	// 全てoverride-accessdisabledにする
+	/* redrawを予定しているウィンドウで、他のredraw予定ウィンドウとオーバーラップしているものは、
+		全てoverride-accessdisabledにする */
 	job_count = 0;
 	jobfunc = &job_general2;
 	win0 = top_;
@@ -1199,7 +1251,7 @@ void job_general1()
 			}
 		}
 	} while ((win0 = win0->down) != top_);
-	job_win = top_;
+	job_win = NULL;
 	if (job_count == 0)
 		job_general2(0, 0);
 	return;
@@ -1240,12 +1292,14 @@ error:
 	win = job_win;
 
 	if (win == top && win->job_flag0 == 0) {
-		// １周目でwin->job_flag0が0になることはない
+		/* １周目でwin->job_flag0が0になることもありうる */
 		// 全ての作業が完了
 		jobnow = 0;
 	//	jobfunc = NULL;
 		return;
 	}
+	if (win == NULL)
+		win = top;
 
 	do {
 		win = win->up;
@@ -1253,19 +1307,23 @@ error:
 		win->job_flag0 = 0;
 		if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01) && x2 != 0)
 			sgg_wm0s_accessenable(&win->sgg);
-	} while ((flag0 & WINFLG_MUSTREDRAW) == 0);
-
-	job_win = win;
-	if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == 0) {
-		sgg_wm0s_accessdisable(&win->sgg);
-		win->job_flag0 |= WINFLG_WAITDISABLE;
-		job_count = 1;
-	}
-	if ((flag0 & 0x03) != win->condition)
-		sgg_wm0s_setstatus(&win->sgg, win->condition = (flag0 & 0x03));
-	sgg_wm0s_redraw(&win->sgg);
-	win->job_flag0 |= WINFLG_WAITREDRAW;
-	job_count++;
+		if (flag0 & WINFLG_MUSTREDRAW) {
+			job_win = win;
+			if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == 0) {
+				sgg_wm0s_accessdisable(&win->sgg);
+				win->job_flag0 |= WINFLG_WAITDISABLE;
+				job_count = 1;
+			}
+			if ((flag0 & 0x03) != win->condition)
+				sgg_wm0s_setstatus(&win->sgg, win->condition = (flag0 & 0x03));
+			sgg_wm0s_redraw(&win->sgg);
+			win->job_flag0 |= WINFLG_WAITREDRAW;
+			job_count++;
+			return;
+		}
+	} while (win != top);
+	jobnow = 0;
+//	jobfunc = NULL;
 	return;
 }
 
@@ -1318,11 +1376,14 @@ void send_signal3dw(const int sigbox, const int data0, const int data1, const in
 	return;
 }
 
+void gapi_loadankfont();
+
 void job_openvgadriver(const int drv)
 {
 	// closeする時にすべてのウィンドウはdisableになっているはずなので、
 	// ここではdisableにはしない
 	sgg_wm0_gapicmd_0010_0000();
+	gapi_loadankfont();
 	jobnow = 0;
 	return;
 }
@@ -1491,3 +1552,765 @@ void debug_bin2hex(unsigned int i, unsigned char *s)
 }
 
 #endif
+
+static int defsig_signal[4] /* , defsig_opt */; /* サイズ縮小のため */
+
+void sgg_wm0_definesignal3(const int opt, const int device, int keycode,
+	const int sig0, const int sig1, const int sig2)
+{
+	int i = opt & 0x0fff;
+	int phase = (keycode >> 14) & 0x3;
+//	defsig_opt = opt;
+	defsig_signal[0] = sig0 | 0x02;
+	defsig_signal[1] = sig1;
+	defsig_signal[2] = sig2;
+	do {
+		sgg_wm0_definesignal3sub(keycode);
+		if (opt & 0x00008000)
+			defsig_signal[2] += 3;
+		defsig_signal[2]++;
+		if (opt & 0x00ff0000) {
+			do {
+				phase++;
+				if ((phase &= 0x3) == 0) {
+					keycode &= 0xffff3fff;
+					keycode++;
+				} else
+					keycode += 0x00004000;
+			} while (((opt >> phase) & 0x00010000) == 0);
+		} else
+			keycode++;
+	} while (i--);
+	return;
+/*
+
+・keysignal定義について
+  opt	bit 0-11 : 連続定義シグナル数
+		bit15	 : interval(+1か+4か)
+		bit16-19 : make/break/remake/overbreak
+				   これは、拡張モードへ移行するために必要
+				   すべてを0にすると、make|remakeというふうに扱われる
+				   もちろん、インクリメントの方針としても利用される
+				   スタートは、keycode内のbit30-31に書かれている
+*/
+
+}
+
+void sgg_wm0_definesignal3sub(const int keycode)
+/* 連続指定をサポートしない */
+/* デコードのみ(make/break/remakeの判定はしない) */
+{
+	#define	NOSHIFT		0	/* 0x0000c070 */
+	#define	SHIFT		1	/* 0x0010c070 */
+	#define	IGSHIFT		2	/* 0x0000c060 */
+	#define	CAPLKON		3	/* 0x0004c074, 0x0010c074 */
+	#define	CAPLKOF		4	/* 0x0000c074, 0x0014c074 */
+	#define	NUMLKON		5	/* 0x0002c072, 0x0010c072 */
+	#define	NUMLKOF		6	/* 0x0000c072, 0x0012c072 */
+	static struct {
+		int type0, type1;
+	} shifttype[] = {
+		{ 0x0000c070, 0 },
+		{ 0x0010c070, 0 },
+		{ 0x0000c060, 0 },
+		{ 0x0004c074, 0x0010c074 },
+		{ 0x0000c074, 0x0014c074 },
+		{ 0x0002c072, 0x0010c072 },
+		{ 0x0000c072, 0x0012c072 }
+	};
+	/* 入力方法テーブル(2通りまでサポート) */
+	static struct KEYTABLE {
+		unsigned char rawcode0, shifttype0;
+		unsigned char rawcode1, shifttype1;
+	} table[] = {
+		#if (defined(PCAT))
+			{ 0x39, NOSHIFT, 0xff, 0       } /* ' ' */,
+			{ 0x02, SHIFT,   0xff, 0       } /* '!' */,
+			{ 0x03, SHIFT,   0xff, 0       } /* '\x22' */,
+			{ 0x04, SHIFT,   0xff, 0       } /* '#' */,
+			{ 0x05, SHIFT,   0xff, 0       } /* '%' */,
+			{ 0x06, SHIFT,   0xff, 0       } /* '$' */,
+			{ 0x07, SHIFT,   0xff, 0       } /* '&' */,
+			{ 0x08, SHIFT,   0xff, 0       } /* '\x27' */,
+			{ 0x09, SHIFT,   0xff, 0       } /* '(' */,
+			{ 0x0a, SHIFT,   0xff, 0       } /* ')' */,
+			{ 0x28, SHIFT,   0x37, IGSHIFT } /* '*' */,
+			{ 0x27, SHIFT,   0x4e, IGSHIFT } /* '+' */,
+			{ 0x33, NOSHIFT, 0xff, 0       } /* ',' */,
+			{ 0x0c, NOSHIFT, 0x4a, IGSHIFT } /* '-' */,
+			{ 0x34, NOSHIFT, 0x53, NUMLKON } /* '.' */,
+			{ 0x35, NOSHIFT, 0xb5, IGSHIFT } /* '/' */,
+			{ 0x0b, NOSHIFT, 0x52, NUMLKON } /* '0' */,
+			{ 0x02, NOSHIFT, 0x4f, NUMLKON } /* '1' */,
+			{ 0x03, NOSHIFT, 0x50, NUMLKON } /* '2' */,
+			{ 0x04, NOSHIFT, 0x51, NUMLKON } /* '3' */,
+			{ 0x05, NOSHIFT, 0x4b, NUMLKON } /* '4' */,
+			{ 0x06, NOSHIFT, 0x4c, NUMLKON } /* '5' */,
+			{ 0x07, NOSHIFT, 0x4d, NUMLKON } /* '6' */,
+			{ 0x08, NOSHIFT, 0x47, NUMLKON } /* '7' */,
+			{ 0x09, NOSHIFT, 0x48, NUMLKON } /* '8' */,
+			{ 0x0a, NOSHIFT, 0x49, NUMLKON } /* '9' */,
+			{ 0x28, NOSHIFT, 0xff, 0       } /* ':' */,
+			{ 0x27, NOSHIFT, 0xff, 0       } /* ';' */,
+			{ 0x33, SHIFT,   0xff, 0       } /* '<' */,
+			{ 0x0c, SHIFT,   0xff, 0       } /* '=' */,
+			{ 0x34, SHIFT,   0xff, 0       } /* '>' */,
+			{ 0x35, SHIFT,   0xff, 0       } /* '?' */,
+			{ 0x1a, NOSHIFT, 0xff, 0       } /* '@' */,
+			{ 0x1e, CAPLKON, 0xff, 0       } /* 'A' */,
+			{ 0x30, CAPLKON, 0xff, 0       } /* 'B' */,
+			{ 0x2e, CAPLKON, 0xff, 0       } /* 'C' */,
+			{ 0x20, CAPLKON, 0xff, 0       } /* 'D' */,
+			{ 0x12, CAPLKON, 0xff, 0       } /* 'E' */,
+			{ 0x21, CAPLKON, 0xff, 0       } /* 'F' */,
+			{ 0x22, CAPLKON, 0xff, 0       } /* 'G' */,
+			{ 0x23, CAPLKON, 0xff, 0       } /* 'H' */,
+			{ 0x17, CAPLKON, 0xff, 0       } /* 'I' */,
+			{ 0x24, CAPLKON, 0xff, 0       } /* 'J' */,
+			{ 0x25, CAPLKON, 0xff, 0       } /* 'K' */,
+			{ 0x26, CAPLKON, 0xff, 0       } /* 'L' */,
+			{ 0x32, CAPLKON, 0xff, 0       } /* 'M' */,
+			{ 0x31, CAPLKON, 0xff, 0       } /* 'N' */,
+			{ 0x18, CAPLKON, 0xff, 0       } /* 'O' */,
+			{ 0x19, CAPLKON, 0xff, 0       } /* 'P' */,
+			{ 0x10, CAPLKON, 0xff, 0       } /* 'Q' */,
+			{ 0x13, CAPLKON, 0xff, 0       } /* 'R' */,
+			{ 0x1f, CAPLKON, 0xff, 0       } /* 'S' */,
+			{ 0x14, CAPLKON, 0xff, 0       } /* 'T' */,
+			{ 0x16, CAPLKON, 0xff, 0       } /* 'U' */,
+			{ 0x2f, CAPLKON, 0xff, 0       } /* 'V' */,
+			{ 0x11, CAPLKON, 0xff, 0       } /* 'W' */,
+			{ 0x2d, CAPLKON, 0xff, 0       } /* 'X' */,
+			{ 0x15, CAPLKON, 0xff, 0       } /* 'Y' */,
+			{ 0x2c, CAPLKON, 0xff, 0       } /* 'Z' */,
+			{ 0x1b, NOSHIFT, 0xff, 0       } /* '[' */,
+			{ 0x7d, NOSHIFT, 0x73, NOSHIFT } /* '\' */,
+			{ 0x2b, NOSHIFT, 0xff, 0       } /* ']' */,
+			{ 0x0d, NOSHIFT, 0xff, 0       } /* '^' */,
+			{ 0x73, SHIFT,   0xff, 0       } /* '_' */,
+			{ 0x1a, SHIFT,   0xff, 0       } /* '`' */,
+			{ 0x1e, CAPLKOF, 0xff, 0       } /* 'a' */,
+			{ 0x30, CAPLKOF, 0xff, 0       } /* 'b' */,
+			{ 0x2e, CAPLKOF, 0xff, 0       } /* 'c' */,
+			{ 0x20, CAPLKOF, 0xff, 0       } /* 'd' */,
+			{ 0x12, CAPLKOF, 0xff, 0       } /* 'e' */,
+			{ 0x21, CAPLKOF, 0xff, 0       } /* 'f' */,
+			{ 0x22, CAPLKOF, 0xff, 0       } /* 'g' */,
+			{ 0x23, CAPLKOF, 0xff, 0       } /* 'h' */,
+			{ 0x17, CAPLKOF, 0xff, 0       } /* 'i' */,
+			{ 0x24, CAPLKOF, 0xff, 0       } /* 'j' */,
+			{ 0x25, CAPLKOF, 0xff, 0       } /* 'k' */,
+			{ 0x26, CAPLKOF, 0xff, 0       } /* 'l' */,
+			{ 0x32, CAPLKOF, 0xff, 0       } /* 'm' */,
+			{ 0x31, CAPLKOF, 0xff, 0       } /* 'n' */,
+			{ 0x18, CAPLKOF, 0xff, 0       } /* 'o' */,
+			{ 0x19, CAPLKOF, 0xff, 0       } /* 'p' */,
+			{ 0x10, CAPLKOF, 0xff, 0       } /* 'q' */,
+			{ 0x13, CAPLKOF, 0xff, 0       } /* 'r' */,
+			{ 0x1f, CAPLKOF, 0xff, 0       } /* 's' */,
+			{ 0x14, CAPLKOF, 0xff, 0       } /* 't' */,
+			{ 0x16, CAPLKOF, 0xff, 0       } /* 'u' */,
+			{ 0x2f, CAPLKOF, 0xff, 0       } /* 'v' */,
+			{ 0x11, CAPLKOF, 0xff, 0       } /* 'w' */,
+			{ 0x2d, CAPLKOF, 0xff, 0       } /* 'x' */,
+			{ 0x15, CAPLKOF, 0xff, 0       } /* 'y' */,
+			{ 0x2c, CAPLKOF, 0xff, 0       } /* 'z' */,
+			{ 0x1b, SHIFT,   0xff, 0       } /* '{' */,
+			{ 0x7d, SHIFT,   0xff, 0       } /* '|' */,
+			{ 0x2b, SHIFT,   0xff, 0       } /* '}' */,
+			{ 0x0d, SHIFT,   0x0b, SHIFT   } /* '~' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x7f' */,
+			{ 0x01, NOSHIFT, 0xff, 0       } /* Esc */,
+			{ 0x3b, NOSHIFT, 0xff, 0       } /* F1 */,
+			{ 0x3c, NOSHIFT, 0xff, 0       } /* F2 */,
+			{ 0x3d, NOSHIFT, 0xff, 0       } /* F3 */,
+			{ 0x3e, NOSHIFT, 0xff, 0       } /* F4 */,
+			{ 0x3f, NOSHIFT, 0xff, 0       } /* F5 */,
+			{ 0x40, NOSHIFT, 0xff, 0       } /* F6 */,
+			{ 0x41, NOSHIFT, 0xff, 0       } /* F7 */,
+			{ 0x42, NOSHIFT, 0xff, 0       } /* F8 */,
+			{ 0x43, NOSHIFT, 0xff, 0       } /* F9 */,
+			{ 0x44, NOSHIFT, 0xff, 0       } /* F10 */,
+			{ 0x57, NOSHIFT, 0xff, 0       } /* F11 */,
+			{ 0x58, NOSHIFT, 0xff, 0       } /* F12 */,
+			{ 0xff, 0,       0xff, 0       } /* F13 */,
+			{ 0xff, 0,       0xff, 0       } /* F14 */,
+			{ 0xff, 0,       0xff, 0       } /* F15 */,
+			{ 0xff, 0,       0xff, 0       } /* F16 */,
+			{ 0xff, 0,       0xff, 0       } /* F17 */,
+			{ 0xff, 0,       0xff, 0       } /* F18 */,
+			{ 0xff, 0,       0xff, 0       } /* F19 */,
+			{ 0xff, 0,       0xff, 0       } /* F20 */,
+			{ 0xff, 0,       0xff, 0       } /* '\x95' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x96' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x97' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x98' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x99' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9a' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9b' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9c' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9d' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9e' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9f' */,
+			{ 0x1c, NOSHIFT, 0x9c, NOSHIFT } /* Enter */,
+			{ 0x0e, NOSHIFT, 0xff, 0       } /* BackSpace */,
+			{ 0x0f, NOSHIFT, 0xff, 0       } /* Tab */,
+			{ 0xff, 0,       0xff, 0       } /* '\xa3' */,
+			{ 0xd2, NOSHIFT, 0x52, NUMLKOF } /* Insert */,
+			{ 0xd3, NOSHIFT, 0x53, NUMLKOF } /* Delete */,
+			{ 0xc7, NOSHIFT, 0x47, NUMLKOF } /* Home */,
+			{ 0xcf, NOSHIFT, 0x4f, NUMLKOF } /* End */,
+			{ 0xc9, NOSHIFT, 0x49, NUMLKOF } /* PageUp */,
+			{ 0xd1, NOSHIFT, 0x51, NUMLKOF } /* PageDown */,
+			{ 0xff, 0,       0xff, 0       } /* '\xaa' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xab' */,
+			{ 0xcb, NOSHIFT, 0x4b, NUMLKOF } /* Left */,
+			{ 0xcd, NOSHIFT, 0x4d, NUMLKOF } /* Right */,
+			{ 0xc8, NOSHIFT, 0x48, NUMLKOF } /* Up */,
+			{ 0xd0, NOSHIFT, 0x50, NUMLKOF } /* Down */,
+			{ 0xff, 0,       0xff, 0       } /* ScrollLock */,
+			{ 0xff, 0,       0xff, 0       } /* NumLock */,
+			{ 0xff, 0,       0xff, 0       } /* CapsLock */,
+			{ 0xff, 0,       0xff, 0       } /* '\xb3' */,
+			{ 0xff, 0,       0xff, 0       } /* Shift */,
+			{ 0xff, 0,       0xff, 0       } /* Ctrl */,
+			{ 0xff, 0,       0xff, 0       } /* Alt */,
+			{ 0xff, 0,       0xff, 0       } /* '\xb7' */,
+			{ 0xff, 0,       0xff, 0       } /* PrintScreen */,
+			{ 0xff, 0,       0xff, 0       } /* Pause */,
+			{ 0xff, 0,       0xff, 0       } /* Break */,
+			{ 0xff, 0,       0xff, 0       } /* SysRq */,
+			{ 0xff, 0,       0xff, 0       } /* '\xbc' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xbd' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xbe' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xbf' */,
+			{ 0xff, 0,       0xff, 0       } /* Windows */,
+			{ 0xff, 0,       0xff, 0       } /* Menu */,
+			{ 0xff, 0,       0xff, 0       } /* Power */,
+			{ 0xff, 0,       0xff, 0       } /* Sleep */,
+			{ 0xff, 0,       0xff, 0       } /* Wake */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc5' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc6' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc7' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc8' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc9' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xca' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xcb' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xcc' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xcd' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xce' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xcf' */,
+			{ 0xff, 0,       0xff, 0       } /* Zenkaku */,
+			{ 0xff, 0,       0xff, 0       } /* Muhenkan */,
+			{ 0xff, 0,       0xff, 0       } /* Henkan */,
+			{ 0xff, 0,       0xff, 0       } /* Hiragana */
+		#endif
+		#if (defined(TOWNS))
+			{ 0x35, NOSHIFT, 0xff, 0       } /* ' ' */,
+			{ 0x02, SHIFT,   0xff, 0       } /* '!' */,
+			{ 0x03, SHIFT,   0x34, NOSHIFT } /* '\x22' */,
+			{ 0x04, SHIFT,   0xff, 0       } /* '#' */,
+			{ 0x05, SHIFT,   0xff, 0       } /* '%' */,
+			{ 0x06, SHIFT,   0xff, 0       } /* '$' */,
+			{ 0x07, SHIFT,   0xff, 0       } /* '&' */,
+			{ 0x08, SHIFT,   0xff, 0       } /* '\x27' */,
+			{ 0x09, SHIFT,   0xff, 0       } /* '(' */,
+			{ 0x0a, SHIFT,   0xff, 0       } /* ')' */,
+			{ 0x28, SHIFT,   0x36, NOSHIFT } /* '*' */,
+			{ 0x27, SHIFT,   0x38, NOSHIFT } /* '+' */,
+			{ 0x31, NOSHIFT, 0xff, 0       } /* ',' */,
+			{ 0x0c, NOSHIFT, 0x39, NOSHIFT } /* '-' */,
+			{ 0x32, NOSHIFT, 0x47, NOSHIFT } /* '.' */,
+			{ 0x33, NOSHIFT, 0x37, NOSHIFT } /* '/' */,
+			{ 0x0b, NOSHIFT, 0x46, NOSHIFT } /* '0' */,
+			{ 0x02, NOSHIFT, 0x42, NOSHIFT } /* '1' */,
+			{ 0x03, NOSHIFT, 0x43, NOSHIFT } /* '2' */,
+			{ 0x04, NOSHIFT, 0x44, NOSHIFT } /* '3' */,
+			{ 0x05, NOSHIFT, 0x3e, NOSHIFT } /* '4' */,
+			{ 0x06, NOSHIFT, 0x3f, NOSHIFT } /* '5' */,
+			{ 0x07, NOSHIFT, 0x40, NOSHIFT } /* '6' */,
+			{ 0x08, NOSHIFT, 0x3a, NOSHIFT } /* '7' */,
+			{ 0x09, NOSHIFT, 0x3b, NOSHIFT } /* '8' */,
+			{ 0x0a, NOSHIFT, 0x3c, NOSHIFT } /* '9' */,
+			{ 0x28, NOSHIFT, 0xff, 0       } /* ':' */,
+			{ 0x27, NOSHIFT, 0xff, 0       } /* ';' */,
+			{ 0x31, SHIFT,   0xff, 0       } /* '<' */,
+			{ 0x0c, SHIFT,   0x3d, NOSHIFT } /* '=' */,
+			{ 0x32, SHIFT,   0xff, 0       } /* '>' */,
+			{ 0x33, SHIFT,   0xff, 0       } /* '?' */,
+			{ 0x1b, NOSHIFT, 0xff, 0       } /* '@' */,
+			{ 0x1e, CAPLKON, 0xff, 0       } /* 'A' */,
+			{ 0x2e, CAPLKON, 0xff, 0       } /* 'B' */,
+			{ 0x2c, CAPLKON, 0xff, 0       } /* 'C' */,
+			{ 0x20, CAPLKON, 0xff, 0       } /* 'D' */,
+			{ 0x13, CAPLKON, 0xff, 0       } /* 'E' */,
+			{ 0x21, CAPLKON, 0xff, 0       } /* 'F' */,
+			{ 0x22, CAPLKON, 0xff, 0       } /* 'G' */,
+			{ 0x23, CAPLKON, 0xff, 0       } /* 'H' */,
+			{ 0x18, CAPLKON, 0xff, 0       } /* 'I' */,
+			{ 0x24, CAPLKON, 0xff, 0       } /* 'J' */,
+			{ 0x25, CAPLKON, 0xff, 0       } /* 'K' */,
+			{ 0x26, CAPLKON, 0xff, 0       } /* 'L' */,
+			{ 0x30, CAPLKON, 0xff, 0       } /* 'M' */,
+			{ 0x2f, CAPLKON, 0xff, 0       } /* 'N' */,
+			{ 0x19, CAPLKON, 0xff, 0       } /* 'O' */,
+			{ 0x1a, CAPLKON, 0xff, 0       } /* 'P' */,
+			{ 0x1a, CAPLKON, 0xff, 0       } /* 'Q' */,
+			{ 0x14, CAPLKON, 0xff, 0       } /* 'R' */,
+			{ 0x1f, CAPLKON, 0xff, 0       } /* 'S' */,
+			{ 0x15, CAPLKON, 0xff, 0       } /* 'T' */,
+			{ 0x17, CAPLKON, 0xff, 0       } /* 'U' */,
+			{ 0x2d, CAPLKON, 0xff, 0       } /* 'V' */,
+			{ 0x12, CAPLKON, 0xff, 0       } /* 'W' */,
+			{ 0x2b, CAPLKON, 0xff, 0       } /* 'X' */,
+			{ 0x16, CAPLKON, 0xff, 0       } /* 'Y' */,
+			{ 0x2a, CAPLKON, 0xff, 0       } /* 'Z' */,
+			{ 0x1c, NOSHIFT, 0xff, 0       } /* '[' */,
+			{ 0x0e, NOSHIFT, 0xff, 0       } /* '\' */,
+			{ 0x29, NOSHIFT, 0xff, 0       } /* ']' */,
+			{ 0x0d, NOSHIFT, 0xff, 0       } /* '^' */,
+			{ 0x34, SHIFT,   0xff, 0       } /* '_' */,
+			{ 0x1b, SHIFT,   0xff, 0       } /* '`' */,
+			{ 0x1e, CAPLKOF, 0xff, 0       } /* 'a' */,
+			{ 0x2e, CAPLKOF, 0xff, 0       } /* 'b' */,
+			{ 0x2c, CAPLKOF, 0xff, 0       } /* 'c' */,
+			{ 0x20, CAPLKOF, 0xff, 0       } /* 'd' */,
+			{ 0x13, CAPLKOF, 0xff, 0       } /* 'e' */,
+			{ 0x21, CAPLKOF, 0xff, 0       } /* 'f' */,
+			{ 0x22, CAPLKOF, 0xff, 0       } /* 'g' */,
+			{ 0x23, CAPLKOF, 0xff, 0       } /* 'h' */,
+			{ 0x18, CAPLKOF, 0xff, 0       } /* 'i' */,
+			{ 0x24, CAPLKOF, 0xff, 0       } /* 'j' */,
+			{ 0x25, CAPLKOF, 0xff, 0       } /* 'k' */,
+			{ 0x26, CAPLKOF, 0xff, 0       } /* 'l' */,
+			{ 0x30, CAPLKOF, 0xff, 0       } /* 'm' */,
+			{ 0x2f, CAPLKOF, 0xff, 0       } /* 'n' */,
+			{ 0x19, CAPLKOF, 0xff, 0       } /* 'o' */,
+			{ 0x1a, CAPLKOF, 0xff, 0       } /* 'p' */,
+			{ 0x11, CAPLKOF, 0xff, 0       } /* 'q' */,
+			{ 0x14, CAPLKOF, 0xff, 0       } /* 'r' */,
+			{ 0x1f, CAPLKOF, 0xff, 0       } /* 's' */,
+			{ 0x15, CAPLKOF, 0xff, 0       } /* 't' */,
+			{ 0x17, CAPLKOF, 0xff, 0       } /* 'u' */,
+			{ 0x2d, CAPLKOF, 0xff, 0       } /* 'v' */,
+			{ 0x12, CAPLKOF, 0xff, 0       } /* 'w' */,
+			{ 0x2b, CAPLKOF, 0xff, 0       } /* 'x' */,
+			{ 0x16, CAPLKOF, 0xff, 0       } /* 'y' */,
+			{ 0x2a, CAPLKOF, 0xff, 0       } /* 'z' */,
+			{ 0x1c, SHIFT,   0xff, 0       } /* '{' */,
+			{ 0x0e, SHIFT,   0xff, 0       } /* '|' */,
+			{ 0x29, SHIFT,   0xff, 0       } /* '}' */,
+			{ 0x0d, SHIFT,   0xff, 0       } /* '~' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x7f' */,
+			{ 0x01, NOSHIFT, 0xff, 0       } /* Esc */,
+			{ 0x5d, NOSHIFT, 0xff, 0       } /* F1 */,
+			{ 0x5e, NOSHIFT, 0xff, 0       } /* F2 */,
+			{ 0x5f, NOSHIFT, 0xff, 0       } /* F3 */,
+			{ 0x60, NOSHIFT, 0xff, 0       } /* F4 */,
+			{ 0x61, NOSHIFT, 0xff, 0       } /* F5 */,
+			{ 0x62, NOSHIFT, 0xff, 0       } /* F6 */,
+			{ 0x63, NOSHIFT, 0xff, 0       } /* F7 */,
+			{ 0x64, NOSHIFT, 0xff, 0       } /* F8 */,
+			{ 0x65, NOSHIFT, 0xff, 0       } /* F9 */,
+			{ 0x66, NOSHIFT, 0xff, 0       } /* F10 */,
+			{ 0x69, NOSHIFT, 0xff, 0       } /* F11 */,
+			{ 0x5b, NOSHIFT, 0xff, 0       } /* F12 */,
+			{ 0xff, 0,       0xff, 0       } /* F13 */,
+			{ 0xff, 0,       0xff, 0       } /* F14 */,
+			{ 0xff, 0,       0xff, 0       } /* F15 */,
+			{ 0xff, 0,       0xff, 0       } /* F16 */,
+			{ 0xff, 0,       0xff, 0       } /* F17 */,
+			{ 0xff, 0,       0xff, 0       } /* F18 */,
+			{ 0xff, 0,       0xff, 0       } /* F19 */,
+			{ 0xff, 0,       0xff, 0       } /* F20 */,
+			{ 0xff, 0,       0xff, 0       } /* '\x95' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x96' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x97' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x98' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x99' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9a' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9b' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9c' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9d' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9e' */,
+			{ 0xff, 0,       0xff, 0       } /* '\x9f' */,
+			{ 0x1d, NOSHIFT, 0x45, NOSHIFT } /* Enter */,
+			{ 0x0f, NOSHIFT, 0xff, 0       } /* BackSpace */,
+			{ 0x10, NOSHIFT, 0xff, 0       } /* Tab */,
+			{ 0xff, 0,       0xff, 0       } /* '\xa3' */,
+			{ 0x48, NOSHIFT, 0xff, 0       } /* Insert */,
+			{ 0x4b, NOSHIFT, 0xff, 0       } /* Delete */,
+			{ 0x4e, NOSHIFT, 0xe1, NOSHIFT } /* Home */,
+			{ 0xe2, NOSHIFT, 0xff, 0       } /* End */,
+			{ 0x6e, NOSHIFT, 0xff, 0       } /* PageUp */,
+			{ 0x70, NOSHIFT, 0x51, 0       } /* PageDown */,
+			{ 0xff, 0,       0xff, 0       } /* '\xaa' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xab' */,
+			{ 0x4f, NOSHIFT, 0xff, 0       } /* Left */,
+			{ 0x51, NOSHIFT, 0xff, 0       } /* Right */,
+			{ 0x4d, NOSHIFT, 0xff, 0       } /* Up */,
+			{ 0x50, NOSHIFT, 0xff, 0       } /* Down */,
+			{ 0xff, 0,       0xff, 0       } /* ScrollLock */,
+			{ 0xff, 0,       0xff, 0       } /* NumLock */,
+			{ 0xff, 0,       0xff, 0       } /* CapsLock */,
+			{ 0xff, 0,       0xff, 0       } /* '\xb3' */,
+			{ 0xff, 0,       0xff, 0       } /* Shift */,
+			{ 0xff, 0,       0xff, 0       } /* Ctrl */,
+			{ 0xff, 0,       0xff, 0       } /* Alt */,
+			{ 0xff, 0,       0xff, 0       } /* '\xb7' */,
+			{ 0xff, 0,       0xff, 0       } /* PrintScreen */,
+			{ 0xff, 0,       0xff, 0       } /* Pause */,
+			{ 0xff, 0,       0xff, 0       } /* Break */,
+			{ 0xff, 0,       0xff, 0       } /* SysRq */,
+			{ 0xff, 0,       0xff, 0       } /* '\xbc' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xbd' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xbe' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xbf' */,
+			{ 0xff, 0,       0xff, 0       } /* Windows */,
+			{ 0xff, 0,       0xff, 0       } /* Menu */,
+			{ 0xff, 0,       0xff, 0       } /* Power */,
+			{ 0xff, 0,       0xff, 0       } /* Sleep */,
+			{ 0xff, 0,       0xff, 0       } /* Wake */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc5' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc6' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc7' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc8' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xc9' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xca' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xcb' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xcc' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xcd' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xce' */,
+			{ 0xff, 0,       0xff, 0       } /* '\xcf' */,
+			{ 0xff, 0,       0xff, 0       } /* Zenkaku */,
+			{ 0xff, 0,       0xff, 0       } /* Muhenkan */,
+			{ 0xff, 0,       0xff, 0       } /* Henkan */,
+			{ 0xff, 0,       0xff, 0       } /* Hiragana */
+		#endif
+	};
+
+	if ((keycode & 0xfffff000) == 0) {
+		/* 従来通りの指定 */
+		if (' ' <= keycode && keycode <= 0xd3) {
+			struct KEYTABLE *kt = &table[keycode - ' '];
+			int rawcode, st, shiftmap;
+			if ((rawcode = kt->rawcode0) != 0xff) {
+				shiftmap = shifttype[st = kt->shifttype0].type0;
+				sgg_wm0_definesignal3sub3(rawcode, shiftmap);
+				sgg_wm0_definesignal3sub3(rawcode, shiftmap | 0x80000000);
+				if (shiftmap = shifttype[st].type1) {
+					sgg_wm0_definesignal3sub3(rawcode, shiftmap);
+					sgg_wm0_definesignal3sub3(rawcode, shiftmap | 0x80000000);
+				}
+				if ((rawcode = kt->rawcode1) != 0xff) {
+					shiftmap = shifttype[st = kt->shifttype1].type0;
+					sgg_wm0_definesignal3sub3(rawcode, shiftmap);
+					sgg_wm0_definesignal3sub3(rawcode, shiftmap | 0x80000000);
+					if (shiftmap = shifttype[st].type1) {
+						sgg_wm0_definesignal3sub3(rawcode, shiftmap);
+						sgg_wm0_definesignal3sub3(rawcode, shiftmap | 0x80000000);
+					}
+				}
+			}
+		}
+	} else {
+		int shiftmap = ((keycode >> 16) & 0x000000ff) | ((keycode >> 8) & 0x00ff0000)
+					  | ((keycode << 16) & 0xc0000000) | 0x0000c000;
+		int rawcode = keycode & 0x00003fff;
+		if (' ' + 0x1000 <= rawcode && rawcode <= 0x10d3) {
+			struct KEYTABLE *kt = &table[rawcode - (' ' + 0x1000)];
+			if ((rawcode = kt->rawcode0) != 0xff)
+				sgg_wm0_definesignal3sub3(rawcode, shiftmap);
+		} else if (' ' + 0x2000 <= rawcode && rawcode <= 0x20d3) {
+			struct KEYTABLE *kt = &table[rawcode - (' ' + 0x2000)];
+			if ((rawcode = kt->rawcode1) != 0xff)
+				sgg_wm0_definesignal3sub3(rawcode, shiftmap);
+		}
+	}
+	return;
+}
+
+/*
+void sgg_wm0_definesignal3sub2(const int rawcode, const int shiftmap)
+{
+	if ((defsig_opt & 0x00ff0000) == 0)
+		sgg_wm0_definesignal3sub3(rawcode, shiftmap | 0x80000000);
+	sgg_wm0_definesignal3sub3(rawcode, shiftmap);
+	return;
+}
+*/
+
+void sgg_wm0_definesignal3sub3(const int rawcode, const int shiftmap)
+{
+	/* cmd, opt(len), rawコード, shift-lock-bitmap(mask, equal), subcmd,... */
+	static struct {
+		int cmd, length;
+		int deccmd[10];
+		int eoc;
+	} command = {
+		0x0068, 12 * 4, {
+			0x010c /* define */,
+			7      /* opt(len) */,
+			0      /* rawcode */,
+			0      /* shiftmap */,
+			0      /* vector(ofs) */,
+			0      /* vector(sel), cmd, len */,
+			0      /* signal[0] */,
+			0      /* signal[1] */,
+			0      /* signal[2] */,
+			0x0000 /* EOC */
+		}, 0 /* EOC */
+	};
+	command.deccmd[2] = rawcode;
+	command.deccmd[3] = shiftmap;
+	command.deccmd[4] = tapisigvec[3] /* ofs */;
+	command.deccmd[5] = 0x03030000 | tapisigvec[4] /* sel */;
+	command.deccmd[6] = defsig_signal[0];
+	command.deccmd[7] = defsig_signal[1];
+	command.deccmd[8] = defsig_signal[2];
+	sgg_execcmd(&command);
+	return;
+}
+
+void sgg_wm0_definesignal3com()
+{
+	#if (defined(PCAT))
+		static struct {
+			int cmd, length;
+			int deccmd[6 * 16 + 3];
+			int eoc;
+		} command = {
+			0x0068, 101 * 4, {
+				0x0110     /* clear */,
+				0          /* opt */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x46       /* rawcode(ScrollLock) */,
+				0x0000c070 /* shiftmap */,
+				0x0001     /* xor bit */,
+				0x00060000 /* cmd(xor) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x45       /* rawcode(NumLock) */,
+				0x0000c070 /* shiftmap */,
+				0x0002     /* xor bit */,
+				0x00060000 /* cmd(xor) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x3a       /* rawcode(CapsLock) */,
+				0x0010c070 /* shiftmap */,
+				0x0004     /* xor bit */,
+				0x00060000 /* cmd(xor) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x2a       /* rawcode(left-Shift) */,
+				0x0000c000 /* shiftmap */,
+				0x0010     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x2a       /* rawcode(left-Shift) */,
+				0x4000c000 /* shiftmap */,
+				~0x0010    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x36       /* rawcode(right-Shift) */,
+				0x0000c000 /* shiftmap */,
+				0x0010     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x36       /* rawcode(right-Shift) */,
+				0x4000c000 /* shiftmap */,
+				~0x0010    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x1d       /* rawcode(left-Ctrl) */,
+				0x0000c000 /* shiftmap */,
+				0x0020     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x1d       /* rawcode(left-Ctrl) */,
+				0x4000c000 /* shiftmap */,
+				~0x0020    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x9d       /* rawcode(right-Ctrl) */,
+				0x0000c000 /* shiftmap */,
+				0x0020     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x9d       /* rawcode(right-Ctrl) */,
+				0x4000c000 /* shiftmap */,
+				~0x0020    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x38       /* rawcode(left-Alt) */,
+				0x0000c000 /* shiftmap */,
+				0x0040     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x38       /* rawcode(left-Alt) */,
+				0x4000c000 /* shiftmap */,
+				~0x0040    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0xb8       /* rawcode(right-Alt) */,
+				0x0000c000 /* shiftmap */,
+				0x0040     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0xb8       /* rawcode(right-Alt) */,
+				0x4000c000 /* shiftmap */,
+				~0x0040    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0xd3       /* rawcode(Deletele) */,
+				0x0060c070 /* shiftmap */,
+				0          /* reserve */,
+				0x00380000 /* cmd(reset) */,
+
+				0x0000 /* EOC */
+			}, 0x0000 /* EOC */
+		};
+	#endif
+	#if (defined(TOWNS))
+		static struct {
+			int cmd, length;
+			int deccmd[6 * 8 + 3];
+			int eoc;
+		} command = {
+			0x0068, 53 * 4, {
+				0x0110     /* clear */,
+				0          /* opt */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x55       /* rawcode(CapsLock) */,
+				0x0000c070 /* shiftmap */,
+				0x0004     /* xor bit */,
+				0x00060000 /* cmd(xor) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x53       /* rawcode(Shift) */,
+				0x0000c000 /* shiftmap */,
+				0x0010     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x53       /* rawcode(Shift) */,
+				0x4000c000 /* shiftmap */,
+				~0x0010    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x52       /* rawcode(Ctrl) */,
+				0x0000c000 /* shiftmap */,
+				0x0020     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x52       /* rawcode(Ctrl) */,
+				0x4000c000 /* shiftmap */,
+				~0x0020    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x5c       /* rawcode(Alt) */,
+				0x0000c000 /* shiftmap */,
+				0x0040     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x5c       /* rawcode(Alt) */,
+				0x4000c000 /* shiftmap */,
+				~0x0040    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x4b       /* rawcode(Deletele) */,
+				0x0060c070 /* shiftmap */,
+				0          /* reserve */,
+				0x00380000 /* cmd(reset) */,
+
+				0x0000 /* EOC */
+			}, 0x0000 /* EOC */
+		};
+	#endif
+
+	sgg_execcmd(&command);
+	return;
+}
+
+/*
+・keysignal定義について
+  opt	bit 0-11 : 連続定義シグナル数
+		bit15	 : interval(+1か+4か)
+		bit16-17 : make/break/remake/overbreak
+		bit20-23 : インクリメント時のmake/break/remake/overbreak
+				   オール0かつインクリメント、というのは許さない
+					bit16-23が0の場合、従来通りの扱いになる
+
+  keycode bit12-14 : 000:キーコード指定
+					 001:コードではなくキー指定（第一キー）
+					 010:コードではなくキー指定（第二キー）
+					 100:コードではなくキー指定（第三キー）
+		  bit15    : bit16-31は有効(bit12-14がノンゼロなら有効に決まっているじゃないか)
+		  bit16-23 : shiftマスク
+		  bit24-31 : shift比較
+*/
+
+void gapi_loadankfont()
+{
+	static struct {
+		int cmd, length;
+		int gapicmd[8];
+		int eoc;
+	} command = {
+		0x0050, 10 * 4, {
+			0x0104 /* loadfont */,
+			0x0000 /* opt */,
+			0x0000 /* type */,
+			0x0100 /* len */,
+			0x1000 /* to */,
+			0x0000 /* from(ofs) */,
+			7 * 8  /* from(sel) */,
+			0x0000 /* EOC */
+		}, 0 /* EOC */
+	};
+	sgg_execcmd(&command);
+	return;
+}

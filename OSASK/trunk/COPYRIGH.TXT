@@ -1,7 +1,7 @@
 
-    sb12 の著作権情報
+    sb13 の著作権情報
 
-  このアーカイブに含まれるファイルは、以下の32個です。
+  このアーカイブに含まれるファイルは、以下の42個です。
 
 ・BASE/
     BASEHEAD.ASM
@@ -21,15 +21,25 @@
     SYSGG00.OPT
 ・PCAT/
     BASE.EXE
-    TIMERDRV.ASK
-    TIMERDRV.BIN
     WINMAN0.BIN
+    DECODE0.ASK
+    DECODE0.BIN
+    FDCDRV0.ASK
+    FDCDRV0.BIN
+    VGADRV0.ASK
+    VGADRV0.BIN
 ・TOWNS/
     BASE.EXE
-    TIMERDRV.ASK
-    TIMERDRV.BIN
     WINMAN0.BIN
+    DECODE0.ASK
+    DECODE0.BIN
+    FDCDRV0.ASK
+    FDCDRV0.BIN
+    VGADRV0.ASK
+    VGADRV0.BIN
 ・OSALINK0.OPT
+・PAPI0.ASK
+・PAPI0.BIN
 ・PIONEER0.ASK
 ・PIONEER0.BIN
 ・WINMAN0.C
@@ -41,6 +51,9 @@
 ・DOCUMENT.TXT
 
   これらの著作権は以下の人々にあります。
+
+・ODPさん （VGADRV0.ASK、VGADRV0.BINの一部）
+    e-mail  shoe16@wizard.elec.waseda.ac.jp
 
 ・小柳雅明さん （POKON0.C、POKON0.BINの一部）
     URL     http://homepage1.nifty.com/dreaming/
