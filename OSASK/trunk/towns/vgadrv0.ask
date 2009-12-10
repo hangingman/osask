@@ -1,16 +1,16 @@
-/* "VGADRV0.ASK" for TOWNS ver.1.1 copyright(C) 2002 êÏçáèGé¿, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.1.2 copyright(C) 2002 êÏçáèGé¿, I.Tak. */
 
 /* TWVSW is... TOWNS Vertial Screen Width! */
-//#define TWVSW 	1024	/* must be multiple of 8 */
+#define TWVSW 	1024	/* must be multiple of 8 */
 
-#if (TWVSW & (TWVSW-1))	/* TWVSW is not 0 nor power of 2. */
-	#undef  TWVSWlog2	/*  ÅIóvÇÁÇ»Ç¢Ç©Ç‡ÅI */
+#if (TWVSW & (TWVSW - 1))	/* TWVSW is not 0 nor power of 2. */
+	#undef  TWVSWlog2
 	#define IMUL_TWVSW(reg)		IMUL(reg, TWVSW);
-	#define	CRTC28	0x803f	/* 0x800f(TWVSW == 1024) */
+	#define CRTC28	0x803f
 #else
-	#define TWVSWlog2 10	/* log2(TWVSW) */
+	#define TWVSWlog2 10		/* log2(TWVSW) */
 	#define IMUL_TWVSW(reg)		reg *= TWVSW;
-	#define	CRTC28	0x800f	/* (TWVSW != 1024) */
+	#define CRTC28	0x800f
 #endif
 
 segment GapiMdl(USE32, PARA);
@@ -487,7 +487,7 @@ opt3:
 			ECX--;
 		} while (!= 0);
 		POP(ECX);
-		ESI -= TWVSW * 16 - 8;
+		ESI -= TWVSW * 8 - 8;
 		ECX--;
 	} while (!= 0);
 	(offset) cmd = (offset) string;
@@ -2739,7 +2739,7 @@ skip_imul:
 				IMUL(sy, TWVSW / 8);
 				EBP /= 8;
 				haj &= 7;
-				EBP += sy; /* FA = yyyyyyyy:yxxxxxxxb */
+				EBP + = sy; /* FA = yyyyyyyy:yxxxxxxxb */
 		 	#endif
 			NEG(haj);
 			EDX = 0x0440;

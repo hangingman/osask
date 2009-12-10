@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.0
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.1
     copyright(C) 2002 H.Kawai (川合秀実), I.Tak. */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -141,6 +141,8 @@ void far cmd000()
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
 
+	(int) [SS:ESP + 16 /* EBX */] = (offset) cmd;
+
 	/* 待機中の割り込みを検査 */
 	if (work->nest == 0) { /* 割り込みはマスクされていない */
 		if (work->signalbox_read_free != 0) { /* バッファにシグナルがある */
@@ -231,7 +233,7 @@ void far cmd000()
 	/* 何もないので、普通の正常終了 */
 	LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更しない) */
 	DB(0x9a); DD(0); DW(0x0017); /* shell-call */
-	(int) [SS:ESP + 16 /* EBX */] = (offset) cmd;
+//	(int) [SS:ESP + 16 /* EBX */] = (offset) cmd;
 	CMP(EAX, EAX); /* ZF = 1, CF = 0 */
 	POPAD();
 	return;
@@ -958,25 +960,30 @@ void near cmd028()
 	cmd0028_textbox->chain_back = ECX;
 	cmd0028_textbox->chain_next = EAX;
 	EAX = cmd[ 4]; // opt
-	ECX = cmd[12]; // 
+	ECX = cmd[12]; // bcolor
 	TEST(AL, 0x01);
 	if (== 0) {
 		ECX = 0x0008;
 		// titleの時は、アクティブかどうかによって色が変わるので、初期値を設定しない
 	}
-	cmd0028_textbox->option = EAX;
 	cmd0028_textbox->backcolor = ECX;
+	EDX = cmd[24]; // x0
+	ECX = cmd[28]; // y0
+	EDX += cmd0028_win->x_ofs;
+	ECX += cmd0028_win->y_ofs;
+	TEST(AH, 0xf0);
+	if (!= 0) {
+		EDX = 24;
+		ECX =  4;
+	}
+	cmd0028_textbox->x0 = EDX;
+	cmd0028_textbox->y0 = ECX;
+	cmd0028_textbox->option = EAX;
 	cmd0028_textbox->window = (offset) cmd0028_win;
 	EAX = cmd[16]; // x_size(キャラクター数)
 	ECX = cmd[20]; // y_size(キャラクター数)
 	cmd0028_textbox->x_size = EAX;
 	cmd0028_textbox->y_size = ECX;
-	EAX = cmd[24]; // x0
-	ECX = cmd[28]; // y0
-	EAX += cmd0028_win->x_ofs;
-	ECX += cmd0028_win->y_ofs;
-	cmd0028_textbox->x0 = EAX;
-	cmd0028_textbox->y0 = ECX;
 	EDX = cmd[36]; // キャラクターセット(slot-no)
 	ECX = cmd[40]; // space code.
 	(offset) cmd += 44;
@@ -1230,130 +1237,184 @@ void near cmd034()
 
 void near cmd040()
 // put string
+/* bit0 : bcolor */
+/* bit1 : color-font */
+/* bit6 : far-ptr */
 {
-	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
+	WINDOW *win == DS:EDI;
+	TEXTBOX *textbox == DS:EBX;
+	TEXTBOX *textbox2 == DS:ECX;
 
-	WINDOW *cmd0040_win == DS:EDI;
-	TEXTBOX *cmd0040_textbox == DS:EBX;
-	(offset) cmd0040_textbox = cmd[16];
+	PUSH(ES);
+	PUSH(DS);
+	(offset) textbox = cmd[16];
 	EAX = cmd[12]; // y_pos
-	MUL(cmd0040_textbox->x_size);
-	EAX += cmd[ 8]; // x_pos
-	EDX = cmd0040_textbox->backcolor;
-	CL = (char) cmd[4]; /* option */
-	TEST(CL, 0x01);
-	if (!= 0) {
+	POP(ES);
+	EDI = cmd[ 8]; // x_pos
+	MUL(textbox->x_size);
+	PUSH(EBP);
+	ESP -= 52;
+	EAX += EDI; // x_pos
+	EBP = ESP;
+	EDX = cmd[12]; // y_pos
+	ECX = textbox->option;
+	EDX *= 8;
+	EDI *= 8;
+	TEST(CL, 0x10); // option
+	if (== 0)
+		EDX *= 2;
+	EDI += textbox->x0;
+	EDX += textbox->y0;
+	(int) [SS:EBP + 12] = EDI; /* x0 */
+	(int) [SS:EBP + 16] = EDX; /* y0 */
+	EDI = textbox->charset;
+	(int) [SS:EBP +  4] = 0x3000; /* option */
+	(int) [SS:EBP + 28] = EDI; /* charset */
+	(offset) win = textbox->window;
+	EDX = textbox->backcolor;
+	PUSH((offset) textbox);
+	LEA(EBX, [(offset) textbox + EAX * 8 + 64]); /* これ以降textboxは使えない */
+	EAX = cmd[ 4]; /* option */
+	TEST(AL, 0x01);
+	if (!= 0)
 		EDX = cmd[24]; // back_color
+	TEST(CL, 0x10); /* half height */
+	if (!= 0)
+		(char) [SS:EBP +  4] = 0x01; /* option */
+	TEST(CH, 0xf0);
+	ECX = cmd[20]; /* color */
+	if (!= 0) {
+		/* to wintitle */
+		PUSH(EAX);
+		EAX = win->mode0;
+	//	(int) [SS:EBP + 12] = 24; /* x0 */
+	//	(int) [SS:EBP + 16] =  4; /* y0 */
+		asmout("MOVZX ECX,WORD PTR CS:[EAX*2+wintitle_colortable]");
+		POP(EAX);
+		EDX = ECX;
+		ECX &= 0x7f;
+		EDX /= 256;
 	}
+	(int) [SS:EBP + 20] = ECX; /* color */
+	(int) [SS:EBP + 24] = EDX; /* backcolor */
 	EDX <<= 16;
-	EDX |= cmd[20]; // color
-	(offset) cmd0040_win = cmd0040_textbox->window;
-	ECX = cmd[28]; // length
-	if (cmd0040_win->draw_enable != 0) {
-		PUSHAD();
-		ESP -= 512;
-		EBP = ESP;
-		EAX = cmd0040_win->slot;
-		(int) [SS:EBP     ] = 0x0404; /* put text */
-		(int) [SS:EBP +  4] = 0x0000; /* option */
-		(int) [SS:EBP +  8] = EAX;
-		(int) [SS:EBP + 32] = ECX; // length
-		ECX = cmd0040_textbox->charset;
-		EAX = cmd0040_textbox->option; TEST(EAX, 0xf000); // option
-		(int) [SS:EBP + 28] = ECX; // charset
-		if (== 0) {
-			// normal
-			TEST(AL, 0x10);
-			if (!= 0)
-				(char) [SS:EBP +  4] = 0x01; /* option */
-			EDX >>= 16;
-			(int) [SS:ESP + 24] = EDX; // back_color
-			ECX = cmd[12]; // y_pos
-			EAX = cmd[ 8]; // x_pos
-			ECX *= 8;
-			EAX *= 8;
-			DL = (char) cmd0040_textbox->option; TEST(DL, 0x10); // option
-			if (== 0)
-				ECX *= 2;
-			EAX += cmd0040_textbox->x0;
-			ECX += cmd0040_textbox->y0;
-			EDX = cmd[20]; // color
-			(int) [SS:EBP + 12] = EAX; /* x0 */
-			(int) [SS:EBP + 16] = ECX; /* y0 */
-			(int) [SS:EBP + 20] = EDX; // color
-			EAX = cmd[4]; /* option */
-			TEST(AL, 0x02);
-			if (== 0)
-				goto copystr;
-			EAX = 0;
-			(char) [SS:EBP +  4] |= 0x02; /* option */
-			(int) [SS:EBP + 20] = EAX; /* color */
-			(int) [SS:EBP + 24] = EAX; /* back color */
-		} else {
-			// title
-			EAX = cmd0040_win->mode0;
-			(int) [SS:EBP + 12] = 24; /* x0 */
-			asmout("MOV EAX,CS:[EAX*4+wintitle_colortable]");
-			(int) [SS:EBP + 16] =  4; /* y0 */
-			ECX = EAX;
-			EAX &= 0xff;
-			ECX /= 256;
-			(int) [SS:EBP + 20] = EAX; /* color */
-			(int) [SS:EBP + 24] = ECX; /* backcolor */
-		}
-copystr:
-		(offset) cmd += 32;
-		LEA(EBX, [SS:EBP + 36]);
-		ECX = (int) [SS:EBP + 32]; // length
-		do {
-			EAX = *cmd;
-			(offset) cmd += 4;
-			(int) [DS:EBX] = EAX;
-			EBX += 4;
-			ECX--;
-		} while (!= 0);
-		(int) [DS:EBX] = /* 0 */ ECX;
-		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-		ESP += 512;
-		POPAD();
-	}
+	(int) [SS:EBP +  0] = 0x0404;
+	EDX |= ECX;
+	ECX = win->slot;
+	(int) [SS:EBP + 40] = EBX;
+	(int) [SS:EBP +  8] = ECX; /* slot */
+	ECX = 0;
+	(short) [SS:EBP + 44] = DS;
+	(int) [SS:EBP + 32] = ECX; // 0; /* base */
+	(int) [SS:EBP + 48] = ECX; // 0; /* eoc */
+	PUSH(EDI);
 	(offset) cmd += 32;
-//	if (ECX != 0) {
-		asmout("TEST BYTE PTR DS:[ESI+4-32],02H");
-		if (!= 0) {
-			EDX = 0;
-			goto colorfont;
-		}
-		if (EDX == 0)
-			goto blank;
-colorfont:
-		LEA(EBX, [(offset) cmd0040_textbox + EAX * 8 + 64]);
+	TEST(AL, 0x02);
+	if (!= 0) {
+		/* color font */
+		(char) [SS:EBP +  4] |= 0x02; /* option */
+	}
+	PUSH(EBP);
+	TEST(AH, 0x30);
+	PUSH(EAX);
+	if (!= 0) {
+		ECX = cmd[-4];
+		(offset) cmd += 4;
+	}
+	TEST(AH, 0x40);
+	EBP = cmd[-4]; // length
+	EDI = (offset) cmd;
+	(int) [SS:ESP + 16 + 36] = EBP; // length
+	if (!= 0) {
+		asmout("LES EDI,[ESI]");
+		(offset) cmd += 8;
+	}
+	TEST(AL, 0x02);
+	if (!= 0)
+		goto skip;
+	if (EDX == 0)
+		goto blank;
+skip:
+	AH &= 0x30;
+	if (== 0)
+		goto opt00;
+	if (AH == 0x10) {
 		do {
-			EAX = *cmd;
-			(offset) cmd += 4;
-			(int) [DS:EBX    ] = EAX;
-			(int) [DS:EBX + 4] = EDX;
+			EAX = (unsigned char) [ES:EDI];
+			EDI++;
+			EAX += ECX;
+			[DS:EBX + 4] = EDX;
+			[DS:EBX + 0] = EAX;
 			EBX += 8;
-			ECX--;
+			EBP--;
 		} while (!= 0);
-//	}
+	} else if (AH == 0x20) {
+		do {
+			EAX = (unsigned short) [ES:EDI];
+			EDI += 2;
+			EAX += ECX;
+			[DS:EBX + 4] = EDX;
+			[DS:EBX + 0] = EAX;
+			EBX += 8;
+			EBP--;
+		} while (!= 0);
+	} else {
+opt00:
+		do {
+			EAX = (unsigned int) [ES:EDI];
+			EDI += 4;
+			EAX += ECX;
+			[DS:EBX + 4] = EDX;
+			[DS:EBX + 0] = EAX;
+			EBX += 8;
+			EBP--;
+		} while (!= 0);
+	}
+	
+skip2:
+	EDI += 3;
+	POP(EAX);
+	EDI &= 0xfffffffc;
+	TEST(AH, 0x40);
+	POP(EBX); /* == EBP */
+	if (== 0)
+		ESI = EDI;
+	POP(EDI);
+	if (win->draw_enable != 0) {
+		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	}
+	ESP += 4 + 52;
+	POP(EBP);
+	POP(ES);
 	asmout("JMP nextcmd");
+
 blank:
+	(offset) textbox2 = [SS:ESP + 12];
 	EDX++;
-	EDI = cmd0040_textbox->blank;
-	LEA(EBX, [(offset) cmd0040_textbox + EAX * 8 + 64]);
-	LEA((offset) cmd, [(offset) cmd + ECX * 4]);
+	AH &= 0x30;
+	ECX = textbox2->blank;
+	if (== 0)
+		goto blank_d;
+	if (AH == 0x10)
+		goto blank_b;
+	if (AH == 0x30) {
+blank_d:
+		EBP *= 2;
+	}
+	EBP *= 2;
+blank_b:
+	EDI += EBP;
 	do {
-		(int) [DS:EBX    ] = EDI;
-		(int) [DS:EBX + 4] = EDX;
+		[DS:EBX + 0] = ECX;
+		[DS:EBX + 4] = EDX;
 		EBX += 8;
-		ECX--;
+		EBP--;
 	} while (!= 0);
-	asmout("JMP nextcmd");
-	ALIGN(4);
-	asmout("wintitle_colortable DD 0008H, 0708H, 0, 040FH");
+	goto skip2;
+
+	ALIGN(2);
+	asmout("wintitle_colortable DW 0008H, 0708H, 0, 040FH");
 }
 
 void near cmd044()
@@ -1420,7 +1481,7 @@ void near cmd048()
 // windowを指定した場合、enableのチェックはしないので要注意
 
 // +00 : cmd
-// +04 : opt(bit0:backcolor-enable)
+// +04 : opt(bit0:backcolor-enableは無視、常にenable)
 // +08 : -1/window
 // +12 : charset
 // +16 : x_pos(dot)
@@ -1430,6 +1491,7 @@ void near cmd048()
 // +32 : length
 
 // optのbit0は調べていない。1だという前提。
+/* int-base0以外は未対応 */
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
@@ -1437,7 +1499,7 @@ void near cmd048()
 
 	PUSH(EBP);
 	EAX = 0;
-	ESP -= 512;
+	ESP -= 52;
 	(offset) win = cmd[ 8];
 	EBP = ESP;
 	ECX = EAX;
@@ -1462,19 +1524,16 @@ void near cmd048()
 	(int) [SS:EBP + 28] = EDX; // charset
 	ECX = cmd[32]; // length
 	(offset) cmd += 36;
-	(int) [SS:ESP + 32] = ECX; // length
-	LEA(EBX, [SS:ESP + 36]);
-	do {
-		EAX = *cmd;
-		(offset) cmd += 4;
-		(int) [DS:EBX] = EAX;
-		EBX += 4;
-		ECX--;
-	} while (!= 0);
-	(int) [DS:EBX] = /* 0 */ ECX;
+	EAX = 0;
+	(int) [SS:EBP + 32] = EAX; /* base */
+	(int) [SS:EBP + 36] = ECX; // length
+	(int) [SS:EBP + 40] = (offset) cmd;
+	[SS:ESP + 44] = DS;
+	(int) [SS:EBP + 48] = EAX; /* eoc */
+	LEA(ESI, [ESI + ECX * 4]);
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-	ESP += 512;
+	ESP += 52;
 	POP(EBP);
 	asmout("JMP nextcmd");
 }
@@ -3989,7 +4048,7 @@ void near drawwindow()
 	ECX = win->mode0;
 	EAX--;
 	EBP++; // EBP = 3;
-	asmout("MOV ECX,CS:[ECX*4+wintitle_colortable]");
+	asmout("MOVZX ECX,CS:[ECX*2+wintitle_colortable]");
 	LEA(EDX, [ESI + 20]);
 //	(int) [DS:EBX +  32] = 0x0400 /* line command */;
 //	(int) [DS:EBX +  36] = 0x0020 /* option(box-fill) */;
@@ -4090,7 +4149,7 @@ void near drawcomponent()
 	PUSH(ESI);
 	PUSH(EBP);
 	EDX = win->slot;
-	ESP -= 512;
+	ESP -= 56;
 
 	// このウィンドウについているコンポーネントをサーチして、全て描画する
 	LEA(EAX, win->children_back);
@@ -4104,40 +4163,36 @@ void near drawcomponent()
 			if (EAX == 0x54584554 /* TEXT */) {
 				// textbox
 				TEXTBOX *textbox == DS:ESI;
+				EAX = textbox->charset;
+				(int) [DS:EBX + 28] = EAX; /* charset */
+				EAX = 0;
+				(short) [DS:EBX + 44] = DS;
+				(int) [DS:EBX + 32] = EAX; /* base */
+				(int) [DS:EBX + 48] = EAX; /* eoc */
 				EAX = textbox->option;
 				(int) [DS:EBX     ] = 0x0404; /* put text */
 				(int) [DS:EBX +  8] = EDX;
 				TEST(AH, 0xf0);
 				if (== 0) {
 					// 普通のテキストボックス
-					int *textbox_ycnt    == DS:EBX + 496;
-					int *textbox_saveEDX == SS:ESP + 500; // win_slot(xdot)
-					int *textbox_saveEBP == SS:ESP + 504; // work(xcnt)
-					int *textbox_saveEDI == SS:ESP + 508; // win(buffer)
-				//	*textbox_saveEDX = EDX;
-				//	*textbox_saveEBP = EBP;
-				//	*textbox_saveEDI = EDI;
+					int *textbox_ycnt    == DS:EBX + 52;
 					PUSH(EDI);
-					EBP = 0;
+					EBP = 0x3000; /* qword */
 					TEST(AL, 0x10);
 					if (!= 0)
 						EBP++; /* half height */
 					TEST(AL, 0x01);
 					if (!= 0) {
-					//	ESP += 512 - 12;
 						// EDX:win_slot, ESI:textbox
 						PUSH(EBX);
 						EAX = 0x0010;
 						textbox_drawback();
 						POP(EBX);
-					//	ESP -= 512 - 12;
 					}
 					// バッファを参照して書き込む
 				//	(int) [DS:EBX     ] = 0x0404; /* put text */
 					(int) [DS:EBX +  4] = EBP; /* option */
 				//	(int) [DS:EBX +  8] = EDX;
-					EAX = textbox->charset;
-					(int) [DS:EBX + 28] = EAX; /* charset */
 					EAX = textbox->y_size;
 					EBP = textbox->x_size;
 					*textbox_ycnt = EAX;
@@ -4149,12 +4204,10 @@ void near drawcomponent()
 						(int) [DS:EBX + 16] = EAX; /* y0 */
 						do {
 							// EDX, (EAX)から書き込むルーチン
-							LEA(ESI, [EBX + 40]);
+							(int) [DS:EBX + 40] = EDI;
 							(int) [DS:EBX + 12] = EDX; /* x0 */
-							EAX = (int) [DS:EDI    ];
 							ECX = (int) [DS:EDI + 4];
 							EDI += 8;
-							(int) [DS:ESI - 4] = EAX;
 							EAX = ECX;
 							ECX >>= 16;
 							EAX &= 0xffff;
@@ -4167,23 +4220,17 @@ void near drawcomponent()
 								do {
 									if (ECX != (int) [DS:EDI + 4])
 										break;
-									EAX = (int) [DS:EDI];
 									EDI += 8;
-									(int) [DS:ESI] = EAX;
-									ESI += 4;
 									EDX += 8; /* x */
 									EBP--; /* xcnt */
 								} while (!= 0);
 							}
-							EAX = 0;
-							(int) [DS:ESI] = EAX /* 0x0000 */; /* end of command */
-							ESI -= EBX;
-							ESI -= 36;
-							ESI /= 4;
-							(int) [DS:EBX + 32] = ESI; /* length */
-							EAX = [DS:EBX + 20]; /* backcolor */
+							ESI = EDX;
+							ESI -= (int) [DS:EBX + 12];
 							PUSH(EBX);
-							EAX |= [DS:EBX + 24]; /* color */
+							ESI /= 8;
+							EAX |= [DS:EBX + 24]; /* backcolor */
+							(int) [DS:EBX + 36] = ESI; /* length */
 							if (== 0)
 								(char) [DS:EBX + 4] /* opt */ |= 0x02;
 							DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
@@ -4201,49 +4248,31 @@ void near drawcomponent()
 						EDX = textbox->x0;
 						*textbox_ycnt--;
 					} while (!= 0);
-				//	EDX = *textbox_saveEDX;
 					EDX = (int) [DS:EBX +  8];
-				//	EBP = *textbox_saveEBP;
-				//	EDI = *textbox_saveEDI;
 					POP(EDI);
 				} else {
 					// wintitle
 					// バッファを参照して書き込む
-				//	int *textbox_saveESI == SS:ESP + 508; // textbox
-				//	*textbox_saveESI = ESI;
 					ECX = 0;
 				//	(int) [DS:EBX     ] = 0x0404; /* put text */
-					(int) [DS:EBX +  4] = /* 0x0000 */ ECX; /* option */
+					(int) [DS:EBX +  4] = 0x3000; /* option */
 				//	(int) [DS:EBX +  8] = EDX;
 					CL = 24;
 					EAX = win->mode0;
 					(int) [DS:EBX + 12] = /* 24 */ ECX; /* x0 */
 					CL = 4;
-					asmout("MOV EAX,CS:[EAX*4+wintitle_colortable]");
+					asmout("MOVZX EAX,CS:[EAX*2+wintitle_colortable]");
 					(int) [DS:EBX + 16] = /*  4 */ ECX; /* y0 */
 					ECX = EAX;
-					EAX &= 0xff;
+					EAX &= 0x0f;
 					ECX /= 256;
 					(int) [DS:EBX + 20] = EAX; /* color */
 					(int) [DS:EBX + 24] = ECX; /* backcolor */
-					EAX = textbox->charset;
 					ECX = textbox->x_size;
-					(int) [DS:EBX + 28] = EAX; /* charset */
-					(int) [DS:EBX + 32] = ECX; /* length */
-					PUSH(ESI);
-					ESI += 64; // seek buffer head
-					LEA(EAX, [EBX + 36]);
-					do {
-						EBP = (int) [DS:ESI];
-						ESI += 8;
-						(int) [DS:EAX] = EBP;
-						EAX += 4;
-						ECX--;
-					} while (!= 0);
-					POP(ESI);
-					(int) [DS:EAX] = /* 0x0000 */ ECX; /* end of command */
+					LEA(EAX, [ESI + 64]);
+					(int) [DS:EBX + 36] = ECX; /* length */
+					(int) [DS:EBX + 40] = EAX; /* ptr */
 					DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-				//	ESI = *textbox_saveESI;
 				}
 			} else if (EAX == 0x50415247 /* GRAP */) {
 				/* 本当は、モードでさらに分類する */
@@ -4273,7 +4302,7 @@ void near drawcomponent()
 			ESI = (int) [DS:ESI + 12 /* chain_next */];
 		} while (EAX != ESI);
 	}
-	ESP += 512;
+	ESP += 56;
 	POP(EBP);
 	POP(ESI);
 	return;

@@ -1,33 +1,34 @@
-"sb22"の使い方の説明                      2002/03/02 川合秀実
+"sb23"の使い方の説明                      2002/04/02 川合秀実
 
 １．これは何か？
 
-  "sb22"は、OSASK ver.2.2の「OSASK22.EXE」を生成するのに必要なモジュールのソー
+  "sb23"は、OSASK ver.2.3の「OSASK23.EXE」を生成するのに必要なモジュールのソー
 スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
-そのまま利用しているものついては、このアーカイブに含まれていません。OSASK22.EXE
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK23.EXE
 を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    INIT.ASK     : ver.2.2
-    PIONEER0.BIN : ver.2.0
-    WINMAN0.BIN  : ver.1.6
-    POKON0.BIN   : ver.2.2
+    INIT.ASK     : ver.2.3
+    PAPI0.BIN    : ver.0.5
+    PIONEER0.BIN : ver.2.1
+    WINMAN0.BIN  : ver.1.7
+    POKON0.BIN   : ver.2.3
     PCAT/
-      BASE.EXE   : ver.2.0
+      VGADRV0.BIN  : ver.1.2
+      TIMERDRV.BIN : type-A ver.1.0
     TOWNS/
-      BASE.EXE   : ver.2.0
+      VGADRV0.BIN  : ver.1.2
+      TIMERDRV.BIN : type-A ver.1.0
 
   (以前のバージョンのものを利用するもの)
 
+    BASE.EXE     : ver.2.0
     OSALINK0.OPT : ver.1.9
-    PAPI0.BIN    : ver.0.4
     TAPI0.BIN    : ver.0.3
-    TIMERDRV.BIN : type-A ver.0.9
     KEYMOS0.BIN  : ver.0.3
     DECODE0.BIN  : ver.0.9
     SYSGG00.LIB  : ver.0.7
-    VGADRV0.BIN  : ver.1.1
 
   このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
 いるだけです。
@@ -42,7 +43,7 @@
 ・Microsoft (R) Incremental Linker Version 5.12.8078
 ・lcc-win32 (LCC.EXEのタイムスタンプ2001/07/30、サイズ459,264バイト)
 ・linkset2
-・gg00lib7
+・gg00lib9
 ・stdlib4
 ・osalnk0p
 
@@ -80,8 +81,8 @@
   Bochs 1.3対応バイナリーを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に
 、base.asmを以下の指示にしたがって書き換える必要があります。
 
-・73行目と78行目のセミコロンだけを削除する。
-・377行目の(セミコロンの前の)0を1に変更する。
+・38～39行目のセミコロンだけを削除する（Boot_normal:の直後の2行）。
+・253行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
 
   Bochs 1.2.1対応バイナリーを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指
 定した上に、base.asmをBochs 1.3と同様に書き換えてください。

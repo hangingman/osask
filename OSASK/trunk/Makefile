@@ -86,7 +86,7 @@ pokon0.bim : pokon0.obj
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
 
 pokon0.bin : pokon0.bim
-	$(BIM2BIN) malloc:92k file:0 input:$< output:$@
+	$(BIM2BIN) malloc:84k file:1024k input:$< output:$@
 
 winman0.bim : winman0.obj
 	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)

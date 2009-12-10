@@ -1,9 +1,12 @@
-/* "papi0.ask" ver.0.4 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "papi0.ask" ver.0.5 copyright(C) 2002 H.Kawai(川合秀実) */
 /* 64bitタイプ */
 
 segment PapiMdl(USE32, PARA);
 
 default(code == PapiMdl);
+
+#define	DEBUG		0
+#define	DEBUG1		0
 
 /* ワークエリア */
 /* 雑用 4KB */
@@ -141,6 +144,21 @@ cmd0100:
 	LEA(ESI, (int) work->addr64_addrp);
 	ECX = 16384;
 	init_AAChead();
+
+#if (DEBUG)
+PUSHAD();
+EAX = 0;
+EBX = 0;
+EAX--;
+ECX = 4096 / 4;
+do {
+	[DS:EBX] = EAX;
+	EBX += 4;
+	ECX--;
+} while (!= 0);
+POPAD();
+#endif
+
 	goto nextcmd;
 
 cmd0104:
@@ -265,7 +283,8 @@ cmd0110:
 	ECX = cmd[ 8];
 	EAX = cmd[12];
 	(offset) cmd += 16;
-
+PUSHFD();
+CLI();
 	TEST(EAX, 0xff000000);
 	/* ESI = (offset) work->mem32_man; */ LEA(ESI, (int) work->mem32_man);
 	if (== 0) {
@@ -274,11 +293,31 @@ cmd0110:
 		if (== 0)
 			/* ESI = (offset) work->mem20_man; */ LEA(ESI, (int) work->mem20_man);
 	}
+
+#if (DEBUG)
+PUSH(ECX);
+PUSH(EAX);
+(unsigned int) EAX >>= 12;
+(unsigned int) ECX >>= 12;
+do {
+	BTR([DS:0], EAX);
+	if (CF == 0)
+		INT(0x03);
+	EAX++;
+	ECX--;
+} while (!= 0);
+POP(EAX);
+POP(ECX);
+#endif
+
 	free_area();
+POPFD();
 	goto nextcmd;
 
 cmd0114:
 	/* 物理メモリ取得(連続) */
+PUSHFD();
+CLI();
 	EAX = cmd[12];
 	ECX = cmd[ 8];
 	if (EAX == 0)
@@ -311,6 +350,24 @@ cmd0114_get20:
 				INT(0x03);
 		}
 	}
+
+#if (DEBUG)
+PUSH(ECX);
+PUSH(EAX);
+(unsigned int) EAX >>= 12;
+(unsigned int) ECX >>= 12;
+do {
+	BTS([DS:0], EAX);
+	if (CF == 1)
+		INT(0x03);
+	EAX++;
+	ECX--;
+} while (!= 0);
+POP(EAX);
+POP(ECX);
+#endif
+
+POPFD();
 	cmd[16] = EAX;
 	(offset) cmd += 20;
 	goto nextcmd;
@@ -327,12 +384,14 @@ cmd0114_special:
 		work->mem24_man.data[0].size = EAX;
 	}
 	(offset) cmd += 16;
+POPFD();
 	goto nextcmd;
 
 cmd0114_specialcheck:
 	EAX = 0;
 	if ((unsigned) work->mem24_man.data[0].size >= 0x00e00000)
 		EAX |= 0x01;
+POPFD();
 	cmd[16] = EAX;
 	(offset) cmd += 20;
 	goto nextcmd;
@@ -365,6 +424,7 @@ cmd0114_specialreport:
 	cmd[52] = ECX;
 	cmd[56] = EAX;
 	cmd[60] = EDI;
+POPFD();
 	(offset) cmd += 64;
 	goto nextcmd;
 
@@ -468,6 +528,30 @@ void near map_sub()
 	int *pte == DS:ESI;
 	do {
 		*pte = EAX;
+
+#if (DEBUG)
+PUSH(DS);
+PUSH(ECX);
+PUSH(EAX);
+MOV(ECX, CS);
+ECX += 8;
+if ((unsigned) EAX >= 0x00268000) {
+	if ((unsigned) EAX < 0x08000000) {
+		(unsigned int) EAX >>= 12;
+		DS = ECX;
+		BT([DS:0], EAX);
+		if (CF == 0) {
+			ESP += 16;
+			POPAD();
+			INT(0x03);
+		}
+	}
+}
+POP(EAX);
+POP(ECX);
+POP(DS);
+#endif
+
 		(offset) pte += 4;
 		EAX += 0x1000;
 		ECX--;
@@ -496,6 +580,23 @@ void near mapping1p()
 	POP(linear);
 //	[DS:ESI] = EAX;
 	[DS:ESI + EDI] = EAX;
+
+#if (DEBUG)
+PUSH(DS);
+PUSHAD();
+MOV(ECX, CS);
+ECX += 8;
+if ((unsigned) EAX >= 0x00268000) {
+	(unsigned int) EAX >>= 12;
+	DS = ECX;
+	BT([DS:0], EAX);
+	if (CF == 0)
+		INT(0x03);
+}
+POPAD();
+POP(DS);
+#endif
+
 	POP(ESI);
 	POP(EDI);
 	return;
@@ -1172,6 +1273,55 @@ void near free_memory()
 		goto free;
 	/* ESI = (offset) work->mem20_man; */ LEA(ESI, (int) work->mem20_man);
 free:
+
+#if (DEBUG1)
+unsigned int pdepte_sel   == 14 * 8, idtgdt_sel    == 15 * 8;
+PUSH(DS);
+PUSHAD();
+/* EDXは既に使われていたりはしないか？ */
+/* どうやら、図星のようだ */
+EDX = EAX;
+LEA(EBP, [EAX + ECX]);
+EAX = pdepte_sel;
+EBX = 0x4200; /* 4.5MB */
+DS = EAX;
+LSL(ECX, EAX);
+ECX -= EBX;
+do {
+	EAX = [DS:EBX];
+	EBX += 4;
+	TEST(AL, 0x01);
+	if (!= 0) {
+		EAX &= 0xfffff000;
+		if ((unsigned) EDX <= EAX) {
+			if ((unsigned) EAX < EBP) {
+				[DS:EBX - 4] = AL;
+			//	INT(0x03);
+			}
+		}
+	}
+	ECX -= 4;
+} while ((unsigned) > 0);
+POPAD();
+POP(DS);
+#endif
+
+#if (DEBUG)
+PUSH(ECX);
+PUSH(EAX);
+(unsigned int) EAX >>= 12;
+(unsigned int) ECX >>= 12;
+do {
+	BTR([DS:0], EAX);
+	if (CF == 0)
+		INT(0x03);
+	EAX++;
+	ECX--;
+} while (!= 0);
+POP(EAX);
+POP(ECX);
+#endif
+
 	free_area();
 	POP(ESI);
 	return;
@@ -1265,6 +1415,23 @@ void far PageFaultHandler()
 						INT(0x03);
 				}
 			}
+
+#if (DEBUG)
+PUSH(ECX);
+PUSH(EAX);
+(unsigned int) EAX >>= 12;
+(unsigned int) ECX >>= 12;
+do {
+	BTS([DS:0], EAX);
+	if (CF == 1)
+		INT(0x03);
+	EAX++;
+	ECX--;
+} while (!= 0);
+POP(EAX);
+POP(ECX);
+#endif
+
 		//	LEA(ESI, (int) [work->addr64_addrp]);
 			POP(ESI);
 			EDX = EAX;
@@ -1274,12 +1441,39 @@ void far PageFaultHandler()
 		//	ECX = 1;
 			ECX++;
 			(unsigned int) EDX >>= 12;
+
+#if (DEBUG1)
+PUSH(DS);
+PUSHAD();
+/* EDXは既に使われていたりはしないか？ */
+/* どうやら、図星のようだ */
+EAX = pdepte_sel;
+EBX = 0x4200; /* 4.5MB */
+DS = EAX;
+LSL(ECX, EAX);
+ECX -= EBX;
+do {
+	EAX = [DS:EBX];
+	EBX += 4;
+	TEST(AL, 0x01);
+	if (!= 0) {
+		(unsigned int) EAX >>= 12;
+		if (EAX == EDX) {
+			EDX = CR2;
+			INT(0x03);
+		}
+	}
+	ECX -= 4;
+} while ((unsigned) > 0);
+POPAD();
+POP(DS);
+#endif
 			AAC_regist();
 		}
 		/* 物理アドレス:EDX */
 		EDX <<= 12;
-		EAX = pdepte_sel;
-		DS = AX;
+		PUSH((int) pdepte_sel);
+		POP(DS);
 		LEA(EAX, [EDX + 0x007]);
 		EDX = CR2;
 	//	ECX = 4096;

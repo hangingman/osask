@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" ver.1.1 copyright(C) 2001 êÏçáèGé¿, I.Tak., ODP */
+/* "VGADRV0.ASK" ver.1.2 copyright(C) 2002 êÏçáèGé¿, I.Tak., ODP */
 
 segment GapiMdl(USE32, PARA);
 
@@ -176,8 +176,8 @@ fontload:
 		PUSH(EBP);
 		PUSH(EBX);
 		PUSH(ECX);
-		ECX = 16;
 		do {
+			ECX = 16;
 			do {
 				EBX = [DS:ESI]; /* 8dots */
 				ESI += 4;
@@ -217,8 +217,8 @@ fontload:
 		PUSH(EBP);
 		PUSH(EBX);
 		PUSH(ECX);
-		ECX = 8;
 		do {
+			ECX = 8;
 			do {
 				EBX = [DS:ESI]; /* 8dots */
 				ESI += 4;

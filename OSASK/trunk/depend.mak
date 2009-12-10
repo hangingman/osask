@@ -1,1 +1,2 @@
-ARCH = pcat
+ARCH = pcat
+BOCHS = 13

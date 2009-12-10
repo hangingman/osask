@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.6
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.7
 		copyright(C) 2002 川合秀実
     stack:4k malloc:92k file:768k */
 
@@ -9,6 +9,11 @@
 /* sysggは、一般のアプリが利用してはいけないライブラリ
    仕様もかなり流動的 */
 #include <stdlib.h>
+
+//static int MALLOC_ADDR;
+#define MALLOC_ADDR			j
+#define malloc(bytes)		(void *) (MALLOC_ADDR -= ((bytes) + 7) & ~7)
+#define free(addr)			for (;;); /* freeがあっては困るので永久ループ */
 
 #define	AUTO_MALLOC			   0
 #define NULL				   0
@@ -132,6 +137,8 @@ void OsaskMain()
 		};
 	#endif
 
+	MALLOC_ADDR = lib_readCSd(0x0010);
+
 	lib_init(AUTO_MALLOC);
 	sgg_init(AUTO_MALLOC);
 
@@ -139,8 +146,10 @@ void OsaskMain()
 
 	// ウィンドウを確保して、全て未使用ウインドウとして登録
 	window = (struct WM0_WINDOW *) malloc(MAX_WINDOWS * sizeof (struct WM0_WINDOW));
-	for (i = 0; i < MAX_WINDOWS; i++)
+	for (i = 0; i < MAX_WINDOWS; i++) {
+		window[i].sgg.handle = 0;
 		chain_unuse(&window[i]);
+	}
 
 	// サウンドトラック用バッファの初期化
 	sndtrk_buf = (struct SOUNDTRACK *) malloc(MAX_SOUNDTRACK * sizeof (struct SOUNDTRACK));
@@ -565,7 +574,7 @@ void OsaskMain()
 void init_screen(const int x, const int y)
 {
 	struct STR_BGV {
-		int col, x0, y0, x1, y1;
+		signed char col, x0, y0, x1, y1;
 	};
 
 	static struct STR_BGV linedata[] = {
@@ -636,7 +645,13 @@ void chain_unuse(struct WM0_WINDOW *win)
 {
 	// unuseは一番上
 	// winは一番下に追加
-	win->sgg.handle = 0; // handle2windowが間違って検出しないために
+	if (win->sgg.handle) {
+		/* (int) [stack_sel:handle] = 0; */
+		/* init.askに、該当のハンドルがフリーであることを教えるため */
+		static int zero = 0;
+		sgg_directwrite(0, 4, 0, win->sgg.handle, 0x01280030 /* stack_sel */, &zero, 0x000c);
+		win->sgg.handle = 0; // handle2windowが間違って検出しないために
+	}
 	if (unuse) {
 		struct WM0_WINDOW *bottom;
 		bottom = unuse->up;
@@ -1777,38 +1792,33 @@ void lib_drawletters_ASCII(const int opt, const int win, const int charset, cons
 		int x0, y0 /* dot単位 */;
 		int color, backcolor;
 		int length;
-	//	int letters[0];
+		int letters[80];
 		int eoc;
-    };
+    } command;
 
 	const unsigned char *s;
 	int *t;
 	int length;
 	
-	struct COMMAND *command;
-
 	// strの長さを調べる
 	for (s = (const unsigned char *) str; *s++; );
 
 	if (length = s - (const unsigned char *) str - 1) {
-		command = malloc(sizeof (struct COMMAND) + length * 4);
-
-		command->cmd = 0x0048;
-		command->opt = opt;
-		command->window = win;
-		command->charset = charset;
-		command->x0 = x0;
-		command->y0 = y0;
-		command->color = color;
-		command->backcolor = backcolor;
-		command->length = length;
+		command.cmd = 0x0048;
+		command.opt = opt;
+		command.window = win;
+		command.charset = charset;
+		command.x0 = x0;
+		command.y0 = y0;
+		command.color = color;
+		command.backcolor = backcolor;
+		command.length = length;
 
 		s = (const unsigned char *) str;
-		t = &command->eoc;
+		t = command.letters;
 		while (*t++ = *s++);
 
 		lib_execcmd(command);
-		free(command);
 	}
 	return;
 }

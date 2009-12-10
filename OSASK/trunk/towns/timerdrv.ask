@@ -1,6 +1,6 @@
-/*	"timerdrv.aska"
-	OSASK/TOWNS用のタイマールーチン(type-A ver. 0.9)
-	Copyright(C) 2001 川合秀実(川合堂)		*/
+/*	"timerdrv.ask"
+	OSASK/TOWNS用のタイマールーチン(type-A ver.1.0)
+	Copyright(C) 2002 川合秀実(川合堂)		*/
 
 /*	古いチップセットには対応していない。なぜなら、連続アクセスの際にウェイトが入っていないから。 */
 
@@ -8,6 +8,8 @@
 
 segment TimerMdl(USE32, PARA);
 default(code == TimerMdl);
+
+#define	DEBUG		1
 
 struct SS0_struct {
 	void [32];
@@ -68,9 +70,9 @@ void far TimerSysCmd()
 	[SS:ESP +  0] = EAX;
 	AX = CS;
 	[SS:ESP +  4] = ECX;
-	AX += 8;
+	EAX += 8;
 	[SS:ESP +  8] = EDX;
-	DS = AX;
+	DS = EAX;
 	EAX = [FS:EBX]; /* 4の倍数 */
 	[SS:ESP + 12] = EBP;
 	[SS:ESP + 16] = ESI;
@@ -220,11 +222,13 @@ void near TimerCountout()
 	そのあとで、そのノードを切り離し、フライングタイムアウトルーチンへ
 	work->head.intervalまでもタイムアウトしてしまったら、これもフライングタイムアウトの末尾に加える */
 
+/*	2002.03.04 work->head.interval == 0でここに入ってくると抜けられなくなる */
+
 	TimerNode *tnode == DS:ESI, *tnext == DS:EDI, *tback == DS:EBX;
 
 check_timeout:
 	EAX = work->head.interval;
-	EBX = 0;
+	EBX = 0; /* 0または負の値 */
 	for (;;) {
 		/* (false) */ if ((signed) EAX < 0) {
 			/* 割り込み予定時刻 - 現在時刻 = 残り時間 */
@@ -246,7 +250,7 @@ check_timeout:
 			EAX = 0x90000000;
 			break;
 		}
-		EAX -= EBX;
+		EAX += EBX;
 		asmout("JO #to_invalid");
 	//	work->head.interval = EAX;
 		if ((signed) EAX > 0)
@@ -263,7 +267,6 @@ check_timeout:
 		tback->next = (offset) tnode;
 		EBX = EAX;
 		EAX = tnode->interval;
-		EBX =- EBX;
 	/*	切り離して、タイムアウトチェーンに接続
 		そして、負になったEAXを元に、EBX = - EAX;とし、
 		EAXに新しいwork->head.intervalをロードして、ループに突入する。 */
@@ -709,24 +712,24 @@ void near CancelTimer()
 // DS:ESIのタイマーをキャンセル
 // CLIしておくこと
 {
-	asmout("#TN_back EQU 56");
-
 	TimerNode *tnode == DS:ESI, *tnext == DS:EDI, *tback == DS:EBX;
 	/* headに繋がっていて、かつ、status == 0なら、GetNowTime() + FixZero()してから切り離す */
-	asmout("TEST BYTE PTR DS:[ESI+#TN_back],0FH");
+	(offset) tback = tnode->back;
+//	TEST((char) (offset) tback, 0x0f);
+	TEST(BL, 0x0f);
 	if (== 0) {
 	//	if ((offset) tnode == work->head.next) { // こんなのやっても、残り時間が増えるだけだから、いちいち割り込まない。
 	//		if (work->status == 0) {
 	//			GetTimeAndFixZero();
 	//		}
 	//	}
-		(offset) tback = tnode->back;
+	//	(offset) tback = tnode->back;
 		(offset) tnext = tnode->next;
 		int interval == EAX, interval2 == ECX;
 		interval = tnode->interval;
 		tback->next = (offset) tnext;
 		tnext->back = (offset) tback;
-		asmout("MOV BYTE PTR DS:[ESI+#TN_back],02H"); /* キャンセルされた */
+		(char) tnode->back = 0x02; /* キャンセルされた */
 		interval2 = tback->interval;
 		if ((signed) interval < 0)
 			goto interval_over;
@@ -784,7 +787,7 @@ void near TimerSC_GetNode()
 	POPFD();
 //	STI();
 	[FS:EBX + 4] = ECX; /* 書き込み即値 */
-	asmout("MOV BYTE PTR DS:[ECX+#TN_back],03H"); /* 時刻すらセットされていない */
+	(char) tnode->back = 0x03; /* 時刻すらセットされていない */
 	EBX += 8;
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
 }
@@ -966,10 +969,18 @@ void near TimerSC_SetCallVectorNode()
 void near TimerSC_SetMsgDataNode()
 {
 	TimerWork *work == DS:0x0000;
+	TimerNode *tnode == DS:ESI;
 
 	ESI = [FS:EBX +  4];
 	ECX = [FS:EBX +  8];
 	EBX += 12;
+
+	#if (defined(DEBUG))
+		TEST((char) tnode->back, 0x0f);
+		if (== 0)
+			INT(0x03);
+	#endif
+
 	do {
 		EAX = [FS:EBX];
 		EBX += 4;
@@ -979,6 +990,28 @@ void near TimerSC_SetMsgDataNode()
 	} while (!= 0);
 	EAX = [FS:EBX];
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
+}
+
+void near TimerSC_AddTimeNode2()
+{
+	TimerWork *work == DS:0x0000;
+	TimerNode *tnode == DS:EDI;
+	TimerNode *tnode2 == DS:ESI;
+
+	(offset) tnode  = [FS:EBX +  4];
+	(offset) tnode2 = [FS:EBX +  8];
+	EAX = [FS:EBX + 12];
+	ECX = [FS:EBX + 16];
+	EAX += tnode->time[0];
+	EDX = [FS:EBX + 20];
+	ADC(ECX, tnode->time[4]);
+	tnode2->time[0] = EAX;
+	ADC(EDX, tnode->time[8]);
+	EDI = [FS:EBX + 24];
+	tnode2->time[4] = ECX;
+	tnode2->time[8] = EDX;
+	EBX += 24;
+	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EDI]");
 }
 
 void near TimerInit();
@@ -1314,6 +1347,7 @@ void near TimerInit()
 	asmout("MOV DWORD PTR DS:[EAX+44],OFFSET TimerSC_SetMsgDataNode");
 
 	asmout("MOV DWORD PTR DS:[EAX+48],OFFSET TimerSC_SetMouseParam");
+	asmout("MOV DWORD PTR DS:[EAX+52],OFFSET TimerSC_AddTimeNode2");
 
 	IN(AL, 0x0060);
 	AL >>= 2;

@@ -1,11 +1,13 @@
 /*	"timerdrv.aska"
-	OSASK/AT用のタイマールーチン(type-A ver. 0.9)
-	Copyright(C) 2000 川合秀実(川合堂)		*/
+	OSASK/AT用のタイマールーチン(type-A ver. 1.0)
+	Copyright(C) 2002 川合秀実(川合堂)		*/
 
 //	古いチップセットには対応していない。なぜなら、連続アクセスの際にウェイトが入っていないから。
 
 segment TimerMdl(USE32, PARA);
 default(code == TimerMdl);
+
+#define	DEBUG		1
 
 struct SS0_struct {
 	void [32];
@@ -854,13 +856,18 @@ void near TimerSC_SetCallVectorNode()
 void near TimerSC_SetMsgDataNode()
 {
 	TimerWork *work == DS:0x0000;
-
-	asmout("#work_head EQU 256");
-	asmout("#TN_time EQU 40");
+	TimerNode *tnode == DS:ESI;
 
 	ESI = [FS:EBX +  4];
 	ECX = [FS:EBX +  8];
 	EBX += 12;
+
+	#if (defined(DEBUG))
+		TEST((char) tnode->back, 0x0f);
+		if (== 0)
+			INT(0x03);
+	#endif
+
 	do {
 		EAX = [FS:EBX];
 		EBX += 4;
@@ -870,6 +877,28 @@ void near TimerSC_SetMsgDataNode()
 	} while (!= 0);
 	EAX = [FS:EBX];
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
+}
+
+void near TimerSC_AddTimeNode2()
+{
+	TimerWork *work == DS:0x0000;
+	TimerNode *tnode == DS:EDI;
+	TimerNode *tnode2 == DS:ESI;
+
+	(offset) tnode  = [FS:EBX +  4];
+	(offset) tnode2 = [FS:EBX +  8];
+	EAX = [FS:EBX + 12];
+	ECX = [FS:EBX + 16];
+	EAX += tnode->time[0];
+	EDX = [FS:EBX + 20];
+	ADC(ECX, tnode->time[4]);
+	tnode2->time[0] = EAX;
+	ADC(EDX, tnode->time[8]);
+	EDI = [FS:EBX + 24];
+	tnode2->time[4] = ECX;
+	tnode2->time[8] = EDX;
+	EBX += 24;
+	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EDI]");
 }
 
 void near TimerInit();
@@ -1020,6 +1049,7 @@ void near TimerInit()
 	asmout("MOV DWORD PTR DS:[EAX+36],OFFSET TimerSC_SubTimeNode");
 	asmout("MOV DWORD PTR DS:[EAX+40],OFFSET TimerSC_SetCallVectorNode");
 	asmout("MOV DWORD PTR DS:[EAX+44],OFFSET TimerSC_SetMsgDataNode");
+	asmout("MOV DWORD PTR DS:[EAX+52],OFFSET TimerSC_AddTimeNode2");
 
 //	CLI();
 
