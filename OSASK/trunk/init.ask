@@ -1,4 +1,4 @@
-/* "init.ask" ver.2.8 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "init.ask" ver.2.9 copyright(C) 2003 H.Kawai(川合秀実), KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -3933,7 +3933,8 @@ if (EBX == 0xffff)
 	tss->tss386.stack0_ESP = 0xffffffc0;
 	(int) tss->tss386.stack0_SS = 0x001c;
 //	tss->tss386.EIP = 0;
-	tss->tss386.EFLAGS = 0x0202; /* STI */
+//	tss->tss386.EFLAGS = 0x0202; /* STI */
+	tss->tss386.EFLAGS = 0x3202; /* STI, IOPL=3 */
 //	tss->tss386.EAX = 0;
 //	tss->tss386.ECX = 0;
 //	tss->tss386.EDX = 0;
@@ -6406,15 +6407,20 @@ cmd070c:
 	/* ディレクトリ移動 */
 	/* cmd, opt, slot, bytes, ofs, sel */
 	/* 完了した場合も見付からない場合も、シグナルで知らせる */
+	/* optのbit0は強制移動ビット */
 
 	PUSH((int) tapiwork_sel);
 	POP(DS);
 
+	EAX = cmd[12]; /* bytes */
+	TEST((char) cmd[4], 0x01);
+	if (!= 0)
+		EAX |= 0x80000000;
 	/* 0x7f000006, sig, task, slot, bytes, ofs, sel */
 	PUSH((int) 0);
 	PUSH(cmd[20] /* sel */);
 	PUSH(cmd[16] /* ofs */);
-	PUSH(cmd[12] /* bytes */);
+	PUSH(EAX /* bytes */);
 	PUSH(cmd[ 8] /* slot */);
 	PUSH((int) [DS:0x000c /* tskptr */]);
 	PUSH((int) 0x0088 /* steppath */);
@@ -6957,6 +6963,11 @@ nextcmd:
 		goto cmd0080; /* slotを使わないmapping */
 	if (EAX == 0x0084)
 		goto cmd0084; /* メモリ獲得 */
+	#if (defined(PCAT))
+		if (EAX == 0x008c)
+			goto cmd008c; /* AT専用 日付読み出し(KIYOTO) */
+	#endif
+
 	if (EAX == 0x8010)
 		goto cmd8010;
 	INT(0x03);
@@ -7403,6 +7414,73 @@ cmd0084:
 	cmd[8] = EAX;
 	(offset) cmd += 12;
 	goto nextcmd;
+
+	#if (defined(PCAT))
+cmd008c:
+		/* KIYOTOさん改造, [OSASK 5504] */
+		/* (さらに川合が改良) */
+		/* cmd, opt, [ss][mm][hh][dd][mm][yy][yy][dmy] */
+		EAX = 0;
+		PUSH(EBP);
+		PUSH(EAX);
+		PUSH(EAX);
+		PUSH(EAX);
+		PUSH(EAX);
+cmd008c_retry:
+		LEA(EBP, [SS:ESP + 8]);
+		do {
+			AL = 0x00;
+			OUT(0x0070, AL);
+			NOP();
+			IN(AL, 0x0071);
+			(char) [SS:EBP + 0] = AL; /* sec */
+			AL = 0x02;
+			OUT(0x0070, AL);
+			NOP();
+			IN(AL, 0x0071);
+			(char) [SS:EBP + 1] = AL; /* min */
+			AL = 0x04;
+			OUT(0x0070, AL);
+			NOP();
+			IN(AL, 0x0071);
+			(char) [SS:EBP + 2] = AL; /* hour */
+			AL = 0x07;
+			OUT(0x0070, AL);
+			NOP();
+			IN(AL, 0x0071);
+			(char) [SS:EBP + 3] = AL; /* day */
+			AL = 0x08;
+			OUT(0x0070, AL);
+			NOP();
+			IN(AL, 0x0071);
+			(char) [SS:EBP + 4] = AL; /* month */
+			AL = 0x09;
+			OUT(0x0070, AL);
+			NOP();
+			IN(AL, 0x0071);
+			(char) [SS:EBP + 5] = AL; /* year(low) */
+			AL = 0x32;
+			OUT(0x0070, AL);
+			NOP();
+			IN(AL, 0x0071);
+			(char) [SS:EBP + 6] = AL; /* year(high) */
+			EBP -= 8;
+		} while (EBP == ESP); /* つまり、2回実行される */
+		EAX = (int) [SS:ESP +  0];
+		EDX = (int) [SS:ESP +  4];
+		if (EAX != (int) [SS:ESP +  8])
+			goto cmd008c_retry;
+		if (EDX != (int) [SS:ESP + 12])
+			goto cmd008c_retry;
+		/* なぜ2回読んで比較するか ... 繰り上がり中の変な値を捨ててやり直すため */
+		POP(cmd[ 8]);
+		POP(cmd[12]);
+		POP(EAX);
+		POP(EAX);
+		POP(EBP);
+		(offset) cmd += 16;
+		goto nextcmd;
+	#endif
 
 cmd8010:
 	// デバッグ用コマンド
@@ -8563,8 +8641,6 @@ void near put_int_status2()
 	ECX = 16 * 4;
 	EDX = 0x000f;
 	output_string();
-
-CLI();
 
 	#if (!defined(NOHLT))
 		for (;;)

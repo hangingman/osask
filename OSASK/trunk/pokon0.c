@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.3.1
-     copyright(C) 2002 小柳雅明, 川合秀実
-    stack:4k malloc:88k file:1024k */
+/* "pokon0.c":アプリケーションラウンチャー  ver.3.2
+     copyright(C) 2003 小柳雅明, 川合秀実
+    stack:4k malloc:88k file:4069k */
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -10,12 +10,12 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon31"
+#define POKON_VERSION "pokon32"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.2\n    Copyright (C) 2002 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
 
-#define	FILEAREA		(1024 * 1024)
+#define	FILEAREA		(4 * 1024 * 1024)
 
 //static int MALLOC_ADDR;
 #define MALLOC_ADDR			j
@@ -127,6 +127,7 @@ void unlinkfbuf(struct FILEBUF *fbuf)
 		}
 		fbuf->dirslot = -1;
 		sgg_execcmd0(0x0074, 0, fbuf->virtualmodule, 0x0000); /* virtualmoduleの破棄 */
+		fbuf->readonly = 0;
 	}
 	return;
 }
@@ -245,6 +246,12 @@ void runjobnext()
 
 		case JOB_LOAD_FILE:
 			autoreadjob(ppj(fbuf), ppj(win), ppj(prm0) /* tss */, ppj(fp), 0);
+			if (pjob->fp == NULL) {
+				if ((pjob->fp = pjob->fp__) == NULL) {
+					pjob->now = 0;
+					break;
+				}
+			}
 		//	pjob->retfunc = job_load_file0;
 			jsub_fbufready0(job_load_file0);
 			break;
@@ -392,6 +399,16 @@ lib_putstring_ASCII(0x0000, 0, 0, &selwin0[0].subtitle.tbox, 0, 0, "debug!(2)");
 			if (pjob->bank->tss >= 0x1000) {
 				sgg_execcmd0(0x0020, 0x80000000 + 5, pjob->bank->tss | 0x0244, 0x7f000003, 16, 14, 0, 0x0000);
 				sgg_execcmd0(0x0020, 0x80000000 + 4, pjob->bank->tss | 0x0243, 0x7f000002, 17, 14, 0x0000);
+			}
+			pjob->now = 0;
+			break;
+
+		case JOB_SEARCH_FP:
+			autoreadjob(ppj(win), ppj(prm0), ppj(prm1), ppj(prm2), 0);
+			if ((pjob->fp__ = searchfid((char *) &pjob->param[0])) == NULL) {
+				sendsignal1dw(pjob->win->task, pjob->win->sig[1] + 1);
+				pjob->win->task = 0;
+				(*pselwincount)--;
 			}
 			pjob->now = 0;
 			break;
@@ -1250,8 +1267,12 @@ void OsaskMain()
 					/* これ以降はかなりの手抜きがある(とりあえず動けばよいというレベル) */
 					/* ディスクが交換されるかもしれないことに配慮していない */
 					/*   →いや、ちゃんと配慮している */
-					if ((i = fbuf->dirslot) != -1 && selwincount < MAX_SELECTOR && fbuf->linkcount == 1 && fbuf->readonly == 0) {
+					if ((i = fbuf->dirslot) != -1 && selwincount < MAX_SELECTOR && fbuf->linkcount == 1) {
 						struct VIRTUAL_MODULE_REFERENCE *vmr;
+						if  (fbuf->readonly != 0) {
+							if (sbp[2] != 0)
+								goto resize_error;
+						}
 						for (fp = file + 1; fp->name[0]; fp++) {
 							if (fp->id == i)
 								goto resize_find;
@@ -1936,7 +1957,8 @@ nextsig:
 			win->lp = win->list; /* window-close処理中でないことを明示 */
 			win->task = swait->task;
 			win->mdlslot = swait->slot;
-			sgg_debug00(0, swait->bytes, 0, swait->ofs,
+			i = swait->bytes & 0x80000000;
+			sgg_debug00(0, swait->bytes & 0x7fffffff, 0, swait->ofs,
 				swait->sel | (win->task << 8) + 0xf80000, (const int) subcmd, 0x000c);
 			swait->task = 0;
 			if (subcmd[0] == 0xffffff01 /* num */) {
@@ -1961,11 +1983,24 @@ nextsig:
 			}
 			if (subcmd[0] == 0xffffff03 /* direct-name */) {
 				/* とりあえず、名前は12バイト固定(最後のバイトは00) */
+				/* 最期のバイトを01にしてもいい。01は強制移動 */
 				win->siglen = subcmd[6];
 				win->sig[0] = subcmd[7];
 				win->sig[1] = subcmd[8];
-				if ((fp = searchfid((unsigned char *) &subcmd[2])) == NULL)
+				if ((fp = searchfid((unsigned char *) &subcmd[2])) == NULL) {
+					/* 強制生成 */
+					if (i != 0 && pjob->free >= 16 && (fbuf = searchfrefbuf()) != NULL) {
+						/* 空きが十分にある */
+						writejob_1(JOB_CREATE_FILE);
+						writejob_3p(&subcmd[2]);
+						writejob_n(2, 0, 0 /* task, signal */);
+						writejob_n(2, JOB_SEARCH_FP, (int) win); /* fp__に代入する */
+						writejob_3p(&subcmd[2]);
+						writejob_n(5, JOB_LOAD_FILE, (int) fbuf, (int) win, win->task, NULL);
+						continue;
+					}
 					goto error_sig;
+				}
 open_redirect:
 				/* 見付かった */
 				if ((fbuf = searchfrefbuf()) != NULL &&

@@ -177,7 +177,7 @@ cmd010c:
 	KeyboardQueueExecute();
 	POP((offset) cmd);
 	POP(FS);
-	(offset) cmd += 4;
+	(offset) cmd += 8; /* 2002.12.04 bugfix, skip opt */
 	goto nextcmd;
 
 // 本来なら、CFもチェックしなくてはいけないし、

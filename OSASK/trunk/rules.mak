@@ -22,7 +22,10 @@ NASK_FLAGS =
 NASKCNV = $(BIN_PATH)naskcnv0
 NASKCNV_FLAGS = -l -s
 
-LINK = $(BIN_PATH)link
+GAS2NASK = $(BIN_PATH)gas2nask
+GAS2NASK_FLAGS = -a
+
+#LINK = $(BIN_PATH)link
 
 #LCCLIB = $(BIN_PATH)lcclib
 GOLIB = $(BIN_PATH)golib00w

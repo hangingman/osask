@@ -154,8 +154,8 @@ enum {
 #define	JOB_RESIZE_FILE					0x0038
 #define JOB_LOAD_FILE_AND_EXEC_CONS		0x003c  /* file load & execute (console) */
 #define JOB_EXT_OPEN					0x0040
-
 #define	JOB_SEND_TEST_MODULE_SIGNAL		0x0044
+#define	JOB_SEARCH_FP					0x0048
 
 /* structs */
 struct FILELIST {
@@ -221,7 +221,7 @@ struct STR_JOBLIST {
 	struct STR_BANK *bank;
 	struct FILESELWIN *win;
 	int param[8];
-	struct SGG_FILELIST *fp;
+	struct SGG_FILELIST *fp, *fp__;
 	int dirslot;
 	struct STR_OPEN_ORDER *order;
 	void (*retfunc)(int);

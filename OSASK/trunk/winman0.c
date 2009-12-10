@@ -1,5 +1,5 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.5
-		copyright(C) 2002 川合秀実, I.Tak., 小柳雅明, KIYOTO
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.6
+		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
     stack:4k malloc:624k file:768k */
 
 #define WALLPAPERMAXSIZE	(512 * 1024)
@@ -29,6 +29,12 @@
 	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		  28
+	#if (defined(PCAT))
+		#define TIMEX				-240	/* 8の倍数 */
+		#define TIMEY				 -20
+		#define TIMEC				   0
+		#define TIMEBC				   8
+	#endif
 #elif (defined(TMENU))
 	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		  20
@@ -111,7 +117,7 @@ static struct STR_JOB {
 unsigned char *wallpaper, wallpaper_exist;
 struct WM0_WINDOW *window, *top = NULL, *unuse = NULL, *iactive = NULL, *pokon0 = NULL;
 int x2 = 0, y2, mx = 0x80000000, my, mbutton = 0;
-int fromboot = 0, mousescale = 1;
+int fromboot = 0, mousescale = 2;
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
 struct DEFINESIGNAL *defsigbuf;
 struct MOSWINSIG *moswinsig;
@@ -192,6 +198,9 @@ static int tapisigvec[] = {
 	0x006c, 6 * 4, 0x011c /* cmd fot tapi */, 0, 0, 0x0000, 0x0000
 };
 
+#define SYSTEM_TIMER		0x01c0
+#define SIG_WRITE_TIME		0x0060
+
 void OsaskMain()
 {
 	int *signal, *signal0, i, j;
@@ -263,6 +272,12 @@ void OsaskMain()
 		mws->flags = 0;
 	}
 	mws->win = (struct WM0_WINDOW *) -1;
+
+	#if (defined(TIMEX))
+		lib_opentimer(SYSTEM_TIMER);
+		lib_definesignal1p0(0, 0x0010 /* timer */, SYSTEM_TIMER, 0, SIG_WRITE_TIME);
+		lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+	#endif
 
 	for (;;) {
 		unsigned char siglen = 1;
@@ -460,6 +475,64 @@ void OsaskMain()
 			(*pjob->func)(i - 0x0050, 0);
 		//	siglen = 1;
 			goto check_jobnext;
+
+			#if (defined(TIMEX))
+		case SIG_WRITE_TIME: /* 0x0060 */
+			{
+				/* 2003.01.06 KIYOTO, nikq, Kawai */
+				static int cmd[] = { 0x008c, 0, 0, 0, 0x0000 };
+				static int msg[] = {
+					0x0048, 0x0001, -1, 0x00c0, TIMEX, TIMEY, TIMEC, TIMEBC, 23,
+					'0', '0', '0', '0', '/', '0', '0', '/', '0', '0', '(', '0', '0', '0', ')',
+					'0', '0', ':', '0', '0', ':', '0', '0',
+					/* "0000/00/00(000)00:00:00" */
+					0x0000
+				};
+				int year, month, day;
+				char *week;
+				lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+				sgg_execcmd(cmd); /* 日付取得 */
+				msg[ 9] = (((unsigned char *) cmd)[14] >> 4) + '0';
+				msg[10] = (((unsigned char *) cmd)[14] & 15) + '0';
+				msg[11] = (((unsigned char *) cmd)[13] >> 4) + '0';
+				msg[12] = (((unsigned char *) cmd)[13] & 15) + '0';
+				msg[14] = (((unsigned char *) cmd)[12] >> 4) + '0';
+				msg[15] = (((unsigned char *) cmd)[12] & 15) + '0';
+				msg[17] = (((unsigned char *) cmd)[11] >> 4) + '0';
+				msg[18] = (((unsigned char *) cmd)[11] & 15) + '0';
+				msg[24] = (((unsigned char *) cmd)[10] >> 4) + '0';
+				msg[25] = (((unsigned char *) cmd)[10] & 15) + '0';
+				msg[27] = (((unsigned char *) cmd)[ 9] >> 4) + '0';
+				msg[28] = (((unsigned char *) cmd)[ 9] & 15) + '0';
+				msg[30] = (((unsigned char *) cmd)[ 8] >> 4) + '0';
+				msg[31] = (((unsigned char *) cmd)[ 8] & 15) + '0';
+				year = (((unsigned char *) cmd)[13] & 15)
+				     + (((unsigned char *) cmd)[13] >> 4) * 10
+				     + (((unsigned char *) cmd)[14] & 15) * 100
+				     + (((unsigned char *) cmd)[14] >> 4) * 1000;
+				month = (((unsigned char *) cmd)[12] & 15)
+				      + (((unsigned char *) cmd)[12] >> 4) * 10;
+				day = (((unsigned char *) cmd)[11] & 15)
+				    + (((unsigned char *) cmd)[11] >> 4) * 10;
+				if (month <= 2) {
+					year--;
+					month += 12;
+				}
+				week = &"SunMonTueWedThuFriSat"
+					[((year + (year / 4) - (year / 100) + (year / 400) + (13 * month + 8) / 5 + day) % 7) * 3];
+				msg[20] = week[0];
+				msg[21] = week[1];
+				msg[22] = week[2];
+				#if (TIMEX < 0)
+					msg[4] = x2 + TIMEX;
+				#endif
+				#if (TIMEY < 0)
+					msg[5] = y2 + TIMEY;
+				#endif 
+				lib_execcmd(msg);
+				break;
+			}
+			#endif
 
 		case 0x0014: /* 画面モード変更完了(result) */
 		case 0x00c0: /* 更新停止シグナル(handle) */

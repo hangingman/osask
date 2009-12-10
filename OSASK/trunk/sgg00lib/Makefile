@@ -3,6 +3,8 @@ include ..\rules.mak
 
 #ASM_FLAGS = /c /coff
 
+NASKCNV_FLAGS += -w # for WCOFF
+
 TARGET = sysgg00.lib
 OPT = $(TARGET:.lib=.opt)
 
@@ -16,7 +18,7 @@ SYSGGINC = ../include
 DIST_DIR = ..\lib
 
 # prevent automatic deletion of an intermediate file
-.SECONDARY : $(ASK_OBJS:.obj=.3as) $(ASK_OBJS:.obj=.asm) $(ASK_OBJS:.obj=.nas) $(ASK_OBJS:.obj=.i) $(ASK_OBJS:.obj=.obj) $(ASK_OBJS:.obj=.exe) $(C_OBJS:.obj=.s)
+.SECONDARY : $(ASK_OBJS:.obj=.3as) $(ASK_OBJS:.obj=.asm) $(ASK_OBJS:.obj=.nas) $(ASK_OBJS:.obj=.i) $(ASK_OBJS:.obj=.obj) $(ASK_OBJS:.obj=.exe) $(C_OBJS:.obj=.s) $(C_OBJS:.obj=.nas)
 
 ALL : $(TARGET)
 
@@ -32,8 +34,11 @@ $(OPT) : makefile
 %.s : %.c ..\depend.mak
 	$(CC) $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC) -o $@ $<
 
-%.obj : %.s ..\depend.mak
-	$(ASM) $(ASM_FLAGS) -o $@ $<
+%.nas : %.s ..\depend.mak
+	$(GAS2NASK) $(GAS2NASK_FLAGS) $< $@
+
+%.obj : %.nas ..\depend.mak
+	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
 
 %.i : %.ask makefile ..\depend.mak coffhead.ask
 	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $@ $<
@@ -56,6 +61,8 @@ clean:
 	del $(TARGET)
 	for %%i in ($(OBJS)) do del %%i
 	for %%i in ($(C_OBJS:.obj=.s)) do del %%i
+	for %%i in ($(C_OBJS:.obj=.nas)) do del %%i
+	for %%i in ($(C_OBJS:.obj=.lst)) do del %%i
 	for %%i in ($(ASK_OBJS:.obj=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.obj=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.obj=.nas)) do del %%i

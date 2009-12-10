@@ -1,5 +1,5 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.7
-    copyright(C) 2002 H.Kawai (川合秀実), I.Tak., KIYOTO */
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.8
+    copyright(C) 2003 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
    結局のところ、処理をshellcallに取り次いでいるだけ。
@@ -2150,20 +2150,20 @@ void cmd06c()
 	TEST(CL, 0x02);
 	if (!= 0)
 		INT(0x03);
+	(offset) cmd += 8;
 	TEST(CL, 0x01);
 	PUSH(ES);
 	if (== 0) {
 		/* 即値 */
-		LEA(EDI, cmd[8]);
-		LEA(ESI, [ESI+ECX+8]); /* bit1も0であることを想定していている */
-		ECX /= 4;
+		EDI = (offset) cmd;
+		(offset) cmd += ECX; /* bit1も0であることを想定している */
 		PUSH(DS); POP(ES); /* 必要ないかも */
 	} else {
 		/* 間接 */
-		ECX /= 4;
-		LES(EDI, cmd[8]);
-		(offset) cmd += 16;
+		LES(EDI, cmd[0]);
+		(offset) cmd += 8;
 	}
+	ECX /= 4;
 	sendusersignal();
 	POP(ES);
 	if (ZF == 0 /* error */)
