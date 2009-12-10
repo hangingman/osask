@@ -1,0 +1,141 @@
+"src30"の使い方の説明                      2002/10/30 川合秀実
+
+１．これは何か？
+
+  "src30"は、OSASK ver.3.0の「OSASK30.EXE」を生成するのに必要なモジュールのソー
+スプログラムのセットです。ただし、以前のバージョンのものをそのまま利用している
+ものついては、このアーカイブに含まれていません。OSASK30.EXEを生成するのに必要な
+モジュールのバージョンを書いておきます。
+
+  (このアーカイブ内に含まれているもの)
+
+    BASE.NAS     : ver.2.2
+    BOOT32.ASK   : ver.0.0
+    OSALINK1.OPT : ver.0.0
+    INIT.ASK     : ver.2.8
+    IBMANK0.TXT  : ver.0.3
+    PIONEER0.ASK : ver.2.6
+    WINMAN0.C    : ver.2.4
+    POKON0.C     : ver.3.0
+    FDCDRV0.BIN  : ver.1.7
+    PCAT/
+      KEYMOS0.BIN  : ver.0.5
+
+  (以前のバージョンのものを利用するもの)
+
+    OSASKINC.ASK : ver.0.0
+    TAPI0.ASK    : ver.0.4
+    PAPI0.ASK    : ver.0.6
+    TIMERDRV.ASK : type-A ver.1.1
+    VGADRV0.ASK  : ver.1.6
+    DECODE0.ASK  : ver.1.0
+    SYSGG00.LIB  : ver.0.8
+    TOWNS/
+      KEYMOS0.BIN  : ver.0.4
+    NEC98/
+      KEYMOS0.BIN  : ver.0.4
+
+  このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
+るだけです。
+
+２．コンパイル＆アセンブル方法
+
+  使用したアセンブラ、コンパイラ、コンバータ、ライブラリは以下の通りです。
+
+・tolset01
+  (ASKA version 1.0 beta 19 Modified by RisaPapa + NASK ver.0.0 + naskcnv0 +
+   osalink1 + obj2bim2 + bim2bin3 + gg00lib9 + stdlib6)
+・lcc-win32 (LCC.EXEのタイムスタンプ2002/06/09、サイズ532,000バイト)
+
+tolset01はOSASKの開発者向けページからダウンロードできます。lccについては、tolse
+t01のドキュメントにしたがって入手してください。
+
+  BASE.EXEの生成は、以下のように行います。
+
+>nask base.nas base.exe base.lst
+
+  SYSGG00.LIBの生成は、MAKEFILEで行いました。MAKEFILEを読んでコンパイル・アセン
+ブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成のみに
+必要な専用ライブラリです。
+
+  拡張子が.ASKのものは、lcc-win32→ASKA→naskcnv0→NASKで.BINファイルにします。
+naskcnv0のオプション指定では、-lと-sを指定します。lcc-win32はプリプロセッサとし
+て使います。オプション-EPを付けてください。ただしAT互換機版を生成する時は、LCC
+に「-DPCAT」オプションをつけてください。またTOWNS版を生成する時は、LCCに「-DTO
+WNS」オプションをつけてください。またウィンドウデザインを指定するために「-DWIN
+9X」「-DTMENU」「-DCHO_OSASK」「-DNEWSTYLE」「-DWIN31」のいずれかも併せて指定し
+ます。以下は一例です。
+
+>lcc -EP -DPCAT -DWIN9X init.ask
+>aska init.i init.3as
+>naskcnv0 -l -s init.3as init.nas
+>nask init.nas init.bin init.lst
+
+（このinitの部分を置き換えれば他のソースも同様にアセンブルできます）
+
+  拡張子が.Cのものは、tolset01内のdoc_link.txtで説明されている方法で生成できま
+す。ただしAT互換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。
+またTOWNS版を生成する時は、LCCに「-DTOWNS」オプションをつけてください。98版は「
+-DNEC98」です。またここでもウィンドウデザインに関するオプションが必要です。ライ
+ブラリーにSYSGG00を使う必要があることにも注意してください。指定すべきスタックサ
+イズ、mallocサイズは、各ソース中の最初の方に明記してあります。
+
+  そしてさらに、たいていの場合は.BINファイルを.TEKファイルに変換する必要がある
+でしょう。それはbim2bin3の-osacmpモードで行ないます。具体的な手順はtolset01内の
+doc_link.txtでの説明を参照してください。
+
+  OSALINK1.OPTに書かれている全てのファイルが用意できたら、osalink1でそれらをま
+とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset01内のdoc_nask.txtを
+参照してください。
+
+  またVMware対応バイナリを生成する場合は、-DPCATに加えて-DVMWAREを指定してくだ
+さい。
+
+  Bochs 1.3対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に、
+base.nasを以下の指示にしたがって書き換える必要があります。
+
+・111～112行目のセミコロンだけを削除する。
+・232行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
+
+  Bochs 1.2.1対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指定
+した上に、base.nasをBochs 1.3と同様に書き換えてください。
+
+３．説明＆注意点
+
+  これらのソースは、単にOSASKを改良するためだけではなく、他のOSのために利用した
+り、その他の目的に利用することを認めています。詳しい利用範囲はLICENSE.TXTを参照
+してください。
+
+  これらのソースの大半は、全く清書されていません。註釈がついているものもありま
+すが、意味の無い註釈だったり、バージョンアップの過程でコードが削除されたのに註
+釈だけ残ったものなどがあり、はっきりいってあてになりません。
+
+  このソースを公開することにしたのは、「バイナリだけよりはマシだろう」というひ
+どいセンスによるものです。読みにくくてほとんど役に立たないかもしれません。大変
+申し訳ないです。どなたかが著作者に代わって清書してくれるのは大歓迎です。
+
+  何か疑問に感じられることがあれば、OSASK-MLにメールでご連絡ください(OSASK伝言
+板でもかまいません)。すぐにはお返事できないかもしれませんが、できるだけお答えし
+ます。川合秀実にメールすることもできますが、基本的に個人メールでなければいけな
+い理由がなければ、OSASK-MLかOSASK伝言板の利用をお願いします。
+
+４．謝辞
+
+  このアーカイブは、各著作者が川合堂ライセンス-01の適用に快く応じていただけたこ
+とで公開することができました。この場を借りて、心からお礼申し上げます。
+
+５．著作権
+
+  著作権については、該当するOSASKの一般公開版に付属するCOPYRIGHT.TXTを参照して
+ください。このアーカイブないの全てのファイルに対して川合堂ライセンス-01を適用し
+ます。
+
+６．リンク
+
+  このドキュメントに関係のあるいくつかのURLを挙げておきます。
+
+    OSASKの開発者向けページ   http://www.imasy.org/~kawai/osask/developers.html
+    小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
+    OSASKのページ             http://www.imasy.org/~kawai/osask/
+    OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
+    川合秀実のページ          http://www.imasy.org/~kawai/
