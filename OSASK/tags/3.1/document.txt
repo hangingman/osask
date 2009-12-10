@@ -1,0 +1,146 @@
+"src31"の使い方の説明                      2002/12/02 川合秀実
+
+１．これは何か？
+
+  "src31"は、OSASK ver.3.1の「OSASK31.EXE」を生成するのに必要なモジュールのソー
+スプログラムのセットです。ただし、以前のバージョンのものをそのまま利用している
+ものついては、このアーカイブに含まれていません。OSASK31.EXEを生成するのに必要な
+モジュールのバージョンを書いておきます。
+
+  (このアーカイブ内に含まれているもの)
+
+    PIONEER0.ASK : ver.2.7
+    WINMAN0.C    : ver.2.5
+    POKON0.C     : ver.3.1
+    PCAT/
+      KEYMOS0.BIN  : ver.0.6
+
+  (以前のバージョンのものを利用するもの)
+
+    BASE.NAS     : ver.2.2
+    OSASKINC.ASK : ver.0.0
+    BOOT32.ASK   : ver.0.0
+    OSALINK1.OPT : ver.0.0
+    INIT.ASK     : ver.2.8
+    TAPI0.ASK    : ver.0.4
+    PAPI0.ASK    : ver.0.6
+    TIMERDRV.ASK : type-A ver.1.1
+    IBMANK0.TXT  : ver.0.3
+    FDCDRV0.BIN  : ver.1.7
+    VGADRV0.ASK  : ver.1.6
+    DECODE0.ASK  : ver.1.0
+    SYSGG00.LIB  : ver.0.8
+    TOWNS/
+      KEYMOS0.BIN  : ver.0.4
+    NEC98/
+      KEYMOS0.BIN  : ver.0.4
+
+  このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
+るだけです。
+
+２．コンパイル＆アセンブル方法
+
+  使用したアセンブラ、コンパイラ、コンバータ、ライブラリは以下の通りです。
+
+・tolset02
+  (ASKA version 1.0 beta 19 Modified by RisaPapa + NASK ver.0.0 + naskcnv0 +
+   osalink1 + obj2bim3 + bim2bin3 + gg00lib9 + stdlib6 + go_0005w)
+
+tolset02はOSASKの開発者向けページからダウンロードできます。
+
+  BASE.EXEの生成は、以下のように行います。
+
+>nask base.nas base.exe base.lst
+
+  SYSGG00.LIBの生成は、MAKEFILEで行いました。MAKEFILEを読んでコンパイル・アセン
+ブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成のみに
+必要な専用ライブラリです。
+
+  拡張子が.ASKのものは、cpp0→ASKA→naskcnv0→NASKで.BINファイルにします。nask
+cnv0のオプション指定では、-lと-sを指定します。cpp0はプリプロセッサです。オプシ
+ョン-Pを付けてください。ただしAT互換機版を生成する時は、cpp0に「-DPCAT」オプシ
+ョンをつけてください。またTOWNS版を生成する時は、cpp0に「-DTOWNS」オプションを
+つけてください。またウィンドウデザインを指定するために「-DWIN9X」「-DTMENU」「
+-DCHO_OSASK」「-DNEWSTYLE」「-DWIN31」のいずれかも併せて指定します。以下は一例
+です。
+
+>cpp0 -I. -P -DPCAT -DWIN9X init.ask
+>aska init.i init.3as
+>naskcnv0 -l -s init.3as init.nas
+>nask init.nas init.bin init.lst
+
+（このinitの部分を置き換えれば他のソースも同様にアセンブルできます）
+
+  拡張子が.Cのものは、cc1→as→obj2bim3でオブジェクトファイルにし、あとはtolset
+02内のdoc_link.txtで説明されている方法でリンクします。ただしAT互換機版を生成す
+る時は、cc1に「-DPCAT」オプションをつけてください。またTOWNS版を生成する時は、
+cc1に「-DTOWNS」オプションをつけてください。98版は「-DNEC98」です。またここでも
+ウィンドウデザインに関するオプションが必要です。ライブラリーにSYSGG00を使う必要
+があることにも注意してください。指定すべきスタックサイズ、mallocサイズは、各ソ
+ース中の最初の方に明記してあります。以下は一例です。
+
+>cc1 -Os -quiet -I. -DPCAT -DWIN9X -o winman0.s winman0.c
+>as -o winman0.obj winman0.s
+>obj2bim3 -fixobj winman0.obj text_align:1 data_align:4 bss_align:4
+>obj2bim3 @guigui00.rul stack:4k map:winman0.map out:winman0.bim winman0.obj
+>bim2bin3 malloc:624k file:768k in:winman0.bim out:winman0.bin
+
+  そしてさらに、たいていの場合は.BINファイルを.TEKファイルに変換する必要がある
+でしょう。それはbim2bin3の-osacmpモードで行ないます。具体的な手順はtolset02内の
+doc_link.txtでの説明を参照してください。
+
+  OSALINK1.OPTに書かれている全てのファイルが用意できたら、osalink1でそれらをま
+とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset02内のdoc_nask.txtを
+参照してください。
+
+  またVMware対応バイナリを生成する場合は、-DPCATに加えて-DVMWAREを指定してくだ
+さい。
+
+  Bochs 1.3対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に、
+base.nasを以下の指示にしたがって書き換える必要があります。
+
+・111～112行目のセミコロンだけを削除する。
+・232行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
+
+  Bochs 1.2.1対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指定
+した上に、base.nasをBochs 1.3と同様に書き換えてください。
+
+３．説明＆注意点
+
+  これらのソースは、単にOSASKを改良するためだけではなく、他のOSのために利用した
+り、その他の目的に利用することを認めています。詳しい利用範囲はLICENSE.TXTを参照
+してください。
+
+  これらのソースの大半は、全く清書されていません。註釈がついているものもありま
+すが、意味の無い註釈だったり、バージョンアップの過程でコードが削除されたのに註
+釈だけ残ったものなどがあり、はっきりいってあてになりません。
+
+  このソースを公開することにしたのは、「バイナリだけよりはマシだろう」というひ
+どいセンスによるものです。読みにくくてほとんど役に立たないかもしれません。大変
+申し訳ないです。どなたかが著作者に代わって清書してくれるのは大歓迎です。
+
+  何か疑問に感じられることがあれば、OSASK-MLにメールでご連絡ください(OSASK伝言
+板でもかまいません)。すぐにはお返事できないかもしれませんが、できるだけお答えし
+ます。川合秀実にメールすることもできますが、基本的に個人メールでなければいけな
+い理由がなければ、OSASK-MLかOSASK伝言板の利用をお願いします。
+
+４．謝辞
+
+  このアーカイブは、各著作者が川合堂ライセンス-01の適用に快く応じていただけたこ
+とで公開することができました。この場を借りて、心からお礼申し上げます。
+
+５．著作権
+
+  著作権については、該当するOSASKの一般公開版に付属するCOPYRIGHT.TXTを参照して
+ください。このアーカイブないの全てのファイルに対して川合堂ライセンス-01を適用し
+ます。
+
+６．リンク
+
+  このドキュメントに関係のあるいくつかのURLを挙げておきます。
+
+    OSASKの開発者向けページ   http://www.imasy.org/~kawai/osask/developers.html
+    小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
+    OSASKのページ             http://www.imasy.org/~kawai/osask/
+    OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
+    川合秀実のページ          http://www.imasy.org/~kawai/
