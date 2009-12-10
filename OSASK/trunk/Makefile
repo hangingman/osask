@@ -33,7 +33,7 @@ TARGET = OSASK.EXE
 ASK_OBJS =  tapi0.bin timerdrv.bin keymos0.bin fdcdrv0.bin \
     pioneer0.bin vgadrv0.bin decode0.bin
 
-ASK_OBJS += vesadrv0.bin 
+#ASK_OBJS += vesadrv0.bin 
 
 C_OBJS = winman0.bin pokon0.bin
 
@@ -61,7 +61,8 @@ $(BASE) :
 $(ANKFONT) :
 
 %.bin : %.ask Makefile
-	$(ASKA) $< $*.3as
+	$(PREPROCESSOR) $<
+	$(ASKA) $*.i $*.3as
 	$(MASMCNV) $(MASMCNV_FLAGS) $*.3as $*.asm
 	$(ASM) $(ASM_FLAGS) /Fl$*.lst $*.asm
 	$(LINK) $*,$*,$*,nul,nul
@@ -83,6 +84,7 @@ clean:
 	del $(OSALINK_OPT)
 	for %%i in ($(ASK_OBJS)) do del %%i
 	for %%i in ($(C_OBJS)) do del %%i
+	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
@@ -98,6 +100,7 @@ dist_clean:
 #	del $(OSALINK_OPT)
 	for %%i in ($(ASK_OBJS)) do del %%i
 	for %%i in ($(C_OBJS)) do del %%i
+	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i

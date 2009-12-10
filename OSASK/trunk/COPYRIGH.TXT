@@ -1,7 +1,7 @@
 
-    srcat09 の著作権情報
+    sbat10 の著作権情報
 
-  このアーカイブに含まれるファイルは、以下の31個です。
+  このアーカイブに含まれるファイルは、以下の24個です。
 
 ・BASE/
     BASEHEAD.ASM
@@ -9,45 +9,32 @@
     INIT.ASK
     BASEFOOT.ASM
     MAKEBASE.BAT
+・OSALINK0.OPT
 ・TAPI0.ASK
-・TIMERDRV.ASK
+・TAPI0.BIN
 ・KEYMOS0.ASK
-・DECODE0.ASK
+・KEYMOS0.BIN
 ・FDCDRV0.ASK
+・FDCDRV0.BIN
 ・VGADRV0.ASK
-・VESADRV0.ASK
+・VGADRV0.BIN
 ・PIONEER0.ASK
-・ANKFONT/
-    FONTTEXT.TXT
-    TXT2BIN.C
-    TXT2BIN.EXE
+・PIONEER0.BIN
 ・WINMAN0.C
+・WINMAN0.BIN
 ・POKON0.C
+・POKON0.BIN
 ・INC.ASM
-・SGG00L01/
-    SYSGG00.H
-    EXECCMD.ASM
-    INIT.C
-    FWINMAN.C
-    FPOKON.C
-    FDEBUG.C
-    MAKELIB.BAT
-    SYSGG00.LIB
-    SYSGG00.OPT
 ・COPYRIGH.TXT
 ・LICENSE.TXT
 ・DOCUMENT.TXT
 
   これらの著作権は以下の人々にあります。
 
-・平木敬太郎さん  (FONTTEXT.TXTの全て)
-    URL     http://hp.vector.co.jp/authors/VA000874/
-    e-mail  PAF03513@nifty.ne.jp
-
-・ODPさん  (VGADRV0.ASKの一部)
+・ODPさん  (VGADRV0.ASK、VGADRV0.BINの一部)
     e-mail  shoe16@wizard.elec.waseda.ac.jp
 
-・小柳雅明さん （POKON0.Cの一部）
+・小柳雅明さん （POKON0.C、POKON0.BINの一部）
     URL     http://homepage1.nifty.com/dreaming/
     e-mail  Koyanagi.Masaaki@nifty.ne.jp
 

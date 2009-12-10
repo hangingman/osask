@@ -1,4 +1,4 @@
-;	"boot.asm" ver.0.90
+;	"boot.asm" ver.1.00
 ;	OSASK/AT用のブートプログラム
 ;	Copyright(C) 2001 H.Kawai (川合秀実)
 

@@ -1,4 +1,4 @@
-// "keymos0.ask" ver.0.2 copyright(C) 2001 H.Kawai(川合秀実)
+// "keymos0.ask" ver.0.3 copyright(C) 2001 H.Kawai(川合秀実)
 
 // このバージョンもOTASK版と同じく、キーを押しながら抜くとフェーズが狂う
 
@@ -76,6 +76,8 @@ nextcmd:
 		goto cmd0124; // KeyboardIntDrvのベクタ提供
 	if (EAX == 0x0128)
 		goto cmd0128; // MouseIntDrvのベクタ提供
+	if (EAX == 0x0018)
+		goto cmd0018; // バージョン要求
 
 	INT(0x03);
 
@@ -304,14 +306,13 @@ cmd011c_cmdline:
 	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
 	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,0A8H");  // mouse interface enable
 
-	DD(7);
+	DD(2 /* 7 */);
 	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
-//	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,0D4H");  // to mouse prefix
-//	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
-	asmout("DD OFFSET MouQueCmd_AckSendData,0FFH"); // mouse reset
+//	asmout("DD OFFSET MouQueCmd_AckSendData,0FFH"); // mouse reset
 		// ↑このコマンドがタイムアウトしたら、マウスはつながっていない
-	asmout("DD OFFSET MouQueCmd_RecieveCheck,0AAH"); // power on reset(reset成功 第1バイト)
-	asmout("DD OFFSET MouQueCmd_RecieveCheck,000H"); // power on reset(reset成功 第2バイト)
+//	asmout("DD OFFSET MouQueCmd_RecieveCheck,0AAH"); // power on reset(reset成功 第1バイト)
+//	asmout("DD OFFSET MouQueCmd_RecieveCheck,000H"); // power on reset(reset成功 第2バイト)
+	asmout("DD OFFSET MouQueCmd_ResetCommand");
 
 	DD(0);
 
@@ -357,6 +358,16 @@ cmd0128:
 	asmout("MOV DWORD PTR FS:[EBX+4],OFFSET MouseIntDrv");
 	(short) cmd[8] = CS;
 	(offset) cmd += 12;
+	goto nextcmd;
+
+cmd0018:
+	// バージョン要求
+	// 本来は、cmd[4]が0であることを確認しなければいけない
+	cmd[ 8] = 300; // ver.0.30
+	cmd[12] = 0;
+	cmd[16] = 0;
+	cmd[20] = 0;
+	(offset) cmd += 24;
 	goto nextcmd;
 }
 
@@ -471,14 +482,15 @@ dummy_fret:
 
 void far KeyboardIntDrv()
 {
-/*	struct SS0_struct {
+#if 0
+	struct SS0_struct {
 		void [32];
 		int ring0_count;
 		/* void * */ int [4], ring0call[6], [2];
 		int cli_count;
 		/* void * */ int [4], cli_call[6], [2];
 	};
-*/
+#endif
 	SS0_struct *ss0 == /* SS:(- sizeof (SS0_struct)) */ SS:0xffffffc0;
 
 	PUSH(DS);
@@ -517,7 +529,7 @@ void near KeyIntDrv_Normal()
 		keycode = 0x04000000;
 		goto send_keycode;
 	}
-/*
+#if 0
 if (AL == 0x01 /* ESC */) { // !!!
 	// +00 : EAX
 	// +04 : DS
@@ -528,7 +540,7 @@ if (AL == 0x01 /* ESC */) { // !!!
 	ECX = (int) [SS:ESP + 12];
 	INT(0x03);
 }
-*/
+#endif
 
 	MOVSX(keycode, AL); // EAX = AL;
 	keycode &= 0x0100007f; // 00:make, 01:break
@@ -648,72 +660,6 @@ e1_0x9d:
 	goto KeyIntDrv_send_keycode;
 
 }
-
-
-
-
-
-
-
-
-
-
-struct LINE_CMD {
-	unsigned int cmd_no /* 0x0100 */;
-	unsigned int option /* bit6-7:function 00:PSET, 01:AND, 10:OR, 11:XOR */;
-	unsigned int x0, y0, x1, y1, color;
-};
-
-struct END_CMD {
-	unsigned int cmd_no /* 0x0000 */;
-};
-
-void far keytest()
-{
-/*
-	PUSH(FS);
-	ESP -= 64;
-
-	// 画面の初期化(640本の黒い線を引く)
-//	struct LINE_CMD *line0 == SS:ESP;
-	LINE_CMD *line0 == SS:ESP;
-//	struct END_CMD *end0 == line0 + sizeof (struct LINE_CMD);
-	END_CMD *end0 == line0 + sizeof (LINE_CMD);
-	line0->cmd_no = 0x0100;
-	line0->option = 0x20; // PSET-mode, boxfill
-	line0->x0 = 632;
-	line0->y0 = 464;
-	line0->x1 = 639;
-	line0->y1 = 479;
-	AL = [DS:ESI + 8 + 3];
-	if (AL == 0)
-		EAX = 7;
-	else if (AL == 1)
-		EAX = 1;
-	else if (AL == 2)
-		EAX = 6;
-	else
-		EAX = 8;
-	line0->color = EAX; // 黒
-	end0->cmd_no = 0x0000;
-
-	AX = SS; FS = AX;
-	EBX = (offset) line0;
-	asmout("fcall 4*8, Gapi_entry");
-	ESP += 64;
-	POP(FS);
-*/
-	return;
-}
-
-
-
-
-
-
-
-
-
 
 void near KeyboardQueueExecute()
 /*	キーボードマイクロコマンドキューイング
@@ -1116,6 +1062,15 @@ void far MouseIntDrv()
 
 void near MouseIntDrv2()
 {
+	// 先に割り込みを終了させてしまう(2001/02/18 データーを取りこぼすエラーがあったため)。
+	// 信号の立ち上がりが割り込みを起こすから、害はないだろう。
+	AL = 0x64 /* IRQ-12を終了 */;
+	OUT(0xa0, AL);
+	// ここでISRを読んでIRQ-02を終了すべきか判断しなければいけない、かもしれない
+	// 現バージョンでは、スレーブの割り込みは１つしか受け付けない
+	AL = 0x62 /* IRQ-02を終了 */;
+	OUT(0x20, AL);
+
 	keyboarddata *work == DS:0;
 	IN(AL, 0x60);
 	asmout("JMP DWORD PTR DS:[work_mousejmp]"); // goto work->mousejmp;
@@ -1143,17 +1098,17 @@ void near MouseIntDrv_Phase0()
 
 void near MouseIntDrv_Ret()
 {
-	IN(AL, 0x64);
-	AL &= 0x21;
+//	IN(AL, 0x64);
+//	AL &= 0x21;
 	// if (AL == 0x21 /* mouse data あり */) goto MouseIntDrv2;
-	CMP(AL, 0x21);
-	asmout("JE MouseIntDrv2");
-	AL = 0x64 /* IRQ-12を終了 */;
-	OUT(0xa0, AL);
+//	CMP(AL, 0x21);
+//	asmout("JE MouseIntDrv2");
+//	AL = 0x64 /* IRQ-12を終了 */;
+//	OUT(0xa0, AL);
 	// ここでISRを読んでIRQ-01を終了すべきか判断しなければいけない、かもしれない
 	// 現バージョンでは、スレーブの割り込みは１つしか受け付けない
-	AL = 0x62 /* IRQ-01を終了 */;
-	OUT(0x20, AL);
+//	AL = 0x62 /* IRQ-01を終了 */;
+//	OUT(0x20, AL);
 	POP(EAX);
 
 	SS0_struct *ss0 == /* SS:(- sizeof (SS0_struct)) */ SS:0xffffffc0;
@@ -1218,7 +1173,7 @@ void near MouseIntDrv_Phase3()
 // 0xaaを受信した後のフェーズ
 {
 	keyboarddata *work == DS:0;
-	(char) work->mouse_send_buf[15] = 0xa; // 拡張モード長さ2
+	(char) work->mouse_send_buf[15] = 0xa0; // 拡張モード長さ2
 	(char) work->mouse_send_buf[13] = AL;
 	/* work->mousejmp = (offset) MouseIntDrv_Phase0 */ asmout("MOV DWORD PTR DS:[work_mousejmp], OFFSET MouseIntDrv_Phase0");
 	/* goto send_mousecode */ asmout("JMP send_mousecode");
@@ -1373,10 +1328,35 @@ intack:
 	if (AL == 0xfe /* NACK */)
 		goto retry;
 
-	INT(0x03); // エラーシグナルを発生させる
+	return; // どちらでもないキャラクターが来たら、無視してACKかNACKを待ち続ける
 }
 
+void near MouQueCmd_ResetCommand()
+// マウスリセット
+{
+	/* work->mouse_exec_wait_int = intack; */ asmout("MOV DWORD PTR DS:[work_mouse_exec_wait_int],OFFSET #intack");
+retry:
+	AL = 0xd4; // to mouse prefix
+	OUT(0x64, AL);
+	do {
+		IN(AL, 0x64);
+		TEST(AL, 0x02);
+	} while (!= 0);
+	AL = 0xff;
+	OUT(0x60, AL);
+	return; // EBXとEBPはそのままにしておく（実行中の命令がわからなくなるから）
 
+intack:
+	if (AL == 0x00 /* ACK */) {
+		EBX += 4;
+		EBP++;
+		/* goto [(void near *) DS:EBX] */ asmout("JMP DWORD PTR DS:[EBX]");
+	}
+	if (AL == 0xfe /* NACK */)
+		goto retry;
+
+	return; // どちらでもないキャラクターが来たら、無視して0x00(完了)かNACKを待ち続ける
+}
 
 /*
 

@@ -1,4 +1,4 @@
-// "VGADRV0.ASK" ver.0.2 copyright(C) 2000-2001 川合秀実, ODP
+// "VGADRV0.ASK" ver.0.3 copyright(C) 2001 川合秀実, ODP
 
 segment GapiMdl(USE32, PARA);
 
@@ -677,18 +677,22 @@ void near GAPI_mouse()
 			GAPI_removemouse(); // remove mouse (mouseflag = 0)
 			EAX = cmd[8];
 		}
-		work->mx1 = 0x80000000; // 非表示モード
+		TEST(AH, 0x01);
+		if (== 0)
+			work->mx1 = 0x80000000; // 非表示モード
 	}
 	TEST(AH, 0x01);
 	if (!= 0) {
 		// カーソルを描く
+		ECX = cmd[12];
+		EDX = cmd[16];
+		work->mx = ECX;
+		work->my = EDX;
 		if (work->lockcount == 0) {
-			ECX = cmd[12];
-			EDX = cmd[16];
-			work->mx = ECX;
-			work->my = EDX;
 			GAPI_clippingmouse(); // mx0, my0, mx1, my1を設定
 			GAPI_putmouse(); // put mouse (mouseflag = 1)
+		} else {
+			work->mouselock = 0x80000000;
 		}
 		STI();
 		(offset) cmd += 20;
@@ -1102,6 +1106,49 @@ void near GAPI_accesslock()
 	GAPI_WORK *work == ES:0x0000;
 
 	EAX = cmd[8]; // opt
+#if 0
+	// 時々マウスが消えてしまうので、一時的にアルゴリズムを簡略化
+	TEST(AL, 0x01);
+	if (== 0) {
+		// lock
+		CLI();
+		if (work->lockcount == 0) {
+			// 範囲に関係なく、マウスを消す
+			if (work->mouseflag != 0) {
+				GAPI_removemouse(); // remove mouse (mouseflag = 0)
+			}
+		}
+		work->lockcount++;
+		STI();
+		EAX = cmd[8]; // opt
+		(offset) cmd += 28;
+		if (AL == 0) {
+			(offset) cmd += 4;
+		}
+		asmout("JMP next_command");
+	}
+
+	// unlock
+	CLI();
+	work->lockcount--;
+	if (== 0) {
+		if (work->mx1 != 0x80000000 /* mx1がこの値の時は、非表示を意味する */) {
+			GAPI_clippingmouse(); // mx0, my0, mx1, my1を設定
+			GAPI_putmouse(); // put mouse (mouseflag = 1)
+		}
+	}
+	STI();
+	EAX = cmd[8]; // opt
+	if (AL == 1) {
+		(offset) cmd += 12;
+		asmout("JMP next_command");
+	}
+	(offset) cmd += 28;
+	asmout("JMP next_command");
+
+////////////////////////////////////////////////////////////////////////////////
+#endif
+
 	if (AL == 0)
 		goto lock_bitset;
 	if (AL == 0x02)
@@ -1113,7 +1160,6 @@ void near GAPI_accesslock()
 	INT(0x03);
 
 lock_bitset:
-	work->lockcount++;
 	EAX = cmd[12]; // x0
 	ECX = cmd[16]; // y0
 	ESI = cmd[20]; // x1
@@ -1122,6 +1168,7 @@ lock_bitset:
 	cmd[4] = 0xffffffff; // 終了
 	(offset) cmd += 32;
 	CLI();
+	work->lockcount++;
 	if ((signed) EAX /* x0 */ < work->mx1) {
 		if ((signed) ECX /* y0 */ < work->my1) {
 			if ((signed) ESI /* x1 */ > work->mx0) {
@@ -1139,7 +1186,6 @@ lock_bitset:
 	asmout("JMP next_command");
 
 lock_bitnoset:
-	work->lockcount++;
 	EAX = cmd[12]; // x0
 	ECX = cmd[16]; // y0
 	ESI = cmd[20]; // x1
@@ -1147,6 +1193,7 @@ lock_bitnoset:
 	cmd[4] = 0xffffffff; // 終了
 	(offset) cmd += 28;
 	CLI();
+	work->lockcount++;
 	if ((signed) EAX /* x0 */ < work->mx1) {
 		if ((signed) ECX /* y0 */ < work->my1) {
 			if ((signed) ESI /* x1 */ > work->mx0) {
@@ -1170,9 +1217,10 @@ unlock_optbit:
 		if (!= 0) {
 			work->mouselock--;
 			if (== 0) {
-				// マウスを移動させる時に、mouselockが0にされるので、
+				// マウスを移動させる時に、mouselockが0x80000000にされるので、
 				// マウスが非表示中に移動すると、これは成立しなくなる。
 				GAPI_putmouse(); // put mouse (mouseflag = 1)
+				// mx1をチェックしなくていいのか？
 			}
 		}
 		STI();

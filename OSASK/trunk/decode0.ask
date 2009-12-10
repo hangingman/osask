@@ -695,7 +695,7 @@ void far filter0()
 asmout("DecodeSiz:");
 }
 
-/*
+#if 0
 void far filter1()
 {
 	EAX = [DS:ESI + 8];
@@ -705,7 +705,8 @@ void far filter1()
 		for (;;)
 			HLT();
 
-	/*	// double-faultでリセットをかける
+#if 0
+		// double-faultでリセットをかける
 		CLI();
 		// GDTとIDTのリミットを0にする。
 		EAX = 0;
@@ -715,7 +716,7 @@ void far filter1()
 		asmout("LIDTE FWORD PTR SS:[ESP+2]");
 		ESP = 256;
 		INT(0x03);
-	*/
+#endif
 	} else if (EAX == 0x6a4 /* Ctrl + Alt + Insert */) {
 		CL = 0x01;
 	} else if (EAX == 0x0ac /* left */) {
@@ -752,4 +753,4 @@ void far filter1()
 	return;
 asmout("DecodeSiz:");
 }
-*/
+#endif

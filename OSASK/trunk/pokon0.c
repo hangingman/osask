@@ -1,4 +1,4 @@
-// "pokon0.c":アプリケーションラウンチャー ver.0.7
+// "pokon0.c":アプリケーションラウンチャー  ver.0.8
 //   copyright(C) 2000 川合秀実, 小柳雅明
 //  exe2bin0 pokon0 -s 20k
 
@@ -10,6 +10,8 @@
 
 #define	AUTO_MALLOC	0
 #define LIST_HEIGHT	8
+#define ext_EXE		('E' | ('X' << 8) | ('E' << 16))
+#define ext_BIN		('B' | ('I' << 8) | ('N' << 16))
 
 struct FILELIST {
 	char name[11];
@@ -146,7 +148,7 @@ void main()
 	struct LIB_WINDOW *window;
 	struct LIB_TEXTBOX *wintitle, *mode;
 	char charbuf16[17];
-	int cur, i, sig, bank;
+	int cur, i, sig, bank, fmode = 0, ext;
 	struct SGG_FILELIST *fp;
 
 	lib_init(AUTO_MALLOC);
@@ -162,7 +164,7 @@ void main()
 	mode     = lib_opentextbox(0x0000, AUTO_MALLOC,  0, 20, 1,  0,  0, window, 0x00c0, 0); // 256bytes
 	selector = lib_opentextbox(0x0001, AUTO_MALLOC, 15, 16, 8, 16, 32, window, 0x00c0, 0); // 1.1KB
 
-	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon07");
+	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon08");
 
 	// キー操作を登録
 	lib_definesignal1p0(1, 0x0100, 0x00ae /* cursor-up */,   window,  4);
@@ -176,10 +178,15 @@ void main()
 	lib_definesignal1p0(0, 0x0100, 's',                      window,  9);
 	lib_definesignal1p0(1, 0x0100, 0x00a8 /* page-up */,     window, 10);
 //	lib_definesignal1p0(0, 0x0100, 0x00a9 /* page-down */,   window, 11);
+	lib_definesignal1p0(1, 0x0100, 0x00ac /* cursor-left */, window, 10);
+//	lib_definesignal1p0(0, 0x0100, 0x00ad /* cursor-right */,window, 11);
+	lib_definesignal1p0(1, 0x0100, 0x00a6 /* Home */,        window, 12);
+//	lib_definesignal1p0(0, 0x0100, 0x00a7 /* End */,         window, 13);
+	lib_definesignal1p0(0, 0x0100, 0x00a4 /* Insert */,      window, 14);
 	lib_definesignal0p0(0, 0, 0, 0);
 
 	lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Run Application > ");
-	cur = list_set('B' | ('I' << 8) | ('N' << 16));
+	cur = list_set(ext = ext_BIN);
 
 	for (i = 0; i < 8; i++)
 		banklist[i] = 0;
@@ -193,8 +200,6 @@ void main()
 		switch (sig) {
 
 		case 4 /* cursor-up */:
-		//	lib_waitsignal(0x0000, 1, 0);
-		//	sbp++;
 			if (cur < 0 /* ファイルが１つもない */)
 				break;
 			if (cur > 0) {
@@ -214,8 +219,6 @@ listup:
 			break;
 
 		case 5 /* cursor-down */:
-		//	lib_waitsignal(0x0000, 1, 0);
-		//	sbp++;
 		//	if (cur < 0 /* ファイルが１つもない */)
 		//		break;
 		//	ファイルがない場合、cur == -1 && lp[0].name[0] == '\0'
@@ -233,11 +236,10 @@ listup:
 			break;
 
 		case 6 /* Enter */:
-		//	lib_waitsignal(0x0000, 1, 0);
-		//	sbp++;
 			if (cur < 0 /* ファイルが1つもない */)
 				break;
-			if (list[0].name[8] == 'B') {
+			if (ext == ext_BIN) {
+				// .BINファイルモード
 				for (bank = 2; bank < 8; bank++) {
 					if (banklist[bank] == 0)
 						goto find_freebank;
@@ -249,7 +251,6 @@ listup:
 				else
 					break;
 find_freebank:
-				// .BINファイルモード
 				sgg_loadfile(0x0220 /* load to "empty00" */ + bank * 16,
 					lp[cur].ptr->id /* file id */,
 					99 /* finish signal */
@@ -267,19 +268,19 @@ find_freebank:
 					sgg_settasklocallevel(i,
 						1 * 32 /* local level 1 (起動・システム処理レベル) */,
 						16 * 64 /* gloval level 16 (一般アプリケーション) */,
-						 5 /* Inner level */
+						 2 /* Inner level */
 					);
 					sgg_settasklocallevel(i,
-						2 * 32 /* local level 1 (通常処理レベル) */,
+						2 * 32 /* local level 2 (通常処理レベル) */,
 						16 * 64 /* gloval level 16 (一般アプリケーション) */,
-						 5 /* Inner level */
+						 2 /* Inner level */
 					);
 					sgg_runtask(i, 1 * 32);
 				} else {
 					// ロードした領域を解放
 					sgg_freememory(0x0220 /* "empty00" */ + bank * 16);
 				}
-			} else if (list[0].name[8] == 'E' && (banklist[0] | banklist[1]) == 0) {
+			} else if (/* ext == ext_EXE && */ (banklist[0] | banklist[1]) == 0) {
 				// .EXEファイルモード
 				sgg_loadfile(0x0220 /* load to "empty00" */,
 					lp[cur].ptr->id /* file id */,
@@ -287,11 +288,15 @@ find_freebank:
 				);
 				wait99(); // finish signalが来るまで待つ
 
+				i = ('K' | ('B' << 8) | ('S' << 16) | ('1' << 24));
+				if (fmode)
+					i = ('K' | ('B' << 8) | ('S' << 16) | ('0' << 24));
+
 				for (fp = file + 1; fp->name[0]; fp++) {
 					if ((fp->name[0] | (fp->name[1] << 8) | (fp->name[2] << 16) | (fp->name[3] << 24))
 						== ('O' | ('S' << 8) | ('A' << 16) | ('S' << 24)) &&
 					    (fp->name[4] | (fp->name[5] << 8) | (fp->name[6] << 16) | (fp->name[7] << 24))
-						== ('K' | ('B' << 8) | ('S' << 16) | ('0' << 24)) &&
+						== i &&
 					    (fp->name[8] | (fp->name[9] << 8) | (fp->name[10] << 16))
 						== ('B' | ('I' << 8) | ('N' << 16))) {
 						i = fp->id;
@@ -331,13 +336,19 @@ find_freebank:
 					lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "  Formating...  ");
 					lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, "                ");
 				//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
-					sgg_format(0x0118, 99 /* finish signal */); // format
+					i = 0x0124;
+					if (fmode)
+						i = 0x0118;
+					sgg_format(i, 99 /* finish signal */); // format
 					wait99(); // finish signalが来るまで待つ
 				}
 				lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, " Writing        ");
 				lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, "   system image.");
 			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
-				sgg_format(0x011c, 99 /* finish signal */); // store system image
+				i = 0x0128;
+				if (fmode)
+					i = 0x011c;
+				sgg_format(i, 99 /* finish signal */); // store system image
 				wait99(); // finish signalが来るまで待つ
 
 				// ロードした領域を解放
@@ -366,28 +377,24 @@ find_freebank:
 
 		case 7 /* to format-mode */:
 		signal_7:
-		//	lib_waitsignal(0x0000, 1, 0);
-		//	sbp++;
-			lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Load Systemimage >");
-			cur = list_set('E' | ('X' << 8) | ('E' << 16));
+			lib_putstring_ASCII(0x0000, 0, 0, mode, fmode, 0, "< Load Systemimage >");
+			cur = list_set(ext = ext_EXE);
 			break;
 
 		case 8 /* to run-mode */:
 		signal_8:
-		//	lib_waitsignal(0x0000, 1, 0);
-		//	sbp++;
 			lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Run Application > ");
-			cur = list_set('B' | ('I' << 8) | ('N' << 16));
+			cur = list_set(ext = ext_BIN);
 			break;
 
-		case 9:
-		//	lib_waitsignal(0x0000, 1, 0);
-		//	sbp++;
+		case 9 /* change format-mode */:
+			if (ext == ext_EXE) {
+				fmode ^= 0x01;
+				lib_putstring_ASCII(0x0000, 0, 0, mode, fmode * 9, 0, "< Load Systemimage >");
+			}
 			break;
 
 		case 10 /* page-up */:
-		//	lib_waitsignal(0x0000, 1, 0);
-		//	sbp++;
 			if (cur < 0 /* ファイルが１つもない */)
 				break;
 			if (lp >= list + LIST_HEIGHT)
@@ -397,23 +404,50 @@ find_freebank:
 				cur = 0;
 			}
 			goto listup;
-		//	break;
 
 		case 11 /* page-down */:
-		//	lib_waitsignal(0x0000, 1, 0);
-		//	sbp++;
 			if (cur < 0 /* ファイルが１つもない */)
 				break;
-			for (i = LIST_HEIGHT; i < LIST_HEIGHT * 2; i++) {
-				if (lp[i].name[0] == '\0') {
-					// 残りが1画面分に満たなかった
-					lp += i - LIST_HEIGHT;
-					cur = LIST_HEIGHT - 1;
-					goto listup;
-				}
+			for (i = 1; lp[i].name[0] != '\0' && i < LIST_HEIGHT * 2; i++);
+			if (i < LIST_HEIGHT) {
+				// 全体が1画面分に満たなかった
+				cur = i - 1;
+				goto listup;
+			} else if (i < LIST_HEIGHT * 2) {
+				// 残りが1画面分に満たなかった
+				lp += i - LIST_HEIGHT;
+				cur = LIST_HEIGHT - 1;
+				goto listup;
 			}
 			lp += LIST_HEIGHT;
 			goto listup;
+
+		case 12 /* Home */:
+			if (cur < 0 /* ファイルが１つもない */)
+				break;
+			lp = list;
+			cur = 0;
+			goto listup;
+
+		case 13 /* End */:
+			if (cur < 0 /* ファイルが１つもない */)
+				break;
+			lp = list;
+			for (i = 0; lp[i].name[0]; i++);
+			if (i < LIST_HEIGHT) {
+				// ファイル数が1画面分に満たなかった
+				cur = i - 1;
+			} else {
+				lp += i - LIST_HEIGHT;
+				cur = LIST_HEIGHT - 1;
+			}
+			goto listup;
+
+		case 14 /* Insert */:
+			sgg_format(0x0114, 99 /* finish signal */); // flush diskcache
+			wait99(); // finish signalが来るまで待つ
+			cur = list_set(ext);
+			break;
 
 //		case 99:
 //			lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Error 99        > ");

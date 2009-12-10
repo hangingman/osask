@@ -1,4 +1,4 @@
-// "tapi0.ask" ver.0.0 copyright(C) 2000 H.Kawai(川合秀実)
+// "tapi0.ask" ver.0.1 copyright(C) 2001 H.Kawai(川合秀実)
 
 segment TapiMdl(USE32, PARA);
 
@@ -117,13 +117,15 @@ struct TAPI_GlvPrm { // 計64bytes
 void near TapiFixOn();
 void near TapiFixTsk();
 void near TapiChgLlv();
-void near TapiAddTsk();
 void near TapiRemoveTsk();
+void near TapiAddTsk();
+void near TapiChangeTsk();
 
 void near TAPI_Init();
 void near TAPI_init_tssinit();
 void near TAPI_AddNestSleep();
 void near TAPI_SignalMessage();
+void near TAPI_SignalMessage2();
 void near TAPI_Softint1Ret();
 
 void far TAPI_syscmd()
@@ -148,6 +150,10 @@ nextcmd:
 		goto cmd0114; // コマンドシグナル
 	if (EAX == 0x0118)
 		goto cmd0118; // コマンドシグナル間接
+	if (EAX == 0x0128)
+		goto cmd0128; // コマンドシグナル2(with wait)
+	if (EAX == 0x012c)
+		goto cmd012c; // コマンドシグナル2(with wait)間接
 	if (EAX == 0x010c)
 		goto cmd010c; // AddNestSleep
 	if (EAX == 0x0124)
@@ -164,6 +170,9 @@ nextcmd:
 		goto cmd0108; // TAPIの初期化
 	if (EAX == 0x0120)
 		goto cmd0120; // int07用のルーチン
+	if (EAX == 0x0018)
+		goto cmd0018; // バージョン要求
+
 	INT(0x03);
 
 cmd00:
@@ -285,6 +294,38 @@ cmd0124:
 	ECX = cmd[4];
 	EAX = cmd[8];
 	TAPI_Softint1Ret();
+	(offset) cmd += 12;
+	goto nextcmd;
+
+cmd0018:
+	//バージョン情報
+	cmd[ 8] = 100;
+	cmd[12] = 0;
+	cmd[16] = 0;
+	cmd[20] = 0;
+	(offset) cmd += 24;
+	goto nextcmd;
+
+cmd0128:
+	// コマンドシグナル(with wait)
+	AX = FS;
+	PUSH(ES);
+	ES = AX;
+	LEA(EBP, [(offset) cmd + 4]);
+	TAPI_SignalMessage2();
+	POP(ES);
+	(offset) cmd = EBP;
+	goto nextcmd;
+
+cmd012c:
+	// コマンドシグナル(with wait)間接
+	PUSH(ES);
+	PUSH((offset) cmd);
+//	LES(EBP, cmd[4]);
+	asmout("LES EBP,FWORD PTR FS:[EBX+4]");
+	TAPI_SignalMessage2();
+	POP((offset) cmd);
+	POP(ES);
 	(offset) cmd += 12;
 	goto nextcmd;
 }
@@ -829,7 +870,7 @@ void near TAPI_SignalMessage()
 		if ((unsigned) < 0) {
 			tss->msgbox_write_free += EAX;
 			tss->msgbox_status |= 0x01 /* buffer overrun */;
-			goto skip_msgwrite;
+			goto skip_msgwrite2;
 		} else {
 			[DS:EDX + 4] = EAX;
 			EAX = tss->msgbox_rewind_code;
@@ -842,6 +883,7 @@ void near TAPI_SignalMessage()
 	if ((unsigned) < 0) {
 		tss->msgbox_write_free += ECX;
 		tss->msgbox_status |= 0x01 /* buffer overrun */;
+		LEA(EBP, [SS:EBP + ECX * 4]);
 		goto skip_msgwrite;
 	}
 
@@ -852,8 +894,171 @@ void near TAPI_SignalMessage()
 		EDX += 4;
 		ECX--;
 	} while (!= 0);
-	tss->msgbox_write_ptr = EDX;
 skip_msgwrite:
+	tss->msgbox_write_ptr = EDX;
+	EAX = tss->msgbox_eom_code;
+	(int) [DS:EDX] = EAX;
+skip_msgwrite2:
+
+	// msgboxフルなどの処理もラッピング扱い
+
+	AL = tss->msgbox_status;
+	AL += 0x80;
+	if (CF == 0) {
+		// この処理は、tss->msgbox_statusの立ち上がり時にのみやる
+		EDX = tss->softint_Llv;
+		tss->msgbox_status = AL /* データーあり */;
+		AL = tss->now_Llv;
+		if (DL != 0xff) {
+			tss->softint_oldLlv = AL;
+			// tss->softint_Llvが0xffの場合、softint_oldLlvも0xffに初期化されている
+			if (AL != DL) {
+				EDI = EDX;
+				TapiChgLlv(); // EDIに0～0xfe
+			}
+		}
+	}
+
+	// メッセージの有無 bit0-3
+	// シグナルエントリ
+	// CF : bit31
+
+	// 追加メッセージ bit0-1
+	// reserve bit2-3
+	// ネスティングカウント増加 bit4
+	// if (nest == 0) softint0を起こす bit5
+	// if (nest == 0) ローカルレベル変更 bit6
+	// if (nest == 0) ローカルレベル待避 bit7
+	// 対象タスク指定 bit30-8
+	// reserve bit31
+
+	// レベルチェンジチェック
+	TapiFixTsk();
+	(char) [SS:0xfffffff0]--;
+	if (== 0)
+		goto cli_call;
+cli_call2:
+	POPFD();
+	return;
+cli_call:
+	PUSH(EBP);
+	asmout("CALL FWORD PTR SS:[0FFFFFFF8H]"); // DSおよびreg32を破壊
+	AX = CS;
+	POP(EBP);
+	AX += 8;
+	POPFD();
+	DS = AX;
+	return;
+
+sysmsg:
+	INT(0x03);
+}
+
+void near TAPI_SignalMessage2()
+//	汎用シグナル処理ルーチン(書き込めるまでwait)
+//	このバージョンでは、メッセージ
+//	こいつが、oldLlvに代入する
+//  ES:EBPからメッセージ。EBPはいじられる。
+{
+	TAPI_WORK *work == DS:0;
+
+	PUSHFD();
+	CLI();
+retry:
+//	asmout("INC BYTE PTR SS:[0FFFFFFE0H]"); // これは不要。nearだから
+	asmout("INC BYTE PTR SS:[0FFFFFFF0H]");
+
+	TAPI_TSS *tss == DS:ESI;
+
+	EAX = [ES:EBP];
+	TEST(EAX, 0x40000000);
+	if (!= 0)
+		goto sysmsg;
+	EAX &= 0x3ffffff0;
+	(offset) tss = [DS:EAX];
+	// 追加メッセージの処理
+
+//	reg32 = (offset) tss; // ラッピングのために値を保存...sysmsgにはラッピングはない
+//		sysmsgではラッピングなんかなくても、ベクタを完全にコントロールできるので問題無い
+	(offset) tss &= 0x7fffff00;
+
+	if (tss->softint_nest == 0) {
+		tss->softint_nest = 0xff; // 割り込まれると負の値になる。
+		if ((unsigned) (offset) tss == work->TskPointer) {
+			// system_count(lv0_count)のフラグを立てる
+			(int) [SS:0xffffffe0] &= 0xfffffe7f;
+		} else {
+			// 他人の場合：
+			//	もし、SSのlvが0なら、TAPI_SoftInt0_lv0へCS:EIPを書き換える
+			//	そうじゃなければ、TAPI_SoftInt0_lv1へCS:EIPを書き換える...ありえない
+			EAX = tss->tss386.EIP;
+			ECX = (int) tss->tss386.CS;
+			tss->softint_oldEIP = EAX;
+			tss->softint_oldCS  = ECX;
+			tss->tss386.CS = CS /* TAPI CS */;
+			asmout("MOV ECX,OFFSET TAPI_SoftInt1_lv0");
+			tss->tss386.EIP = ECX;
+		}
+	}
+
+	ECX = [ES:EBP];
+	EBP += 4;
+	ECX &= 0x0f; // かならず、0ではない。
+	EDX = tss->msgbox_write_ptr;
+
+	// メッセージラッピング処理はここに書く(reg32のフラグを参照)
+
+//	asmout("LEA EAX,[EDX+ECX*4]");
+	LEA(EAX, [EDX + ECX * 4]);
+	if ((unsigned) EAX >= tss->msgbox_write_ptr1 /* 書き込み上限アドレス(rewindのために4引いておく) */) {
+		// 先頭に戻す
+		// 捨てるdw数を計算
+		EAX = tss->msgbox_write_ptr1;
+		EAX -= EDX;
+		EAX /= 4; // EAX == 先頭に戻すことによって消費するサイズ(dw単位)
+		tss->msgbox_write_free -= EAX;
+		if ((unsigned) < 0) {
+			tss->msgbox_write_free += EAX;
+			// 次のタスクに切り替える
+	retry2:
+			PUSH(EBP);
+			TapiChangeTsk();
+			TapiFixTsk();
+			(char) [SS:0xfffffff0]--;
+			// ここは必ず0。そうじゃないなら、TAPI_SignalMessage2なんか呼ぶな
+			asmout("CALL FWORD PTR SS:[0FFFFFFF8H]"); // DSおよびreg32を破壊
+			AX = CS;
+			POP(EBP);
+			AX += 8;
+			EBP -= 4;
+			DS = AX;
+			goto retry;
+		} else {
+			[DS:EDX + 4] = EAX;
+			EAX = tss->msgbox_rewind_code;
+			[DS:EDX] = EAX;
+			EDX = tss->msgbox_write_ptr0;
+			EAX = tss->msgbox_eom_code;
+			tss->msgbox_write_ptr = EDX;
+			(int) [DS:EDX] = EAX;
+		}
+	}
+
+	tss->msgbox_write_free -= ECX;
+	if ((unsigned) < 0) {
+		tss->msgbox_write_free += ECX;
+		// 次のタスクに切り替える
+		goto retry2;
+	}
+
+	do {
+		EAX = [ES:EBP];
+		EBP += 4;
+		[DS:EDX] = EAX;
+		EDX += 4;
+		ECX--;
+	} while (!= 0);
+	tss->msgbox_write_ptr = EDX;
 	EAX = tss->msgbox_eom_code;
 	(int) [DS:EDX] = EAX;
 
@@ -910,6 +1115,7 @@ cli_call:
 sysmsg:
 	INT(0x03);
 }
+
 
 void far TAPI_SignalMessageTimer()
 //	Timerのカウントアウトシグナル専用
@@ -1122,7 +1328,7 @@ flags_on:
 		return;
 	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
 	if (!= 0) {
-		TapiFixOn(); // ESI != work->TskPointer、EAX～EDXのレジスタは破壊可能
+		TapiFixOn(); // ESI != work->TskPointer、EAX～EDXのレジスタは破壊可能 
 	}
 	CMP((offset) AddGlv, work->GlvNow);
 //	if ((unsigned) < ) {
@@ -1135,6 +1341,28 @@ flags_on:
 //	POP(EBX);
 //	work->GlvNow = AddGlv;
 //	return;
+}
+
+void near TapiChangeTsk()
+// 動作     : 今走っているタスクのタイムアウトを待たずに切り換え
+// 進入条件 : IF = 0
+// 破壊     : EAX, ECX, EDX, EBX, ESI
+{
+	TAPI_WORK *work == DS:0;
+
+	TAPI_TSS *NowTss  == DS:ESI, *NextTss  == DS:ECX;
+	TAPI_GlvPrm *NowGlv == DS:EBX;
+
+	(offset) NowTss = work->TskPointer;
+	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
+	if (!= 0) {
+		TapiFixOn(); // EAX～EBXを破壊
+	}
+
+	(offset) NowGlv = NowTss->Glv;
+	(offset) NextTss = NowTss->next;
+	NowGlv->pointer = (offset) NextTss; // 次のタスクを先頭に
+	return;
 }
 
 void near TapiFixOn()
