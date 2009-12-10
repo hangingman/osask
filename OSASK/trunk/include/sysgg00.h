@@ -128,6 +128,26 @@ void sgg_execcmd(void *EBX);
 #define sgg_wm0_enablemouse() \
 	sgg_execcmd0(0x0060, 4 * 4, 0x0120, 0x0000, 0x0000)
 
+/* for pokon0 */
+#define sgg_createtask2(size, addr, fin_sig) \
+        sgg_execcmd0(0x0020, 0x80000000 + 8, 0x1247, 0x0130, (int) (size), \
+                (int) (addr), 0x4243 /* to pokon0 */, 0x7f000002, (int) (fin_sig), \
+                0, 0x0000)
+
+#define sgg_format2(sub_cmd, bsc_size, bsc_addr, exe_size, exe_addr, sig) \
+        sgg_execcmd0(0x0020, 0x80000000 + 10, 0x1249, (int) (sub_cmd), 0, \
+                (int) (bsc_size), (int) (bsc_addr), (int) (exe_size), \
+                (int) (exe_addr), 0x4242 /* to pokon0 */, 0x7f000001, (int) (sig), \
+                0x0000)
+
+#define sgg_directwrite(opt, bytes, reserve, src_ofs, src_sel, dest_ofs, dest_sel) \
+        sgg_execcmd0(0x0078, (int) (opt), (int) (bytes), (int) (reserve), \
+                (int) (src_ofs), (int) (src_sel), (int) (dest_ofs), (int) (dest_sel), \
+                0x0000)
+
+#define sgg_createvirtualmodule(size, addr) \
+        (int) sgg_execcmd1(3 * 4 + 12, 0x0070, 0, (int) (size), 0, (int) (addr), \
+        0, 0x0000)
 
 #endif
 

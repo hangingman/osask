@@ -1,9 +1,8 @@
-;	"boot.asm" ver.1.8
+;	"boot.asm" ver.1.9
 ;	OSASK用のブートプログラム
 ;	Copyright(C) 2001 H.Kawai (川合秀実)
 
-.386p
-
+.486p
 			include ./inc.asm
 
 BootMdl			segment para use16
@@ -28,8 +27,8 @@ Boot_entry2:
 
 ;	パラメーター解析 & VGA 832x630x4bitにする
 
-		;	mov	 ax, cs
-		;	mov	 ds, ax
+		;	DB	8CH,0C8H
+		;	DB	8EH,0D8H
 
 ifdef abcdefgh
 ;	PIT1のチェック
@@ -60,9 +59,9 @@ Boot_pit1_set:
 			out	 0041h, al
 endif
 Boot_pit1_skip:
-			mov	 ax, ds
+			DB	8CH,0D8H
 			mov	 ds, word ptr cs:[SysWorkSeg]
-			mov	 si, cs
+			DB	8CH,0CEH
 			add	 ax, 16
 			cmp	 ax, si
 			je	Boot_normal
@@ -170,11 +169,11 @@ Boot_normal2:
 			mov	 ss, word ptr ds:[stackseg][4]
 			mov	esp,dword ptr ds:[stackseg][0]	; espの上位wordをクリア
 
-			mov	 ax,cs
+			DB	8CH,0C8H
 			shl	eax,4
 			and	eax,0ff000h	; 4KB単位にする
 			mov	dword ptr ds:[bootmalloc_fre0],eax
-			mov	 ax,ss
+			DB	8CH,0D0H
 			shl	eax,4
 			add	eax,esp
 			add	eax,0fffh
@@ -207,7 +206,7 @@ Boot_normal2:
 			mov	dword ptr ds:[alloclist][0*16][12],eax	; pde,pte
 			shr	eax,4
 			clr	 di
-			mov	 es, ax
+			DB	8EH,0C0H
 			mov	ecx,dword ptr ds:[alloclist][0*16][08]
 			shr	ecx,1	; ECX /= 2;
 			cld
@@ -215,10 +214,10 @@ Boot_normal2:
 			rep stosw
 
 			add	ebx,4096
-			mov	 cx, es
+			DB	8CH,0C1H
 			mov	eax,ebx
 			add	 cx,0100h ; skip link-page
-			mov	 es, cx
+			DB	8EH,0C1H
 
 			test	 byte ptr ds:[eflags][2],004h	; bit18(AC)
 			jz	short Boot_skip386_1
@@ -248,7 +247,7 @@ Boot_fillpte:
 
 			mov	eax,dword ptr ds:[alloclist][16*1][12]	; gdt
 			shr	eax,4
-			mov	 gs, ax	; IDTGDTへのセグメント
+			DB	8EH,0E8H
 
 ;	to protect mode
 
@@ -360,7 +359,6 @@ bootmalloc		endp
 
 BootSiz			equ	$-BootBgn
 
-
 BootMdl			ends
 
 SysWorkMdl		segment	para use16
@@ -429,7 +427,7 @@ alloclist		db	"pdepte  "	; 0
 			db	"keydata "	; 4
 			dd	4096,-1
 			db	"gapidata"
-			dd	4096*2,-1   ; 起動最低限しか用意しない
+			dd	4096*3,-1   ; 起動最低限しか用意しない
 			db	"timerdat"
 			dd	4096*2,-1
 			db	"tapiwork"
@@ -474,3 +472,4 @@ StackSiz		equ	$-StackBgn
 StackMdl		ends
 
 			end	Entry
+END

@@ -104,6 +104,11 @@ void lib_drawpoints0(int opt, struct LIB_GRAPHBOX *gbox, int x0, int y0, int xsi
 	int points, const struct LIB_POINTS *ofs);
 void lib_wsjis2gg00jpn0(int len, const char *sjis, int *gg00jpn, int ankbase, int jpnbase);
 void lib_loadfontset1(int opt, int slot, int sig);
+void lib_drawlines1(int opt, struct LIB_WINDOW *win, int x0, int y0, int xsize, int ysize,
+	int lines, const struct LIB_LINES1 *ofs);
+void lib_drawpoints1(int opt, struct LIB_WINDOW *win, int x0, int y0, int xsize, int ysize,
+	int points, const struct LIB_POINTS *ofs);
+void lib_seuc2gg00(int len, const char *seuc, int *gg00, int ankbase, int rightbase);
 
 #endif
 
@@ -120,6 +125,7 @@ void lib_putstring_SJIS0(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *text
 	int color, int backcolor, const char *str);
 void lib_putstring0(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *textbox,
 	int color, int backcolor, int len, const int *str);
+const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int dest_sel);
 
 #define	lib_init(work) \
 	(struct LIB_WORK *) lib_execcmd1(1 * 4 + 12, 0x0004, \
@@ -301,5 +307,19 @@ void lib_putstring0(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *textbox,
 #define	lib_wsjis2gg00jpn0(len, sjis, gg00jpn, ankbase, jpnbase) \
 	lib_execcmd0(0x00ec, 0x0001, (int) (len), (void *) (sjis), 0x000c, \
 	(int *) (gg00jpn), 0x000c, (int) (ankbase), (int) (jpnbase), 0x0000)
+
+#define lib_drawlines1(opt, win, x0, y0, xsize, ysize, lines, ofs) \
+	lib_execcmd0(0x0110, (int) (opt), (void *) (win), (int) (x0), \
+	(int) (y0), (int) (xsize), (int) (ysize), (int) (lines), (void *) (ofs), \
+	0x000c, 0x0000)
+
+#define lib_drawpoints1(opt, win, x0, y0, xsize, ysize, points, ofs) \
+	lib_execcmd0(0x0050, (int) (opt), (void *) (win), (int) (x0), \
+	(int) (y0), (int) (xsize), (int) (ysize), (int) (points), (void *) (ofs), \
+	0x000c, 0x0000)
+
+#define	lib_seuc2gg00(len, seuc, gg00, ankbase, rightbase) \
+	lib_execcmd0(0x00ec, 0x0002, (int) (len), (void *) (seuc), 0x000c, \
+	(int *) (gg00), 0x000c, (int) (ankbase), (int) (rightbase), 0x0000)
 
 #endif

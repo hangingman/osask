@@ -27,7 +27,8 @@ EXE2BIN_FLAGS_ASK = -n
 EXE2BIN_FLAGS_C = -t -s
 
 OBJ2BIM = $(BIN_PATH)obj2bim0
-BIM2BIN = $(BIN_PATH)bim2bin0
+BIM2BIN = $(BIN_PATH)bim2bin1
+BIM2BIN_FLAGS_ASK = -exe512 -simple
 
 OBJ2BIM_ALIGN_FLAGS = text_align:1 data_align:4 bss_align:4
 DEFAULT_RULE_FILE = osask.rul
@@ -36,6 +37,10 @@ DEFAULT_RULE_FILE = osask.rul
 ifeq ($(ARCH),towns)
 PREPROCESSOR_FLAGS += -DTOWNS
 CFLAGS += -DTOWNS
+endif
+ifeq ($(TWSCRL1),y)
+PREPROCESSOR_FLAGS += -DTWSCRL1
+CFLAGS += -DTWSCRL1
 endif
 ifeq ($(ARCH),pcat)
 PREPROCESSOR_FLAGS += -DPCAT

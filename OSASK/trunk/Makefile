@@ -10,7 +10,7 @@ BASE = base.exe
 SYSGGLIB = sysgg00.lib
 SYSGGINC = sgg00lib
 
-SUBDIRS = ankfont $(SYSGGINC)
+SUBDIRS = ankfont0 $(SYSGGINC)
 SUBDIRS += $(ARCH)
 
 TARGET = OSASK.EXE
@@ -58,6 +58,7 @@ vmware : FORCE
 
 towns : FORCE 
 	echo ARCH = towns> depend.mak
+	echo TWSCRL1 = n>> depend.mak
 	$(MAKE)
 
 FORCE:
@@ -76,7 +77,7 @@ winman0.bim : winman0.obj
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
 
 winman0.bin : winman0.bim
-	$(BIM2BIN) malloc:336k file:256k input:$< output:$@
+	$(BIM2BIN) malloc:92k file:768k input:$< output:$@
 
 %.i : %.ask
 	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<
@@ -97,13 +98,13 @@ winman0.bin : winman0.bim
 	$(LINK) $*,$*,$*,nul,nul
 
 %.bin : %.exe # for ASM objs
-	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
+	$(BIM2BIN) input:$< output:$@ $(BIM2BIN_FLAGS_ASK)
+#	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
 
 clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i clean
 	del $(TARGET)
 	for %%i in ($(OBJS)) do del %%i
-	for %%i in ($(BASE:.exe=.asm)) do del %%i
 	for %%i in ($(BASE:.exe=.obj)) do del %%i
 	for %%i in ($(BASE:.exe=.lst)) do del %%i
 	for %%i in ($(BASE:.exe=.map)) do del %%i
@@ -135,3 +136,5 @@ dist_clean:
 	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.exe)) do del %%i
 
+# dependencies
+pokon0.obj : pokon0.c pokon0.h

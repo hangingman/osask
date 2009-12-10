@@ -1,25 +1,39 @@
 
-    sb18 の著作権情報
+    sb19 の著作権情報
 
-  このアーカイブに含まれるファイルは、以下の26個です。
+  このアーカイブに含まれるファイルは、以下の38個です。
 
 ・PCAT/
+    INIT.BIN
     VGADRV0.ASK
     VGADRV0.BIN
     WINMAN0.BIN
 ・TOWNS/
+    INIT.BIN
     VGADRV0.ASK
     VGADRV0.BIN
     WINMAN0.BIN
-・BASE.3AS
+・ANKFONT0/
+    ANKFONT0.BIN
+    IBMANK0.BIN
+    TXT2BIN.C
+    TXT2BIN.EXE
+・SGG00LIB/
+    EXECCMD.ASM
+    EXECCMD0.ASM
+    EXECCMD1.ASM
+    FDEBUG.C
+    FPOKON.C
+    FWINMAN.C
+    INIT.C
+    MAKEFILE
+    SYSGG00.H
+    SYSGG00.LIB
+    SYSGG00.OPT
+・BASE.ASM
 ・MAKEBASE.BAT
 ・BASE.EXE
 ・INIT.ASK
-・INIT.BIN
-・TAPI0.ASK
-・TAPI0.BIN
-・PAPI0.ASK
-・PAPI0.BIN
 ・PIONEER0.ASK
 ・PIONEER0.BIN
 ・WINMAN0.C
@@ -39,7 +53,7 @@
     e-mail  Koyanagi.Masaaki@nifty.ne.jp
 
 ・今原修一郎さん  (PCAT/VGADRV0.ASK, VGADRV0.BINの一部)
-    URL     http://www.wizard.elec.waseda.ac.jp/~shoe16/osask/
+    URL     http://www.wizard.elec.waseda.ac.jp/~shoe16/
     e-mail  shoe16@wizard.elec.waseda.ac.jp
 
 ・I.Tak.さん （TOWNS/VGADRV0.ASK, VGADRV0.BINの一部）

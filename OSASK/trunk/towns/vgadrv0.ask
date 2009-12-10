@@ -1,8 +1,12 @@
-/* "VGADRV0.ASK" for TOWNS ver.0.9 copyright(C) 2001 川合秀実, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.1.0 copyright(C) 2001 川合秀実, I.Tak. */
 
 segment GapiMdl(USE32, PARA);
 
 default(code == GapiMdl);
+
+struct WORK_SUB {
+	unsigned int scr_x0, scr_width, scr_y0, scr_height;
+};
 
 struct GAPI_WORK {
 	signed int mx, my, mx0, my0, mx1, my1;
@@ -17,7 +21,8 @@ struct GAPI_WORK {
 	short V86CS, V86SS, [4], [8];
 	int backup_buf[320]; /* +64 */
 	int mouse_pattern[2560 /* 0x0a00 */]; /* +0x0180 */
-	void [1152];
+	WORK_SUB worksub;
+	void [1136];
 	/* 以上4KB */
 };
 
@@ -2198,20 +2203,46 @@ void near GAPI_error()
 void near GAPI_VGA640()
 /* ハードウェア別特別コマンド(0x001c, pri, 0x0020, mode) */
 {
+	GAPI_WORK *work == ES:0x0000;
+	GAPI_WORK *work_DS == DS:0x0000;
 	int all_sel == 1 * 8;
 	int *cmd == FS:EBX;
+	WORK_SUB *wsub == ES:EDI;
 
-	cmd[ 4] = 0xffffffff; /* 終了 */
+	LEA((offset) wsub, (int) [work_DS->worksub]);
+	EAX = 0;
+	wsub->scr_x0 = EAX;
+	wsub->scr_y0 = EAX;
+	EAX--;
+
+	cmd[ 4] = /* 0xffffffff*/ EAX; /* 終了 */
 	EAX = cmd[12];
 	(offset) cmd += 16;
 
 	short *param == DS:ESI;
+//	(offset) param = (offset) &param640;
+	#if (defined(TWSCRL1))
+		ECX = 640;
+	#else
+		ECX = 640 - 7; /* スクロール判定の都合のため */
+	#endif
+	EDX = 480 - 15 /* 前もってmouseの大きさの分を引いてある */;
+		/* マウスのy方向のクリッピングができるようになったら、この措置は不要 */
 	asmout("MOV ESI,OFFSET #param640");
-	if (EAX != 0)
-		asmout("MOV ESI,OFFSET #param768");
+	if (EAX != 0) {
+	//	asmout("ADD ESI,#param768 - #param640");
+		DB(0x83, 0xc6);
+		asmout("DB #param768 - #param640");
+		ECX += 768 - 640;
+		EDX += 512 - 480;
+	}
+	wsub->scr_width  = ECX;
+	wsub->scr_height = EDX;
 
-	AX = CS;
-	DS = AX;
+//	AX = CS;
+//	DS = AX;
+	PUSH(CS);
+	POP(DS);
 
 	/* CRTC */
 	EDX = 0x0440;
@@ -2221,27 +2252,28 @@ void near GAPI_VGA640()
 cl4in:
 		AL = CL;
 		OUT(DX, AL);
-		EDX += 2;
+		DL = 0x42;
 		AX = *param;
 		(offset) param += 2;
 		OUT(DX, AX);
 		CL++;
-		EDX -= 2;
+		DL = 0x40;
 		if (CL == 2)
 			goto cl4;
 	} while (CL < 0x20);
 
 	/* プライオリティーレジスタ */
-	EDX = 0x0448;
+//	EDX = 0x0448;
+	DL = 0x48;
 	AL = 0x00;
 	OUT(DX, AL);
-	EDX += 2;
+	DL = 0x4a;
 	AL = 0x0a;
 	OUT(DX, AL);
-	EDX -= 2;
+	DL = 0x48;
 	AL = 0x01;
 	OUT(DX, AL);
-	EDX += 2;
+	DL = 0x4a;
 	AL = 0x18;
 	OUT(DX, AL);
 
@@ -2251,8 +2283,10 @@ cl4in:
 	OUT(DX, AL);
 
 	STI();
-	EAX = all_sel;
-	DS = AX;
+//	EAX = all_sel;
+//	DS = AX;
+	PUSH(all_sel);
+	POP(DS);
 	asmout("JMP next_command");
 
 cl4:
@@ -2263,17 +2297,17 @@ cl4:
 
 param640:
 	/* CRTC */
-	asmout("DW 0060H, 02C0H,               031FH, 0000H, 0004H, 0000H");
-	asmout("DW 0419H, 008AH, 030AH, 008AH, 030AH, 0046H, 0406H, 0046H");
-	asmout("DW 0406H, 0000H, 008AH, 0000H, 0080H, 0000H, 008AH, 0000H");
-	asmout("DW 0080H, 0058H, 0001H, 0000H, 800FH, 0002H, 0000H, 0192H");
+	DW(0x0060, 0x02c0,                 0x031f, 0x0000, 0x0004, 0x0000);
+	DW(0x0419, 0x008a, 0x030a, 0x008a, 0x030a, 0x0046, 0x0406, 0x0046);
+	DW(0x0406, 0x0000, 0x008a, 0x0000, 0x0080, 0x0000, 0x008a, 0x0000);
+	DW(0x0080, 0x0058, 0x0001, 0x0000, 0x800f, 0x0002, 0x0000, 0x0192);
 
 param768:
 	/* CRTC */
-	asmout("DW 0060H, 0338H,               0397H, 0000H, 0004H, 0000H");
-	asmout("DW 0433H, 008AH, 038AH, 008AH, 038AH, 0034H, 0434H, 0034H");
-	asmout("DW 0434H, 0000H, 008AH, 0000H, 0080H, 0000H, 008AH, 0000H");
-	asmout("DW 0080H, 0058H, 0001H, 0000H, 800FH, 0000H, 0000H, 0192H");
+	DW(0x0060, 0x0338,                 0x0397, 0x0000, 0x0004, 0x0000);
+	DW(0x0433, 0x008a, 0x038a, 0x008a, 0x038a, 0x0034, 0x0434, 0x0034);
+	DW(0x0434, 0x0000, 0x008a, 0x0000, 0x0080, 0x0000, 0x008a, 0x0000);
+	DW(0x0080, 0x0058, 0x0001, 0x0000, 0x800f, 0x0000, 0x0000, 0x0192);
 }
 
 void near GAPI_accesslock()
@@ -2593,19 +2627,20 @@ void near GAPI_clippingmouse()
 				}
 			}
 		}
-	} else /* (false) */ if (x > 1024 - 16) {
+	} else /* (false) */ if (x >= 1024 - 16) {
 		work->mx1 = 1024;
 		maskflag |= 0x10;
-		if (x > 1024 - 12) {
+		if (x >= 1024 - 12) {
 			maskflag |= 0x18;
-			if (x > 1024 - 8) {
+			if (x >= 1024 - 8) {
 				maskflag |= 0x1c;
-				if (x > 1024 - 4) {
+				if (x >= 1024 - 4) {
 					maskflag |= 0x1e;
 				}
 			}
 		}
 	}
+	PUSH(x);
 	x &= /* ~0x03 */ 0xfffffffc;
 	x += 0xe0000000;
 //	/* (false) */ if (y < 0) {
@@ -2631,5 +2666,82 @@ skip_imul:
 	(offset) p += x;
 	work->pattern_addr = (offset) q;
 	work->cursor_addr = (offset) p;
+
+	/* 自動スクロールルーチン by I.Tak. 2001.11.25 */
+	/* (註)川合が勝手に一部改正している */
+
+	/* by I.Tak. since 2001.10.07(Sun) */
+	/* 2001.11.01(Thu) v0.2   For the first time works well in ASKA. */
+	/* 2001.11.18(Sun) v0.3   Corrected X-pos and if statement. */
+	/* 2001.11.24(Sat) v0.4   one-dot horizonal and vertical scroll. */
+	/* 2001.11.28(Wed) v0.4.1 1dot-scroll became optional. Optimized.*/
+
+	unsigned int vx == ESI, vy == EBP; /* vectors */
+	unsigned int sx == ECX, sy == EAX; /* screen positons */
+	unsigned int haj == ESI;
+	WORK_SUB *wsub == ES:EDI;
+	GAPI_WORK *work_DS == DS:0x0000;
+
+	/* Calc. Vectors */
+	LEA((offset) wsub, (int) [work_DS->worksub]);
+	POP(vx); /* mouse x */
+	sx = wsub->scr_x0;
+	sy = wsub->scr_y0;
+	vx -= sx;
+	if ((unsigned) >= 0) {
+		vx -= wsub->scr_width;
+		/* vx = (vx < 0) ? 0 : vx + 1; */
+		SBB(EDX, EDX);
+		NOT(EDX);
+		vx &= EDX;
+		vx -= EDX;
+	}
+	vy -= sy;
+	if ((unsigned) >= 0) {
+	//	vy += 15;
+		vy -= wsub->scr_height;
+		/* vy = (vy < 0) ? 0 : vy + 1; */
+		SBB(EDX, EDX);
+		NOT(EDX);
+		vy &= EDX;
+		vy -= EDX;
+	}
+
+	/* Scroll Part */
+	sy += vy;
+	vy |= vx;
+	if (!= 0) {
+		sx += vx;
+		wsub->scr_y0 = sy;
+		wsub->scr_x0 = sx;
+		#if (defined(TWSCRL1))
+			/* From now EBP, ESI(== vx, vy) can be destroyed. */
+			EBP = sx;
+			haj = sx;
+			EBP <<= 22;
+			haj &= 7;
+			SHRD(EBP, sy, 25); /* FA = yyyyyyyy:yxxxxxxxb */
+			NEG(haj);
+			EDX = 0x0440;
+			haj += 0x8a;
+			            AL =  18; OUT(DX,  AL); /* HAJ0 */
+			DL = 0x42; EAX = haj; OUT(DX, EAX);
+			DL = 0x40;  AL =  22; OUT(DX,  AL); /* HAJ1 */
+			DL = 0x42; EAX = haj; OUT(DX, EAX);
+			DL = 0x40;  AL =  17; OUT(DX,  AL); /* FA0 */
+			DL = 0x42; EAX = EBP; OUT(DX, EAX);
+			DL = 0x40;  AL =  21; OUT(DX,  AL); /* FA1 */
+			DL = 0x42; EAX = EBP; OUT(DX, EAX);
+		#else
+			sx <<= 22;
+			EDX = 0x0440;
+			SHRD(sx, sy, 25); /* FA = yyyyyyyy:yxxxxxxxb */
+			            AL = 17; OUT(DX,  AL); /* FA0 */
+			DL = 0x42; EAX = sx; OUT(DX, EAX);
+			DL = 0x40;  AL = 21; OUT(DX,  AL); /* FA1 */
+			DL = 0x42; EAX = sx; OUT(DX, EAX);
+		#endif
+	}
+
 	return;
 }

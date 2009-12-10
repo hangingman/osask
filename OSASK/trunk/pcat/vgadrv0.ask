@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" ver.0.9 copyright(C) 2001 ì‡GÀ, ODP */
+/* "VGADRV0.ASK" ver.1.0 copyright(C) 2001 ì‡GÀ, ODP */
 
 segment GapiMdl(USE32, PARA);
 
@@ -2380,10 +2380,10 @@ void near GAPI_clippingmouse()
 		maskflag |= 0x01;
 		if (x < 0 - 8)
 			maskflag |= 0x03;
-	} else /* (false) */ if (x > 800 - 16) {
+	} else /* (false) */ if (x >= 800 - 16) {
 		work->mx1 = 800;
 		maskflag |= 0x04;
-		if (x > 800 - 8)
+		if (x >= 800 - 8)
 			maskflag |= 0x06;
 	}
 	x /= 8;

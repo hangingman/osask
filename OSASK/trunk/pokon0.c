@@ -1,5 +1,5 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.1.8
-     copyright(C) 2001 川合秀実, 小柳雅明
+/* "pokon0.c":アプリケーションラウンチャー  ver.1.9
+     copyright(C) 2001 小柳雅明, 川合秀実
     stack:4k malloc:76k file:0 */
 
 #include <guigui00.h>
@@ -9,6 +9,11 @@
 #include <stdlib.h>
 
 #include "pokon0.h"
+
+#define POKON_VERSION "pokon19"
+
+#define POKO_VERSION "Heppoko-shell \"poko\" version 1.9\n    Copyright (C) 2001 H.Kawai(Kawaido)\n"
+#define POKO_PROMPT "\npoko>"
 
 /* pokon console error message */
 enum {
@@ -286,6 +291,7 @@ void openselwin(struct FILESELWIN *win, const char *title, const char *subtitle)
 		{ 0x00ac /* cursor-left, right */, 1,  SIGNAL_PAGE_UP },
 		{ 0x00a6 /* Home, End */,          1,  SIGNAL_TOP_OF_LIST },
 		{ 0x00a4 /* Insert */,             0,  SIGNAL_DISK_CHANGED },
+		{ SIGNAL_LETTER_START /* letters */,SIGNAL_LETTER_END - SIGNAL_LETTER_START,  SIGNAL_LETTER_START },
 		{ 0,                               0,  0 }
 	};
 	struct KEY_TABLE0 *pkt;
@@ -430,10 +436,10 @@ void main()
 	for (i = 0; i < MAX_VMREF; i++)
 		vmref[i].task = 0;
 
-	openselwin(&selwin[0], "pokon18", "< Run Application > ");
+	openselwin(&selwin[0], POKON_VERSION, "< Run Application > ");
 
 	lib_opentimer(SYSTEM_TIMER);
-	lib_definesignal1p0(0, 0x0010 /* timer */, SYSTEM_TIMER, 0, 287);
+	lib_definesignal1p0(0, 0x0010 /* timer */, SYSTEM_TIMER, 0, CONSOLE_CURSOR_BLINK);
 
 	/* キー操作を追加登録 */
 	{
@@ -441,11 +447,24 @@ void main()
 			int code;
 			unsigned char opt, signum;
 		} table[] = {
-			{ 'F' | 0x00701000, 0, COMMAND_TO_FORMAT_MODE },
-			{ 'R' | 0x00701000, 0, COMMAND_TO_RUN_MODE },
-			{ 'S' | 0x00701000, 0, COMMAND_CHANGE_FORMAT_MODE },
-			{ 'C' | 0x00701000, 0, COMMAND_OPEN_CONSOLE },
-			{ 'M' | 0x00701000, 0, COMMAND_OPEN_MONITOR },
+#if 0
+			{ 'F' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_NOALT, 0, COMMAND_TO_FORMAT_MODE },
+			{ 'R' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_NOALT, 0, COMMAND_TO_RUN_MODE },
+			{ 'S' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_NOALT, 0, COMMAND_CHANGE_FORMAT_MODE },
+			{ 'C' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_NOALT, 0, COMMAND_OPEN_CONSOLE },
+			{ 'M' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_NOALT, 0, COMMAND_OPEN_MONITOR },
+#else
+			{ 'F' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT, 0, COMMAND_TO_FORMAT_MODE },
+			{ 'R' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT, 0, COMMAND_TO_RUN_MODE },
+			{ 'S' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT, 0, COMMAND_CHANGE_FORMAT_MODE },
+			{ 'C' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT, 0, COMMAND_OPEN_CONSOLE },
+			{ 'M' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT, 0, COMMAND_OPEN_MONITOR },
+			{ 'F' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_ALT, 0, COMMAND_TO_FORMAT_MODE },
+			{ 'R' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_ALT, 0, COMMAND_TO_RUN_MODE },
+			{ 'S' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_ALT, 0, COMMAND_CHANGE_FORMAT_MODE },
+			{ 'C' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_ALT, 0, COMMAND_OPEN_CONSOLE },
+			{ 'M' | DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_ALT, 0, COMMAND_OPEN_MONITOR },
+#endif
 			{ 0,                0, 0    }
 		};
 		struct KEY_TABLE1 *pkt;
@@ -466,7 +485,7 @@ void main()
 		/* 全てのシグナルは、main()でやり取りする */
 		sig = *sbp;
 		win = selwin;
-		if (sig < 0x00c0) {
+		if (sig < COMMAND_SIGNAL_START) {
 			switch (sig) {
 			case NO_SIGNAL:
 				pcons->sleep = 1;
@@ -526,6 +545,8 @@ void main()
 					sgg_freememory2(fbuf->size, fbuf->paddr);
 					fbuf->dirslot = -1;
 				}
+
+		freefiles:
 				for (i = 0; i < MAX_VMREF; i++) {
 					if (tss != vmref[i].task)
 						continue;
@@ -552,6 +573,13 @@ void main()
 				gotsignal(6);
 				sbp += 6;
 				break;
+
+			case SIGNAL_FREE_FILES:
+				/* ファイル開放要求(えせファイルシステム用) */
+				tss = sbp[1];
+				gotsignal(2);
+				sbp += 2;
+				goto freefiles;
 
 			case SIGNAL_RELOAD_FAT_COMPLETE:
 				gotsignal(1);
@@ -695,7 +723,7 @@ write_exe:
 					//	0x011c /* 1,760KBフォーマット用 非圧縮 */
 					//	0x0128; /* 1,440KBフォーマット用 非圧縮 */
 					pjob->param[2], pjob->param[3], pjob->param[0], pjob->param[1],
-					0x00bc /* finish signal */); // store system image
+					SIGNAL_WRITE_KERNEL_COMPLETE /* finish signal */); // store system image
 				break;
 
 			case SIGNAL_WRITE_KERNEL_COMPLETE: /* .EXE書き込み完了 */
@@ -788,16 +816,16 @@ write_exe:
 		//		lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Error 99        > ");
 		//		break;
 			}
-		} else if (256 <= sig && sig < 512) {
+		} else if (CONSOLE_SIGNAL_START <= sig && sig < FILE_SELECTOR_SIGNAL_START) {
 			/* console関係のシグナル */
 			gotsignal(1);
 			sbp++;
-			if (256 + ' ' <= sig && sig <= 256 + 0x7f) {
+			if (CONSOLE_KEY_SIGNAL_START <= sig && sig <= CONSOLE_KEY_SIGNAL_END) {
 				/* consoleへの1文字入力 */
 				if (pcons->curx >= 0) {
 					if (pcons->curx < CONSOLESIZEX - 1) {
 						static char c[2] = { 0, 0 };
-						c[0] = sig - 256;
+						c[0] = sig - CONSOLE_SIGNAL_START;
 						consoleout(c);
 					}
 					if (pcons->cursoractive) {
@@ -809,20 +837,20 @@ write_exe:
 				}
 			} else {
 				switch (sig) {
-				case 256 + 0 /* VRAMアクセス許可 */:
+				case CONSOLE_VRAM_ACCESS_ENABLE /* VRAMアクセス許可 */:
 					continue;
 
-				case 256 + 1 /* VRAMアクセス禁止 */:
+				case CONSOLE_VRAM_ACCESS_DISABLE /* VRAMアクセス禁止 */:
 					lib_controlwindow(0x0100, pcons->win);
 					continue;
 
-				case 256 + 2:
-				case 256 + 3:
+				case CONSOLE_REDRAW_0:
+				case CONSOLE_REDRAW_1:
 					/* 再描画 */
 					lib_controlwindow(0x0203, pcons->win);
 					continue;
 
-				case 256 + 5 /* change console title color */:
+				case CONSOLE_CHANGE_TITLE_COLOR /* change console title color */:
 					if (*sbp++ & 0x02) {
 						if (!(pcons->cursoractive)) {
 							lib_settimer(0x0001, SYSTEM_TIMER);
@@ -842,7 +870,7 @@ write_exe:
 					gotsignal(1);
 					continue;
 
-				case 256 + 6 /* close console window */:
+				case CONSOLE_CLOSE_WINDOW /* close console window */:
 					if (pcons->cursoractive) {
 						pcons->cursoractive = 0;
 						lib_settimer(0x0001, SYSTEM_TIMER);
@@ -851,7 +879,7 @@ write_exe:
 					pcons->curx = -1;
 					continue;
 
-				case 287 /* cursor blink */:
+				case CONSOLE_CURSOR_BLINK /* cursor blink */:
 					if (pcons->sleep != 0 && pcons->cursoractive != 0) {
 						pcons->cursorflag =~ pcons->cursorflag;
 						putcursor();
@@ -859,7 +887,7 @@ write_exe:
 					}
 					continue;
 
-				case 256 + 0xa0 /* consoleへのEnter入力 */:
+				case CONSOLE_INPUT_ENTER /* consoleへのEnter入力 */:
 					if (pcons->curx >= 0) {
 						const char *p = pcons->buf + pcons->cury * (CONSOLESIZEX + 2) + 5;
 						if (pcons->cursorflag != 0 && pcons->cursoractive != 0) {
@@ -900,7 +928,7 @@ write_exe:
 							}
 						}
 				prompt:
-						consoleout("\npoko>");
+						consoleout(POKO_PROMPT);
 						if (pcons->cursoractive) {
 							lib_settimer(0x0001, SYSTEM_TIMER);
 							pcons->cursorflag = ~0;
@@ -910,7 +938,7 @@ write_exe:
 					}
 					break;
 
-				case 256 + 0xa1 /* consoleへのBackSpace入力 */:
+				case CONSOLE_INPUT_BACKSPACE /* consoleへのBackSpace入力 */:
 					if (pcons->curx >= 0) {
 						if (pcons->cursorflag != 0 && pcons->cursoractive != 0) {
 							pcons->cursorflag = 0;
@@ -933,15 +961,15 @@ write_exe:
 			}
 		} else {
 			/* ファイルセレクタへの一般シグナル */
-			win = &selwin[(sig - 512) >> 7];
+			win = &selwin[(sig - FILE_SELECTOR_SIGNAL_START) >> 7];
 			sig &= 0x7f;
 			gotsignal(1);
 			sbp++;
-			if (fmode == STATUS_LOAD_BOOT_SECTOR_CODE_COMPLETE && sig == 6) {
+			if (fmode == STATUS_LOAD_BOOT_SECTOR_CODE_COMPLETE && sig == SIGNAL_ENTER) {
 			//	putselector0(win, 1, " Writing        ");
 				putselector0(win, 1, "  Formating...  ");
 				putselector0(win, 3, "                ");
-				sgg_format(0x0124 /* 1,440KBフォーマット */, 0x00b8 /* finish signal */); // format
+				sgg_format(0x0124 /* 1,440KBフォーマット */, SIGNAL_FORMAT_COMPLETE /* finish signal */); // format
 				/* 1,760KBフォーマットと1,440KBフォーマットの混在モードは0x0118 */
 				fmode = STATUS_FORMAT_COMPLETE;
 				continue;
@@ -1111,8 +1139,8 @@ listup:
 						*(pjob->wp) = 0; /* ストッパー */
 					}
 					break;
-
-				case 126 /* close window */:
+					
+				case SIGNAL_WINDOW_CLOSE0 /* close window */:
 					if (i == 0)
 						continue;
 					/* キャンセルを通知して、閉じる */
@@ -1123,7 +1151,7 @@ listup:
 					win->mdlslot = -2;
 					continue;
 
-				case 127 /* closed window */:
+				case SIGNAL_WINDOW_CLOSE1 /* closed window */:
 					free(win->window);
 					free(win->wintitle);
 					free(win->subtitle);
@@ -1135,6 +1163,44 @@ listup:
 						selwincount--;
 					}
 					break;
+				default: /* search filename */
+					if (cur < 0 /* ファイルが１つもない */)
+						break;
+					/* search from current to bottom */
+					lp = win->lp;
+					for (i = cur + 1; lp[i].name[0]; i++) {
+						if (lp[i].name[0] == sig) {
+							cur = i;
+							if (cur >= LIST_HEIGHT - 1) {
+								if (lp[i+1].name[0] == '\0') {
+								    i = cur - (LIST_HEIGHT - 1);
+								    cur = LIST_HEIGHT - 1;
+								    lp += i;
+								} else {
+								    i = cur - (LIST_HEIGHT - 2);
+								    cur = LIST_HEIGHT - 2;/* 下から 2段目 */
+								    lp += i;
+								}
+							}
+							goto listup;
+						}
+					}
+					/* search from top to current */
+					if (lp[i].name[0] == '\0') {
+						lp = list;
+						for (i = 0; lp[i].name[0] && lp != win->lp + cur; i++) {
+							if (lp[i].name[0] == sig) {
+								cur = i;
+								for(i=1;i<=LIST_HEIGHT-1;++i) {
+									if (lp[cur+i].name[0] == '\0') break;
+								}
+								lp += cur - (LIST_HEIGHT - i);
+								cur = LIST_HEIGHT - i;
+								goto listup;
+							}
+						}
+					}
+					lp = win->lp;
 				}
 				win->cur = cur;
 				win->lp = lp;
@@ -1273,7 +1339,7 @@ void open_console()
 	lib_openwindow1_nm(win, 0x0200, CONSOLESIZEX * 8, CONSOLESIZEY * 16, 0x0d, 256);
 	lib_opentextbox_nm(0x1000, pcons->title, 0, 16,  1,  0,  0, win, 0x00c0, 0);
 	lib_opentextbox_nm(0x0001, pcons->tbox,  0, CONSOLESIZEX, CONSOLESIZEY,  0,  0, win, 0x00c0, 0); // 5KB
-	lib_putstring_ASCII(0x0000, 0, 0, pcons->title, 0, 0, "pokon18 console");
+	lib_putstring_ASCII(0x0000, 0, 0, pcons->title, 0, 0, POKON_VERSION" console");
 
 	bp = pcons->buf;
 	for (j = 0; j < CONSOLESIZEY + 1; j++) {
@@ -1284,13 +1350,13 @@ void open_console()
 		bp[1] = 0;
 		bp += 2;
 	}
-	lib_definesignal1p0(0x5f, 0x0100, ' ',              win, 256 + ' ');
-	lib_definesignal1p0(1,    0x0100, 0xa0 /* Enter */, win, 256 + 0xa0);
+	lib_definesignal1p0(0x7f - ' ', 0x0100, ' ',              win, CONSOLE_KEY_SIGNAL_START);
+	lib_definesignal1p0(1,    0x0100, 0xa0 /* Enter */, win, CONSOLE_INPUT_ENTER);
 	lib_definesignal0p0(0, 0, 0, 0);
 	pcons->curx = pcons->cury = 0;
 	pcons->col = 15;
-	consoleout("Heppoko-shell \"poko\" version 1.9\n    Copyright (C) 2001 H.Kawai(Kawaido)\n");
-	consoleout("\npoko>");
+	consoleout(POKO_VERSION);
+	consoleout(POKO_PROMPT);
 	if (pcons->cursoractive) {
 		lib_settimer(0x0001, SYSTEM_TIMER);
 		pcons->cursorflag = ~0;

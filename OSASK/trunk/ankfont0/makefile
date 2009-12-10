@@ -18,7 +18,7 @@ EXE2BIN_FLAGS_ASK = -n
 EXE2BIN_FLAGS_C = -t -s
 
 TARGET = ankfont0.bin
-SRC = fonttext.txt
+SRC = ibmank0.txt
 DISTDIR = ..
 
 # prevent automatic deletion of an intermediate file
@@ -28,7 +28,7 @@ $(DISTDIR)\$(TARGET) : $(TARGET)
 	copy $(TARGET) $(DISTDIR)
 
 $(TARGET) : $(SRC) makefile
-	txt2bin.exe
+	txt2bin.exe $(SRC) $@
 
 clean:
 	del $(TARGET)

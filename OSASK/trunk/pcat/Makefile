@@ -27,7 +27,8 @@ ALL : $(OBJS)
 	$(MASMCNV) $(MASMCNV_FLAGS) $*.3as $*.asm
 	$(ASM) $(ASM_FLAGS) /Fl$*.lst $*.asm
 	$(LINK) $*,$*,$*,nul,nul
-	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
+	$(BIM2BIN) input:$*.exe output:$@ $(BIM2BIN_FLAGS_ASK)
+#	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
 	copy $@ ..
 
 %.exe : %.c makefile ..\depend.mak

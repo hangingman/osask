@@ -1,6 +1,6 @@
 /* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.3
 		copyright(C) 2001 川合秀実
-    stack:4k malloc:336k file:256k */
+    stack:4k malloc:92k file:768k */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -79,7 +79,9 @@ void job_setvgamode1(const int cmd, const int handle);
 void job_setvgamode2();
 void job_setvgamode3(const int sig, const int result);
 void job_loadfont0(int fonttype, int tss, int sig);
-void job_loadfont1(int flag);
+void job_loadfont1(int flag, int dmy);
+void job_loadfont2();
+void job_loadfont3(int flag, int dmy);
 
 void free_sndtrk(struct SOUNDTRACK *sndtrk);
 struct SOUNDTRACK *alloc_sndtrk();
@@ -180,10 +182,6 @@ void main()
 			if (jobfree >= 4) {
 				/* 空きが十分にある */
 				#if (defined(PCAT))
-				//	writejob(0x0030 /* open VGA driver */);
-				//	writejob(0x0000);
-				//	writejob(0x0034 /* change VGA mode */);
-				//	writejob(0x0012);
 					writejob2(0x0030 /* open VGA driver */, 0x0000);
 					writejob2(0x0034 /* change VGA mode */, 0x0012);
 		fin_wrtjob:
@@ -192,10 +190,6 @@ void main()
 						runjobnext();
 				#endif
 				#if (defined(TOWNS))
-				//	writejob(0x0030 /* open VGA driver */);
-				//	writejob(0x0000);
-				//	writejob(0x0034 /* change VGA mode */);
-				//	writejob(0x0000);
 					writejob2(0x0030 /* open VGA driver */, 0x0000);
 					writejob2(0x0034 /* change VGA mode */, 0x0000);
 		fin_wrtjob:
@@ -371,9 +365,11 @@ void main()
 		case 0x0052:
 		case 0x0053:
 		case 0x0054: /* 0x005fまではリザーブ */
-			job_loadfont1(signal[0] - 0x0050);
+			(*jobfunc)(signal[0] - 0x0050, 0);
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
+			if (jobnow == 0)
+				runjobnext();
 			break;
 
 		case 0x0014: /* 画面モード変更完了(result) */
@@ -1550,21 +1546,30 @@ void job_setvgamode2()
 {
 	#if (defined(TOWNS))
 		int mode = job_int0;
+#if 0
 		switch (mode) {
 		case 0x0000:
-			x2 = 640;
+			x2 = 1024;
 			y2 = 480;
 			/* 画面モード0設定(640x480) */
 			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, 0, 0x0000, 0x0000);
 			break;
 
 		case 0x0001:
-			x2 = 768;
+			x2 = 1024;
 			y2 = 512;
 			/* 画面モード1設定(768x512) */
 			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, 1, 0x0000, 0x0000);
 
 		}
+#endif
+			x2 = 1024;
+			y2 = 512;
+			/* 画面モード0設定(640x480) */
+			/* 画面モード1設定(768x512) */
+			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, mode, 0x0000, 0x0000);
+
+
 		sgg_wm0_gapicmd_001c_0004(); /* ハードウェア初期化 */
 		init_screen(x2, y2);
 		job_general1();
@@ -1630,43 +1635,71 @@ void job_loadfont0(int fonttype, int tss, int sig)
 {
 	job_sig = sig;
 	job_fonttss = tss;
-	if (job_fontflag) {
-		job_loadfont1(0);
+	if (job_fontflag & 0x01) {
+		job_loadfont1(0, 0);
 		return;
 	}
 	/* ロードコード */
 	lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
-	lib_steppath0(0, 0x0200, "JPN16$  .FNT", 0x0050 /* sig */);
+	jobfunc = &job_loadfont1;
+	lib_steppath0(0, 0x0200, "JPN16V00.FNT", 0x0050 /* sig */);
 	return;
 }
 
-void job_loadfont1(int flag)
+void job_loadfont1(int flag, int dmy)
 {
-	if (job_fontflag == 0 && flag == 0 /* ロード成功 */) {
-		int *fp = (int *) lib_readCSd(0x0010 /* malloc領域の終わり == mapping領域の始まり */);
-		int *buf = malloc(249856);
-		static struct {
-			int cmd, length;
-			int gapicmd[8];
-			int eoc;
-		} command = {
-			0x0050, 10 * 4, {
-				0x0104 /* loadfont */,
-				0x0000 /* opt */,
-				0x0001 /* type */,
-				 15616 /* len */,
-				0x2000 /* to */,
-				0x0000 /* from(ofs) */,
-				0x000c /* from(sel) */,
-				0x0000 /* EOC */
-			}, 0 /* EOC */
-		};
+	if ((job_fontflag & 0x01) == 0 && flag == 0 /* ロード成功 */) {
+		char *fp = (char *) lib_readCSd(0x0010 /* malloc領域の終わり == mapping領域の始まり */);
 		lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
-		lib_decodel2d3(249856, (int) fp, 0x000c, (int) buf, 0x000c);
-		command.gapicmd[5 /* from(ofs) */] = (int) buf;
-		sgg_execcmd(&command);
-		free(buf);
-		job_fontflag++;
+
+		/* ここでslot:0x0210にgapidataを配備 */
+		/* ロードが終わってから配備するのが重要で、そうでないとgapidataの拡張が終わってないかもしれないから */
+		sgg_execcmd0(0x007c, 0, 0x0210, 0x0000);
+
+		lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 304 * 1024, fp + 256 * 1024, (8 + 16) * 1024);
+		lib_decodetek0(304 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
+		lib_unmapmodule(0, 768 * 1024, fp);
+		job_fontflag |= 0x01;
+		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+	}
+//	if (job_fonttss)
+//		send_signal2dw(job_fonttss | 0x240, 0x7f000001, job_sig);
+//	jobnow = 0;
+//	jobfunc = NULL;
+	job_loadfont2();
+	return;
+}
+
+void job_loadfont2()
+{
+	if (job_fontflag & 0x02) {
+		job_loadfont3(0, 0);
+		return;
+	}
+	/* ロードコード */
+	lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
+	jobfunc = &job_loadfont3;
+	lib_steppath0(0, 0x0200, "KOR16V00.FNT", 0x0050 /* sig */);
+	return;
+}
+
+void job_loadfont3(int flag, int dmy)
+{
+	if ((job_fontflag & 0x02) == 0 && flag == 0 /* ロード成功 */) {
+		char *fp = (char *) lib_readCSd(0x0010 /* malloc領域の終わり == mapping領域の始まり */);
+		lib_mapmodule(0x0000, 0x0200, 0x5, 256 * 1024, fp, 0);
+
+		/* ここでslot:0x0210にgapidataを配備 */
+		/* ロードが終わってから配備するのが重要で、そうでないとgapidataの拡張が終わってないかもしれないから */
+		sgg_execcmd0(0x007c, 0, 0x0210, 0x0000);
+
+		lib_mapmodule(0x0000, 0x0210, 0x7 /* R/W */, 288 * 1024, fp + 256 * 1024, (8 + 320) * 1024);
+		lib_decodetek0(288 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
+		lib_unmapmodule(0, 768 * 1024, fp);
+		job_fontflag |= 0x02;
+		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
 	}
 	if (job_fonttss)
 		send_signal2dw(job_fonttss | 0x240, 0x7f000001, job_sig);
@@ -2610,15 +2643,22 @@ void gapi_loadankfont()
 {
 	static struct {
 		int cmd, length;
-		int gapicmd[8];
+		int gapicmd[15];
 		int eoc;
 	} command = {
-		0x0050, 10 * 4, {
+		0x0050, 17 * 4, {
 			0x0104 /* loadfont */,
 			0x0000 /* opt */,
 			0x0001 /* type */,
 			0x0100 /* len */,
 			0x1000 /* to */,
+			0x0000 /* from(ofs) */,
+			7 * 8  /* from(sel) */,
+			0x0104 /* loadfont */,
+			0x0000 /* opt */,
+			0x0001 /* type */,
+			0x0100 /* len */,
+			0x2000 /* to */,
 			0x0000 /* from(ofs) */,
 			7 * 8  /* from(sel) */,
 			0x0000 /* EOC */

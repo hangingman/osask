@@ -1,4 +1,4 @@
-/* "init.ask" ver.1.8 copyright(C) 2001 H.Kawai(川合秀実) */
+/* "init.ask" ver.1.9 copyright(C) 2001 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -733,8 +733,8 @@ void far Init()
 //	PUSH((int) 0); /* eoc */
 //	PUSH(EAX);
 //	PUSH(EAX);
-//	PUSH((int) 0x0104 /* Keydecode_Mainへのベクタ取得 */);
-	(int) [SS:ESP] = 0x0104 /* Keydecode_Mainへのベクタ取得 */;
+//	PUSH((int) 0x0104 /* PageFaultHandlerへのベクタ取得 */);
+	(int) [SS:ESP] = 0x0104 /* PageFaultHandlerへのベクタ取得 */;
 	EBX = ESP;
 	CALLFAR0(papi_sel);
 	POP(EAX);
@@ -975,6 +975,7 @@ void far Init()
 		+0600 : directorys(for root)
 		+0800 : task-tags
 		+0a00 : directorys(for task)
+
 		+0c00 : init-tags(task directory)
 		+0e00 : directorys(for init)
 	*/
@@ -1016,14 +1017,22 @@ void far Init()
 	GS = AX;
 	add_tags(); /* GS:EBXをDS:EDIへ。EDIは保存される。EAX, ECX, EDXは破壊 */
 	/* "link to directory"タグを見つけると、自動的にアロケートする */
-	/* ここでは、EDX = 1024と分かっているので、EDIを保存しない */
-	
+	/* ここでは、EDI = 1024と分かっているので、EDIを保存しない */
+
 	ECX = 512; /* tag用の領域 */
 //	ESI = 512; /* allocator */
 	alloc_tagdir(); /* EDI = 2048 */
 	asmout("MOV EBX,OFFSET #tasksdir");
 	add_tags(); /* GS:EBXをDS:EDIへ。EDIは保存される。EAX, ECX, EDXは破壊 */
 	/* "link to directory"タグを見つけると、自動的にアロケートする */
+	EBX = 1024;
+	regist_module(); /* EBXのディレクトリにEDIのモジュール(タグディレクトリ)を接続する */
+
+	ECX = 512; /* tag用の領域 */
+//	ESI = 512; /* allocator */
+	alloc_tagdir(); /* EDI = 3072 */
+	asmout("MOV EBX,OFFSET #gapidata_mdl");
+	add_tags(); /* GS:EBXをDS:EDIへ。EDIは保存される。EAX, ECX, EDXは破壊 */
 	EBX = 1024;
 	regist_module(); /* EBXのディレクトリにEDIのモジュール(タグディレクトリ)を接続する */
 
@@ -1042,8 +1051,8 @@ void far Init()
 	gapifontarea->data0.addr = EAX;
 	gapifontarea->data[0].size = EDX;
 	gapifontarea->data[0].addr = EDX;
-	EAX = 4096 * 63; /* 最初の4KBはワーク。次の4KBはANK。次の244KBは日本語。 */
-	ECX = 4096 * 17;
+	EAX = 612 * 1024; /* 最初の4KBはワーク。次の4KBはANK。次の608KBはOSASK共通フォント。 */
+	ECX = 92 * 1024;
 	free_area();
 
 	EAX = syswork_sel;
@@ -1902,8 +1911,52 @@ next0:
 			INT(0x03);
 		[ES:EDI + 0x0c] = EAX;
 		EDI = EDX;
-	//	EAX = idtgdt_sel;
 		EBX = [CS:ESI + 4];
+#if 1
+		if (EBX == 384 + GAPIwork_sel) {
+			/* EAXにある物理アドレスをどうにかしてタグディレクトリに書き込む */
+			/* rootからgapidataを探す */
+			/* link-to tagを探す */
+			PUSH(DS);
+			PUSHAD();
+			EAX = root_sel;
+			ESI = 1024 /* rootdir */ + 16;
+			DS = AX;
+			EAX = 0xffe00040;
+		//	ESI += 16;
+			search_tag_EAX();
+			if (ZF == 0) /* dir-link-to:タグが見付からない */
+				INT(0x03);
+			EBX = [DS:ESI + 16];
+			EBX += 16;
+			for (;;) {
+				ESI = [DS:EBX];
+				if (ESI == 0xffffffff)
+					INT(0x03); /* 見付からない！(terminator検出) */
+				ESI += 16;
+				EAX = 0xffe00000; /* nameタグ */
+				search_tag_EAX();
+				if (ZF == 0) /* nameタグが見付からない */
+					INT(0x03);
+				if ((unsigned) (int) [DS:ESI +  4] == 16) {
+					if ((unsigned) (int) [DS:ESI +  8] == 0x69706167) {
+						if ((unsigned) (int) [DS:ESI + 12] == 0x61746164)
+							break;
+					}
+				}
+				EBX += 4;
+			}
+			EAX = 0xffe00003; /* link-to:タグ */
+			search_tag_EAX();
+			if (ZF == 0) /* タグが見付からない */
+				INT(0x03);
+			EAX = [SS:ESP + 28];
+			[DS:ESI + 24] = EAX;
+			POPAD();
+			POP(DS);
+		}
+#endif
+	//	EAX = idtgdt_sel;
 	//	GS = AX;
 		EAX = 0x4092; /* lv0, Read/Write, use32 */
 		if (EBX == 384 + stack_sel) {
@@ -2931,13 +2984,18 @@ tasksdir:
 	DD(0xffe00002); DD(16); DD(0 /* normal-directry */); DD(0);
 	DD(0xffe00040); DD(16); DD(20); DD(512 /* ここを自動的に検出 */); DD(0); DD(0);
 	DD(0xfff00000); DD(0xffffffff); /* DD(0); DD(0); */
+gapidata_mdl:
+	DD(0xffe00000); DD(16); asmout("DB 'gapidata'");
+	DD(0xffe00002); DD(16); DD(1 /* normal-module */); DD(0);
+	DD(0xffe00003); DD(32); DD(0x62000); DD(0); DD(0x62000); DD(0); DD(0 /* addr */); DD(0);
+	DD(0xfff00000); DD(0xffffffff); /* DD(0); DD(0); */
 
 movemodule_list:
 //	DD(32 + idtgdt_ent   ); DD(384 /* IDTの分 */ + idtgdt_sel); DD(0);
 	DD(32 + ankfont_ent,   384 + ankfont_sel,   0);
 	DD(32 + stack_ent,     384 + stack_sel,     0);
 	DD(32 + keydata_ent,   384 + keydata_sel,   0);
-	DD(32 + gapidata_ent,  384 + GAPIwork_sel,  0x4e000);
+	DD(32 + gapidata_ent,  384 + GAPIwork_sel,  0xb0000 - 12288);
 	DD(32 + timerdata_ent, 384 + timerdata_sel, 0);
 	DD(32 + decowork_ent,  384 + decowork_sel,  0);
 	DD(32 + fdcwork_ent,   384 + fdcwork_sel,   0);
@@ -3686,8 +3744,10 @@ void near regist_module()
 		INT(0x03);
 	EBX = [DS:ESI + 16];
 	EAX = [DS:EBX];
-	asmout("MOV DWORD PTR DS:[EBX+EAX-4],EDI");
-	asmout("MOV DWORD PTR DS:[EBX+EAX],-1");
+//	asmout("MOV DWORD PTR DS:[EBX+EAX-4],EDI");
+	(int) [DS:EBX + EAX - 4] = EDI;
+	(int) [DS:EBX + EAX]= 0xffffffff;
+//	asmout("MOV DWORD PTR DS:[EBX+EAX],-1");
 	EAX += 4;
 	(int) [DS:EBX] = EAX;
 	(int) [DS:ESI + 8] = EAX;
@@ -5515,6 +5575,8 @@ cmd0408:
 	EAX &= 0x0fffffff;
 	(offset) cmd += 12;
 
+	if (EAX == 0x00ffffff)
+		goto skip;
 	if (EAX == 0x00000001) {
 		/* 8x16dot mono ANK */
 		(int) [ES:EDX +  0] = 256 /* max-range */;
@@ -5525,6 +5587,7 @@ cmd0408:
 		(int) [ES:EDX +  0] = 512 /* max-range */;
 		(int) [ES:EDX +  4] = 0x1003; /* conv */
 	//	(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
+#if 0
 	} else if (EAX == 0x00000011) {
 		/* 8x16dot mono gg00jpn0 */
 		(int) [ES:EDX +  0] = 0x3cf4 /* max-range (15604文字-半角単位) */;
@@ -5535,11 +5598,13 @@ cmd0408:
 		(int) [ES:EDX +  0] = 0x79e8 /* max-range (31208文字-半角単位) */;
 		(int) [ES:EDX +  4] = 0x2003; /* conv */
 	//	(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
+#endif
 	} else {
 		INT(0x03);
 	}
-	POP(EAX);
 	(int) [ES:EDX + 12] = 0x0114; /* overlink font mark */
+skip:
+	POP(EAX);
 	TEST(EAX, 0x40000000);
 	if (== 0)
 		goto nextcmd;
@@ -5592,22 +5657,71 @@ cmd0410:
 	EAX = 0x003c;
 	EDX = cmd[ 8]; /* charset */
 	ES = AX;
-	ECX = cmd[16]; /* range */
 	EBX = cmd[12]; /* font */
-	[ES:EDX + 0] = ECX;
-	if (ECX != 0) {
-		EAX = cmd[24]; /* to */
-		ESI = cmd[20]; /* from */
-		ECX = [ES:EBX + 4]; /* conv */
-		[ES:EDX + 4] = EAX;
-		EAX = ECX;
-		ECX &= 0x0f;
-		SHL(ESI, CL);
-		EAX += ESI;
-		[ES:EDX + 8] = EAX;
+	ECX = cmd[16]; /* range */
+	TEST(BL, 0x0f);
+	if (== 0) {
+		[ES:EDX + 0] = ECX;
+		if (ECX != 0) {
+			EAX = cmd[24]; /* to */
+			ESI = cmd[20]; /* from */
+			ECX = [ES:EBX + 4]; /* conv */
+			[ES:EDX + 4] = EAX;
+			EAX = ECX;
+			ECX &= 0x0f;
+			SHL(ESI, CL);
+			EAX += ESI;
+			[ES:EDX + 8] = EAX;
+		}
+		(offset) cmd += 28;
+		goto nextcmd;
 	}
-	(offset) cmd += 28;
-	goto nextcmd;
+	if (EBX == 0x0021 /* フルハイト・文字セット01 */) {
+		[ES:EDX +  0] = ECX;
+		[ES:EDX + 16] = ECX; /* ダミー */
+		[ES:EDX + 32] = ECX; /* ダミー */
+		[ES:EDX + 48] = ECX; /* ダミー */
+		EAX = cmd[24]; /* to */
+		ESI = cmd[20]; /* from */ /* これは0であるべき */
+		ECX = 0x2004; /* conv */
+		[ES:EDX +  4] = EAX;
+		[ES:EDX + 20] = EAX;
+		[ES:EDX + 36] = EAX;
+		[ES:EDX + 52] = EAX;
+		EAX = ECX;
+	//	ECX &= 0x0f;
+	//	SHL(ESI, CL);
+	//	EAX += ESI;
+		[ES:EDX +  8] = EAX;
+	//	[ES:EDX + 24] = EAX;
+	//	[ES:EDX + 40] = EAX;
+	//	[ES:EDX + 56] = EAX;
+		(offset) cmd += 28;
+		goto nextcmd;
+	}
+	if (EBX == 0x0031 /* ハーフハイト・文字セット01 */) {
+		[ES:EDX +  0] = ECX;
+		[ES:EDX + 16] = ECX; /* ダミー */
+		[ES:EDX + 32] = ECX; /* ダミー */
+		[ES:EDX + 48] = ECX; /* ダミー */
+		EAX = cmd[24]; /* to */
+		ESI = cmd[20]; /* from */ /* これは0であるべき */
+		ECX = 0x2003; /* conv */
+		[ES:EDX +  4] = EAX;
+		[ES:EDX + 20] = EAX;
+		[ES:EDX + 36] = EAX;
+		[ES:EDX + 52] = EAX;
+		EAX = ECX;
+	//	ECX &= 0x0f;
+	//	SHL(ESI, CL);
+	//	EAX += ESI;
+		[ES:EDX +  8] = EAX;
+	//	[ES:EDX + 24] = EAX;
+	//	[ES:EDX + 40] = EAX;
+	//	[ES:EDX + 56] = EAX;
+		(offset) cmd += 28;
+		goto nextcmd;
+	}
 
 cmd0414:
 	/* ブロック転送 */
@@ -6478,6 +6592,8 @@ nextcmd:
 		goto cmd0074; /* 仮想モジュール削除 */
 	if (EAX == 0x0078)
 		goto cmd0078; /* 他タスク書き込み */
+	if (EAX == 0x007c)
+		goto cmd007c; /* gapidataのハンドル取得 */
 	if (EAX == 0x8010)
 		goto cmd8010;
 	INT(0x03);
@@ -7007,6 +7123,43 @@ cmd0078:
 	STI();
 	goto nextcmd;
 
+cmd007c:
+	/* gapidataへのハンドル獲得 */
+	/* opt, slot */
+	EAX = root_sel;
+	ECX = 0x003c; /* slot_sel */
+	EDX = cmd[8];
+	DS = AX;
+	ES = CX;
+	ESI = 1024 /* rootdir */ + 16;
+	EAX = 0xffe00040;
+//	ESI += 16;
+	search_tag_EAX();
+	PUSH((offset) cmd);
+	EBX = [DS:ESI + 16];
+	EBX += 16;
+	for (;;) {
+		ESI = [DS:EBX];
+		if (ESI == 0xffffffff)
+			INT(0x03); /* 見付からない！(terminator検出) */
+		ESI += 16;
+		EAX = 0xffe00000; /* nameタグ */
+		search_tag_EAX();
+	//	if (ZF == 0) /* nameタグが見付からない */
+	//		INT(0x03);
+		if ((unsigned) (int) [DS:ESI +  4] == 16) {
+			if ((unsigned) (int) [DS:ESI +  8] == 0x69706167) {
+				if ((unsigned) (int) [DS:ESI + 12] == 0x61746164)
+					break;
+			}
+		}
+		EBX += 4;
+	}
+	EAX = [DS:EBX];
+	[ES:EDX + 0] = EAX;
+	POP((offset) cmd);
+	(offset) cmd += 12;
+	goto nextcmd;
 
 cmd8010:
 	// デバッグ用コマンド

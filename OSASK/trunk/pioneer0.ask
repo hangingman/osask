@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.6
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.7
     copyright(C) 2001 H.Kawai (川合秀実) */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -238,7 +238,9 @@ void far cmd000()
 }
 
 void near cmd0004_getbECX();
+void near cmd0004_getb(); /* CFに返す */
 void near cmd0004_decode();
+void near cmd0004_decode2();
 
 void far cmd004()
 /* pioneer0ライブラリ初期化コマンド */
@@ -306,7 +308,7 @@ special:
 	(offset) cmd += 4;
 	if (EAX == 0xffffff81) {
 		/* opt == 0xffffff81 : l2d3圧縮データー展開 */
-		/* cmd, opt(subcmd), bytes, source(64bit), subcmd, ... */
+		/* cmd, opt(subcmd), bytes, source(48bit), subcmd, ... */
 		/* 展開先はES:EDI */
 		POP(EDI);
 		PUSH(DS);
@@ -315,6 +317,24 @@ special:
 		EBP = cmd[4];
 		LDS(ESI, [DS:ESI + 8]);
 		cmd0004_decode();
+		POP(EBP);
+		POP(ESI);
+		POP(DS);
+		PUSH(EDI);
+		(offset) cmd += 16;
+		goto special2;
+	}
+	if (EAX == 0xffffff82) {
+		/* opt == 0xffffff82 : tek0圧縮データー展開 */
+		/* cmd, opt(subcmd), bytes, source(48bit), subcmd, ... */
+		/* 展開先はES:EDI */
+		POP(EDI);
+		PUSH(DS);
+		PUSH(ESI);
+		PUSH(EBP);
+		EBP = cmd[4];
+		LDS(ESI, [DS:ESI + 8]);
+		cmd0004_decode2();
 		POP(EBP);
 		POP(ESI);
 		POP(DS);
@@ -340,6 +360,20 @@ asmout("cmd004_cmd2:");
 	DD(0x0000);
 }
 
+void near cmd0004_getb()
+{
+	char *src == DS:ESI;
+
+	BL--;
+	if ((signed) < 0) {
+		BL = 7;
+		BH = *src;
+		(offset) src++;
+	}
+	BH <<= 1;
+	return;
+}
+
 void near cmd0004_getbECX()
 {
 	char *src == DS:ESI;
@@ -360,39 +394,48 @@ void near cmd0004_getbECX()
 }
 
 void near cmd0004_decode()
+/* これはもう主たるデコーダーではないので、多少遅くなってもいいからコンパクトに！ */
 {
 	char *dst == ES:EDI;
 
 	EBX = 0;
 	ECX = 0;
 	for (;;) {
+		EDX = (offset) &cmd0004_getbECX;
 		EAX = 0;
 		ECX++;
-		cmd0004_getbECX(); /* 1bit入力 */
+	//	cmd0004_getbECX(); /* 1bit入力 */
+		CALL(EDX);
 		if (!= 0) { /* EAX == 1 */
 			CL = 8;
-			cmd0004_getbECX(); /* 8bit入力 */
+		//	cmd0004_getbECX(); /* 8bit入力 */
+			CALL(EDX);
 			ECX++;
 			goto putc;
 		}
 		CL = 2;
-		cmd0004_getbECX(); /* 2bit入力 */
+	//	cmd0004_getbECX(); /* 2bit入力 */
+		CALL(EDX);
 	//	CL = 1;
 		if (== 0) {
 			CL = 4;
-			cmd0004_getbECX(); /* 4bit入力 */
+		//	cmd0004_getbECX(); /* 4bit入力 */
+			CALL(EDX);
 			CL = 4 - 1;
 			if (== 0) {
 				CL = 8;
-				cmd0004_getbECX(); /* 8bit入力 */
+			//	cmd0004_getbECX(); /* 8bit入力 */
+				CALL(EDX);
 				CL = 19 - 1;
 				if (== 0) {
 					CL = 16;
-					cmd0004_getbECX(); /* 16bit入力 */
+				//	cmd0004_getbECX(); /* 16bit入力 */
+					CALL(EDX);
 					if ((unsigned) EAX <= 127) {
 						XCHG(EAX, ECX);
 						EAX++; /* 最初のbitは1に決まっているから */
-						cmd0004_getbECX(); /* nbit入力 */
+					//	cmd0004_getbECX(); /* nbit入力 */
+						CALL(EDX);
 					}
 				}
 			}
@@ -404,7 +447,8 @@ void near cmd0004_decode()
 		EAX--;
 		do {
 			CL = 4;
-			cmd0004_getbECX(); /* 6bit入力 */
+		//	cmd0004_getbECX(); /* 4bit入力 */
+			CALL(EDX);
 			(signed int) EAX >>= 1;
 		} while (CF == 1);
 		POP(ECX);
@@ -422,6 +466,179 @@ putc:
 	}
 fin:
 	return;
+}
+
+void near cmd0004_getl1a()
+/* ECXに返す */
+/* ECX = 1で呼ぶこと */
+{
+//	ECX = 1;
+	cmd0004_getb();
+	if (CF == 0) {
+		do {
+			cmd0004_getb();
+			RCL(ECX, 1);
+			cmd0004_getb();
+		} while (CF == 0);
+	}
+	return;
+}
+
+void near cmd0004_getl1b()
+/* ECXに返す */
+/* ECX = 1で呼ぶこと */
+{
+//	ECX = 1;
+	cmd0004_getb();
+	if (CF == 0) {
+		do {
+			cmd0004_getb();
+			RCL(ECX, 1);
+			cmd0004_getb();
+		} while (CF == 0);
+		ECX++;
+		return;
+	}
+	cmd0004_getb();
+	ADC(ECX, 0);
+	return;
+}
+
+#if 0
+void near cmd0004_getdf()
+/* EAXにstopbits */
+/* CF = 0ならリピートマーク検出 */
+{
+	unsigned int stopbits == EAX, distance == EDX;
+	distance = 0xffffffff;
+	do {
+		do {
+			cmd0004_getb();
+			RCL(distance, 1);
+			stopbits >>= 1;
+		} while (CF == 0);
+		if (/* stopbits */ == 0)
+			break; /* CF == 1 */
+		cmd0004_getb();
+		if (CF != 0)
+			break; /* CF == 1 */
+	} while (distance != 0xffffffff); /* 等しいとき、CF == 0, 等しくないとき、CF == 1 */
+	return;
+}
+#endif
+
+void near cmd0004_getl0a()
+/* EBPに返す */
+/* 進入条件：EBP = 0, ECX = 0 */
+{
+	do {
+		EBP++;
+		cmd0004_getb();
+		if (CF != 0)
+			goto fin;
+		EDX--;
+	} while (!= 0);
+	ECX++; /* ECX = 1; */
+	cmd0004_getl1b();
+	EBP += ECX;
+	ECX = 0;	
+fin:
+	return;
+}
+
+void near cmd0004_decode2()
+{
+	char *dst == ES:EDI;
+	unsigned int *z1 == SS:ESP, *z0 == SS:ESP + 4, *mode == SS:ESP + 8;
+	unsigned int *l_ofs == SS:ESP + 12, *dis_s == SS:ESP + 16;
+	unsigned int *bytes == SS:ESP + 20;
+	EBX = 0;
+	ECX = 0;
+	EAX = 0;
+	PUSH(EBP); /* bytes */
+	do {
+		CL = 9;
+		cmd0004_getbECX(); /* 9bit入力 */
+		(unsigned int) EAX >>= 1;
+	} while (CF == 0);
+	PUSH(EAX); /* dis_s */
+	EAX = 0;
+	CL = 2;
+	cmd0004_getbECX(); /* 2bit入力 */
+	PUSH(EAX); /* l_ofs */
+	EAX = (offset) &cmd0004_getl1a;
+	cmd0004_getb();
+	if (CF != 0) {
+	//	EAX = (offset) &cmd0004_getl1b;
+	//	asmout("ADD EAX,cmd0004_getl1b-cmd0004_getl1a");
+		DB(0x83, 0xc0); asmout("DB cmd0004_getl1b-cmd0004_getl1a");
+	}
+	PUSH(EAX); /* mode */
+	LEA(EDX, [ECX + 2]); /* EDX = 2; */
+	do {
+		EAX = 0;
+		CL = 2;
+		cmd0004_getbECX(); /* 2bit入力 */
+		asmout("MOVSX EAX,BYTE PTR CS:[#table][EAX]");
+		PUSH(EAX); /* z0, z1 */
+		EDX--;
+	} while (!= 0);
+
+	EBP = 0;
+	do {
+		/* "0"-phase (非圧縮フェーズ) */
+		EDX = *z0;
+		cmd0004_getl0a(); /* EBPに返す */
+		*bytes -= EBP;
+		do {
+			CL = 8;
+			cmd0004_getbECX();
+			*dst = AL;
+			(offset) dst++;
+			EBP--;
+		} while (!= 0);
+		if (ECX == *bytes)
+			break;
+
+		/* "1"-phase (圧縮フェーズ) */
+		EDX = *z1;
+		cmd0004_getl0a(); /* EBPに返す */
+		do {
+			/* getdf */
+			unsigned int stopbits == EAX, distance == EDX;
+		//	distance = 0xffffffff;
+			LEA(EDX, [ECX - 1]);
+			ECX++; /* l1aやl1bのため */
+			stopbits = *dis_s;
+			do {
+				do {
+					cmd0004_getb();
+					RCL(distance, 1);
+					stopbits >>= 1;
+				} while (CF == 0);
+				if (/* stopbits */ == 0)
+					break;
+				cmd0004_getb();
+			} while (CF == 0);
+
+			CALL(*mode); /* l1a or l1b */
+			ECX += *l_ofs;
+			*bytes -= ECX;
+			do {
+				AL = dst[EDX];
+				*dst = AL;
+				(offset) dst++;
+				ECX--;
+			} while (!= 0);
+			EBP--;
+		} while (!= 0);
+	} while (ECX != *bytes);
+
+	ESP += 24;
+	return;
+
+table:
+	DB(0xff, 4, 8, 16);
 }
 
 void near cmd008()
@@ -2329,6 +2546,7 @@ void near cmd0ec()
 /* code convert */
 /* cmd, opt, len, src, dest, base0, base1,... */
 /* opt 0x0001 : SJIS to GUIGUI00-JPN(1) */
+/* opt 0x0002 : シンプルEUC */
 {
 	int *cmd == DS:ESI;
 	unsigned char *p == DS:EBX;
@@ -2336,15 +2554,22 @@ void near cmd0ec()
 	PUSH(ES);
 	PUSH(DS);
 	PUSH(EBP);
-//	EAX = cmd[ 4];
+	EAX = cmd[ 4];
 	ECX = cmd[ 8];
-	EDX = cmd[28]; /* ANKのベース */
-	EBP = cmd[32];
+	EDX = cmd[28]; /* ANKのベース(通常は+4e00を指定) */
+	EBP = cmd[32]; /* 全角文字のベース */
 	asmout("LES EDI,DS:[ESI+20]");
 	asmout("LDS EBX,DS:[ESI+12]");
 	(offset) cmd += 36;
 	ECX += (offset) p;
 
+	if (EAX == 0x0001) /* 日本語Windows標準シフトJISからの変換 */
+		goto mode0001;
+	if (EAX == 0x0002) /* シンプルなEUCからの変換 */
+		goto mode0002;
+	INT(0x03);
+
+mode0001:
 	do {
 cont:
 		EAX = *p;
@@ -2355,14 +2580,15 @@ cont:
 			if ((unsigned) AL < 0xa0)
 				goto zenkaku;
 			if ((unsigned) AL < 0xe0) {
-				LEA(EAX, [EAX + EBP + 0x9ca /* 2e40 */ - 0xa0]);
-			} else if ((unsigned) AL <= 0xea) {
+				EAX += EDX;
+			//	LEA(EAX, [EAX + EBP + 0x4e00]);
+			} else if ((unsigned) AL <= 0xef) {
 				AL -= 0x40;
 	zenkaku:
 				PUSH(EDX);
 				AL -= 0x81;
-				if ((unsigned) < 0)
-					goto undefined;
+			//	if ((unsigned) < 0)
+			//		goto undefined;
 				EDX = *p;
 				(offset) p++;
 				IMUL(EAX, 0x178);
@@ -2385,8 +2611,8 @@ cont:
 				/* MS拡張 fa～fc */
 				PUSH(EDX);
 				AL -= 0xfa;
-				if ((unsigned) < 0)
-					goto undefined;
+			//	if ((unsigned) < 0)
+			//		goto undefined;
 				EDX = *p;
 				(offset) p++;
 			//	if ((signed) DL < 0)
@@ -2394,15 +2620,47 @@ cont:
 				CMP(DL, 0x7f); /* DL < 0ならCF = 0 */
 				ADC(EDX, 0xffffffff);
 				IMUL(EAX, 0x178);
-				LEA(EAX, [EAX + EDX * 2 - 0x80 - 0x38 + 0x5e0 /* 2921 */]);
-				if (EAX >= 0x5e0)
+				LEA(EAX, [EAX + EDX * 2 - 0x80 - 0x38 + 0x4508 /* 7f21 */]);
+				if (EAX >= 0x4508)
 					goto zenkaku2;
-				EAX += 0x9c4 - 0x5e0;
+				EAX += 0x4970 - 0x4508;
 				goto zenkaku2;
-	undefined:
-				EAX = 0;
-				goto zenkaku2;
+//	undefined:
+//				EAX = 0;
+//				goto zenkaku2;
 			}
+		}
+		*q = EAX;
+		(offset) q += 4;
+	} while ((unsigned) EBX < ECX);
+	POP(EBP);
+	POP(DS);
+	POP(ES);
+	asmout("JMP nextcmd");
+
+mode0002:
+	do {
+cont2:
+		EAX = *p;
+		(offset) p++;
+		if ((signed) AL >= 0) {
+			EAX += EDX;
+		} else {
+			PUSH(EDX);
+			AL -= 0xa1;
+			EDX = *p;
+			(offset) p++;
+			IMUL(EAX, 0xbc);
+			LEA(EAX, [EAX + EDX * 2 - 0x142 /* 0xa1 * 2 */]);
+			POP(EDX);
+			EAX += EBP;
+			q[0] = EAX;
+			EAX++;
+			q[4] = EAX;
+			(offset) q += 8;
+			if ((unsigned) EBX < ECX)
+				goto cont2;
+			break;
 		}
 		*q = EAX;
 		(offset) q += 4;
