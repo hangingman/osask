@@ -1,0 +1,55 @@
+
+    sb21 の著作権情報
+
+  このアーカイブに含まれるファイルは、以下の27個です。
+
+・ANKFONT0/
+    ANKFONT0.BIN
+    IBMANK0.TXT
+    TXT2BIN.C
+    TXT2BIN.EXE
+・PCAT/
+    INIT.BIN
+    FDCDRV0.ASK
+    FDCDRV0.BIN
+    WINMAN0.BIN
+・TOWNS/
+    INIT.BIN
+    FDCDRV0.ASK
+    FDCDRV0.BIN
+    VGADRV0.ASK
+    VGADRV0.BIN
+    WINMAN0.BIN
+・INIT.ASK
+・PAPI0.ASK
+・PAPI0.BIN
+・PIONEER0.ASK
+・PIONEER0.BIN
+・WINMAN0.C
+・POKON0.H
+・POKON0.C
+・POKON0.BIN
+・INC.ASM
+・COPYRIGH.TXT
+・LICENSE.TXT
+・DOCUMENT.TXT
+
+  これらの著作権は以下の人々にあります。
+
+・小柳雅明さん （POKON0の一部）
+    URL     http://homepage1.nifty.com/dreaming/
+    e-mail  Koyanagi.Masaaki@nifty.ne.jp
+
+・I.Tak.さん  (TOWNS/VGADRV0の一部, PIONEER0の一部)
+    URL     http://home1.catvmics.ne.jp/~msy/takhome.htm
+    e-mail  msy@catvmics.ne.jp
+
+・川合秀実  (残り全部)
+    URL     http://www.imasy.org/~kawai/
+    e-mail  kawai@imasy.org
+
+  このプログラムは、著作権者の総意により「川合堂ライセンス-01」によってライセン
+スされています。このライセンスの範囲でご利用くださいますようお願いいたします。
+ライセンスの内容につきましては、LICENSE.TXTをご覧ください。
+
+  著作権に関するお問い合わせは、川合秀実が代表で受け付けます。
