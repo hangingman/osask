@@ -1,0 +1,239 @@
+/* "papi0.ask" ver.0.0 copyright(C) 2001 H.Kawai(川合秀実) */
+/* 64bitタイプ */
+
+segment PapiMdl(USE32, PARA);
+
+default(code == PapiMdl);
+
+/* 暫定アドレスマップ */
+/*
+	0GB～ 4GB : 実メモリのためにリザーブ
+	4GB～ 8GB : フラグメンテーション用領域
+	8GB～12GB : フロッピーディスク(1メディアで2MB)
+	8EB～16EB : 仮想メモリ。無尽蔵にある。
+*/
+/*
+	仮想メモリの一部がメモリにロードされる
+	はがされるまでストアしない。
+	メモリが分断されるという問題はある。
+*/
+
+void near mapping();
+void near map_sub();
+void near unmapping();
+
+void far PAPI_syscmd()
+/* PAPIコマンド受け付け
+   これは、かならずlv0から呼ばれる */
+{
+	unsigned int Init_sel     ==  2 * 8, TAPI_sel   == 12 * 8;
+	unsigned int pdepte_sel   == 14 * 8, idtgdt_sel    == 15 * 8;
+	int *cmd == FS:EBX;
+
+	PUSHAD();
+	AX = CS;
+	PUSH(DS);
+	AX += 8;
+//	DS = AX;
+nextcmd:
+	EAX = *cmd;
+	if (EAX == 0)
+		goto cmd0000;
+	if (EAX == 0x0100)
+		goto cmd0100; /* 初期化 */
+	if (EAX == 0x0104)
+		goto cmd0104; /* PageFaultハンドラ */
+	if (EAX == 0x0108)
+		goto cmd0108; /* mapping */
+	if (EAX == 0x010c)
+		goto cmd010c; /* unmapping */
+
+
+
+
+	INT(0x03);
+
+cmd0000:
+	POP(DS);
+	[SS:ESP + 16] = EBX;
+	POPAD();
+	return;
+
+cmd0100:
+	/* 初期化 */
+	/* cmd, opt, reserve0, reserve1 */
+	(offset) cmd += 16;
+	goto nextcmd;
+
+cmd0104:
+
+cmd0108:
+	/* mapping */
+	/* cmd, opt, size, linear, pageset, offset64, addr64(start or link) */
+
+	PUSH(DS);
+	EAX = pdepte_sel;
+	DS = AX;
+	ECX = cmd[ 8]; /* size */
+	EDX = cmd[12]; /* linear */
+	EAX = cmd[28];
+	ESI = cmd[ 4] /* opt(bit0～11はページ属性) */;
+	EAX += cmd[20];
+	ESI &= 0xfff;
+	EAX |= ESI;
+	mapping();
+	EAX = cmd[ 4];
+	TEST(EAX, 0x1000); /* over-mapping */
+	if (!= 0) {
+		EAX = CR3;
+		CR3 = EAX;
+	}
+	(offset) cmd += 36;
+	POP(DS);
+	goto nextcmd;
+
+cmd010c:
+	/* unmapping */
+	/* cmd, opt, size, linear, pageset */
+
+	PUSH(DS);
+	EAX = pdepte_sel;
+	DS = AX;
+	ECX = cmd[ 8]; /* size */
+	EDX = cmd[12]; /* linear */
+	(offset) cmd += 20;
+	unmapping();
+	POP(DS);
+	goto nextcmd;
+
+cmd0110:
+	/* pre-load */
+	/* cmd, opt, size, linear, pageset */
+	/* cmd, opt, size, addr64 */
+
+cmd0114:
+	/* make-signal */
+	/* 将来はこのコマンドの形態は変わるだろうが、とりあえずはこの形式で行く */
+
+
+	/* 領域管理サービス */
+	/* 指定容量確保(含むnバイト挿入) */
+	/* 部分開放(含む全開放) */
+
+
+	/* cmd, opt, size, linear, pageset, offset64, addr64(start or link) */
+
+
+
+}
+
+
+void near mapping()
+/* DSにmapspace-module
+   EAXに物理アドレス
+   ECXにサイズ
+   EDXに線形アドレス */
+/* 将来的には、物理アドレスではなくデバイスアドレスになる */
+{
+	unsigned int pteofs == EDI;
+	int linear == EDX, size == EBP, size2 == EBX;
+	PUSHAD();
+	size = ECX;
+	do {
+		EBX = linear;
+		pteofs = linear;
+		(unsigned int) EBX >>= 22;
+		pteofs &= 0x003ff000;
+		ECX = 1024 * 4096;
+	//	ESI = [DS:EBX * 4];
+		asmout("MOV ESI,DWORD PTR DS:[EBX*4]");
+		ECX -= pteofs;
+		pteofs /= 1024;
+		if ((unsigned) ECX >= size)
+			ECX = size;
+		ESI += pteofs;
+		size2 = ECX;
+		(unsigned int) ECX /= 4096;
+		map_sub();
+		linear += size2;
+		size -= size2;
+	} while ((unsigned) > 0);
+	POPAD();
+	return;
+}
+
+void near map_sub()
+/* DS:ESIからマッピング
+   EAXに最初の値(含：アトリビュート)
+   ECXはページ数 */
+{
+	int *pte == DS:ESI;
+	do {
+		*pte = EAX;
+		(offset) pte += 4;
+		EAX += 0x1000;
+		ECX--;
+	} while (!= 0);
+	return;
+}
+
+void near unmapping()
+/* ページをはがすだけ */
+{
+	unsigned int pteofs == EDI;
+	int linear == EDX, size == EBP, size2 == EBX;
+	int *pte == DS:ESI;
+	PUSHAD();
+	size = ECX;
+	do {
+		EBX = linear;
+		pteofs = linear;
+		(unsigned int) EBX >>= 22;
+		pteofs &= 0x003ff000;
+		ECX = 1024 * 4096;
+	//	(offset) pte = [DS:EBX * 4];
+		asmout("MOV ESI,DWORD PTR DS:[EBX*4]");
+		ECX -= pteofs;
+		pteofs /= 1024;
+		if ((unsigned) ECX >= size)
+			ECX = size;
+		(offset) pte += pteofs;
+		size2 = ECX;
+		do {
+			*pte &= 0xfffffffe; /* not-present */
+			(offset) pte += 4;
+			ECX -= 4096;
+		} while (!= 0);
+		linear += size2;
+		size -= size2;
+	} while ((unsigned) > 0);
+	asmout("MOV EAX,CR3");
+//	linear = [SS:ESP + 20 /* EDX */];
+	asmout("MOV CR3,EAX");
+//	EBX = linear;
+//	pteofs = linear;
+//	(unsigned int) EBX >>= 22;
+//	pteofs &= 0x003ff000;
+//	(offset) pte = [DS:EBX * 4];
+//	asmout("MOV ESI,DWORD PTR DS:[EBX*4]");
+//	pteofs /= 1024;
+//	EAX = pte[pteofs];
+//	asmout("MOV EAX,DWORD PTR DS:[ESI+EDI]");
+//	EAX &= 0xfffff000;
+//	ECX = [SS:ESP + 24 /* ECX */];
+//	free_memory();
+	POPAD();
+	return;
+}
+
+
+/*
+
+
+  ・ページング空間オープン／クローズ
+  ・マッピング／アンマッピング    引数は、opt(32bit)、サイズ(32bit)とアドレス(64bit)。
+  ・プリロード（含む：ロック・・・優先順位がある）。
+  ・プリストア
+  ・ディゼーブルキャッシュ
+
+*/
