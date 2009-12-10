@@ -25,21 +25,24 @@
 #define	DEFSIGBUFSIZ		2048
 #define	MOSWINSIGS			 128		/* 4KB */
 
-#define	BACKCOLOR			   6
-
 #if (defined(WIN9X))
+	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		  28
 #elif (defined(TMENU))
+	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		  20
 	#define	RESERVELINE1		  28
 #elif (defined(CHO_OSASK))
+	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		  20
 #elif (defined(NEWSTYLE))
+	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		   0
 #elif (defined(WIN31))
+	#define	BACKCOLOR			   8
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		   0
 #endif

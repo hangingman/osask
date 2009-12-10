@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.1.5 copyright(C) 2002 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.1.7 copyright(C) 2002 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -53,26 +53,26 @@ struct FDC_WORK {
 	void [2048];
 };
 
-void near FDC_Init();
-void near FDC_dosload();
-void near FDC_loadFAT();
-void near FDC_format();
-void near FDC_writeIPL();
-void near FDC_format2();
-void near FDC_writeIPL2();
-void near FDC_writeIPL3();
-void near FDC_doswrite();
-void near check_WBF();
-void near FDC_deletefile();
-void near FDC_createfile();
-void near ready_track01();
-void near search_file();
-void near send_sigfin();
-void near FDC_renamefile();
-void near FDC_resizefile();
-void near FDC_writebackcache();
-void near save_dosname();
-void near save_dosname2();
+void FDC_Init();
+void FDC_dosload();
+void FDC_loadFAT();
+void FDC_format();
+void FDC_writeIPL();
+void FDC_format2();
+void FDC_writeIPL2();
+void FDC_writeIPL3();
+void FDC_doswrite();
+void check_WBF();
+void FDC_deletefile();
+void FDC_createfile();
+void ready_track01();
+void search_file();
+void send_sigfin();
+void FDC_renamefile();
+void FDC_resizefile();
+void FDC_writebackcache();
+void save_dosname();
+void save_dosname2();
 
 void far FDC_syscmd()
 {
@@ -98,7 +98,7 @@ nextcmd:
 	if (EAX == 0x0108)
 		goto cmd0108; // FDC_diskchange
 	if (EAX == 0x010c)
-		goto cmd010c; // FDC_diskcache1
+		goto cmd010c; // FDC_diskcache0
 	if (EAX == 0x0100)
 		goto cmd0100; /* 初期化 */
 	if (EAX == 0x0104)
@@ -179,6 +179,20 @@ cmd0138:
 	goto nextcmd;
 
 cmd010c:
+	/* FDC_diskcache0 */
+	/* キャッシュフラグの操作 */
+	EAX = 0;
+	ECX = cmd[4];
+	(offset) cmd += 8;
+	if ((unsigned) EAX < ECX) {
+		do {
+			BTS(work->track[0], EAX);
+			EAX++;
+		} while ((unsigned) EAX < ECX);
+	}
+	goto nextcmd;
+
+#if 0
 	// FDC_diskcache1
 	/* 直接起動ディスクのIPLが読み込んだデーターをキャッシュバッファに転送 */
 	PUSH(DS);
@@ -198,6 +212,7 @@ cmd010c:
 	work->track[0] |= 0x03; // track0とtrack1
 	(offset) cmd += 4;
 	goto nextcmd;
+#endif
 
 cmd0110:
 	// FDC_loadFAT
@@ -1523,7 +1538,7 @@ void near FDC_format_storeFAT()
 	return;
 }
 
-void near FDC_format()
+void FDC_format()
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
 {
@@ -1532,6 +1547,10 @@ void near FDC_format()
 	unsigned int tapi_sel == 12 * 8;
 
 	FDC_WORK *work == DS:0;
+
+INT(0x03);
+
+#if 0
 
 	if (work->dosload_phase != 0) {
 		INT(0x03);
@@ -1614,15 +1633,18 @@ pass00:
 
 	EDI = 113 /* 5 + 18 * 6 */; // システムクラスタ
 
+#endif
+
 	asmout("FDC_format99:");
 
 	// ここでライトしなければいけないのは、FATだけ。
 	PUSH(DS);
-	EAX = all_sel;
+	PUSH(all_sel);
 	EDX = FAT0_ADDR0;
-	DS = EAX;
+	POP(DS);
 
 	EAX = 0;
+//	ECX = SECTOR_BYTES * (SYSTEM_SECTORS + 1) / 4;
 	ECX = SECTOR_BYTES * 32 / 4;
 	do {
 		[DS:EDX] = EAX;
@@ -1642,15 +1664,18 @@ pass00:
 
 	// 特殊フォーマット部分を不良セクタ扱いに
 	ECX = 5;
-	EAX = 0xff7; 
+	EDI--;
 	do {
+		LEA(EAX, [ECX + 1]);
 		FDC_format_storeFAT();
 		ECX++;
 	} while ((unsigned) ECX < EDI);
+	EAX = 0xfff; /* 最終セクタ */
+	FDC_format_storeFAT();
 
 	// FATコピー
 	EBX = FAT1_ADDR0;
-	ECX = SECTOR_BYTES * 9 / 4;
+	ECX = FAT_BYTES / 4;
 	do {
 		EAX = [DS:EDX];
 		EDX += 4;
@@ -1658,6 +1683,19 @@ pass00:
 		EBX += 4;
 		ECX--;
 	} while (!= 0);
+
+	EAX = ROOT_ENTRY0;
+	EDI -= 4;
+	(int) [DS:EAX +  0] = 0x5341534f; 
+	EDI *= 512;
+	(int) [DS:EAX +  4] = 0x2020204b; 
+	(int) [DS:EAX +  8] = 0x20535953;
+	(int) [DS:EAX + 12] = ECX;
+	(int) [DS:EAX + 16] = ECX;
+	(int) [DS:EAX + 20] = ECX;
+	(int) [DS:EAX + 24] = 0x00050000;
+	(int) [DS:EAX + 28] = EDI;
+	(int) [DS:EAX + 32] = ECX;
 
 	POP(DS);
 
@@ -1888,7 +1926,7 @@ void near FDC_loadFAT()
 	goto send_sigfin;
 }
 
-void near FDC_format2()
+void FDC_format2()
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
 {
@@ -1957,12 +1995,12 @@ pass00:
 		/* track */ work->dosload_FAT = EAX;
 	} while ((unsigned) EAX < 160);
 
-	EDI = 149 /* 5 + 18 * 8 */; // システムクラスタ
+	EDI = 149 /* 5 + 18 * 8 */; // システムクラスタ 72KB分
 
 	asmout("JMP FDC_format99");
 }
 
-void near FDC_writeIPL2()
+void FDC_writeIPL2()
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
 {
@@ -2000,12 +2038,9 @@ void near FDC_writeIPL2()
 	/* [FS:EBX + 12] : osask.exe size */
 	/* [FS:EBX + 16] : osask.exe addr */
 
-//	EAX = syswork_sel;
-	ECX = all_sel;
 	PUSH(DS);
-//	PUSH(ES);
-//	ES = AX;
-	DS = CX;
+	PUSH(all_sel);
+	POP(DS);
 	PUSH(ESI);
 	EDX = [FS:EBX +  8];
 	ESI = 0x100000;
@@ -2119,6 +2154,7 @@ subphase:
 	DD(0xffffffff); DD(0x113000);
 }
 
+#if 0
 void near putb()
 {
 	RCL(BL, 1);
@@ -2130,6 +2166,7 @@ void near putb()
 	}
 	return;
 }
+#endif
 
 void near FDC_writeIPL3()
 // ECX:作業中のシグナル
@@ -2144,6 +2181,9 @@ void near FDC_writeIPL3()
 
 	// size0 : 未転送バイト数
 	// size1 : sub-phase
+
+INT(0x03);
+#if 0
 
 	if (work->dosload_phase != 0) {
 		INT(0x03);
@@ -2463,6 +2503,7 @@ subphase:
 	DD(0x020d0004); DD(0x110000);
 	DD(0x02010104); DD(0x110c00);
 	DD(0xffffffff); DD(0x113000);
+#endif
 }
 
 void near FDC_doswrite()

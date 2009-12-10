@@ -32,9 +32,10 @@ EXE2BIN = $(BIN_PATH)exe2bin2
 EXE2BIN_FLAGS_ASK = -n
 EXE2BIN_FLAGS_C = -t -s
 
-OBJ2BIM = $(BIN_PATH)obj2bim2
-BIM2BIN = $(BIN_PATH)bim2bin2
+OBJ2BIM = $(BIN_PATH)obj2bim3
+BIM2BIN = $(BIN_PATH)bim2bin3
 BIM2BIN_FLAGS_ASK = -exe512 -simple
+BIM2BIN_FLAGS_TEK = -osacmp
 
 OBJ2BIM_ALIGN_FLAGS = text_align:1 data_align:4 bss_align:4
 DEFAULT_RULE_FILE = osask.rul

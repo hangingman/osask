@@ -1,4 +1,4 @@
-// "keymos0.ask" ver.0.4 copyright(C) 2001 H.Kawai(川合秀実)
+// "keymos0.ask" ver.0.5 copyright(C) 2001 H.Kawai(川合秀実)
 
 // このバージョンもOTASK版と同じく、キーを押しながら抜くとフェーズが狂う
 
@@ -96,6 +96,7 @@ cmd0100:
 
 cmd0104:
 	// KeyboardReset
+#if 0
 	PUSH(FS);
 	PUSH((offset) cmd);
 	MOV(EAX, CS);
@@ -104,6 +105,7 @@ cmd0104:
 	KeyboardQueueExecute();
 	POP((offset) cmd);
 	POP(FS);
+#endif
 	(offset) cmd += 4;
 	goto nextcmd;
 
@@ -116,28 +118,28 @@ cmd0104_cmdline:
 
 // 本来は、最初にタイムアウトを仕掛けて、バッファを吐かせるべき
 
-	DD(11-4-4);
-	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
+//	DD(11-4-4);
+//	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
 //	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,0AAH");  // controller self test
 //	asmout("DD OFFSET KeyQueCmd_RecieveCheck,055H"); // test successful code.
 //	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,0ABH");  // keyboard interface test (Gateway SOLO2150では、これで引っかかる)
 //	asmout("DD OFFSET KeyQueCmd_RecieveCheck,000H"); // test successful code.
-	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,0AEH");  // keyboard interface enable
+//	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,0AEH");  // keyboard interface enable
 
-	DD(9);
+	DD(9 - 4);
 	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
 	asmout("DD OFFSET KeyQueCmd_AckSendData,0FFH"); // keyboard reset
 		// ↑このコマンドがタイムアウトしたら、キーボードはつながっていない
 	asmout("DD OFFSET KeyQueCmd_RecieveCheck,0AAH"); // power on reset(reset成功)
-	asmout("DD OFFSET KeyQueCmd_AckSendData,0F5H");  // keyboard disable scanning
-	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,060H");  // write mode command
-	DD(6);
-	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
-	asmout("DD OFFSET KeyQueCmd_SendData,065H"); // 01100101b
+//	asmout("DD OFFSET KeyQueCmd_AckSendData,0F5H");  // keyboard disable scanning
+//	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,060H");  // write mode command
+//	DD(6);
+//	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
+//	asmout("DD OFFSET KeyQueCmd_SendData,065H"); // 01100101b
 		// IRQ01 enable, IRQ12 disable, system flag on, keylock enable
 		// keyboard interface enable, mouse interface disable, scan code 1(PC format)
-	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
-	asmout("DD OFFSET KeyQueCmd_AckSendData,0F4H"); // enable scanning
+//	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
+//	asmout("DD OFFSET KeyQueCmd_AckSendData,0F4H"); // enable scanning
 
 	DD(0);
 
@@ -295,15 +297,15 @@ cmd011c_cmdline:
 
 // 本来は、最初にタイムアウトを仕掛けて、バッファを吐かせるべき
 
-	DD(9);
-	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
-	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,060H");  // write mode command
-	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
-	asmout("DD OFFSET KeyQueCmd_SendData,047H"); // 01000111b
+//	DD(9);
+//	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
+//	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,060H");  // write mode command
+//	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
+//	asmout("DD OFFSET KeyQueCmd_SendData,047H"); // 01000111b
 		// IRQ01 enable, IRQ12 enable, system flag on, keylock enable
 		// keyboard interface enable, mouse interface enable, scan code 1(PC format)
-	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
-	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,0A8H");  // mouse interface enable
+//	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");
+//	asmout("DD OFFSET KeyQueCmd_WriteCmdReg,0A8H");  // mouse interface enable
 
 	DD(2 /* 7 */);
 	asmout("DD OFFSET KeyQueCmd_WaitBufEnpty");

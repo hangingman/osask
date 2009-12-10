@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.2.9
+/* "pokon0.c":アプリケーションラウンチャー  ver.3.0
      copyright(C) 2002 小柳雅明, 川合秀実
-    stack:4k malloc:84k file:1024k */
+    stack:4k malloc:88k file:1024k */
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -10,7 +10,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon29"
+#define POKON_VERSION "pokon30"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.2\n    Copyright (C) 2002 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -126,7 +126,7 @@ void unlinkfbuf(struct FILEBUF *fbuf)
 			}
 		}
 		fbuf->dirslot = -1;
-		sgg_execcmd0(0x0074, 0, fbuf->virtualmodule, 0x0000);
+		sgg_execcmd0(0x0074, 0, fbuf->virtualmodule, 0x0000); /* virtualmoduleの破棄 */
 	}
 	return;
 }
@@ -189,8 +189,6 @@ void jsub_fbufready0(void *func);
 int jsub_fbufready1(int *sbp);
 void jsub_create_task0();
 int jsub_create_task1(int *sbp);
-void job_execute_file0(int cond);
-void job_execute_file1(int cond);
 void job_view_file0(int cond);
 void job_view_file1(int cond);
 void job_create_sysdisk0(int cond);
@@ -199,6 +197,8 @@ void job_load_file0(int cond);
 int job_resize_sub0(int *sbp);
 void job_resize_sub1(int cond);
 void job_resize_sub2(int cond);
+void job_execute_cons0(int cond);
+void job_execute_cons1(int cond);
 
 #define	ppj(member)		(PPJ_ ## member)
 
@@ -217,6 +217,7 @@ void runjobnext()
 {
 	struct STR_JOBLIST *pjob = &job;
 	struct FILEBUF *fbuf;
+	struct VIRTUAL_MODULE_REFERENCE *vmr;
 	int i, j;
 	do {
 		if ((pjob->now = *(pjob->rp)) == 0)
@@ -240,13 +241,6 @@ void runjobnext()
 		//	pjob->retfunc = job_view_file0;
 			pjob->param[7] = 0;
 			jsub_fbufready0(job_view_file0);
-			break;
-
-		case JOB_CREATE_TASK:
-			pjob->bank = (struct STR_BANK *) readjob(); /* bank */
-			for (i = 0; i < 8; i++)
-				pjob->param[i] = readjob();
-			jsub_create_task0();
 			break;
 
 		case JOB_LOAD_FILE:
@@ -363,6 +357,43 @@ void runjobnext()
 			sgg_execcmd0(0x0020, 0x80000000 + 9, 0x1248, 0x0154,
 				pjob->param[0], pjob->param[1], pjob->param[2] >> 8,
 				0x4243 /* to pokon0 */, 0x7f000002, SIGNAL_REFRESH_FLIST, 0, 0x0000);
+			break;
+
+//		case JOB_LOAD_FILE_AND_EXEC_CONS:
+//			autoreadjob(ppj(fp), ppj(fbuf), ppj(bank), 0);
+//			pjob->param[7] = 2;
+//			jsub_fbufready0(job_view_file0);
+//			break;
+
+		case JOB_EXT_OPEN:
+			/* fbuf, bank, vmr, slot */
+			autoreadjob(ppj(fbuf), ppj(bank), 0);
+			vmr = (struct VIRTUAL_MODULE_REFERENCE *) readjob();
+			i = readjob();
+			vmr->task = 0;
+			if (pjob->bank->tss >= 0x1000) {
+				vmr->task = pjob->bank->tss;
+				vmr->fbuf = pjob->fbuf;
+				vmr->slot = i;
+				vmr->flags = 1; /* module signal enable */
+				vmr->sigbase = 16; /* 暫定 */
+				vmr->flushed_size = 0; /* 暫定 */
+				sgg_directwrite(0, 4, 0, i, /* スロットiに貼り付ける */
+					(0x003c /* slot_sel */ | pjob->bank->tss << 8) + 0xf80000, (int) &pjob->fbuf->virtualmodule, 0x000c);
+			} else {
+lib_putstring_ASCII(0x0000, 0, 0, &selwin0[0].subtitle.tbox, 0, 0, "debug!(2)");
+
+			}
+			pjob->now = 0;
+			break;
+
+		case JOB_SEND_TEST_MODULE_SIGNAL:
+			autoreadjob(ppj(bank), 0);
+			if (pjob->bank->tss >= 0x1000) {
+				sgg_execcmd0(0x0020, 0x80000000 + 5, pjob->bank->tss | 0x0244, 0x7f000003, 16, 14, 0, 0x0000);
+				sgg_execcmd0(0x0020, 0x80000000 + 4, pjob->bank->tss | 0x0243, 0x7f000002, 17, 14, 0x0000);
+			}
+			pjob->now = 0;
 			break;
 		}
 	} while (pjob->now == 0);
@@ -489,33 +520,6 @@ int jsub_create_task1(int *sbp)
 
 /* job関数 */
 
-#if 0
-void job_execute_file0(int cond)
-{
-	struct STR_JOBLIST *pjob = &job;
-	if (cond == 0) { /* error */
-	//	pjob->fbuf->linkcount = 0; /* 開放 */
-		pjob->now = 0;
-		return;
-	}
-	pjob->bank->fbuf = pjob->fbuf;
-	pjob->retfunc = job_execute_file1;
-	jsub_create_task0();
-	return;
-}
-
-void job_execute_file1(int cond)
-{
-	struct STR_JOBLIST *pjob = &job;
-	if (cond == 0) { /* error */
-		unlinkfbuf(pjob->fbuf);
-	//	pjob->bank->tss = 0; /* 開放 */
-	}
-	pjob->now = 0;
-	return;
-}
-#endif
-
 void job_view_file0(int cond)
 {
 	struct STR_JOBLIST *pjob = &job;
@@ -537,7 +541,7 @@ void job_view_file1(int cond)
 	if (cond == 0) { /* error */
 		unlinkfbuf(pjob->fbuf);
 	//	pjob->bank->tss = 0; /* 開放 */
-	} else if (pjob->param[7]) {
+	} else if (pjob->param[7] == 1) {
 		while (order->task);
 		order->task = pjob->bank->tss;
 		order->num = pjob->param[0];
@@ -546,7 +550,44 @@ void job_view_file1(int cond)
 			/* シグナルを送る */
 			sendsignal1dw(pjob->bank->tss, pjob->param[4]);
 		}
+#if 0
+	} else if (pjob->param[7] == 2) {
+		/* console */
+		int i;
+		unsigned char *fp0 = (char *) readCSd10;
+		struct FILEBUF *fbuf;
+		struct VIRTUAL_MODULE_REFERENCE *vmr;
+
+		/* モジュールを作る */
+		fbuf = searchfrefbuf();
+		if (fbuf == NULL)
+			goto error;
+		fbuf->size = 13;
+		if ((fbuf->paddr = sgg_execcmd1(2 * 4 + 12, 0x0084, fbuf->size, 0, 0x0000)) == -1) /* メモリをもらう */
+			goto error;
+		fbuf->linkcount = 1;
+		fbuf->dirslot = -1;
+		fbuf->readonly = 0;
+		fbuf->virtualmodule = sgg_createvirtualmodule(fbuf->size, fbuf->paddr);
+
+		for (vmr = vmref0; vmr->task; vmr++);
+		vmr->task = pjob->bank->tss;
+		vmr->fbuf = fbuf;
+		vmr->slot = 0x0200;
+
+		sgg_directwrite(0, 4, 0, 0x0200, /* スロット0x0200に貼り付ける */
+			(0x003c /* slot_sel */ | pjob->bank->tss << 8) + 0xf80000, (int) &fbuf->virtualmodule, 0x000c);
+
+		sgg_execcmd0(0x0080, 13, fbuf->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
+		for (i = 0; i < 14; i++)
+			fp0[i] = "This is test.\n"[i];
+
+		/* シグナルを送る */
+		sgg_execcmd0(0x0020, 0x80000000 + 5, pjob->bank->tss | 0x0244, 0x7f000003, 16, 14, 0, 0x0000);
+		sgg_execcmd0(0x0020, 0x80000000 + 4, pjob->bank->tss | 0x0243, 0x7f000002, 17, 14, 0x0000);
+#endif
 	}
+error:
 	pjob->now = 0;
 	return;
 }
@@ -555,7 +596,11 @@ void job_create_sysdisk0(int cond)
 {
 	struct STR_JOBLIST *pjob = &job;
 	struct FILEBUF *fbuf = pjob->fbuf;
-	pjob->fp = searchfid1("OSASKBS3BIN");
+	#if (defined(PCAT))
+		pjob->fp = searchfid1("OSASKBS1BIN");
+	#elif (defined(TOWNS))
+		pjob->fp = searchfid1("OSAIPLT0BIN");
+	#endif
 	if (cond == 0)
 		goto err;
 	if (pjob->fp == NULL) { /* error */
@@ -628,6 +673,7 @@ void job_load_file0(int cond)
 		vmr->task = task;
 		vmr->fbuf = fbuf;
 		vmr->slot = win->mdlslot;
+		vmr->flags = 0; /* silent */
 		sgg_directwrite(0, 4, 0, win->mdlslot,
 			(0x003c /* slot_sel */ | task << 8) + 0xf80000, (int) &fbuf->virtualmodule, 0x000c);
 		sendsignal1dw(task, win->sig[1]);
@@ -904,6 +950,7 @@ struct FILEBUF *searchfrefbuf()
 		if (fbuf->linkcount == 0) {
 			fbuf->linkcount = -1; /* 予約マーク */
 			fbuf->readonly = 0;
+			fbuf->pipe = 0;
 			return fbuf;
 		}
 	}
@@ -1113,10 +1160,31 @@ void OsaskMain()
 				}
 
 		freefiles:
+//lib_putstring_ASCII(0x0000, 0, 0, &win[0].subtitle.tbox, 0, 0, "debug!(2)");
 				for (i = 0; i < MAX_VMREF; i++, vmref++) {
 					if (tss == vmref->task) {
+						struct VIRTUAL_MODULE_REFERENCE *vmr1;
 						unlinkfbuf(vmref->fbuf);
 						vmref->task = 0;
+						vmr1 = vmref0;
+
+						for (j = 0; j < MAX_VMREF; j++, vmr1++) {
+							if (vmr1->task == 0)
+								continue;
+							if (vmr1->fbuf != vmref->fbuf)
+								continue;
+							if (vmr1->task == tss)
+								continue;
+							if (vmr1->flags == 0)
+								continue;
+							/* 以下は暫定 */
+							/* サイズ確定と残りの部分のフラッシュを送る */
+							if (vmr1->flushed_size != vmr1->fbuf->size)
+								sgg_execcmd0(0x0020, 0x80000000 + 5, vmr1->task | 0x0244,
+									0x7f000003, vmr1->sigbase + 0, vmr1->fbuf->size - vmr1->flushed_size, vmr1->flushed_size, 0x0000);
+							sgg_execcmd0(0x0020, 0x80000000 + 4, vmr1->task | 0x0243,
+								0x7f000002, vmr1->sigbase + 1, vmr1->fbuf->size, 0x0000);
+						}
 					}
 				}
 				vmref = vmref0;
@@ -1145,12 +1213,43 @@ void OsaskMain()
 				/* ファイルサイズ変更要求 */
 				/* cmd, virtualmodule, new-size, task, sig, slot */
 				siglen = 6;
+				for (fbuf = fbuf0; fbuf->virtualmodule != sbp[1] || fbuf->linkcount <= 0; fbuf++);
+lib_putstring_ASCII(0x0000, 0, 0, &win[0].subtitle.tbox, 0, 0, "debug!debug!");
+				if (fbuf->pipe) {
+
+
+
+
+					if (((sbp[2] + 0xfff) & 0xfffff000) != ((fbuf->size + 0xfff) & 0xfffff000))
+						goto resize_error; /* ページ数が変わるようならエラー */
+					sgg_execcmd0(0x0074, 0, fbuf->virtualmodule, 0x0000); /* virtualmoduleの破棄 */
+					fbuf->size = sbp[2];
+					fbuf->virtualmodule = sgg_createvirtualmodule(fbuf->size, fbuf->paddr);
+
+					/* 変わってないので更新しない */
+				//	for (vmr = vmref0; vmr->task; vmr++);
+				//	vmr->task = pjob->bank->tss;
+				//	vmr->fbuf = fbuf;
+				//	vmr->slot = 0x0200;
+
+					/* 他のタスクのやつもリサイズする */
+					for (i = 0; i < MAX_VMREF; i++, vmref++) {
+						if (vmref->task == 0)
+							continue;
+						if (vmref->fbuf != fbuf)
+							continue;
+						sgg_directwrite(0, 4, 0, vmref->slot,
+							(0x003c /* slot_sel */ | vmref->task << 8) + 0xf80000, (int) &fbuf->virtualmodule, 0x000c);
+					}
+					vmref = vmref0;
+					sendsignal1dw(sbp[3], sbp[4]); /* success */
+					break;
+				}
 				if (pjob->free >= 8 + 5 + 4) {
 					/* 空きが十分にある */
 					/* これ以降はかなりの手抜きがある(とりあえず動けばよいというレベル) */
 					/* ディスクが交換されるかもしれないことに配慮していない */
 					/*   →いや、ちゃんと配慮している */
-					for (fbuf = fbuf0; fbuf->virtualmodule != sbp[1] || fbuf->linkcount <= 0; fbuf++);
 					if ((i = fbuf->dirslot) != -1 && selwincount < MAX_SELECTOR && fbuf->linkcount == 1 && fbuf->readonly == 0) {
 						struct VIRTUAL_MODULE_REFERENCE *vmr;
 						for (fp = file + 1; fp->name[0]; fp++) {
@@ -1257,9 +1356,10 @@ write_exe:
 				putselector0(win, 1, " Writing        ");
 				putselector0(win, 3, "   system image.");
 				putselector0(win, 5, "  Please wait.  ");
-				sgg_format2(0x0138 /* 1,440KBフォーマット用 圧縮 */,
+				sgg_format2(0x0128 /* 1,440KBフォーマット用 非圧縮 */,
 					//	0x011c /* 1,760KBフォーマット用 非圧縮 */
-					//	0x0128; /* 1,440KBフォーマット用 非圧縮 */
+					//	0x0128 /* 1,440KBフォーマット用 非圧縮 */
+					//	0x0138 /* 1,440KBフォーマット用 圧縮 */
 					pjob->fbuf->size, pjob->fbuf->paddr, fbuf->size, fbuf->paddr,
 					SIGNAL_WRITE_KERNEL_COMPLETE /* finish signal */); // store system image
 				break;
@@ -2515,7 +2615,60 @@ find:
 
 int poko_exec(const char *cmdlin)
 {
-	int param, i;
+	int i;
+	struct STR_BANK *bank, *bank1;
+	struct FILEBUF *fbuf, *fbuf1, *fbuf2;
+	struct SGG_FILELIST *fp, *fp1;
+	struct VIRTUAL_MODULE_REFERENCE *vmr, *vmr1;
+//	unsigned char *fp0 = (char *) readCSd10;
+
+	if ((fp1 = searchfid1("CONSOLE0BIN")) == NULL)
+		return 1;
+	if ((fp = searchfid1("CHELLOC0BIN")) == NULL)
+		return 1;
+	bank = searchfrebank();
+	if ((bank1 = searchfrebank()) == NULL)
+		return 1;
+	for (i = 0; i < 11; i++) {
+		bank->name[i] = "CHELLO0CBIN"[i];
+		bank1->name[i] = "console    "[i];
+	}
+	bank->name[11] = '\0';
+	bank1->name[11] = '\0';
+	fbuf1 = searchfrefbuf();
+	fbuf2 = searchfrefbuf(); /* for pipe */
+	if ((fbuf = searchfrefbuf()) == NULL) {
+error:
+		bank->tss = 0;
+		bank1->tss = 0;
+		return 1;
+	}
+	for (vmr = vmref0; vmr->task; vmr++);
+	vmr->task = -1; /* reserve */
+	for (vmr1 = vmref0; vmr1->task; vmr1++);
+	vmr1->task = -1; /* reserve */
+
+	fbuf2->size = 1;
+	if ((fbuf2->paddr = sgg_execcmd1(2 * 4 + 12, 0x0084, fbuf2->size, 0, 0x0000)) == -1) /* メモリをもらう */
+		goto error;
+	fbuf2->linkcount = 2;
+	fbuf2->dirslot = -1;
+	fbuf2->readonly = 0;
+	fbuf2->virtualmodule = sgg_createvirtualmodule(fbuf2->size, fbuf2->paddr);
+	fbuf2->pipe = 1;
+
+//	sgg_execcmd0(0x0080, 14, fbuf2->paddr, fp0, 0x0000); /* スロットを使わないマッピング */
+//	for (i = 0; i < 14; i++)
+//		fp0[i] = "This is test.\n"[i];
+
+	writejob_n(4 + 5 + 4 + 5,
+		JOB_LOAD_FILE_AND_EXECUTE, (int) fp1, (int) fbuf1, (int) bank1, /* "CONSOLE0.BIN", 0x5000 */
+		JOB_EXT_OPEN, (int) fbuf2, (int) bank1, (int) vmr1, 0x200,
+		JOB_LOAD_FILE_AND_EXECUTE, (int) fp, (int) fbuf, (int) bank, /* "CHELLOC0.BIN", 0x6000 */
+		JOB_EXT_OPEN, (int) fbuf2, (int) bank, (int) vmr, 0x200
+	);
+
+	return 1;
 
 /*	"console0.bin"を準備して、slot210にhw.txtを接続して、シグナルを送ってやる */
 /* どんなシグナル？ */
@@ -2546,6 +2699,7 @@ int poko_exec(const char *cmdlin)
 (5)通知シグナル送信 (リード・ライト・サイズ変更、一時・確定)
 */
 
+#if 0
 //	if (*cmdlin == '\0')
 //		goto error;
 	param = cons_getdec_skpspc(&cmdlin);
@@ -2564,6 +2718,7 @@ int poko_exec(const char *cmdlin)
 	return 1;
 error:
 	return -ERR_ILLEGAL_PARAMETERS;
+#endif
 }
 
 

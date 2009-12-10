@@ -1,5 +1,5 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2002.9.30 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
+2002.11.1 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 
@@ -7,7 +7,7 @@
 必要なファイルをPATH の通ったディレクトリに置きます。
 LCC 以外は
 http://www.imasy.org/~kawai/osask/developers.html
-の tolset00 に入っているのでこれを使って下さい。
+の tolset01 に入っているのでこれを使って下さい。
 
 1. 対象とするアーキテクチャに従って make にパラメータを与えて実行します。
 (1) PC/AT 互換機
@@ -67,11 +67,8 @@ make pcat DESIGN=WIN9X
 ると、del に失敗して処理が停止してしまいます。この場合には -i オプショ
 ンを付けて make -i clean あるいはmake -i dist_clean して下さい。
 
-・make towns を行った後 make bootimg を実行すると OSASK.EXE から OSASK.SYS
-を生成します。これは FM-TOWNS 用の直接起動ディスク用のバイナリです。
-直接起動ディスク用の IPL は I.Tak. さんのページ
-http://user.ecc.u-tokyo.ac.jp/~g240845/osask/
-にあります。また、exe2sys.exe が必要です。
+・make towns を行った後 make bootimg を実行すると OSASK.EXEを 0x8000～用に
+リロケートした OSASK.SYS を生成します。生成には exe2sys.exe が必要です。
 http://homepage1.nifty.com/dreaming/osask/index.html
 からたどって下さい。
 

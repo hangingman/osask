@@ -1,32 +1,39 @@
-"src29"の使い方の説明                      2002/09/25 川合秀実
+"src30"の使い方の説明                      2002/10/30 川合秀実
 
 １．これは何か？
 
-  "src29"は、OSASK ver.2.9の「OSASK29.EXE」を生成するのに必要なモジュールのソー
+  "src30"は、OSASK ver.3.0の「OSASK30.EXE」を生成するのに必要なモジュールのソー
 スプログラムのセットです。ただし、以前のバージョンのものをそのまま利用している
-ものついては、このアーカイブに含まれていません。OSASK29.EXEを生成するのに必要な
+ものついては、このアーカイブに含まれていません。OSASK30.EXEを生成するのに必要な
 モジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    PIONEER0.BIN : ver.2.6
-    INIT.ASK     : ver.2.7
-    WINMAN0.BIN  : ver.2.3
-    POKON0.BIN   : ver.2.9
+    BASE.NAS     : ver.2.2
+    BOOT32.ASK   : ver.0.0
+    OSALINK1.OPT : ver.0.0
+    INIT.ASK     : ver.2.8
+    IBMANK0.TXT  : ver.0.3
+    PIONEER0.ASK : ver.2.6
+    WINMAN0.C    : ver.2.4
+    POKON0.C     : ver.3.0
+    FDCDRV0.BIN  : ver.1.7
+    PCAT/
+      KEYMOS0.BIN  : ver.0.5
 
   (以前のバージョンのものを利用するもの)
 
-    BASE.EXE     : ver.2.1
     OSASKINC.ASK : ver.0.0
-    TAPI0.BIN    : ver.0.4
-    PAPI0.BIN    : ver.0.6
-    OSALINK0.OPT : ver.1.9
-    TIMERDRV.BIN : type-A ver.1.1
-    VGADRV0.BIN  : ver.1.6
-    KEYMOS0.BIN  : ver.0.4
-    DECODE0.BIN  : ver.1.0
-    FDCDRV0.BIN  : ver.1.6
+    TAPI0.ASK    : ver.0.4
+    PAPI0.ASK    : ver.0.6
+    TIMERDRV.ASK : type-A ver.1.1
+    VGADRV0.ASK  : ver.1.6
+    DECODE0.ASK  : ver.1.0
     SYSGG00.LIB  : ver.0.8
+    TOWNS/
+      KEYMOS0.BIN  : ver.0.4
+    NEC98/
+      KEYMOS0.BIN  : ver.0.4
 
   このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
 るだけです。
@@ -35,13 +42,13 @@
 
   使用したアセンブラ、コンパイラ、コンバータ、ライブラリは以下の通りです。
 
-・tolset00
+・tolset01
   (ASKA version 1.0 beta 19 Modified by RisaPapa + NASK ver.0.0 + naskcnv0 +
-   osalink0 + obj2bim2 + bim2bin2 + gg00lib9 + stdlib6)
+   osalink1 + obj2bim2 + bim2bin3 + gg00lib9 + stdlib6)
 ・lcc-win32 (LCC.EXEのタイムスタンプ2002/06/09、サイズ532,000バイト)
 
-tolset00はOSASKの開発者向けページからダウンロードできます。lccについては、tolse
-t00のドキュメントにしたがって入手してください。
+tolset01はOSASKの開発者向けページからダウンロードできます。lccについては、tolse
+t01のドキュメントにしたがって入手してください。
 
   BASE.EXEの生成は、以下のように行います。
 
@@ -66,15 +73,19 @@ WNS」オプションをつけてください。またウィンドウデザインを指定するために「-DWIN
 
 （このinitの部分を置き換えれば他のソースも同様にアセンブルできます）
 
-  拡張子が.Cのものは、tolset00内のdoc_link.txtで説明されている方法で生成できま
+  拡張子が.Cのものは、tolset01内のdoc_link.txtで説明されている方法で生成できま
 す。ただしAT互換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。
 またTOWNS版を生成する時は、LCCに「-DTOWNS」オプションをつけてください。98版は「
 -DNEC98」です。またここでもウィンドウデザインに関するオプションが必要です。ライ
 ブラリーにSYSGG00を使う必要があることにも注意してください。指定すべきスタックサ
 イズ、mallocサイズは、各ソース中の最初の方に明記してあります。
 
-  OSALINK0.OPTに書かれている全てのファイルが用意できたら、osalnk0pでそれらをま
-とめて、OSASK.EXEを生成できます。osalnk0pの使い方は、tolset00内のdoc_nask.txtを
+  そしてさらに、たいていの場合は.BINファイルを.TEKファイルに変換する必要がある
+でしょう。それはbim2bin3の-osacmpモードで行ないます。具体的な手順はtolset01内の
+doc_link.txtでの説明を参照してください。
+
+  OSALINK1.OPTに書かれている全てのファイルが用意できたら、osalink1でそれらをま
+とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset01内のdoc_nask.txtを
 参照してください。
 
   またVMware対応バイナリを生成する場合は、-DPCATに加えて-DVMWAREを指定してくだ
@@ -83,8 +94,8 @@ WNS」オプションをつけてください。またウィンドウデザインを指定するために「-DWIN
   Bochs 1.3対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に、
 base.nasを以下の指示にしたがって書き換える必要があります。
 
-・86～87行目のセミコロンだけを削除する（.fromdos:の直後の2行）。
-・284行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
+・111～112行目のセミコロンだけを削除する。
+・232行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
 
   Bochs 1.2.1対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指定
 した上に、base.nasをBochs 1.3と同様に書き換えてください。

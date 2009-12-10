@@ -1,12 +1,13 @@
 include depend.mak
 include rules.mak
 
-OSALINK = osalink0
-OSALINK_OPT = osalink0.opt
+OSALINK = osalink1
+OSALINK_OPT = osalink1.opt
 
 # make sub directory modules
 ANKFONT = ankfont0.bin
 BASE = base.exe
+BOOT = boot32.bin
 SYSGGLIB = sysgg00.lib
 SYSGGINC = sgg00lib
 
@@ -27,32 +28,33 @@ C_OBJS = winman0.bin pokon0.bin
 
 SUB_OBJS = $(ANKFONT)
 
-OBJS = $(BASE) $(SUB_OBJS) $(ASK_OBJS) $(C_OBJS) $(ARCH_OBJS)
+OBJS = $(SUB_OBJS) $(ASK_OBJS) $(C_OBJS) $(ARCH_OBJS)
+LINK_OBJS = $(BASE) $(BOOT) $(OBJS:.bin=.tek)
 
 INCPATH = ./include
 LIBPATH = ./lib 
 LIBS = guigui00.lib stdlib.lib $(SYSGGLIB)
 
 POKON_STACK = 4k
-POKON_MALLOC = 84k
+POKON_MALLOC = 88k
 POKON_FILE = 1024k
 WINMAN_STACK = 4k
 WINMAN_MALLOC = 624k
 WINMAN_FILE = 768k
 
 # prevent automatic deletion of an intermediate file
-.SECONDARY : $(ASK_OBJS:.bin=.3as) $(ASK_OBJS:.bin=.asm) $(ASK_OBJS:.bin=.nas) $(ASK_OBJS:.bin=.i) $(ASK_OBJS:.bin=.obj) $(ASK_OBJS:.bin=.exe) $(BASE:.exe=.asm)
+.SECONDARY : $(ASK_OBJS) $(ASK_OBJS:.bin=.3as) $(ASK_OBJS:.bin=.asm) $(ASK_OBJS:.bin=.nas) $(ASK_OBJS:.bin=.i) $(ASK_OBJS:.bin=.obj) $(ASK_OBJS:.bin=.exe) $(BASE:.exe=.asm)
 
 ALL :
 	for %%i in ($(SUBDIRS)) do $(MAKE) -C %%i
 	$(MAKE) $(TARGET)
 
-$(TARGET) : $(OSALINK_OPT) $(OBJS)
+$(TARGET) : $(OSALINK_OPT) $(LINK_OBJS)
 	$(OSALINK)
 
 $(OSALINK_OPT) : makefile
 	echo on > $(OSALINK_OPT)
-	for %%i in ($(OBJS)) do echo %%i >> $(OSALINK_OPT)
+	for %%i in ($(LINK_OBJS)) do echo %%i >> $(OSALINK_OPT)
 
 $(ANKFONT) :
 
@@ -127,6 +129,9 @@ winman0.bin : winman0.bim
 %.bin : %.nas
 	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
 
+%.tek : %.bin
+	$(BIM2BIN) $(BIM2BIN_FLAGS_TEK) input:$< output:$@
+
 %.obj : %.c .\depend.mak
 	$(CC) $< $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC)
 
@@ -138,6 +143,8 @@ clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i clean
 	del $(TARGET) $(BOOTIMAGE)
 	for %%i in ($(OBJS)) do del %%i
+	for %%i in ($(LINK_OBJS)) do del %%i
+	for %%i in ($(BOOT:.bin=.lst)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
@@ -151,8 +158,10 @@ clean:
 
 dist_clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i dist_clean
-#	del $(TARGET)
+#	del $(TARGET) $(BOOTIMAGE)
 	for %%i in ($(OBJS)) do del %%i
+	for %%i in ($(LINK_OBJS)) do del %%i
+	for %%i in ($(BOOT:.bin=.lst)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
@@ -163,6 +172,7 @@ dist_clean:
 #	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.exe)) do del %%i
+	for %%i in ($(C_OBJS:.bin=.tek)) do del %%i
 
 # dependencies
 pokon0.obj : pokon0.c pokon0.h

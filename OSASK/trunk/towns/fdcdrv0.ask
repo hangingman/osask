@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" for TOWNS ver.1.6 copyright(C) 2002 H.Kawai(川合秀実)
+// "fdcdrv0.ask" for TOWNS ver.1.7 copyright(C) 2002 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -17,6 +17,9 @@ default(code == CODE);
 #define	TOTAL_CLUSTERS	1223		/* 1.44MBでは2849(=2880-31), 1.2MBでは1223(=1232-9) */
 #define	FAT_BYTES		2048		/* 1.44MBでは4608(=9*512), 1.2MBでは2048(=2*1024) */
 #define	TOTAL_SECTORS	1232		/* 1.44MBでは2880, 1.2MBでは1232 */
+
+/* クラスタ2は、0x4200, 0x2c00 */
+/* だからクラスタ7-86をリザーブ */
 
 struct FDC_WORK {
 	int MC_ptr, MC_free, jmpvec_fdcint /* 0x0008 */;
@@ -99,7 +102,7 @@ nextcmd:
 	if (EAX == 0x0108)
 		goto cmd0108; // FDC_diskchange
 	if (EAX == 0x010c)
-		goto cmd010c; // FDC_diskcache1
+		goto cmd010c; // FDC_diskcache0
 	if (EAX == 0x0100)
 		goto cmd0100; // 初期化
 	if (EAX == 0x0104)
@@ -180,11 +183,24 @@ cmd0138:
 	goto nextcmd;
 
 cmd010c:
-	// FDC_diskcache1
+	/* FDC_diskcache0 */
+	/* キャッシュフラグの操作 */
+	EAX = 0;
+	ECX = cmd[4];
+	(offset) cmd += 8;
+	if ((unsigned) EAX < ECX) {
+		do {
+			BTS(work->track[0], EAX);
+			EAX++;
+		} while ((unsigned) EAX < ECX);
+	}
+	goto nextcmd;
+
+#if 0
 	//	 直接起動ディスクのIPLが読み込んだデーターをキャッシュバッファに転送
 	PUSH(DS);
-	EAX = all_sel;
-	DS = AX;
+	PUSH(all_sel);
+	POP(DS);
 	EDX = 0x000800;
 	ESI = TRACK0_ADDR0;
 	ECX = 18 * 1024 / 4; /* 18KB */
@@ -199,6 +215,7 @@ cmd010c:
 	work->track[0] |= 0x03; // track0とtrack1
 	(offset) cmd += 4;
 	goto nextcmd;
+#endif
 
 cmd0110:
 	// FDC_loadFAT
@@ -257,18 +274,27 @@ cmd0120:
 
 cmd0124:
 	// FDC motor control
-	INT(0x03);
-	unsigned int cmd0124_fdc_control == 0x03f2; // bit7-4はmotor制御(1でON)、bit3はDMA許可、bit2はFDCリセット(0でリセット)、bit1-0はドライブ番号
-	AL = cmd[4];
-	EDX = cmd0124_fdc_control;
-	work->motor = AL;
+	ECX = cmd[4]; /* CL:20c, CH:208(motor) */
+	EDX = 0x020c;
+	AL = 0;
 	OUT(DX, AL);
+	AL = CL;
+	AL &= 0xf0;
+	// INUSE点灯
+	OUT(DX, AL);
+	AL = CL;
+	AL &= 0x0f;
+	OUT(DX, AL);
+	DL = 0x08;
+	AL = CH;
+	OUT(DX, AL);
+	work->motor = AL;
+	work->motor2 = 0;
 	(offset) cmd += 8;
 	goto nextcmd;
 
 cmd0128:
 	// FDC_format 512
-	INT(0x03);
 	PUSH((offset) cmd);
 	EDX = cmd[4]; // EDX:完了のシグナル
 	ECX = cmd[8]; // ECX:作業中のシグナル
@@ -279,13 +305,12 @@ cmd0128:
 
 cmd012c:
 	// FDC_writeIPL 512
-	INT(0x03);
 	PUSH((offset) cmd);
-	EDX = cmd[4]; // EDX:完了のシグナル
-	ECX = cmd[8]; // ECX:作業中のシグナル
+	EDX = cmd[20]; // EDX:完了のシグナル
+	ECX = cmd[24]; // ECX:作業中のシグナル
 	FDC_writeIPL2();
 	POP((offset) cmd);
-	(offset) cmd += 12;
+	(offset) cmd += 12 + 16;
 	goto nextcmd;
 
 cmd0018:
@@ -584,7 +609,7 @@ timer_int:
 	EDX = 0x0208;
 	work->motor = AL;
 	OUT(DX, AL);
-	EDX += 4;
+	DL = 0x0c;
 	AL = 0x40;
 	OUT(DX, AL);
 	AL = 0x41;
@@ -846,19 +871,19 @@ void near FDC_Init()
 	AL = 0x00;
 	OUT(DX, AL);
 	AL = 0x01;
-	OUT(DX, AL);
+	OUT(DX, AL); /* drv0 */
 	AL = 0x00;
 	OUT(DX, AL);
 	AL = 0x02;
-	OUT(DX, AL);
+	OUT(DX, AL); /* drv1 */
 	AL = 0x00;
 	OUT(DX, AL);
 	AL = 0x04;
-	OUT(DX, AL);
+	OUT(DX, AL); /* drv2 */
 	AL = 0x00;
 	OUT(DX, AL);
 	AL = 0x08;
-	OUT(DX, AL);
+	OUT(DX, AL); /* drv3 */
 	AL = 0;
 	OUT(DX, AL);
 	EAX = ECX;
@@ -868,7 +893,7 @@ void near FDC_Init()
 	EAX = ECX;
 	AL &= 0x0f;
 	OUT(DX, AL);
-	EDX -= 4;
+	DL = 0x08;
 	AL = CH;
 	OUT(DX, AL);
 	work->motor = AL;
@@ -963,6 +988,12 @@ void near FDC_MC_test4()
 		asmout("MOV DWORD PTR DS:[EBX+ 0],OFFSET FDC_MC_DriveReady");
 		cmd[ 4] = 0;
 		(offset) cmd += 8;
+		if (work->cylinder[0] == 0xf0) {
+			asmout("MOV DWORD PTR DS:[EBX],OFFSET FDC_MC_Seek");
+			cmd[ 4] = 0;
+			(offset) cmd += 8;
+			work->cylinder[0] = 0;
+		}
 		if (AL != work->cylinder[0]) {
 			asmout("MOV DWORD PTR DS:[EBX],OFFSET FDC_MC_Seek");
 			cmd[ 4] = EAX;
@@ -1115,6 +1146,12 @@ void near FDC_MC_test6()
 		asmout("MOV DWORD PTR DS:[EBX+ 0],OFFSET FDC_MC_DriveReady");
 		cmd[ 4] = 0;
 		(offset) cmd += 8;
+		if (work->cylinder[0] == 0xf0) {
+			asmout("MOV DWORD PTR DS:[EBX],OFFSET FDC_MC_Seek");
+			cmd[ 4] = 0;
+			(offset) cmd += 8;
+			work->cylinder[0] = 0;
+		}
 		if (AL != work->cylinder[0]) {
 			asmout("MOV DWORD PTR DS:[EBX],OFFSET FDC_MC_Seek");
 			cmd[ 4] = EAX;
@@ -1331,6 +1368,9 @@ void near FDC_format()
 
 	FDC_WORK *work == DS:0;
 
+INT(0x03);
+#if 0
+
 	if (work->dosload_phase != 0) {
 		INT(0x03);
 	}
@@ -1412,43 +1452,48 @@ pass00:
 
 	EDI = 113 /* 5 + 18 * 6 */; // システムクラスタ
 
+#endif
+
 	asmout("FDC_format99:");
 
-	// ここでライトしなければいけないのは、FATだけ。
 	PUSH(DS);
-	EAX = all_sel;
-	EDX = 0x100200;
-	DS = AX;
+	PUSH(all_sel);
+	EDX = FAT0_ADDR0;
+	POP(DS);
 
 	EAX = 0;
-	ECX = 512 * 32 / 4;
+//	ECX = SECTOR_BYTES * (SYSTEM_SECTORS + 1) / 4;
+	ECX = SECTOR_BYTES * 10 / 4;
 	do {
 		[DS:EDX] = EAX;
 		EDX += 4;
 		ECX--;
 	} while (!= 0);
 
-	EDX = 0x100200;
+	EDX = FAT0_ADDR0;
 	ECX = 0;
-	EAX = 0xff0;
+	EAX = 0xffe;
 	FDC_format_storeFAT();
 	ECX++;
 	EAX = 0xfff;
 	FDC_format_storeFAT();
 
-	// 2～4は空き
+	// 2～6は空き
 
 	// 特殊フォーマット部分を不良セクタ扱いに
-	ECX = 5;
-	EAX = 0xff7; 
+	ECX = 7;
+	EDI--;
 	do {
+		LEA(EAX, [ECX + 1]);
 		FDC_format_storeFAT();
 		ECX++;
 	} while ((unsigned) ECX < EDI);
+	EAX = 0xfff; /* 最終セクタ */
+	FDC_format_storeFAT();
 
 	// FATコピー
-	EBX = 0x101400;
-	ECX = 512 * 9 / 4;
+	EBX = FAT1_ADDR0;
+	ECX = FAT_BYTES / 4;
 	do {
 		EAX = [DS:EDX];
 		EDX += 4;
@@ -1457,38 +1502,34 @@ pass00:
 		ECX--;
 	} while (!= 0);
 
+	EAX = ROOT_ENTRY0;
+	EDI -= 4;
+	(int) [DS:EAX +  0] = 0x5341534f; 
+	EDI *= SECTOR_BYTES;
+	(int) [DS:EAX +  4] = 0x2020204b; 
+	(int) [DS:EAX +  8] = 0x20535953;
+	(int) [DS:EAX + 12] = ECX;
+	(int) [DS:EAX + 16] = ECX;
+	(int) [DS:EAX + 20] = ECX;
+	(int) [DS:EAX + 24] = 0x00070000;
+	(int) [DS:EAX + 28] = EDI;
+	(int) [DS:EAX + 32] = ECX;
+
 	POP(DS);
 
-	// 0x100200～0x1041ffのイメージを
+	// 0x100400～0x102bffのイメージを
 	// CHR:0-0-02～0-1-15に書き込む
 
-	asmout("MOV EAX,OFFSET #pass01");
-	work->dosload_phase = EAX;
-	EAX = 0x02020000; // CHRN(NRHC)
-	ECX = 512 * 17;
-	EDX = 0x100200;
-	EDI = work->dosload_sigtmp;
-//	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
-	return;
-pass01:
-	asmout("MOV EAX,OFFSET #pass02");
-	work->dosload_phase = EAX;
-	EAX = 0x02010100; // CHRN(NRHC)
-	ECX = 512 * 15;
-	EDX = 0x102400;
-	EDI = work->dosload_sigtmp;
-//	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
-	return;
-pass02:
-
-
+	/* ライトキャッシュを設定 */
 	EAX = 0;
-	ECX = 20;
+	ECX = 360;
 	do {
-	//	work->track[ECX - 4] = EAX;
-		[ECX - 4 + work->track] = EAX;
+	//	work->WBFS[ECX - 4] = EAX;
+		[ECX - 4 + work->WBFS] = EAX;
 		ECX -= 4;
 	} while (!= 0);
+	(int) work->WBFS[0] = 0x000003fe; /* bit1-10 */
+	asmout("JMP FDC_format98");
 }
 
 void near send_sigfin()
@@ -1706,6 +1747,7 @@ void near FDC_format2()
 //	unsigned int track == work->dosload_FAT;
 
 	/* track */ work->dosload_FAT = 0;
+#if 0
 	do {
 		asmout("MOV EAX,OFFSET #pass00");
 		work->dosload_phase = EAX;
@@ -1753,24 +1795,19 @@ pass00:
 		EAX++;
 		/* track */ work->dosload_FAT = EAX;
 	} while ((unsigned) EAX < 160);
-
-	EDI = 149 /* 5 + 18 * 8 */; // システムクラスタ
+#endif
+	EDI = 87 /* 7 + 8 * 10 */; // システムクラスタ
 
 	asmout("JMP FDC_format99");
 }
 
-void near FDC_writeIPL2()
+void FDC_writeIPL2()
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
 {
 	unsigned int                         all_sel       ==  1 * 8;
 	unsigned int init_sel     ==  2 * 8, syswork_sel   ==  3 * 8;
 	unsigned int tapi_sel == 12 * 8;
-
-	unsigned int alloclist == 16 * 16;
-//	unsigned int userbin_ent   == 12 * 16 + alloclist;
-	unsigned int empty00_ent   == 16 * 16 + alloclist; // OSASK.EXE
-	unsigned int empty01_ent   == 17 * 16 + alloclist; // OSASKBS1.BIN
 
 	FDC_WORK *work == DS:0;
 
@@ -1783,116 +1820,82 @@ void near FDC_writeIPL2()
 
 //	unsigned int track == work->dosload_FAT;
 
-	asmout("MOV EAX,#subphase");
+//	asmout("MOV EAX,#subphase");
 
 	asmout("FDC_writeIPL0: EQU $");
 
 	// 依頼された値をworkに保存しておく
-	work->dosload_size1 = EAX;
+//	work->dosload_size1 = EAX;
 	work->dosload_sigtmp = ECX;
 	work->dosload_sigfin = EDX;
 
-	EAX = syswork_sel;
-	ECX = all_sel;
+	/* [FS:EBX +  4] : boot-sector-code size */
+	/* [FS:EBX +  8] : boot-sector-code addr */
+	/* [FS:EBX + 12] : osask.exe size */
+	/* [FS:EBX + 16] : osask.exe addr */
+
 	PUSH(DS);
-	PUSH(ES);
-	ES = AX;
-	DS = CX;
-	EDX = [ES:32 + empty01_ent + 0x0c];
-	EBX = 0x100000;
-	ECX = 512 / 4;
+	PUSH(all_sel);
+	POP(DS);
+	PUSH(ESI);
+	EDX = [FS:EBX +  8];
+	ESI = 0x100000;
+	ECX = SECTOR_BYTES / 4;
 	do {
 		EAX = [DS:EDX];
 		EDX += 4;
-		[DS:EBX] = EAX;
-		EBX += 4;
+		[DS:ESI] = EAX;
+		ESI += 4;
 		ECX--;
 	} while (!= 0);
-	EDX = [ES:32 + empty00_ent + 0x0c];
-	EBX = 0x101000;
+	EDX = [FS:EBX + 16];
+	ESI = 0x104000;
+	PUSH(ESI);
+	EAX = 0;
+	ECX = 80 * 1024 / 4;
+	do {
+		[DS:ESI] = EAX;
+		ESI += 4;
+		ECX--;
+	} while (!= 0);
+	POP(ESI);
 	EDX += 512; // ヘッダを読み飛ばす
-	ECX = [ES:32 + empty00_ent + 0x08];
+	ECX = [FS:EBX + 12];
 	ECX += 1024 - 512 - 1;
 	ECX &= 0xfffffc00; // KB単位に切り上げ
+	PUSH(ECX);
 	(unsigned int) ECX /= 4;
 	do {
 		EAX = [DS:EDX];
 		EDX += 4;
-		[DS:EBX] = EAX;
-		EBX += 4;
+		[DS:ESI] = EAX;
+		ESI += 4;
 		ECX--;
 	} while (!= 0);
-	ECX = [ES:32 + empty00_ent + 0x08];
-	ECX += 1024 - 512 - 1;
-	ECX &= 0xfffffc00; // KB単位に切り上げ
-	EAX = ECX;
-	(unsigned int) ECX /= 256;
-	ECX += 18 * 4;
-	(short) [DS:0x100020] = CX;
-	POP(ES);
+//	ECX = [FS:EBX + 12];
+//	ECX += 1024 - 512 - 1;
+//	ECX &= 0xfffffc00; // KB単位に切り上げ
+	POP(EAX);
+	EAX += 8191;
+	(unsigned int) EAX /= 8192;
+	AL += 2;
+	[DS:0x10002f] = AL;
+	POP(ESI);
 	POP(DS);
 
-	work->dosload_size0 = EAX;
-
-	// IPL
-	asmout("MOV EAX,OFFSET #pass00");
-	work->dosload_phase = EAX;
-	EAX = 0x02010000; // CHRN(NRHC)
-	ECX = 512;
-	EDX = 0x100000;
-	EDI = work->dosload_sigtmp;
-//	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
-	return;
-
-pass00:
-//	PUSH(DS);
-//	EAX = all_sel;
-//	DS = AX;
-//	AL = [DS:0x1001fc];
-//	POP(DS);
-//	TEST(AL, 1);
-//	if (!= 0)
-//		goto format4K;
-
-	if ((signed) work->dosload_size0 > 0) {
-		EDI = work->dosload_size1;
-		EAX = (int) [CS:EDI]; // CHRN(NRHC)
-		ECX = (int) [CS:EDI + 12];
-		EDX = (int) [CS:EDI + 4];
-		EDI += 8;
-		ECX -= EDX;
-		work->dosload_size1 = EDI;
-		work->dosload_size0 -= ECX;
-		if ((unsigned) < 0)
-			ECX += work->dosload_size0;
-		EDI = work->dosload_sigtmp;
-	//	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
-		return;
-	}
-
+	/* ライトキャッシュを設定 */
 	EAX = 0;
-	ECX = 20;
+	ECX = 360;
 	do {
-	//	work->track[ECX - 4] = EAX;
-		[ECX - 4 + work->track] = EAX;
+	//	work->WBFS[ECX - 4] = EAX;
+		[ECX - 4 + work->WBFS] = EAX;
 		ECX -= 4;
 	} while (!= 0);
+	(int) work->WBFS[0] = 0xffff0001; /* bit0, 16-31 */
+	(int) work->WBFS[4] = 0xffffffff; /* bit32-63 */
+	(int) work->WBFS[8] = 0xffffffff; /* bit64-95 */
 
-	goto send_sigfin;
-
-	ALIGN(4);
-subphase:
-	// 72KBまで対応
-	DD(0x02010001); DD(0x101000);
-	DD(0x02010101); DD(0x103400);
-	DD(0x02010002); DD(0x105800);
-	DD(0x02010102); DD(0x107c00);
-	DD(0x02010003); DD(0x10a000);
-	DD(0x02010103); DD(0x10c400);
-	DD(0x02010004); DD(0x10e800);
-	DD(0x020d0004); DD(0x110000);
-	DD(0x02010104); DD(0x110c00);
-	DD(0xffffffff); DD(0x113000);
+	asmout("JMP FDC_format98");
 }
 
 void near FDC_doswrite()
@@ -2523,9 +2526,10 @@ void near FDC_writebackcache()
 		INT(0x03);
 	}
 
-	EBX = 0;
 	work->dosload_sigtmp = ECX;
 	work->dosload_sigfin = EDX;
+asmout("FDC_format98:");
+	EBX = 0;
 	do {
 		BTR(work->WBFS[0], EBX);
 		if (CF != 0) {

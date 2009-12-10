@@ -15,7 +15,7 @@
 #define MAX_SELECTOR		5
 #define MAX_SELECTORWAIT	64
 #define MAX_VMREF			256
-#define JOBLIST_SIZE		64
+#define JOBLIST_SIZE		1024
 #define MAX_ORDER			16	/* 256B */ //	256 /* 4KB */
 
 /* key defines */
@@ -140,7 +140,7 @@ enum {
 /* jobs */
 #define JOB_INVALID_DISKCACHE			0x0004  /* invalid diskcache -> reload fat */
 #define JOB_LOAD_FILE_AND_EXECUTE		0x0008  /* file load & execute */
-#define JOB_CREATE_TASK					0x000c  /* create task */
+//#define JOB_CREATE_TASK					0x000c  /* create task */
 #define JOB_LOAD_FILE					0x0010  /* file load */
 #define JOB_LOAD_FILE_AND_FORMAT		0x0014  /* file load & format (1) */
 #define	JOB_VIEW_FILE					0x0018	/* viewer load & execute, file open */
@@ -152,6 +152,10 @@ enum {
 #define	JOB_DELETE_FILE					0x0030
 #define	JOB_RENAME_FILE					0x0034
 #define	JOB_RESIZE_FILE					0x0038
+#define JOB_LOAD_FILE_AND_EXEC_CONS		0x003c  /* file load & execute (console) */
+#define JOB_EXT_OPEN					0x0040
+
+#define	JOB_SEND_TEST_MODULE_SIGNAL		0x0044
 
 /* structs */
 struct FILELIST {
@@ -162,7 +166,7 @@ struct FILELIST {
 
 struct FILEBUF {
 	int dirslot, linkcount, size, paddr, virtualmodule;
-	char readonly;
+	char readonly, pipe /* resize時の挙動を決める */;
 };
 
 struct STR_BANK { /* 84bytes */
@@ -240,6 +244,8 @@ struct STR_JOBLIST {
 struct VIRTUAL_MODULE_REFERENCE {
 	int task, slot;
 	struct FILEBUF *fbuf;
+	int sigbase, flushed_size;
+	char flags;
 };
 
 struct STR_CONSOLE {
@@ -266,6 +272,16 @@ struct STR_OPEN_ORDER {
 struct STR_VIEWER {
 	char binary[12];
 	int signal[4];
+};
+
+struct STR_PROCESS_TASK {
+	struct STR_BANK *bank;
+	struct VIRTUAL_MODULE_REFERENCE *vmr_lst[6];
+	char flags; /* bit0:1ならこのタスクが死ぬときプロセスを巻き添えにする */
+};
+
+struct STR_PROCESS {
+	struct STR_PROCESS_TASK task[4];
 };
 
 /* functions */

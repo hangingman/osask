@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.6
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.7
     copyright(C) 2002 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -992,6 +992,12 @@ void near cmd028()
 	ECX += cmd0028_win->y_ofs;
 	TEST(AH, 0xf0);
 	if (!= 0) {
+		/* ウィンドウタイトルサイズチェック */
+		ECX = cmd[16]; // x_size(キャラクター数)
+		ECX *= 8;
+		ECX += 80 + 16;
+		if (cmd0028_win->x_size < ECX)
+			INT(0x03);
 		EDX = 24;
 		ECX =  4;
 	}
@@ -2148,10 +2154,10 @@ void cmd06c()
 	PUSH(ES);
 	if (== 0) {
 		/* 即値 */
+		LEA(EDI, cmd[8]);
+		ESI += ECX; /* bit1も0であることを想定していている */
 		ECX /= 4;
 		PUSH(DS); POP(ES); /* 必要ないかも */
-		LEA(EDI, cmd[8]);
-		LEA(ESI, [ESI + ECX * 4 + 8]);
 	} else {
 		/* 間接 */
 		ECX /= 4;
@@ -4346,16 +4352,17 @@ windatarray:
 		DB( 0, 0, 0, 0,  0, 0,  -1, 0);	/* frame upside line */
 		DB( 0, 0,-1, 0);				/* End of data */
 	#elif (defined(WIN31))
-		DB( 8, 0, 0, 4,  0,-1,  -1,-1);	/* frame downside line 0 */
+		DB( 0, 0, 0, 4,  0,-1,  -1,-1);	/* frame downside line 0 */
 		DB(15,15, 0, 4,  1,-2,  -2,-2);	/* frame downside line 1 */
-		DB( 8,15, 0, 4,  3, 3,  -4,20);	/* title bar */
+		DB( 8,15, 0, 4,  3, 3,  -4,19);	/* title bar */
+		DB( 8, 0, 0, 4,  3,20,  -4,20);	/* title bar downside line */
 		DB(15,15, 0,15,  2, 2,  -3,-3);	/* window */
-		DB( 8, 0, 0, 4, -1, 0,  -1,-1);	/* frame rightside line 0 */
+		DB( 0, 0, 0, 4, -1, 0,  -1,-1);	/* frame rightside line 0 */
 		DB(15,15, 0, 4, -2, 1,  -2,-2);	/* frame rightside line 1 */
+		DB( 0, 0, 0, 4,  0, 0,   0,-1);	/* frame leftside line 0 */
 		DB(15,15, 0, 4,  1, 1,   1,-2);	/* frame leftside line 1 */
-		DB( 8, 0, 0, 4,  0, 0,   0,-1);	/* frame leftside line 0 */
+		DB( 0, 0, 0, 4,  0, 0,  -1, 0);	/* frame upside line 0 */
 		DB(15,15, 0, 4,  1, 1,  -2, 1);	/* frame upside line 1 */
-		DB(15, 0, 0, 4,  0, 0,  -1, 0);	/* frame upside line 0 */
 	/*	DB( 0, 0,-1, 0);	*/			/* End of data */
 	closebutton:
 		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008); 	/* ControlBox */
@@ -4545,7 +4552,115 @@ void near drawcomponent()
 	return;
 }
 
-#if (!defined(CHO_OSASK))
+#if (defined(WIN31))
+
+void near textbox_drawback()
+/* EAX:0x0010(box), 0x0020(boxfill) */
+// EDX:win_slot, ESI:textbox
+// EAX, ECX, EBX, EDIを破壊
+{
+	struct TBOXBACK {
+		unsigned char col;
+		signed char x0, y0, x1, y1;
+	};
+	int tmp == EDI, x_size == ECX, y_size == EBX, winslot == EDX, t == EAX;
+	TEXTBOX *textbox == DS:ESI;
+	TBOXBACK *tbp == CS:EDI;
+
+	x_size = textbox->x_size;
+	y_size = textbox->y_size;
+	x_size *= 8;
+	y_size *= 8;
+	TEST(textbox->option, 0x10);
+	if (== 0)
+		y_size *= 2;
+
+	PUSH(0x0000); /* eoc */
+
+	//	DB(x0-1, y0-1, x1+0, y1+0, bc);
+	PUSH(textbox->backcolor);
+	tmp = y_size;
+	tmp += textbox->y0;
+	PUSH(tmp);
+	tmp = x_size;
+	tmp += textbox->x0;
+	PUSH(tmp);
+	tmp = textbox->y0;
+	tmp--;
+	PUSH(tmp);
+	tmp = textbox->x0;
+	tmp--;
+	PUSH(tmp);
+	PUSH(winslot);
+	PUSH(EAX);
+	PUSH(0x0400);
+
+	/* (offset) tbp = (offset) tb_table; */
+	asmout("MOV EDI,OFFSET #tb_table");
+
+	t = tbp->col;
+	do {
+		PUSH(t);
+		t = tbp->y1;
+		if (t >= 0)
+			t += y_size;
+		t += textbox->y0;
+		PUSH(t);
+		t = tbp->x1;
+		if (t >= 0)
+			t += x_size;
+		t += textbox->x0;
+		PUSH(t);
+		t = tbp->y0;
+		if (t >= 0)
+			t += y_size;
+		t += textbox->y0;
+		PUSH(t);
+		t = tbp->x0;
+		if (t >= 0)
+			t += x_size;
+		t += textbox->x0;
+		PUSH(t);
+		PUSH(winslot);
+		PUSH(0x0020);
+		PUSH(0x0400);
+		tbp += 5;
+		t = tbp->col;
+	} while (AL != 255);
+
+	EBX = ESP;
+	CALL(0x0017,0); /* GUIGUI統合shell-call */
+	LEA(ESP, [EBX + 4]);
+	return;
+
+tb_table:
+
+	DB(15, -2, -3,  1, -3); /* outside up */
+	DB(15, -3, -3, -3,  1); /* outside left */
+	DB(15, -3,  2,  1,  2); /* outside down */
+	DB(15,  2, -3,  2,  2); /* outside right */
+	DB( 0, -1, -2,  0, -2); /* inside up */
+	DB( 0, -2, -2, -2,  0); /* inside left */
+	DB( 0, -2,  1,  0,  1); /* inside down */
+	DB( 0,  1, -2,  1,  1); /* inside right */
+	DB(255);
+
+	/* 正か零ならx1/y1、負ならx0/y0 */
+
+
+//	DB( 7, -4, -3, +1, -3); /* outside up */
+//	DB( 7, -3, -3, -3, +1); /* outside left */
+//	DB(15, -3, +2, +1, +2); /* outside down */
+//	DB(15, +2, -3, +2, +2); /* outside right */
+//	DB( 0, -3, -2, +0, -2); /* inside up */
+//	DB( 0, -2, -2, -2, +0); /* inside left */
+//	DB( 8, -2, +1, +0, +1); /* inside down */
+//	DB( 8, +1, -2, +1, +1); /* inside right */
+
+}
+
+#elif (defined(WIN9X) || defined(NEWSTYLE) || defined(TMENU))
+
 void near textbox_drawback()
 /* EAX:0x0010(box), 0x0020(boxfill) */
 // EDX:win_slot, ESI:textbox
@@ -4649,7 +4764,9 @@ tb_table:
 //	DB( 8, +1, -2, +1, +1); /* inside right */
 
 }
-#else
+
+#elif (defined(CHO_OSASK))
+
 #define PushFB(opt,x0,y0,x1,y1,c) \
 	PUSH(c);PUSH(y1);PUSH(x1);PUSH(y0);PUSH(x0); \
 	PUSH(slot);PUSH(opt);PUSH(0x400)

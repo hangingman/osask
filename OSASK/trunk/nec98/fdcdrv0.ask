@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" for NEC98 ver.1.6 copyright(C) 2002 H.Kawai(川合秀実)
+// "fdcdrv0.ask" for NEC98 ver.1.7 copyright(C) 2002 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -98,7 +98,7 @@ nextcmd:
 	if (EAX == 0x0108)
 		goto cmd0108; // FDC_diskchange
 	if (EAX == 0x010c)
-		goto cmd010c; // FDC_diskcache1
+		goto cmd010c; // FDC_diskcache0
 	if (EAX == 0x0100)
 		goto cmd0100; /* 初期化 */
 	if (EAX == 0x0104)
@@ -179,6 +179,20 @@ cmd0138:
 	goto nextcmd;
 
 cmd010c:
+	/* FDC_diskcache0 */
+	/* キャッシュフラグの操作 */
+	EAX = 0;
+	ECX = cmd[4];
+	(offset) cmd += 8;
+	if ((unsigned) EAX < ECX) {
+		do {
+			BTS(work->track[0], EAX);
+			EAX++;
+		} while ((unsigned) EAX < ECX);
+	}
+	goto nextcmd;
+
+#if 0
 	// FDC_diskcache1
 	/* 直接起動ディスクのIPLが読み込んだデーターをキャッシュバッファに転送 */
 	PUSH(DS);
@@ -198,6 +212,7 @@ cmd010c:
 	work->track[0] |= 0x03; // track0とtrack1
 	(offset) cmd += 4;
 	goto nextcmd;
+#endif
 
 cmd0110:
 	// FDC_loadFAT
@@ -1071,7 +1086,7 @@ void FDC_Init()
 	work->timer_cmd4 = 4 * 4 /* タイマー登録 */;
 	work->timer_node4 = EAX;
 	work->timer_cmd5 = 0;
-	work->timer_cmd6 = 5 * 4 /*タイマー取り消し */;
+	work->timer_cmd6 = 5 * 4 /* タイマー取り消し */;
 	EAX = 0;
 	MOV(ECX, SS);
 	FS = CX;
