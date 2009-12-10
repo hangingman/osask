@@ -1,0 +1,122 @@
+"sb23"の使い方の説明                      2002/04/02 川合秀実
+
+１．これは何か？
+
+  "sb23"は、OSASK ver.2.3の「OSASK23.EXE」を生成するのに必要なモジュールのソー
+スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK23.EXE
+を生成するのに必要なモジュールのバージョンを書いておきます。
+
+  (このアーカイブ内に含まれているもの)
+
+    INIT.ASK     : ver.2.3
+    PAPI0.BIN    : ver.0.5
+    PIONEER0.BIN : ver.2.1
+    WINMAN0.BIN  : ver.1.7
+    POKON0.BIN   : ver.2.3
+    PCAT/
+      VGADRV0.BIN  : ver.1.2
+      TIMERDRV.BIN : type-A ver.1.0
+    TOWNS/
+      VGADRV0.BIN  : ver.1.2
+      TIMERDRV.BIN : type-A ver.1.0
+
+  (以前のバージョンのものを利用するもの)
+
+    BASE.EXE     : ver.2.0
+    OSALINK0.OPT : ver.1.9
+    TAPI0.BIN    : ver.0.3
+    KEYMOS0.BIN  : ver.0.3
+    DECODE0.BIN  : ver.0.9
+    SYSGG00.LIB  : ver.0.7
+
+  このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
+いるだけです。
+
+２．コンパイル＆アセンブル方法
+
+  使用したアセンブラ、コンパイラ、コンバーター、ライブラリーは以下の通りです。
+
+・ASKA version 1.0 beta 19 Modified by RisaPapa (たぶんbeta 18でもOK)
+・masmcnv2
+・MASM version 6.14.8444
+・Microsoft (R) Incremental Linker Version 5.12.8078
+・lcc-win32 (LCC.EXEのタイムスタンプ2001/07/30、サイズ459,264バイト)
+・linkset2
+・gg00lib9
+・stdlib4
+・osalnk0p
+
+これらの入手先・使い方の説明は、大半がOSASKの開発者向けページにあり、その他のも
+のについては、masmcnv2、linkset1に付属のドキュメントを参照してください。C言語に
+よるアプリ開発入門セット"introa05"をダウンロードすれば、gg00lib7, stdlib4の2つ
+をまとめて入手できます。
+
+  BASE.EXEの生成は、MAKEBASE.BATで行いました。MAKEBASE.BATを読んでアセンブル手
+順を把握してください。
+
+  SYSGG00.LIBの生成は、MAKEFILEで行いました。MAKEFILEを読んでコンパイル・アセン
+ブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成のみに
+必要な専用ライブラリです。
+
+  拡張子が.ASKのものは、lcc-win32→ASKA→masmcnv2→MASM→link→bim2bin1で.BINフ
+ァイルにします。bim2bin1のオプション指定では、-exe512と-simpleを指定します。lcc
+-win32はプリプロセッサとして使います。オプション-EPを付けてください。ただしAT互
+換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を
+生成する時は、LCCに「-DTOWNS」オプションをつけてください。
+
+  拡張子が.Cのものは、linkset1で説明されている方法で生成できます。ただし、AT互
+換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を
+生成する時は、LCCに「-DTOWNS」オプションをつけてください。ライブラリーにSYSGG00
+を使う必要があることにも注意してください。指定すべきスタックサイズ、mallocサイ
+ズは、各ソース中の最初の方に明記してあります。
+
+  OSALINK0.OPTに書かれている全てのファイルが用意できたら、osalnk0pでそれらをま
+とめて、OSASK.EXEを生成できます。osalnk0pの使い方は、osalnk0p内のアーカイブを参
+照してください。
+
+  またVMware対応バイナリーを生成する場合は、-DPCATに加えて-DVMWAREを指定してく
+ださい。
+
+  Bochs 1.3対応バイナリーを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に
+、base.asmを以下の指示にしたがって書き換える必要があります。
+
+・38～39行目のセミコロンだけを削除する（Boot_normal:の直後の2行）。
+・253行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
+
+  Bochs 1.2.1対応バイナリーを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指
+定した上に、base.asmをBochs 1.3と同様に書き換えてください。
+
+３．説明＆注意点
+
+  これらのソースは、単にOSASKを改良するためだけではなく、他のOSのために利用した
+り、その他の目的に利用することを認めています。詳しい利用範囲はLICENSE.TXTを参照
+してください。
+
+  これらのソースの大半は、全く清書されていません。註釈がついているものもありま
+すが、意味の無い註釈だったり、バージョンアップの過程でコードが削除されたのに註
+釈だけ残ったものなどがあり、はっきりいってあてになりません。
+
+  このソースを公開することにしたのは、「バイナリーだけよりはマシだろう」という
+ひどいセンスによるものです。読みにくくてほとんど役に立たないかもしれません。大
+変申し訳ないです。どなたかが著作者に代わって清書してくれるのは大歓迎です。
+
+  何か疑問に感じられることがあれば、川合秀実かOSASK-MLにメールでご連絡ください
+(OSASK伝言板でもかまいません)。すぐにはお返事できないかもしれませんが、できるだ
+けお答えします。
+
+４．謝辞
+
+  このアーカイブは、各著作者が川合堂ライセンス-01の適用に快く応じていただけたこ
+とで公開することができました。この場を借りて、心からお礼申し上げます。
+
+５．リンク
+
+  このドキュメントに関係のあるいくつかのURLを挙げておきます。
+
+    OSASKの開発者向けページ   http://www.imasy.org/~kawai/osask/developers.html
+    小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
+    OSASKのページ             http://www.imasy.org/~kawai/osask/
+    OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
+    川合堂のページ            http://www.imasy.org/~mone/kawaido/
+    川合秀実のページ          http://www.imasy.org/~kawai/
