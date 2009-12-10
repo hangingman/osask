@@ -20,9 +20,9 @@ EXE2SYS = exe2sys
 
 ARCH_OBJS = timerdrv.bin keymos0.bin fdcdrv0.bin vgadrv0.bin decode0.bin
 
-ASK_OBJS =  init.bin tapi0.bin pioneer0.bin papi0.bin
+ARCH_OBJS += $(VESA_OBJS)
 
-#ASK_OBJS += vesadrv0.bin 
+ASK_OBJS =  init.bin tapi0.bin pioneer0.bin papi0.bin
 
 C_OBJS = winman0.bin pokon0.bin
 
@@ -39,8 +39,8 @@ POKON_STACK = 4k
 POKON_MALLOC = 88k
 POKON_FILE = 4096k
 WINMAN_STACK = 4k
-WINMAN_MALLOC = 624k
-WINMAN_FILE = 768k
+WINMAN_MALLOC = 2160k
+WINMAN_FILE = 2048k
 
 # prevent automatic deletion of an intermediate file
 .SECONDARY : $(ASK_OBJS) $(ASK_OBJS:.bin=.3as) $(ASK_OBJS:.bin=.asm) $(ASK_OBJS:.bin=.nas) $(ASK_OBJS:.bin=.i) $(ASK_OBJS:.bin=.obj) $(ASK_OBJS:.bin=.exe) $(BASE:.exe=.asm) $(C_OBJS:.bin=.s) $(C_OBJS:.bin=.nas) $(BOOT:.bin=.i) $(BOOT:.bin=.3as) $(BOOT:.bin=.nas)
@@ -52,7 +52,7 @@ ALL :
 $(TARGET) : $(OSALINK_OPT) $(LINK_OBJS)
 	$(OSALINK)
 
-$(OSALINK_OPT) : makefile
+$(OSALINK_OPT) : makefile depend.mak
 	echo on > $(OSALINK_OPT)
 	for %%i in ($(LINK_OBJS)) do echo %%i >> $(OSALINK_OPT)
 
@@ -81,6 +81,7 @@ towns : FORCE
 	echo ARCH = towns>> depend.mak
 	echo TWSCRL1 = n>> depend.mak
 	echo TWVSW = 1024>> depend.mak
+	echo VMODE = n>> depend.mak
 	$(MAKE)
 
 nec98 : FORCE 
@@ -104,14 +105,12 @@ $(BOOTIMAGE) : $(TARGET)
 #	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
 
 pokon0.bim : pokon0.obj
-	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:$(POKON_STACK) $<
 
 pokon0.bin : pokon0.bim
 	$(BIM2BIN) malloc:$(POKON_MALLOC) file:$(POKON_FILE) input:$< output:$@
 
 winman0.bim : winman0.obj
-	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:$(WINMAN_STACK) $<
 
 winman0.bin : winman0.bim

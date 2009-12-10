@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.8
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.9
     copyright(C) 2003 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -1155,20 +1155,7 @@ void near cmd030()
 		graphbox->vx0 = ECX;
 		graphbox->vy0 = ECX;
 		graphbox->window = (offset) win;
-		/* 以下はmode:01を仮定 */
-		AL = cmd[5];
-		TEST(AL, 0x10);
-		if (== 0) {
-			EAX = graphbox->x_bsize;
-			MUL(graphbox->y_bsize);
-			EDX = graphbox->vbuf0;
-			ECX = graphbox->mode_opt;
-			do {
-				[DS:EDX] = CL;
-				EDX++;
-				EAX--;
-			} while (!= 0);
-		}
+		goto bufclear;
 	} else if (AL == 0x02) {
 		(offset) win = cmd[44]; // window
 		EAX = cmd[12]; // mode
@@ -1196,20 +1183,40 @@ void near cmd030()
 		graphbox->vx0 = ECX;
 		graphbox->vy0 = ECX;
 		graphbox->window = (offset) win;
-		/* 以下はmode:01を仮定 */
-		AL = cmd[5];
-		TEST(AL, 0x10);
+bufclear:
+		TEST((char) cmd[5], 0x10);
 		if (== 0) {
 			EAX = graphbox->x_bsize;
 			MUL(graphbox->y_bsize);
-
 			EDX = graphbox->vbuf0;
 			ECX = graphbox->mode_opt;
-			do {
-				[DS:EDX] = CL;
-				EDX++;
-				EAX--;
-			} while (!= 0);
+			if (graphbox->mode == 0x22)
+				goto clr_mode2;
+			if (graphbox->mode == 0x24)
+				goto clr_mode4;
+			if (graphbox->mode == 1) {
+				do {
+					[DS:EDX] = CL;
+					EDX++;
+					EAX--;
+				} while (!= 0);
+			}
+			if (graphbox->mode == 2) {
+	clr_mode2:
+				do {
+					[DS:EDX] = CX;
+					EDX += 2;
+					EAX--;
+				} while (!= 0);
+			}
+			if (graphbox->mode == 4) {
+	clr_mode4:
+				do {
+					[DS:EDX] = ECX;
+					EDX += 4;
+					EAX--;
+				} while (!= 0);
+			}
 		}
 	} else {
 		PUSH((int) 12);
@@ -1227,13 +1234,15 @@ void near cmd030()
 
 	if (win->draw_enable != 0) {
 		/* 必要ならフレームを描く */
-		AL = cmd[ 5];
-		TEST(AL, 0x80);
+		TEST((char) cmd[ 5], 0x80);
 		if (== 0) {
 			EAX = graphbox->x_bsize;
+			ECX = graphbox->mode;
 			PUSH((int) 0);
 			EAX -= graphbox->x_vsize;
+			ECX &= 0x0f;
 			PUSH(DS);
+			IMUL(EAX, ECX);
 			PUSH(graphbox->vbuf0);
 			PUSH(EAX);
 			PUSH(graphbox->y_vsize);
@@ -1449,7 +1458,7 @@ blank_b:
 	#elif (defined(TMENU))
 		DW(0x0f07, 0x0800, 0, 0x000f);
 	#elif (defined(CHO_OSASK))
-		DW(0x0700, 0x0708, 0, 0x070f);
+		DW(0x0800, 0x0807, 0, 0x070f);
 	#elif (defined(NEWSTYLE))
 		DW(0x0008, 0x0708, 0, 0x040f);
 	#elif (defined(WIN31))
@@ -1578,7 +1587,7 @@ void near cmd048()
 	asmout("JMP nextcmd");
 }
 
-void near cmd04c()
+void cmd04c()
 /* ブロック転送 */
 /* cmd, opt(1), window, x0, y0, xsize, ysize, yskip, ofs, sel */
 /* windowを指定した場合、enableのチェックはしないので要注意 */
@@ -4523,10 +4532,12 @@ void near drawcomponent()
 				GRAPHBOX *graphbox == DS:ESI;
 				EAX = graphbox->x_bsize;
 				ECX = graphbox->x_vsize;
+				EBP = graphbox->mode;
 				PUSH((int) 0);
 				EAX -= ECX;
+				EBP &= 0x0f;
 				PUSH(DS);
-				/* ここで、必要に応じてEAXをスケールする */
+				IMUL(EAX, EBP);
 				PUSH(graphbox->vbuf0);
 				PUSH(EAX /* yskip */);
 				PUSH(graphbox->y_vsize);
@@ -4534,7 +4545,7 @@ void near drawcomponent()
 				PUSH(graphbox->y0);
 				PUSH(graphbox->x0);
 				PUSH(EDX /* winslot */);
-				PUSH((int) 0x0001);
+				PUSH(graphbox->mode);
 				PUSH((int) 0x0414);
 				EBX = ESP;
 				CALL(0x0017,0); // GUIGUI統合shellcall

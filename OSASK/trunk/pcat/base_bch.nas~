@@ -1,6 +1,6 @@
-;	"base.nas" ver.2.3
+;	"boot.nas" ver.2.2
 ;	OSASK/PCAT用のブートプログラム
-;	Copyright(C) 2003 H.Kawai (川合秀実)
+;	Copyright(C) 2002 H.Kawai (川合秀実)
 
 ;	TAB = 4
 
@@ -231,7 +231,7 @@ VGA_mode		DW	12h	; +0x10
 				DW	0
 to_winman0		DD	1 ; +0x14
 
-CFport			DD	0	; +0x18
+VGA_PCI_base	DD	0
 eflags			DD	0
 
 		;	align	16
@@ -248,18 +248,18 @@ modulelist:
 	DD	"pioneer0",0,BootMdl	;  8 * 16
 	DD	"winman0 ",0,BootMdl	;  9 * 16
 	DD	"pokon0  ",0,BootMdl	; 10 * 16
-	DD	"vesa8   ",0,BootMdl	; 11 * 16
+	DD	"vesadrv0",0,BootMdl	; 11 * 16
 	DD	"ankfont0",0,BootMdl	; 12 * 16 256バイトだけ必要
 	DD	"papi0   ",0,BootMdl	; 13 * 16
-	DD	"vesa16  ",0,BootMdl	; 14 * 16
-	DD	"vesa32  ",0,BootMdl	; 15 * 16
+	DD	"freeslot",0,BootMdl	; 14 * 16
+	DD	"freeslot",0,BootMdl	; 15 * 16
 	DD	"boot32  ",0,BootMdl	; 16 * 16 これは必ず非圧縮
 	DD	"fdimage ",0,BootMdl	; 17 * 16
 
 loaded_modules	EQU		($ - modulelist) / 16
 
 alloclist:
-	DD	"pdepte  ",4096*70,-1	; 0
+	DD	"pdepte  ",4096*67,-1	; 0
 	DD	"idtgdt  ",4096,-1	; 48+463entry
 	DD	"freeslot",0,0
 	DD	"stack   ",4096*4,-1

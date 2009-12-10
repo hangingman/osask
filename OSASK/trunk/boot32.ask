@@ -1,4 +1,4 @@
-/* "boot32.ask" ver.0.0 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "boot32.ask" ver.0.1 copyright(C) 2003 H.Kawai(川合秀実) */
 
 #include "osaskinc.ask"
 
@@ -128,7 +128,7 @@ void far boot32()
 	int *bmodule_size == DS:0x224, *bmodule_paddr == DS:0x228;
 	int *bmodule_laddr == DS:0x22c;
 
-	AL = 14;
+	AL = 16;
 	ECX = 0;
 	ESI = 0x20; /* modulelist */
 	do {
@@ -194,10 +194,31 @@ void far boot32()
 	TEST(DL, 0x04);
 	if (!= 0)
 		BL = 0x1f;
-	[ES:EDI + 0x1e00] = EBX;
-	[ES:EDI + 0x0e00] = EAX;
-	EAX = 12 * 1024;
-	EBX += 4096;
+	#if (!defined(PCAT))
+		/* VRAMの最大は4MB */
+		[ES:EDI + 0x1e00] = EBX;
+		[ES:EDI + 0x0e00] = EAX;
+		EAX += 4096;
+		EBX += 4096;
+	#else
+		/* VRAMの最大は16MB */
+		[ES:EDI + 0x1e00] = EBX;
+		[ES:EDI + 0x0e00] = EAX;
+		EAX += 4096;
+		EBX += 4096;
+		[ES:EDI + 0x1e04] = EBX;
+		[ES:EDI + 0x0e04] = EAX;
+		EAX += 4096;
+		EBX += 4096;
+		[ES:EDI + 0x1e08] = EBX;
+		[ES:EDI + 0x0e08] = EAX;
+		EAX += 4096;
+		EBX += 4096;
+		[ES:EDI + 0x1e0c] = EBX;
+		[ES:EDI + 0x0e0c] = EAX;
+		EAX += 4096;
+		EBX += 4096;
+	#endif
 	PUSH(ECX);
 	ECX -= EAX;
 	do {
@@ -207,7 +228,11 @@ void far boot32()
 		EAX += 4096;
 		ECX -= 4096;
 	} while ((unsigned) > 0);
-	EDI = 0x303000;
+	#if (!defined(PCAT))
+		EDI = 0x303000;
+	#else
+		EDI = 0x306000;
+	#endif
 	ECX = 3 * 1024 / 4;
 	EAX = 7;
 fillpte:
@@ -217,8 +242,13 @@ fillpte:
 	POP(ECX);
 
 	/* ptepdeのマッピング */
-	/* +0xxx:link, +1xxx:pde, +2xxx:VRAM, +3xxx:PTE(0-4) */
-	EDI = 0x303000 + 0x1200; /* 4.5MB */
+	/* +0xxx:link, +1xxx:pde, +2xxx:VRAM, +3xxx:PTE(0-4) : 非PCAT */
+	/* +0xxx:link, +1xxx:pde, +2xxx:VRAM, +6xxx:PTE(0-4) : PCAT */
+	#if (!defined(PCAT))
+		EDI = 0x303000 + 0x1200; /* 4.5MB */
+	#else
+		EDI = 0x306000 + 0x1200; /* 4.5MB */
+	#endif
 	EAX = [DS:0x140 /* pdepte_ent */ + 12];
 	AL = 7;
 	PUSH(ECX);
@@ -312,7 +342,7 @@ fillpte:
 		set_modulesegment();
 	} while ((unsigned) (char) [CS:EDI] != 0);
 
-	EBX = 0x00f0 /* modulelist (sysworkを最後にするため) */;
+	EBX = 0x0110 /* modulelist (sysworkを最後にするため) */;
 	PUSH(8);
 	EBP = *bmodule_paddr;
 	EDI = *bmodule_laddr;

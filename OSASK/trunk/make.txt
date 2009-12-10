@@ -1,15 +1,14 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2002.1.14 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
+2002.1.31 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 
 0. document.txt の２．コンパイル＆アセンブル方法を参照して
 必要なファイルをPATH の通ったディレクトリに置きます。
 http://www.imasy.org/~kawai/osask/developers.html
-の tolset03 をダウンロードして使って下さい。
-
-※tolset03 の nask.exe はバグがあり、正しく make できません。
-この make32 の中にある nask.exe と置き換えて下さい。
+の tolset04 をダウンロードして使って下さい。
+※一部のオプションのmakeが失敗します。このアーカイブの中のnaskcnv0.exe
+を tolset04 のものと入れ換えて下さい。
 
 1. 対象とするアーキテクチャに従って make にパラメータを与えて実行します。
 (1) PC/AT 互換機
@@ -63,6 +62,7 @@ make pcat DESIGN=WIN9X
 ・TWSCRL1 = y とすると 1ドットスクロールが有効になります。
 ・TWVSW = n (768 <= n <= 1024 の 8の倍数) の数値を設定すると
 仮想画面の幅を変更できます。高さは自動的に決まります。
+・VMODE = y とすると、ビデオモードが有効になります。
 
 ◎その他
 ・一部の生成ファイルが無い状態で make clean あるいは make dist_cleanす

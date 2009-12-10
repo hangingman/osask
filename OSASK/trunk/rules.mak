@@ -69,6 +69,11 @@ else
 PREPROCESSOR_FLAGS += -DTWVSW=1024
 CFLAGS += -DTWVSW=1024
 endif
+# set Video overlay MODE by I.Tak.
+ifeq ($(VMODE),y)
+PREPROCESSOR_FLAGS += -DVMODE
+CFLAGS += -DVMODE
+endif
 endif
 # for PC/AT
 ifeq ($(ARCH),pcat)
@@ -76,6 +81,7 @@ ifeq ($(ARCH),pcat)
 BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DPCAT
 CFLAGS += -DPCAT
+VESA_OBJS = vesa8.bin vesa16.bin vesa32.bin
 ifeq ($(VMWARE),y)
 PREPROCESSOR_FLAGS += -DVMWARE
 CFLAGS += -DVMWARE

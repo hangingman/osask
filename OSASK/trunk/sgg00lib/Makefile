@@ -52,10 +52,6 @@ $(OPT) : makefile
 %.obj : %.nas
 	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
 
-#%.obj : %.asm makefile
-#	$(ASM) $(ASM_FLAGS) $<
-#	$(OBJ2BIM) -fixobj $@ text_align:1 data_align:4 bss_align:4
-
 clean:
 	del $(DIST_DIR)\$(TARGET)
 	del $(TARGET)

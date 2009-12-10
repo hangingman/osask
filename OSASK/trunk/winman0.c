@@ -1,8 +1,8 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.6
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.7
 		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
-    stack:4k malloc:624k file:768k */
+    stack:4k malloc:2160k file:2048k */
 
-#define WALLPAPERMAXSIZE	(512 * 1024)
+#define WALLPAPERMAXSIZE	(2048 * 1024)
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -29,8 +29,8 @@
 	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		  28
-	#if (defined(PCAT))
-		#define TIMEX				-240	/* 8の倍数 */
+	#if (defined(PCAT) || defined(TOWNS))
+		#define TIMEX				-192	/* 8の倍数 */
 		#define TIMEY				 -20
 		#define TIMEC				   0
 		#define TIMEBC				   8
@@ -39,10 +39,22 @@
 	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		  20
 	#define	RESERVELINE1		  28
+	#if (defined(PCAT)) || (defined(TOWNS))
+		#define TIMEX				-240
+		#define TIMEY				   2
+		#define TIMEC				   0
+		#define TIMEBC				   7
+	#endif
 #elif (defined(CHO_OSASK))
 	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		  20
+	#if (defined(PCAT)) || (defined(TOWNS))
+		#define TIMEX				-272	/* 8の倍数 */
+		#define TIMEY				 -16
+		#define TIMEC				  15
+		#define TIMEBC				   7
+	#endif
 #elif (defined(NEWSTYLE))
 	#define	BACKCOLOR			   6
 	#define	RESERVELINE0		   0
@@ -63,6 +75,10 @@
 #if (defined(TOWNS))
 	#if (!defined(TWVSW))
 		#define	TWVSW		1024
+	#endif
+	#if (defined(VMODE))
+		#undef BACKCOLOR
+		#define BACKCOLOR	0	/* ビデオインポーズのため */
 	#endif
 #endif
 
@@ -114,9 +130,21 @@ static struct STR_JOB {
 	int fonttss, sig;
 } job = { 0 /* now */, 0 /* movewin4_ready */, /* fontflag */ };
 
+#if (defined(PCAT))
+	struct STR_VBEMODE { /* 16bytes */
+		unsigned int linear, linebytes;
+		unsigned short x_res, y_res, mode;
+		unsigned char flag, dummy;
+	};
+	static char flag_vbe2 = 0;
+	static struct STR_VBEMODE vbelist[128];
+	static int f3mode, f4mode;
+	static unsigned int vbeoverride[3];
+#endif
+
 unsigned char *wallpaper, wallpaper_exist;
 struct WM0_WINDOW *window, *top = NULL, *unuse = NULL, *iactive = NULL, *pokon0 = NULL;
-int x2 = 0, y2, mx = 0x80000000, my, mbutton = 0;
+int x2 = 0, y2, mx = 0x80000000, my = 1, mbutton = 0, mxx = 1;
 int fromboot = 0, mousescale = 2;
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
 struct DEFINESIGNAL *defsigbuf;
@@ -159,14 +187,20 @@ void job_loadfont3(int flag, int dmy);
 void moswinsig_flagset();
 struct WM0_WINDOW *searchwin(int x, int y);
 
-#ifdef TOWNS
-void job_savevram0(void);
-void job_savevram1(int flag, int dmy);
-void job_savevram2(int flag, int dmy);
+#if (defined(TOWNS))
+	void job_savevram0(void);
+	void job_savevram1(int flag, int dmy);
+	void job_savevram2(int flag, int dmy);
 #endif
 void job_openwallpaper(void);
 void job_loadwallpaper(int flag, int dmy);
 void putwallpaper(int x0, int y0, int x1, int y1);
+
+#if (defined(PCAT))
+	void job_vesacheck0();
+	void job_vesacheck1(int sig, int result);
+	void job_vesacheck2();
+#endif
 
 //void free_sndtrk(struct SOUNDTRACK *sndtrk);
 
@@ -287,6 +321,8 @@ void OsaskMain()
 		switch (i = signal[0]) {
 		case 0x0000:
 		//	siglen--; /* siglen = 0; */
+			if (pjob->now == 0)
+				runjobnext();
 			lib_waitsignal(0x0001, 0, 0);
 			continue;
 
@@ -320,6 +356,13 @@ void OsaskMain()
 			/* from boot */
 			siglen++; /* siglen = 2; */
 			fromboot = signal[1];
+			#if (defined(PCAT))
+				if (fromboot == 0) {
+					/* VESAの調査を開始 */
+					writejob_n(1, 0x0044 /* VESA check */);
+					goto fin_wrtjob;
+				}
+			#endif
 			break;
 
 		case 0x001c:
@@ -528,8 +571,9 @@ void OsaskMain()
 				#endif
 				#if (TIMEY < 0)
 					msg[5] = y2 + TIMEY;
-				#endif 
-				lib_execcmd(msg);
+				#endif
+				if (mx != 0x80000000)
+					lib_execcmd(msg);
 				break;
 			}
 			#endif
@@ -605,6 +649,49 @@ void OsaskMain()
 			#endif
 			goto fin_wrtjob;
 
+			#if (defined(PCAT))
+		case 0x0206:
+			//	siglen = 1;
+				if (f3mode) {
+					writejob_n(2, 0x0034 /* change VGA mode */, f3mode);
+					goto fin_wrtjob;
+				}
+				break;
+
+		case 0x0207:
+			//	siglen = 1;
+				if (f4mode) {
+					writejob_n(2, 0x0034 /* change VGA mode */, f4mode);
+					goto fin_wrtjob;
+				}
+				break;
+
+		case 0x0210:
+				siglen = 3;
+				if (signal[1] ==  3)
+					f3mode = signal[2];
+				if (signal[1] == -3)
+					f3mode = signal[2];
+				if (signal[1] ==  4)
+					f4mode = signal[2];
+				if (signal[1] == -4)
+					f4mode = signal[2];
+				if (signal[1] >= 0) {
+					writejob_n(2, 0x0034 /* change VGA mode */, signal[2]);
+					goto fin_wrtjob;
+				}
+				break;
+
+		case 0x0211:
+				siglen = 3;
+				if (signal[1] == 0)
+					vbeoverride[0] = vbeoverride[1] = vbeoverride[2] = signal[2];
+				else
+					vbeoverride[signal[1] - 1] = signal[2];
+				break;
+
+			#endif
+
 		case 0x0240 /* load JPN16$.FNT */:
 		//	siglen = 1;
 			writejob_n(4, 0x0038 /* loadfont */, 0x11 /* type */, 0, 0);
@@ -676,8 +763,9 @@ void OsaskMain()
 
 void init_screen(const int x, const int y)
 {
+	static int old_x, old_y;
 	struct STR_BGV {
-		signed char col, x0, y0, x1, y1;
+		signed short col, x0, y0, x1, y1;
 	};
 	#if (defined(WIN9X))
 		static struct STR_BGV linedata[] = {
@@ -690,10 +778,17 @@ void init_screen(const int x, const int y)
 			{  7,  59, -23,  59,  -5 },
 			{  0,   2,  -3,  59,  -3 },
 			{  0,  60, -24,  60,  -3 },
-			{  7, -47, -24,  -4, -24 },
-			{  7, -47, -23, -47,  -4 },
-			{ 15, -47,  -3,  -4,  -3 },
-			{ 15,  -3, -24,  -3,  -3 },
+			#if (!defined(TIMEX))
+				{  7, -47, -24,  -4, -24 },
+				{  7, -47, -23, -47,  -4 },
+				{ 15, -47,  -3,  -4,  -3 },
+				{ 15,  -3, -24,  -3,  -3 },
+			#else
+				{  7, TIMEX - 4, -24,        -4, -24 },
+				{  7, TIMEX - 4, -23, TIMEX - 4,  -4 },
+				{ 15, TIMEX - 4,  -3,        -4,  -3 },
+				{ 15,        -3, -24,        -3,  -3 },
+			#endif
 			{ -1,   0,   0,  -1, -29 }		/* for wallpaper */
 		};
 	#elif (defined(TMENU))
@@ -750,6 +845,13 @@ void init_screen(const int x, const int y)
 
 	struct STR_BGV *p;
 	int x0, y0, x1, y1;
+
+	if (old_x != x || old_y != y) {
+		wallpaper_exist = 0;
+		old_x = x;
+		old_y = y;
+	}
+
 	for (p = linedata; ; p++) {
 		if ((x0 = p->x0) < 0)
 			x0 += x;
@@ -860,7 +962,7 @@ void init_screen(const int x, const int y)
 		lib_putblock1((void *) -1,      8, y - 21, 15, 15, 1, &askcube);
 	#endif
 
-	sgg_wm0_putmouse(mx, my);
+	sgg_wm0_putmouse(mx = mxx, my);
 	return;
 }
 
@@ -1257,7 +1359,7 @@ void runjobnext()
 			func1 = job_openvgadriver;
 			break;
 
-		case 0x0034 /* set VGA mode */:
+		case 0x0034 /* change VGA mode */:
 		//	job_setvgamode0(readjob());
 			func1 = job_setvgamode0;
 			break;
@@ -1268,14 +1370,21 @@ void runjobnext()
 			job_loadfont0(i, j, readjob());
 			break;
 
-#if (defined(TOWNS))
-		case 0x003c /* capture */:
-		    job_savevram0();
-		    break;
-#endif
+		#if (defined(TOWNS))
+			case 0x003c /* capture */:
+		  	  job_savevram0();
+		  	  break;
+		#endif
+
 		case 0x0040 /* load wallpaper */:
 			job_openwallpaper();
 			break;
+
+		#if (defined(PCAT))
+			case 0x0044 /* VESA check */:
+				job_vesacheck0();
+				break;
+		#endif
 		}
 		if (func1)
 			(*func1)(readjob());
@@ -1349,8 +1458,13 @@ void redirect_input(struct WM0_WINDOW *win)
 	      0x3240 /* winman0 signalbox */, 0x7f000001, 0x0203);/* close */
 	#endif
 
-	sgg_wm0_definesignal3(1, 0x0100, 0x00701081 /* F1 */,
-		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
+	#if (defined(PCAT))
+		sgg_wm0_definesignal3(3, 0x0100, 0x00701081 /* F1 */,
+			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
+	#else
+		sgg_wm0_definesignal3(1, 0x0100, 0x00701081 /* F1 */,
+			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
+	#endif
 
 	sgg_wm0_definesignal3(0, 0x0100, 0x00701085 /* F5 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0240); /* JPN16$.FNTの即時ロード */
@@ -1916,7 +2030,7 @@ void send_signal4dw(const int sigbox, const int data0, const int data1, const in
 
 void gapi_loadankfont();
 
-void job_openvgadriver(const int drv)
+void gapi_driverinit(int drv)
 {
 	#define	S	((((((((0
 	#define	O	* 2 + 1)
@@ -2065,41 +2179,39 @@ void job_openvgadriver(const int drv)
 			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _
 		#elif (defined(WIN31))
 			/* 改造済みマウスカーソルパターン(16x16, mono) by 聖人 */
-			/* 少しはWin3.1の雰囲気出るかなーなんて… */
-			/* 16進に変換するの面倒くさい。今までのほうがよかった… */
-			S 0 0 _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
-			S 0 _ 0 _ _ _ _ _ T _ _ _ _ _ _ _ _,
-			S 0 _ _ 0 _ _ _ _ T _ _ _ _ _ _ _ _,
-			S 0 _ _ _ 0 _ _ _ T _ _ _ _ _ _ _ _,
-			S 0 _ _ _ _ 0 _ _ T _ _ _ _ _ _ _ _,
-			S 0 _ _ _ _ _ 0 _ T _ _ _ _ _ _ _ _,
-			S 0 _ _ _ _ _ _ 0 T _ _ _ _ _ _ _ _,
-			S 0 _ _ _ _ _ _ _ T 0 _ _ _ _ _ _ _,
-			S 0 _ _ _ _ _ _ _ T _ 0 _ _ _ _ _ _,
-			S 0 _ _ _ _ _ 0 0 T 0 0 _ _ _ _ _ _,
-			S 0 _ _ 0 0 _ _ 0 T _ _ _ _ _ _ _ _,
-			S 0 _ 0 _ 0 _ _ 0 T _ _ _ _ _ _ _ _,
-			S _ 0 _ _ _ 0 _ _ T 0 _ _ _ _ _ _ _,
-			S _ _ _ _ _ 0 _ _ T 0 _ _ _ _ _ _ _,
-			S _ _ _ _ _ _ 0 0 T _ _ _ _ _ _ _ _,
-			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S O O _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S O _ O _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S O _ _ O _ _ _ _ T _ _ _ _ _ _ _ _,
+			S O _ _ _ O _ _ _ T _ _ _ _ _ _ _ _,
+			S O _ _ _ _ O _ _ T _ _ _ _ _ _ _ _,
+			S O _ _ _ _ _ O _ T _ _ _ _ _ _ _ _,
+			S O _ _ _ _ _ _ O T _ _ _ _ _ _ _ _,
+			S O _ _ _ _ _ _ _ T O _ _ _ _ _ _ _,
+			S O _ _ _ _ _ _ _ T _ O _ _ _ _ _ _,
+			S O _ _ _ _ _ O O T O O _ _ _ _ _ _,
+			S O _ _ O _ _ O _ T _ _ _ _ _ _ _ _,
+			S O _ O _ O _ _ O T _ _ _ _ _ _ _ _,
+			S O O _ _ O _ _ O T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ O _ _ T O _ _ _ _ _ _ _,
+			S _ _ _ _ _ O _ _ T O _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ O O T _ _ _ _ _ _ _ _,
 
 			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
-			S _ 0 _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
-			S _ 0 0 _ _ _ _ _ T _ _ _ _ _ _ _ _,
-			S _ 0 0 0 _ _ _ _ T _ _ _ _ _ _ _ _,
-			S _ 0 0 0 0 _ _ _ T _ _ _ _ _ _ _ _,
-			S _ 0 0 0 0 0 _ _ T _ _ _ _ _ _ _ _,
-			S _ 0 0 0 0 0 0 _ T _ _ _ _ _ _ _ _,
-			S _ 0 0 0 0 0 0 0 T _ _ _ _ _ _ _ _,
-			S _ 0 0 0 0 0 0 0 T 0 _ _ _ _ _ _ _,
-			S _ 0 0 0 0 0 _ _ T _ _ _ _ _ _ _ _,
-			S _ 0 0 _ _ 0 0 _ T _ _ _ _ _ _ _ _,
-			S _ 0 _ _ _ 0 0 _ T _ _ _ _ _ _ _ _,
-			S _ _ _ _ _ _ 0 0 T _ _ _ _ _ _ _ _,
-			S _ _ _ _ _ _ 0 0 T _ _ _ _ _ _ _ _,
+			S _ O _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S _ O O _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S _ O O O _ _ _ _ T _ _ _ _ _ _ _ _,
+			S _ O O O O _ _ _ T _ _ _ _ _ _ _ _,
+			S _ O O O O O _ _ T _ _ _ _ _ _ _ _,
+			S _ O O O O O O _ T _ _ _ _ _ _ _ _,
+			S _ O O O O O O O T _ _ _ _ _ _ _ _,
+			S _ O O O O O O O T O _ _ _ _ _ _ _,
+			S _ O O O O O _ _ T _ _ _ _ _ _ _ _,
+			S _ O O _ O O _ _ T _ _ _ _ _ _ _ _,
+			S _ O _ _ _ O O _ T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ O O _ T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ O O T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ O O T _ _ _ _ _ _ _ _,
 			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
-			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _
 		#endif
 	};
 
@@ -2110,12 +2222,23 @@ void job_openvgadriver(const int drv)
 
 	// closeする時にすべてのウィンドウはdisableになっているはずなので、
 	// ここではdisableにはしない
+
+	#if (defined(PCAT))
+		/* sggでドライバ切り替えを指定 */
+		sgg_execcmd0(0x0088, 0x0000, drv, 0x0000);
+	#endif
+
 	sgg_wm0_gapicmd_0010_0000();
 	gapi_loadankfont();
 
 	/* マウスパターン転送 */
 	sgg_execcmd0(0x0050, 7 * 4, 0x0180, 0, 0x0001, &mcursor, 0x000c, 0x0000);
+	return;
+}
 
+void job_openvgadriver(const int drv)
+{
+	gapi_driverinit(drv);
 	job.now = 0;
 	return;
 }
@@ -2127,9 +2250,10 @@ void job_setvgamode0(const int mode)
 	pjob->int0 = mode;
 
 	if (mx != 0x80000000) {
+		mxx = mx;
 		sgg_wm0_removemouse();
-	} else
-		mx = my = 1;
+		mx = 0x80000000;
+	}
 
 	// とりあえず、全てのウィンドウの画面更新権を一時的に剥奪する
 	pjob->count = 0;
@@ -2161,24 +2285,6 @@ void job_setvgamode1(const int cmd, const int handle)
 void job_setvgamode2()
 {
 	#if (defined(TOWNS))
-#if 0
-		int mode = job.int0;
-		switch (mode) {
-		case 0x0000:
-			x2 = 1024;
-			y2 = 480;
-			/* 画面モード0設定(640x480) */
-			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, 0, 0x0000, 0x0000);
-			break;
-
-		case 0x0001:
-			x2 = 1024;
-			y2 = 512;
-			/* 画面モード1設定(768x512) */
-			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, 1, 0x0000, 0x0000);
-
-		}
-#endif
 		x2 = TWVSW;
 		y2 = 512*1024/TWVSW;
 		/* 画面モード0設定(640x480) */
@@ -2212,21 +2318,6 @@ void job_setvgamode2()
 			job_general1();
 			return;
 		}
-
-#if 0
-		int mode = job_int0;
-		switch (mode) {
-		case 0x0012:
-			x2 = 640;
-			y2 = 480;
-			break;
-
-		case 0x0102:
-			x2 = 800;
-			y2 = 600;
-
-		}
-#endif
 		job.func = &job_setvgamode3;
 		sgg_wm0_setvideomode(job.int0 /* mode */, 0x0014);
 		return;
@@ -2247,20 +2338,67 @@ void job_setvgamode2()
 
 void job_setvgamode3(const int sig, const int result)
 {
+	static int oldmode = 0x0012; /* VGA */
+	int mode = job.int0 & 0x3fff;
 	// 0x0014しかこない
 	if (result == 0) {
-		sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job.int0 | 0x01000000, 0x0000, 0x0000);
+		/* 画面モード切り替え成功 */
+		int drv = 0 /* 4bit */, vram;
+		struct STR_VBEMODE *p;
+		struct WM0_WINDOW *win;
+		if (mode != 0x0012 && mode != 0x0102) {
+			for (p = vbelist; p->mode; p++) {
+				if (mode == p->mode) {
+					drv = p->flag;
+					vram = p->linear;
+					if (drv >= 4)
+						goto skip;
+					if (drv != 0 && vbeoverride[drv - 1] != 0)
+						vram = vbeoverride[drv - 1];
+					if (vram == 0)
+						goto skip;
+					/* linearを伝達 */
+					sgg_execcmd0(0x0088, 0x0001, vram, 0x0000);
+					x2 = p->x_res;
+					y2 = p->y_res;
+					break;
+				}
+			}
+		}
+		/* 全部のウィンドウの座標範囲を確認(はみ出したら画面を戻す) */
+		if (win = top) {
+			do {
+				if (win->x1 > x2 || win->y1 > y2 - RESERVELINE1) {
+					sgg_wm0_setvideomode(job.int0 = oldmode, 0x0014);
+					return;
+				}
+			} while ((win = win->down) != top);
+		}
+		if (mxx > x2 - 1 || my > y2 - 16) {
+			mxx = my = 1;
+		} 
+		if (drv == 0) {
+			/* linear = 0を伝達 */
+			sgg_execcmd0(0x0088, 0x0001, 0, 0x0000);
+		}
+		gapi_driverinit(drv);
+		if (drv == 0) {
+			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, mode | 0x01000000, 0x0000, 0x0000);
+				/* スクロールパラメータ初期化 */
+		}
+		if (drv != 0)
+			sgg_execcmd0(0x0050, 8 * 4, 0x001c, 0, 0x0020, x2, y2, 0x0000, 0x0000);
 		sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
+		oldmode = job.int0;
 		init_screen(x2, y2);
 		job_general1();
 		return;
 	}
 
 	// VESAのノンサポートなどにより、画面モード切り換え失敗
-//	x2 = 640;
-//	y2 = 480;
+skip:
 //	job.func = job_setvgamode3;
-	sgg_wm0_setvideomode(0x0012 /* VGA */, 0x0014);
+	sgg_wm0_setvideomode(job.int0 = oldmode, 0x0014);
 	return;
 }
 
@@ -2297,8 +2435,10 @@ void job_loadfont1(int flag, int dmy)
 		lib_decodetek0(304 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
 		lib_unmapmodule(0, 768 * 1024, fp);
 		pjob->fontflag |= 0x01;
-		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+		lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
+
+	//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+	//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
 	}
 //	if (pjob->fonttss)
 //		send_signal2dw(job_fonttss | 0x240, 0x7f000001, job_sig);
@@ -2336,8 +2476,10 @@ void job_loadfont3(int flag, int dmy)
 		lib_decodetek0(288 * 1024, (int) fp, 0x000c, (int) fp + 256 * 1024, 0x000c);
 		lib_unmapmodule(0, 768 * 1024, fp);
 		pjob->fontflag |= 0x02;
-		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+		lib_initmodulehandle0(0x000c, 0x0200); /* machine-dirに初期化 */
+
+	//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+	//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
 	}
 	if (pjob->fonttss) {
 		send_signal2dw(pjob->fonttss | 0x240, 0x7f000001, pjob->sig);
@@ -3581,6 +3723,7 @@ void sgg_wm0_definesignal3com()
 
 void gapi_loadankfont()
 {
+	static char flag = 1;
 	static struct {
 		int cmd, length;
 		int gapicmd[15];
@@ -3604,7 +3747,10 @@ void gapi_loadankfont()
 			0x0000 /* EOC */
 		}, 0 /* EOC */
 	};
-	sgg_execcmd(&command);
+	if (flag) { /* 一度転送すればそれでよいから */
+		sgg_execcmd(&command);
+		flag = 0;
+	}
 	return;
 }
 
@@ -3615,10 +3761,10 @@ void job_savevram0()
     /* 保存先用意 */
     lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
     job.func = &job_savevram1;
-    lib_steppath0(0, 0x0200, "SCRNSHOT.TIF", 0x0050 /* sig */);
+    lib_steppath0(1, 0x0200, "SCRNSHOT.TIF", 0x0050 /* sig */);
     return;
     /* SCRNSHOT.TIFは514KB以上になります */
-    /* 事前にモジュールを作っておいて（resizeしなくてよい）ください */
+    /* 事前にモジュールを作っておかなくてもいいです */
 }
 
 void job_savevram1(int flag, int dmy)
@@ -3706,13 +3852,23 @@ void job_savevram2(int flag, int dmy)
 				fp[i * 2 + 0x0600 + 0] = pal->b;
 				fp[i * 2 + 0x0600 + 1] = pal->b;
 			}
-			sgg_debug00(0, x2*y2, 0, 0xe0000000, 0x01280008,
+			for (i = 192; i < 256; i++) {
+				fp[i * 2 + 0x0200 + 0] =  (i & 0x03)       * 0x55;
+				fp[i * 2 + 0x0200 + 1] =  (i & 0x03)       * 0x55;
+				fp[i * 2 + 0x0400 + 0] = ((i >> 2) & 0x03) * 0x55;
+				fp[i * 2 + 0x0400 + 1] = ((i >> 2) & 0x03) * 0x55;
+				fp[i * 2 + 0x0600 + 0] = ((i >> 4) & 0x03) * 0x55;
+				fp[i * 2 + 0x0600 + 1] = ((i >> 4) & 0x03) * 0x55;
+			}
+			sgg_debug00(0, x2 * y2, 0, 0xe0000000, 0x01280008,
 				(const int) fp + 2048, 0x000c);
             lib_unmapmodule(0, 514 * 1024, fp);
-            send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-			   0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+		    lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
+		//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+		//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
         }
     }
+    lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
     job.now = 0;
     return;
 }
@@ -3754,7 +3910,7 @@ void job_savevram1(int flag, int dmy)
 void job_openwallpaper()
 /* 2002.05.27 川合 : 壁紙表示がトグルになるように変更 */
 {
-	if (wallpaper_exist == 0) {
+	if (wallpaper_exist == 0 && x2 * y2 <= WALLPAPERMAXSIZE) {
 		lib_initmodulehandle0(0x0008, 0x0200);
 		job.func = &job_loadwallpaper;
 		lib_steppath0(0, 0x0200, "OSASK   .BMP", 0x0050 /* sig */);
@@ -3771,27 +3927,31 @@ void job_loadwallpaper(int flag, int dmy)
 /* 2002.05.27 川合 : わずかに改良 */
 {
 	struct WM0_WINDOW *win;
-	int i;
+	int i, j, k;
 
 	wallpaper_exist = 0;
-	if (flag == 0) {	/* opening succeeded. */
+	if (flag == 0 && lib_readmodulesize(0x0200) <= 2048 * 1024) {	/* opening succeeded. */
 		char *fp = (char *)lib_readCSd(0x10);
-		for (i = 0; i < WALLPAPERMAXSIZE / 4; i++)
-			*((int *) wallpaper + i) = BACKCOLOR | BACKCOLOR << 8
-				| BACKCOLOR << 16 | BACKCOLOR << 24;	/* ゴミが出るので初期化しておく */
-		lib_mapmodule(0x0000, 0x0200, 0x5, 768*1024, fp, 0);
+		j = x2 * y2 / 4;
+		k = BACKCOLOR | BACKCOLOR << 8 | BACKCOLOR << 16 | BACKCOLOR << 24;
+		for (i = 0; i < j; i++)
+			*((int *) wallpaper + i) = k;	/* ゴミが出るので初期化しておく */
+		lib_mapmodule(0x0000, 0x0200, 0x5, 2048 * 1024, fp, 0);
 		wallpaper_exist = 
 			bmp2beta(fp, wallpaper, x2, y2, lib_readmodulesize(0x0200));
-		lib_unmapmodule(0, 768 * 1024, fp);
-		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
-			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
+		lib_unmapmodule(0, 2048 * 1024, fp);
+		lib_initmodulehandle0(0x0008, 0x0200);
+
+	//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
+	//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
 	}
 
 	/* 全ウィンドウ再描画 */
 	if (mx != 0x80000000) {
+		mxx = mx;
 		sgg_wm0_removemouse();
-	} else
-		mx = my = 1;
+		mx = 0x80000000;
+	}
 
 	init_screen(x2, y2);
 	if (win = top) {
@@ -3948,3 +4108,98 @@ struct WM0_WINDOW *searchwin(int x, int y)
 ret:
 	return win;
 }
+
+#if (defined(PCAT))
+
+void job_vesacheck0()
+{
+	job.func = &job_vesacheck1;
+	sgg_execcmd0(0x0090, 0, 0x4f00, 0, 0x3240 + 3, 0x7f000002, 0x0014, 0x0000);
+	return;
+}
+
+void job_vesacheck1(int sig, int result)
+{
+	int buf[256 / 4];
+	unsigned short *sp;
+	struct STR_VBEMODE *plist = vbelist;
+	if (flag_vbe2 == 0) {
+		vbelist[127].flag = 31;
+		if (result) {
+			flag_vbe2 = 0; /* VESAなし */
+			job_vesacheck2();
+			return;
+		}
+		sgg_execcmd0(0x0094, 1, 256, buf, 0x000c, 0x0000);
+	//	if (buf[0] == ('V' | 'E' << 8 | 'S' << 16 | 'A' << 24)) {
+	//		flag_vbe2 = 1;
+	//	}
+	//	if ((buf[0] & 0x00ffffff) == ('V' | 'B' << 8 | 'E' << 16)) {
+	//		flag_vbe2 = 2;
+	//	}
+		flag_vbe2 = (buf[1] >> 8) & 0xff;
+		vbelist[127].dummy = flag_vbe2;
+		for (sp = (unsigned short *) &buf[2]; *sp != 0xffff; sp++, plist++) {
+			plist->mode = *sp;
+			plist->flag = 0x7f;
+		}
+		plist->mode = 0;
+		if (vbelist[0].mode == 0) {
+			job_vesacheck2();
+			return;
+		}
+		sgg_execcmd0(0x0090, 0, 0x4f01, (int) (vbelist[0].mode), 0x3240 + 3, 0x7f000002, 0x0014, 0x0000);
+		return;
+	}
+	while (plist->flag != 0x7f)
+		plist++;
+	sgg_execcmd0(0x0094, 2, 256, buf, 0x000c, 0x0000);
+	plist->x_res = buf[2];
+	plist->y_res = buf[3];
+	plist->linebytes = buf[1];
+	plist->linear = buf[8];
+	if (flag_vbe2 <= 1 || (buf[0] & 0x80) == 0)
+		plist->linear = 0;
+	plist->flag = 0;
+	if ((buf[0] & 0x19) == 0x19) {
+		if (buf[4] == 8)
+			plist->flag = 16; /* unknowned direct-color 8bit */
+		if (buf[4] == 16)
+			plist->flag = 17; /* unknowned direct-color 16bit */
+		if (buf[4] == 24)
+			plist->flag = 18; /* unknowned direct-color 24bit */
+		if (buf[4] == 32)
+			plist->flag = 19; /* unknowned direct-color 32bit */
+		if (buf[2] >= 640 && buf[3] >= 480) { /* 小さすぎる画面はうっとうしいので排除 */
+			if (buf[5] == 4 && buf[4] == 8)
+				plist->flag = 1; /* 256 color */
+			if (buf[5] == 6) {
+				if (buf[4] == 16 && buf[6] == 0x05060b05 && buf[7] == 0x00000005)
+					plist->flag = 2; /* 16bit color */ 
+				if (buf[4] == 32 && buf[6] == 0x08081008 && buf[7] == 0x18080008)
+					plist->flag = 3; /* 24bit color */
+				if (buf[4] == 32 && buf[6] == 0x08081008 && buf[7] == 0x00000008)
+					plist->flag = 3; /* 24bit color */
+			}
+		}
+	}
+	plist->dummy = 0; /* Window */
+	if (plist->linear)
+		plist->dummy = 1; /* Linear */
+	plist++;
+	if (plist->flag == 0x7f) {
+		sgg_execcmd0(0x0090, 0, 0x4f01, (int) (plist->mode), 0x3240 + 3, 0x7f000002, 0x0014, 0x0000);
+		return;
+	}
+	job_vesacheck2();
+	return;
+}
+
+void job_vesacheck2()
+{
+	send_signal3dw(0x4243, 0x7f000002, 0x00be /* sig_vbelist */, (int) vbelist);
+	job.now = 0;
+	return;
+}
+
+#endif

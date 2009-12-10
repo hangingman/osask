@@ -80,6 +80,7 @@ enum {
 #define SIGNAL_FORMAT_COMPLETE                  0x00b8 /* フォーマット完了 */
 #define SIGNAL_WRITE_KERNEL_COMPLETE            0x00bc /* .EXE書き込み完了 */
 #define	SIGNAL_RESIZE_SUB0						0x00bd /* size == 0 からのリサイズ */
+#define SIGNAL_VBELIST							0x00be /* VESA情報アドレス通知(ATのみ, winman0から) */
 
 /* action signals */
 enum {
@@ -308,6 +309,9 @@ int poko_autodecomp(const char *cmdlin);
 int poko_sortmode(const char *cmdlin);
 int poko_exec(const char *cmdlin);
 int poko_kill(const char *cmdlin);
+int poko_vesalist(const char *cmdlin);
+int poko_setvesa(const char *cmdlin);
+int poko_detectpcivga(const char *cmdlin);
 
 /* */
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);

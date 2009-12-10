@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.3.2
+/* "pokon0.c":アプリケーションラウンチャー  ver.3.3
      copyright(C) 2003 小柳雅明, 川合秀実
-    stack:4k malloc:88k file:4069k */
+    stack:4k malloc:88k file:4096k */
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -10,9 +10,9 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon32"
+#define POKON_VERSION "pokon33"
 
-#define POKO_VERSION "Heppoko-shell \"poko\" version 2.2\n    Copyright (C) 2002 OSASK Project\n"
+#define POKO_VERSION "Heppoko-shell \"poko\" version 2.4\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
 
 #define	FILEAREA		(4 * 1024 * 1024)
@@ -48,16 +48,26 @@ struct STR_BANK *banklist;
 struct SGG_FILELIST *file;
 struct FILEBUF *filebuf;
 static int defaultIL = 2;
-struct FILESELWIN *selwin0;
-unsigned char *pselwincount;
-struct VIRTUAL_MODULE_REFERENCE *vmref0;
-int need_wb, readCSd10;
-int sort_mode = DEFAULT_SORT_MODE;
-signed char *pfmode;
-signed char auto_decomp = 1;
+static struct FILESELWIN *selwin0;
+static unsigned char *pselwincount;
+static struct VIRTUAL_MODULE_REFERENCE *vmref0;
+static int need_wb, readCSd10;
+static int sort_mode = DEFAULT_SORT_MODE;
+static signed char *pfmode;
+static signed char auto_decomp = 1;
 
 //static struct STR_CONSOLE console = { -1, 0, 0, NULL, NULL, NULL, NULL, 0, 0, 0 };
 static struct STR_CONSOLE *console;
+
+#if (defined(PCAT))
+	#define	LASTPCIBUS	255
+	struct STR_VBEMODE { /* 16bytes */
+		unsigned int linear, linebytes;
+		unsigned short x_res, y_res, mode;
+		unsigned char flag, dummy;
+	};
+	static struct STR_VBEMODE vbebuf[128];
+#endif
 
 int writejob_np(int n, int *p)
 {
@@ -1179,12 +1189,13 @@ void OsaskMain()
 		freefiles:
 //lib_putstring_ASCII(0x0000, 0, 0, &win[0].subtitle.tbox, 0, 0, "debug!(2)");
 				for (i = 0; i < MAX_VMREF; i++, vmref++) {
-					if (tss == vmref->task) {
+					if ((tss & ~0xfff) == vmref->task) {
 						struct VIRTUAL_MODULE_REFERENCE *vmr1;
+						if ((tss & 0xfff) != 0 && (tss & 0xfff) != vmref->slot)
+							continue;
 						unlinkfbuf(vmref->fbuf);
 						vmref->task = 0;
 						vmr1 = vmref0;
-
 						for (j = 0; j < MAX_VMREF; j++, vmr1++) {
 							if (vmr1->task == 0)
 								continue;
@@ -1394,6 +1405,15 @@ write_exe:
 				putselector0(win, 5, " Hit Ctrl+R key.");
 				fmode = STATUS_WRITE_KERNEL_COMPLETE;
 				goto job_end;
+
+				#if (defined(PCAT))
+			case SIGNAL_VBELIST:
+					siglen++; /* siglen = 2; */
+					sgg_debug00(0, sizeof vbebuf, 0, sbp[1],
+						0x000c | (0x3000 << 8) + 0xf80000, (const int) vbebuf, 0x000c);
+					break;
+				#endif
+
 			}
 		} else if (COMMAND_SIGNAL_START <= sig && sig < COMMAND_SIGNAL_END + 1) {
 			/* selwin[0]に対する特別コマンド */
@@ -1589,6 +1609,11 @@ write_exe:
 							poko_autodecomp,	"autodecomp", 10, 1,
 							poko_sortmode,		"sortmode", 8, 1,
 							poko_kill,			"kill", 4, 1,
+							#if (defined(PCAT))
+								poko_vesalist,		"vesalist", 8, 1,
+								poko_setvesa,		"setvesa", 7, 1,
+								poko_detectpcivga,	"detectpcivga", 12, 2,
+							#endif
 							poko_exec,			"exec", 4, 1,
 #if defined(DEBUG)
 							poko_debug,			"debug", 5, 1,
@@ -2647,6 +2672,212 @@ find:
 	sgg_execcmd0(0x0020, 0x80000000 + 3, task | 0x0242, 0x0020, 0, 0x0000);
 	return 1;
 }
+
+#if (defined(PCAT))
+
+void sethex4(char *s, int i)
+{
+	int j = 3;
+	i &= 0xffff;
+	s[0] = s[1] = s[2] = ' ';
+	do {
+		s[j] = "0123456789ABCDEF"[i & 0x0f];
+		j--;
+	} while (i >>= 4);
+	return;
+}
+
+void setdec4(char *s, int i)
+{
+	int j = 3;
+	if (i > 9999)
+		i = 9999;
+	s[0] = s[1] = s[2] = ' ';
+	do {
+		s[j] = (i % 10) + '0';
+		j--;
+	} while (i /= 10);
+	return;
+}
+
+int poko_vesalist(const char *cmdlin)
+{
+	int i;
+	unsigned char c0, c1;
+	struct STR_VBEMODE *lp;
+	static char foundmsg[] = "\nVESA-  BIOS is found.\n";
+	static char msg[] = "    .     x         ";
+	lp = vbebuf;
+	if (*cmdlin == '\0')
+		goto error;
+	i = cons_getdec_skpspc(&cmdlin);
+	if (i < 0)
+		goto error;
+	if (i > 3)
+		goto error;
+	if (vbebuf[127].flag == 0) {
+		consoleout("\nVESA-info isn't got yet.");
+		return 1;
+	}
+	if (vbebuf[127].dummy == 0) {
+		consoleout("\nVESA BIOS is not found.");
+		return 1;
+	}
+	foundmsg[6] = '0' + vbebuf[127].dummy;
+	consoleout(foundmsg);
+	c0 = c1 = i;
+	if (i == 0) {
+		c0 = 16;
+		c1 = 19;
+	}
+	i = 0;
+	while (lp->mode) {
+		if (c0 <= lp->flag && lp->flag <= c1) {
+			sethex4(&msg[ 0], lp->mode);
+			setdec4(&msg[ 6], lp->x_res);
+			setdec4(&msg[11], lp->y_res);
+			msg[16] = 'W';
+			if (lp->dummy)
+				msg[16] = 'L';
+			msg[17] = '1' - 16 + lp->flag;
+			if (c0 == c1)
+				msg[17] = ' ';
+			consoleout(msg);
+			if (i & 1)
+				consoleout("\n");
+			i++;
+		}
+		lp++;
+	}
+	if (i == 0)
+		consoleout(" - none -\n");
+	return i & 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+
+int poko_setvesa(const char *cmdlin)
+{
+	int i, j;
+	struct STR_VBEMODE *lp;
+	if (*cmdlin == '\0')
+		goto error;
+	i = cons_getdec_skpspc(&cmdlin);
+//	if (i != 3 && i != 4 && i != 0)
+//		goto error;
+	if (*cmdlin == '\0')
+		goto error;
+	j = cons_getdec_skpspc(&cmdlin);
+	if (vbebuf[127].flag == 0) {
+		consoleout("\nVESA-info isn't got yet.");
+		return 1;
+	}
+	if (vbebuf[127].dummy == 0) {
+		consoleout("\nVESA BIOS is not found.");
+		return 1;
+	}
+	for (lp = vbebuf; lp->mode != 0; lp++) {
+		if (lp->mode == (j & 0x3fff)) {
+			if (lp->dummy)
+				j |= 0x4000;
+			sgg_execcmd0(0x0020, 0x80000000 + 5, 0x3244, 0x7f000003, 0x0210, i, j, 0x0000);
+			return 1;
+		}
+	}
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+
+int poko_detectpcivga(const char *cmdlin)
+{
+	unsigned int bus, dev, fnc, buf[16], i, c = 0, j, port[32], vram[32], size[32];
+	char s[30];
+	for (bus = 0; bus <= LASTPCIBUS; bus++) {
+		for (dev = 0; dev < 32; dev++) {
+			for (fnc = 0; fnc < 8; fnc++) {
+				sgg_execcmd0(0x0098, 0, bus << 16 | dev << 11 | fnc << 8, buf, 0x000c, 0x0000);
+				if (*buf != 0xffffffff) {
+					if (((buf[1] >> 24) & 0xff) == 0x03) {
+						sgg_execcmd0(0x0098, 1, bus << 16 | dev << 11 | fnc << 8, buf, 0x000c, 0x0000);
+						for (i = 0; i < 6; i++) {
+							if ((buf[i * 2 + 1] & 0xfffffffc) == 0)
+								continue; /* none */
+							if (buf[i * 2 + 1] & 0x01)
+								continue; /* I/O */
+							buf[i * 2 + 1] &= ~0x0f;
+							if ((size[c] = - buf[i * 2 + 1]) >= 128 * 1024) {
+								port[c] = bus << 16 | dev << 11 | fnc << 8 | i;
+								vram[c] = buf[i * 2] & ~0x0f;
+								c++;
+								if (c >= 32)
+									goto skip;
+							}
+						}
+					}
+					if (fnc == 0 && (buf[2] & 0x00800000) == 0)
+						break;
+				} else {
+					if (fnc == 0)
+						break;
+				}
+			}
+		}
+	}
+skip:
+	if (*cmdlin == '\0') {
+		for (i = 0; i < c; i++) {
+			bus = (port[i] >> 16) & 0xff;
+			dev = (port[i] >> 11) & 0x1f;
+			j = size[i];
+			s[0] = '\n';
+			setdec4(&s[ 1], i);
+			s[ 5] = '.';
+			setdec4(&s[ 6], bus);
+			s[10] = ':';
+			s[11] = (dev / 10) + '0';
+			s[12] = (dev % 10) + '0';
+			s[13] = ':';
+			s[14] = ((port[i] >> 8) & 0x07) + '0';
+			s[15] = ':';
+			s[16] = (port[i] & 0x07) + '0';
+			s[17] = '(';
+			j >>= 10;
+			s[22] = 'K';
+			if (j > 1024) {
+				j >>= 10;
+				s[22] = 'M';
+			}
+			setdec4(&s[18], j);
+			s[23] = 'B';
+			s[24] = ')';
+			s[25] = '\0';
+			consoleout(s);
+		}
+		if (c == 0)
+			consoleout("\n - none -");
+		return 1;
+	}
+	/* 系列ごとに番号を指定できる */
+	/* 8bit系列、16bit系列、32bit系列 */
+	i = cons_getdec_skpspc(&cmdlin);
+	if (i < 0)
+		goto error;
+	if (i > 3)
+		goto error;
+	if (*cmdlin == '\0')
+		goto error;
+	j = cons_getdec_skpspc(&cmdlin);
+	if (j >= c)
+		goto error;
+	sgg_execcmd0(0x0020, 0x80000000 + 5, 0x3244, 0x7f000003, 0x0211, i, vram[j], 0x0000);
+	return 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+
+#endif
 
 int poko_exec(const char *cmdlin)
 {
