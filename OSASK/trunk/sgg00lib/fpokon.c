@@ -132,6 +132,9 @@ void sgg_freememory(const int mdl_ent)
 
 void sgg_format(const int sub_cmd, const int sig)
 {
+	sgg_execcmd0(0x0020, 0x80000000 + 6, 0x1245, sub_cmd, 0, 0x4242 /* to pokon0 */, 0x7f000001, sig, 0x0000);
+
+#if 0
 	static struct {
 		int cmd, opt, data[6];
 		int eoc;
@@ -145,9 +148,12 @@ void sgg_format(const int sub_cmd, const int sig)
 	command.data[5] = sig;
 
 	sgg_execcmd(&command);
+#endif
+
 	return;
 }
 
+#if 0
 void sgg_wm0s_sendto1_winmam0(const int signal)
 {
 	static struct {
@@ -160,9 +166,13 @@ void sgg_wm0s_sendto1_winmam0(const int signal)
 	sgg_execcmd(&command);
 	return;
 }
+#endif
 
 void sgg_wm0s_sendto2_winman0(const int signal, const int param)
 {
+	sgg_execcmd0(0x0020, 0x80000000 + 4, 0x3240 + 3, 0x7f000002, signal, param, 0x0000);
+
+#if 0
 	static struct {
 		int cmd, opt;
 		int data[4];
@@ -172,5 +182,7 @@ void sgg_wm0s_sendto2_winman0(const int signal, const int param)
 	command.data[3] = param;
 
 	sgg_execcmd(&command);
+#endif
+
 	return;
 }

@@ -33,12 +33,12 @@ LIBS = guigui00.lib stdlib.lib $(SYSGGLIB)
 
 ALL :
 	for %%i in ($(SUBDIRS)) do $(MAKE) -C %%i
-	make $(TARGET)
+	$(MAKE) $(TARGET)
 
 $(TARGET) : $(OSALINK_OPT) $(OBJS)
 	$(OSALINK)
 
-$(OSALINK_OPT) : Makefile
+$(OSALINK_OPT) : makefile
 	echo on > $(OSALINK_OPT)
 	for %%i in ($(OBJS)) do echo %%i >> $(OSALINK_OPT)
 
@@ -48,20 +48,20 @@ $(ANKFONT) :
 
 pcat : FORCE
 	echo ARCH = pcat> depend.mak
-	make
+	$(MAKE)
 
 vmware : FORCE
 	echo ARCH = pcat> depend.mak
 	echo VMWARE = y>> depend.mak
-	make
+	$(MAKE)
 
 towns : FORCE 
 	echo ARCH = towns> depend.mak
-	make
+	$(MAKE)
 
 FORCE:
 
-%.bin : %.ask Makefile depend.mak
+%.bin : %.ask makefile depend.mak
 	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<
 	$(ASKA) $*.i $*.3as
 	$(MASMCNV) $(MASMCNV_FLAGS) $*.3as $*.asm
@@ -69,21 +69,21 @@ FORCE:
 	$(LINK) $*,$*,$*,nul,nul
 	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
 
-%.obj : %.c Makefile depend.mak
+%.obj : %.c makefile depend.mak
 	$(CC) $< $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC)
 
 pokon0.bim : pokon0.obj
 	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
 
-pokon0.bin : pokon0.bim Makefile
+pokon0.bin : pokon0.bim makefile
 	$(BIM2BIN) malloc:72k file:0 input:$< output:$@
 
 winman0.bim : winman0.obj
 	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
 
-winman0.bin : winman0.bim Makefile
+winman0.bin : winman0.bim makefile
 	$(BIM2BIN) malloc:92k file:0 input:$< output:$@
 
 clean:

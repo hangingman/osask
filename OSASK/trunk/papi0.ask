@@ -1,4 +1,4 @@
-/* "papi0.ask" ver.0.1 copyright(C) 2001 H.Kawai(川合秀実) */
+/* "papi0.ask" ver.0.2 copyright(C) 2001 H.Kawai(川合秀実) */
 /* 64bitタイプ */
 
 segment PapiMdl(USE32, PARA);
@@ -377,18 +377,20 @@ cmd0118:
 	EDX = cmd[28];
 	SHRD(EAX, EDX, 12);
 	EAX++;
-	LEA(ESI, (int) work->addr64_addrp);
+	LEA(ESI, (int) [work->addr64_addrp]);
 	PUSH(ECX);
 	PUSH(EAX);
 	do {
 		AAC_convert();
 		if (CF == 0) {
+			PUSH(ECX);
 			PUSH(EAX);
 			EDX *= 4096;
 			ECX = 4096;
 			EAX = EDX;
 			free_memory();
 			POP(EAX);
+			POP(ECX);
 		}
 		EAX++;
 		ECX--;
@@ -486,9 +488,10 @@ void near mapping1p()
 //	ESI = [DS:EDX * 4];
 	asmout("MOV ESI,DWORD PTR DS:[EDX*4]");
 	pteofs /= 1024;
-	ESI += pteofs;
+//	ESI += pteofs;
 	POP(linear);
-	[DS:ESI] = EAX;
+//	[DS:ESI] = EAX;
+	[DS:ESI + EDI] = EAX;
 	POP(ESI);
 	POP(EDI);
 	return;
@@ -1230,18 +1233,23 @@ void far PageFaultHandler()
 		/* ページ不在 */
 		EAX = CR2;
 		(unsigned int) EAX >>= 12;
-		EAX++;
 		LEA(ESI, (int) [work->linear_addr64]);
+		EAX++;
 		AAC_convert();
-		if (CF == 1)
+		if (CF == 1) {
+			EAX = CR2;
+			ECX = [SS:ESP + 40]; /* EIP */
+			EDX = [SS:ESP + 44]; /* CS */
 			INT(0x03); /* mapしてないのに参照された */
+		}
 		LEA(EAX, [EDX + 1]);
 		LEA(ESI, (int) [work->addr64_addrp]);
-		PUSH(EAX);
 		AAC_convert();
 		if (CF == 1) {
 			/* 新規ページだと強引に仮定 */
+			PUSH(EAX);
 			ECX = 4096;
+			PUSH(ESI);
 			/* ESI = (offset) work->mem32_man; */ LEA(ESI, (int) work->mem32_man);
 			get_area();
 			if (ZF == 1) {
@@ -1254,16 +1262,19 @@ void far PageFaultHandler()
 						INT(0x03);
 				}
 			}
+		//	LEA(ESI, (int) [work->addr64_addrp]);
+			POP(ESI);
 			EDX = EAX;
-			LEA(ESI, (int) [work->addr64_addrp]);
-			EAX = [SS:ESP]; /* index(addr64 + 1) */
-			ECX = 1;
+			ECX = 0;
+		//	EAX = [SS:ESP]; /* index(addr64 + 1) */
+			POP(EAX);
+		//	ECX = 1;
+			ECX++;
 			(unsigned int) EDX >>= 12;
 			AAC_regist();
 		}
 		/* 物理アドレス:EDX */
 		EDX <<= 12;
-		POP(ECX);
 		EAX = pdepte_sel;
 		DS = AX;
 		LEA(EAX, [EDX + 0x007]);

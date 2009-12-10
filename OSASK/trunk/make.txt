@@ -29,5 +29,5 @@ make towns
 ンを付けて make -i clean あるいはmake -i dist_clean して下さい。
 
 ◎著作権
-  Makefile の著作権は、小柳 雅明にあり、川合堂ライセンス-01を適用しま
+  makefile の著作権は、小柳 雅明にあり、川合堂ライセンス-01を適用しま
 す。

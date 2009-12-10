@@ -21,7 +21,7 @@ ALL : $(OBJS)
 #	for %%i in ($(SUBDIRS)) do $(MAKE) -C %%i
 #	make $(TARGET)
 
-%.bin : %.ask Makefile ..\depend.mak
+%.bin : %.ask makefile ..\depend.mak
 	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<
 	$(ASKA) $*.i $*.3as
 	$(MASMCNV) $(MASMCNV_FLAGS) $*.3as $*.asm
@@ -30,7 +30,7 @@ ALL : $(OBJS)
 	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
 	copy $@ ..
 
-%.exe : %.c Makefile ..\depend.mak
+%.exe : %.c makefile ..\depend.mak
 	$(CC) $< $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC)
 	$(LINK32) $(LINK32_FLAGS) /LIBPATH:$(LIBPATH) $*.obj $(LIBS)
 	copy $@ ..

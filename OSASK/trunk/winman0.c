@@ -1,6 +1,6 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.1
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.2
 		copyright(C) 2001 川合秀実
-	exe2bin2 winman0 -s 96k	-d */
+    stack:4k malloc:92k file:0 */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -22,7 +22,7 @@
 #define	WINFLG_WAITREDRAW		0x00000200	/* bit 9 */
 #define	WINFLG_WAITDISABLE		0x00000100	/* bit 8 */
 
-#define	DEBUG	1
+//	#define	DEBUG	1
 
 struct DEFINESIGNAL { // 32bytes
 	int win, opt, dev, cod, len, sig[3];
@@ -90,7 +90,7 @@ void sgg_wm0_definesignal3(const int opt, const int device, int keycode,
 	const int sig0, const int sig1, const int sig2);
 void sgg_wm0_definesignal3sub(const int keycode);
 void sgg_wm0_definesignal3sub2(const int rawcode, const int shiftmap);
-void sgg_wm0_definesignal3sub3(const int rawcode, const int shiftmap);
+void sgg_wm0_definesignal3sub3(int rawcode, const int shiftmap);
 void sgg_wm0_definesignal3com();
 
 
@@ -173,14 +173,25 @@ void main()
 
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 4) {
-				// 空きが十分にある
-				writejob(0x0030 /* open VGA driver */);
-				writejob(0x0000);
-				writejob(0x0034 /* change VGA mode */);
-				writejob(0x0012);
-				*jobwp = 0; /* ストッパー */
-				if (jobnow == 0)
-					runjobnext();
+				/* 空きが十分にある */
+				#if (defined(PCAT))
+					writejob(0x0030 /* open VGA driver */);
+					writejob(0x0000);
+					writejob(0x0034 /* change VGA mode */);
+					writejob(0x0012);
+					*jobwp = 0; /* ストッパー */
+					if (jobnow == 0)
+						runjobnext();
+				#endif
+				#if (defined(TOWNS))
+					writejob(0x0030 /* open VGA driver */);
+					writejob(0x0000);
+					writejob(0x0034 /* change VGA mode */);
+					writejob(0x0000);
+					*jobwp = 0; /* ストッパー */
+					if (jobnow == 0)
+						runjobnext();
+				#endif
 			}
 			break;
 
@@ -406,11 +417,20 @@ void main()
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				/* 空きが十分にある */
-				writejob(0x0034 /* change VGA mode */);
-				writejob(0x0012);
-				*jobwp = 0; /* ストッパー */
-				if (jobnow == 0)
-					runjobnext();
+				#if (defined(PCAT))
+					writejob(0x0034 /* change VGA mode */);
+					writejob(0x0012);
+					*jobwp = 0; /* ストッパー */
+					if (jobnow == 0)
+						runjobnext();
+				#endif
+				#if (defined(TOWNS))
+					writejob(0x0034 /* change VGA mode */);
+					writejob(0x0000);
+					*jobwp = 0; /* ストッパー */
+					if (jobnow == 0)
+						runjobnext();
+				#endif
 			}
 			break;
 
@@ -421,11 +441,20 @@ void main()
 			/* ジョブリストにこの要求を入れる */
 			if (jobfree >= 2) {
 				/* 空きが十分にある */
-				writejob(0x0034 /* change VGA mode */);
-				writejob(0x0102);
-				*jobwp = 0; /* ストッパー */
-				if (jobnow == 0)
-					runjobnext();
+				#if (defined(PCAT))
+					writejob(0x0034 /* change VGA mode */);
+					writejob(0x0102);
+					*jobwp = 0; /* ストッパー */
+					if (jobnow == 0)
+						runjobnext();
+				#endif
+				#if (defined(TOWNS))
+					writejob(0x0034 /* change VGA mode */);
+					writejob(0x0001);
+					*jobwp = 0; /* ストッパー */
+					if (jobnow == 0)
+						runjobnext();
+				#endif
 			}
 			break;
 
@@ -1429,10 +1458,23 @@ void job_setvgamode1(const int cmd, const int handle)
 void job_setvgamode2()
 {
 	#if (defined(TOWNS))
-		x2 = 640;
-		y2 = 480;
-		sgg_wm0_gapicmd_001c_0020(); // 画面モード設定(640x480)
-		sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
+		int mode = job_int0;
+		switch (mode) {
+		case 0x0000:
+			x2 = 640;
+			y2 = 480;
+			/* 画面モード0設定(640x480) */
+			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, 0, 0x0000, 0x0000);
+			break;
+
+		case 0x0001:
+			x2 = 768;
+			y2 = 512;
+			/* 画面モード1設定(768x512) */
+			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, 1, 0x0000, 0x0000);
+
+		}
+		sgg_wm0_gapicmd_001c_0004(); /* ハードウェア初期化 */
 		init_screen(x2, y2);
 		job_general1();
 		return;
@@ -1440,8 +1482,8 @@ void job_setvgamode2()
 
 	#if (defined(PCAT))
 		if (fromboot & 0x0001) {
-			// 普通の方法が使えない
-			// (仮想86モードでのVGAモード切り換えがうまく行かない)
+			/* 普通の方法が使えない */
+			/* (仮想86モードでのVGAモード切り換えがうまく行かない) */
 			x2 = 640;
 			y2 = 480;
 			sgg_wm0_gapicmd_001c_0020(); // 画面モード設定(640x480)
@@ -1469,6 +1511,8 @@ void job_setvgamode2()
 	#endif
 }
 
+#if (defined(PCAT))
+
 void job_setvgamode3(const int sig, const int result)
 {
 	// 0x0014しかこない
@@ -1486,6 +1530,8 @@ void job_setvgamode3(const int sig, const int result)
 	sgg_wm0_setvideomode(0x0012 /* VGA */, 0x0014);
 	return;
 }
+
+#endif
 
 #if (defined(DEBUG))
 
@@ -1607,6 +1653,7 @@ void sgg_wm0_definesignal3sub(const int keycode)
 	#define	CAPLKOF		4	/* 0x0000c074, 0x0014c074 */
 	#define	NUMLKON		5	/* 0x0002c072, 0x0010c072 */
 	#define	NUMLKOF		6	/* 0x0000c072, 0x0012c072 */
+	#define ALT			7   /* 0x0040c070 */
 	static struct {
 		int type0, type1;
 	} shifttype[] = {
@@ -1616,7 +1663,8 @@ void sgg_wm0_definesignal3sub(const int keycode)
 		{ 0x0004c074, 0x0010c074 },
 		{ 0x0000c074, 0x0014c074 },
 		{ 0x0002c072, 0x0010c072 },
-		{ 0x0000c072, 0x0012c072 }
+		{ 0x0000c072, 0x0012c072 },
+		{ 0x0040c070, 0 }
 	};
 	/* 入力方法テーブル(2通りまでサポート) */
 	static struct KEYTABLE {
@@ -1624,19 +1672,19 @@ void sgg_wm0_definesignal3sub(const int keycode)
 		unsigned char rawcode1, shifttype1;
 	} table[] = {
 		#if (defined(PCAT))
-			{ 0x39, NOSHIFT, 0xff, 0       } /* ' ' */,
-			{ 0x02, SHIFT,   0xff, 0       } /* '!' */,
-			{ 0x03, SHIFT,   0xff, 0       } /* '\x22' */,
-			{ 0x04, SHIFT,   0xff, 0       } /* '#' */,
-			{ 0x05, SHIFT,   0xff, 0       } /* '%' */,
-			{ 0x06, SHIFT,   0xff, 0       } /* '$' */,
-			{ 0x07, SHIFT,   0xff, 0       } /* '&' */,
-			{ 0x08, SHIFT,   0xff, 0       } /* '\x27' */,
-			{ 0x09, SHIFT,   0xff, 0       } /* '(' */,
-			{ 0x0a, SHIFT,   0xff, 0       } /* ')' */,
+			{ 0x39, NOSHIFT, 0xff, 0xff    } /* ' ' */,
+			{ 0x02, SHIFT,   0xff, 0xff    } /* '!' */,
+			{ 0x03, SHIFT,   0xff, 0xff    } /* '\x22' */,
+			{ 0x04, SHIFT,   0xff, 0xff    } /* '#' */,
+			{ 0x05, SHIFT,   0xff, 0xff    } /* '%' */,
+			{ 0x06, SHIFT,   0xff, 0xff    } /* '$' */,
+			{ 0x07, SHIFT,   0xff, 0xff    } /* '&' */,
+			{ 0x08, SHIFT,   0xff, 0xff    } /* '\x27' */,
+			{ 0x09, SHIFT,   0xff, 0xff    } /* '(' */,
+			{ 0x0a, SHIFT,   0xff, 0xff    } /* ')' */,
 			{ 0x28, SHIFT,   0x37, IGSHIFT } /* '*' */,
 			{ 0x27, SHIFT,   0x4e, IGSHIFT } /* '+' */,
-			{ 0x33, NOSHIFT, 0xff, 0       } /* ',' */,
+			{ 0x33, NOSHIFT, 0xff, 0xff    } /* ',' */,
 			{ 0x0c, NOSHIFT, 0x4a, IGSHIFT } /* '-' */,
 			{ 0x34, NOSHIFT, 0x53, NUMLKON } /* '.' */,
 			{ 0x35, NOSHIFT, 0xb5, IGSHIFT } /* '/' */,
@@ -1650,175 +1698,219 @@ void sgg_wm0_definesignal3sub(const int keycode)
 			{ 0x08, NOSHIFT, 0x47, NUMLKON } /* '7' */,
 			{ 0x09, NOSHIFT, 0x48, NUMLKON } /* '8' */,
 			{ 0x0a, NOSHIFT, 0x49, NUMLKON } /* '9' */,
-			{ 0x28, NOSHIFT, 0xff, 0       } /* ':' */,
-			{ 0x27, NOSHIFT, 0xff, 0       } /* ';' */,
-			{ 0x33, SHIFT,   0xff, 0       } /* '<' */,
-			{ 0x0c, SHIFT,   0xff, 0       } /* '=' */,
-			{ 0x34, SHIFT,   0xff, 0       } /* '>' */,
-			{ 0x35, SHIFT,   0xff, 0       } /* '?' */,
-			{ 0x1a, NOSHIFT, 0xff, 0       } /* '@' */,
-			{ 0x1e, CAPLKON, 0xff, 0       } /* 'A' */,
-			{ 0x30, CAPLKON, 0xff, 0       } /* 'B' */,
-			{ 0x2e, CAPLKON, 0xff, 0       } /* 'C' */,
-			{ 0x20, CAPLKON, 0xff, 0       } /* 'D' */,
-			{ 0x12, CAPLKON, 0xff, 0       } /* 'E' */,
-			{ 0x21, CAPLKON, 0xff, 0       } /* 'F' */,
-			{ 0x22, CAPLKON, 0xff, 0       } /* 'G' */,
-			{ 0x23, CAPLKON, 0xff, 0       } /* 'H' */,
-			{ 0x17, CAPLKON, 0xff, 0       } /* 'I' */,
-			{ 0x24, CAPLKON, 0xff, 0       } /* 'J' */,
-			{ 0x25, CAPLKON, 0xff, 0       } /* 'K' */,
-			{ 0x26, CAPLKON, 0xff, 0       } /* 'L' */,
-			{ 0x32, CAPLKON, 0xff, 0       } /* 'M' */,
-			{ 0x31, CAPLKON, 0xff, 0       } /* 'N' */,
-			{ 0x18, CAPLKON, 0xff, 0       } /* 'O' */,
-			{ 0x19, CAPLKON, 0xff, 0       } /* 'P' */,
-			{ 0x10, CAPLKON, 0xff, 0       } /* 'Q' */,
-			{ 0x13, CAPLKON, 0xff, 0       } /* 'R' */,
-			{ 0x1f, CAPLKON, 0xff, 0       } /* 'S' */,
-			{ 0x14, CAPLKON, 0xff, 0       } /* 'T' */,
-			{ 0x16, CAPLKON, 0xff, 0       } /* 'U' */,
-			{ 0x2f, CAPLKON, 0xff, 0       } /* 'V' */,
-			{ 0x11, CAPLKON, 0xff, 0       } /* 'W' */,
-			{ 0x2d, CAPLKON, 0xff, 0       } /* 'X' */,
-			{ 0x15, CAPLKON, 0xff, 0       } /* 'Y' */,
-			{ 0x2c, CAPLKON, 0xff, 0       } /* 'Z' */,
-			{ 0x1b, NOSHIFT, 0xff, 0       } /* '[' */,
+			{ 0x28, NOSHIFT, 0xff, 0xff    } /* ':' */,
+			{ 0x27, NOSHIFT, 0xff, 0xff    } /* ';' */,
+			{ 0x33, SHIFT,   0xff, 0xff    } /* '<' */,
+			{ 0x0c, SHIFT,   0xff, 0xff    } /* '=' */,
+			{ 0x34, SHIFT,   0xff, 0xff    } /* '>' */,
+			{ 0x35, SHIFT,   0xff, 0xff    } /* '?' */,
+			{ 0x1a, NOSHIFT, 0xff, 0xff    } /* '@' */,
+			{ 0x1e, CAPLKON, 0xff, 0xff    } /* 'A' */,
+			{ 0x30, CAPLKON, 0xff, 0xff    } /* 'B' */,
+			{ 0x2e, CAPLKON, 0xff, 0xff    } /* 'C' */,
+			{ 0x20, CAPLKON, 0xff, 0xff    } /* 'D' */,
+			{ 0x12, CAPLKON, 0xff, 0xff    } /* 'E' */,
+			{ 0x21, CAPLKON, 0xff, 0xff    } /* 'F' */,
+			{ 0x22, CAPLKON, 0xff, 0xff    } /* 'G' */,
+			{ 0x23, CAPLKON, 0xff, 0xff    } /* 'H' */,
+			{ 0x17, CAPLKON, 0xff, 0xff    } /* 'I' */,
+			{ 0x24, CAPLKON, 0xff, 0xff    } /* 'J' */,
+			{ 0x25, CAPLKON, 0xff, 0xff    } /* 'K' */,
+			{ 0x26, CAPLKON, 0xff, 0xff    } /* 'L' */,
+			{ 0x32, CAPLKON, 0xff, 0xff    } /* 'M' */,
+			{ 0x31, CAPLKON, 0xff, 0xff    } /* 'N' */,
+			{ 0x18, CAPLKON, 0xff, 0xff    } /* 'O' */,
+			{ 0x19, CAPLKON, 0xff, 0xff    } /* 'P' */,
+			{ 0x10, CAPLKON, 0xff, 0xff    } /* 'Q' */,
+			{ 0x13, CAPLKON, 0xff, 0xff    } /* 'R' */,
+			{ 0x1f, CAPLKON, 0xff, 0xff    } /* 'S' */,
+			{ 0x14, CAPLKON, 0xff, 0xff    } /* 'T' */,
+			{ 0x16, CAPLKON, 0xff, 0xff    } /* 'U' */,
+			{ 0x2f, CAPLKON, 0xff, 0xff    } /* 'V' */,
+			{ 0x11, CAPLKON, 0xff, 0xff    } /* 'W' */,
+			{ 0x2d, CAPLKON, 0xff, 0xff    } /* 'X' */,
+			{ 0x15, CAPLKON, 0xff, 0xff    } /* 'Y' */,
+			{ 0x2c, CAPLKON, 0xff, 0xff    } /* 'Z' */,
+			{ 0x1b, NOSHIFT, 0xff, 0xff    } /* '[' */,
 			{ 0x7d, NOSHIFT, 0x73, NOSHIFT } /* '\' */,
-			{ 0x2b, NOSHIFT, 0xff, 0       } /* ']' */,
-			{ 0x0d, NOSHIFT, 0xff, 0       } /* '^' */,
-			{ 0x73, SHIFT,   0xff, 0       } /* '_' */,
-			{ 0x1a, SHIFT,   0xff, 0       } /* '`' */,
-			{ 0x1e, CAPLKOF, 0xff, 0       } /* 'a' */,
-			{ 0x30, CAPLKOF, 0xff, 0       } /* 'b' */,
-			{ 0x2e, CAPLKOF, 0xff, 0       } /* 'c' */,
-			{ 0x20, CAPLKOF, 0xff, 0       } /* 'd' */,
-			{ 0x12, CAPLKOF, 0xff, 0       } /* 'e' */,
-			{ 0x21, CAPLKOF, 0xff, 0       } /* 'f' */,
-			{ 0x22, CAPLKOF, 0xff, 0       } /* 'g' */,
-			{ 0x23, CAPLKOF, 0xff, 0       } /* 'h' */,
-			{ 0x17, CAPLKOF, 0xff, 0       } /* 'i' */,
-			{ 0x24, CAPLKOF, 0xff, 0       } /* 'j' */,
-			{ 0x25, CAPLKOF, 0xff, 0       } /* 'k' */,
-			{ 0x26, CAPLKOF, 0xff, 0       } /* 'l' */,
-			{ 0x32, CAPLKOF, 0xff, 0       } /* 'm' */,
-			{ 0x31, CAPLKOF, 0xff, 0       } /* 'n' */,
-			{ 0x18, CAPLKOF, 0xff, 0       } /* 'o' */,
-			{ 0x19, CAPLKOF, 0xff, 0       } /* 'p' */,
-			{ 0x10, CAPLKOF, 0xff, 0       } /* 'q' */,
-			{ 0x13, CAPLKOF, 0xff, 0       } /* 'r' */,
-			{ 0x1f, CAPLKOF, 0xff, 0       } /* 's' */,
-			{ 0x14, CAPLKOF, 0xff, 0       } /* 't' */,
-			{ 0x16, CAPLKOF, 0xff, 0       } /* 'u' */,
-			{ 0x2f, CAPLKOF, 0xff, 0       } /* 'v' */,
-			{ 0x11, CAPLKOF, 0xff, 0       } /* 'w' */,
-			{ 0x2d, CAPLKOF, 0xff, 0       } /* 'x' */,
-			{ 0x15, CAPLKOF, 0xff, 0       } /* 'y' */,
-			{ 0x2c, CAPLKOF, 0xff, 0       } /* 'z' */,
-			{ 0x1b, SHIFT,   0xff, 0       } /* '{' */,
-			{ 0x7d, SHIFT,   0xff, 0       } /* '|' */,
-			{ 0x2b, SHIFT,   0xff, 0       } /* '}' */,
+			{ 0x2b, NOSHIFT, 0xff, 0xff    } /* ']' */,
+			{ 0x0d, NOSHIFT, 0xff, 0xff    } /* '^' */,
+			{ 0x73, SHIFT,   0xff, 0xff    } /* '_' */,
+			{ 0x1a, SHIFT,   0xff, 0xff    } /* '`' */,
+			{ 0x1e, CAPLKOF, 0xff, 0xff    } /* 'a' */,
+			{ 0x30, CAPLKOF, 0xff, 0xff    } /* 'b' */,
+			{ 0x2e, CAPLKOF, 0xff, 0xff    } /* 'c' */,
+			{ 0x20, CAPLKOF, 0xff, 0xff    } /* 'd' */,
+			{ 0x12, CAPLKOF, 0xff, 0xff    } /* 'e' */,
+			{ 0x21, CAPLKOF, 0xff, 0xff    } /* 'f' */,
+			{ 0x22, CAPLKOF, 0xff, 0xff    } /* 'g' */,
+			{ 0x23, CAPLKOF, 0xff, 0xff    } /* 'h' */,
+			{ 0x17, CAPLKOF, 0xff, 0xff    } /* 'i' */,
+			{ 0x24, CAPLKOF, 0xff, 0xff    } /* 'j' */,
+			{ 0x25, CAPLKOF, 0xff, 0xff    } /* 'k' */,
+			{ 0x26, CAPLKOF, 0xff, 0xff    } /* 'l' */,
+			{ 0x32, CAPLKOF, 0xff, 0xff    } /* 'm' */,
+			{ 0x31, CAPLKOF, 0xff, 0xff    } /* 'n' */,
+			{ 0x18, CAPLKOF, 0xff, 0xff    } /* 'o' */,
+			{ 0x19, CAPLKOF, 0xff, 0xff    } /* 'p' */,
+			{ 0x10, CAPLKOF, 0xff, 0xff    } /* 'q' */,
+			{ 0x13, CAPLKOF, 0xff, 0xff    } /* 'r' */,
+			{ 0x1f, CAPLKOF, 0xff, 0xff    } /* 's' */,
+			{ 0x14, CAPLKOF, 0xff, 0xff    } /* 't' */,
+			{ 0x16, CAPLKOF, 0xff, 0xff    } /* 'u' */,
+			{ 0x2f, CAPLKOF, 0xff, 0xff    } /* 'v' */,
+			{ 0x11, CAPLKOF, 0xff, 0xff    } /* 'w' */,
+			{ 0x2d, CAPLKOF, 0xff, 0xff    } /* 'x' */,
+			{ 0x15, CAPLKOF, 0xff, 0xff    } /* 'y' */,
+			{ 0x2c, CAPLKOF, 0xff, 0xff    } /* 'z' */,
+			{ 0x1b, SHIFT,   0xff, 0xff    } /* '{' */,
+			{ 0x7d, SHIFT,   0xff, 0xff    } /* '|' */,
+			{ 0x2b, SHIFT,   0xff, 0xff    } /* '}' */,
 			{ 0x0d, SHIFT,   0x0b, SHIFT   } /* '~' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x7f' */,
-			{ 0x01, NOSHIFT, 0xff, 0       } /* Esc */,
-			{ 0x3b, NOSHIFT, 0xff, 0       } /* F1 */,
-			{ 0x3c, NOSHIFT, 0xff, 0       } /* F2 */,
-			{ 0x3d, NOSHIFT, 0xff, 0       } /* F3 */,
-			{ 0x3e, NOSHIFT, 0xff, 0       } /* F4 */,
-			{ 0x3f, NOSHIFT, 0xff, 0       } /* F5 */,
-			{ 0x40, NOSHIFT, 0xff, 0       } /* F6 */,
-			{ 0x41, NOSHIFT, 0xff, 0       } /* F7 */,
-			{ 0x42, NOSHIFT, 0xff, 0       } /* F8 */,
-			{ 0x43, NOSHIFT, 0xff, 0       } /* F9 */,
-			{ 0x44, NOSHIFT, 0xff, 0       } /* F10 */,
-			{ 0x57, NOSHIFT, 0xff, 0       } /* F11 */,
-			{ 0x58, NOSHIFT, 0xff, 0       } /* F12 */,
-			{ 0xff, 0,       0xff, 0       } /* F13 */,
-			{ 0xff, 0,       0xff, 0       } /* F14 */,
-			{ 0xff, 0,       0xff, 0       } /* F15 */,
-			{ 0xff, 0,       0xff, 0       } /* F16 */,
-			{ 0xff, 0,       0xff, 0       } /* F17 */,
-			{ 0xff, 0,       0xff, 0       } /* F18 */,
-			{ 0xff, 0,       0xff, 0       } /* F19 */,
-			{ 0xff, 0,       0xff, 0       } /* F20 */,
-			{ 0xff, 0,       0xff, 0       } /* '\x95' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x96' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x97' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x98' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x99' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9a' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9b' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9c' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9d' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9e' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9f' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x7f' */,
+			{ 0x01, NOSHIFT, 0xff, 0xff    } /* Esc */,
+			{ 0x3b, NOSHIFT, 0xff, 0xff    } /* F1 */,
+			{ 0x3c, NOSHIFT, 0xff, 0xff    } /* F2 */,
+			{ 0x3d, NOSHIFT, 0xff, 0xff    } /* F3 */,
+			{ 0x3e, NOSHIFT, 0xff, 0xff    } /* F4 */,
+			{ 0x3f, NOSHIFT, 0xff, 0xff    } /* F5 */,
+			{ 0x40, NOSHIFT, 0xff, 0xff    } /* F6 */,
+			{ 0x41, NOSHIFT, 0xff, 0xff    } /* F7 */,
+			{ 0x42, NOSHIFT, 0xff, 0xff    } /* F8 */,
+			{ 0x43, NOSHIFT, 0xff, 0xff    } /* F9 */,
+			{ 0x44, NOSHIFT, 0xff, 0xff    } /* F10 */,
+			{ 0x57, NOSHIFT, 0xff, 0xff    } /* F11 */,
+			{ 0x58, NOSHIFT, 0xff, 0xff    } /* F12 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* F13 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* F14 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* F15 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* F16 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* F17 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* F18 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* F19 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* F20 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x95' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x96' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x97' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x98' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x99' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9a' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9b' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9c' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9d' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9e' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9f' */,
 			{ 0x1c, NOSHIFT, 0x9c, NOSHIFT } /* Enter */,
-			{ 0x0e, NOSHIFT, 0xff, 0       } /* BackSpace */,
-			{ 0x0f, NOSHIFT, 0xff, 0       } /* Tab */,
-			{ 0xff, 0,       0xff, 0       } /* '\xa3' */,
+			{ 0x0e, NOSHIFT, 0xff, 0xff    } /* BackSpace */,
+			{ 0x0f, NOSHIFT, 0xff, 0xff    } /* Tab */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xa3' */,
 			{ 0xd2, NOSHIFT, 0x52, NUMLKOF } /* Insert */,
 			{ 0xd3, NOSHIFT, 0x53, NUMLKOF } /* Delete */,
 			{ 0xc7, NOSHIFT, 0x47, NUMLKOF } /* Home */,
 			{ 0xcf, NOSHIFT, 0x4f, NUMLKOF } /* End */,
 			{ 0xc9, NOSHIFT, 0x49, NUMLKOF } /* PageUp */,
 			{ 0xd1, NOSHIFT, 0x51, NUMLKOF } /* PageDown */,
-			{ 0xff, 0,       0xff, 0       } /* '\xaa' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xab' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xaa' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xab' */,
 			{ 0xcb, NOSHIFT, 0x4b, NUMLKOF } /* Left */,
 			{ 0xcd, NOSHIFT, 0x4d, NUMLKOF } /* Right */,
 			{ 0xc8, NOSHIFT, 0x48, NUMLKOF } /* Up */,
 			{ 0xd0, NOSHIFT, 0x50, NUMLKOF } /* Down */,
-			{ 0xff, 0,       0xff, 0       } /* ScrollLock */,
-			{ 0xff, 0,       0xff, 0       } /* NumLock */,
-			{ 0xff, 0,       0xff, 0       } /* CapsLock */,
-			{ 0xff, 0,       0xff, 0       } /* '\xb3' */,
-			{ 0xff, 0,       0xff, 0       } /* Shift */,
-			{ 0xff, 0,       0xff, 0       } /* Ctrl */,
-			{ 0xff, 0,       0xff, 0       } /* Alt */,
-			{ 0xff, 0,       0xff, 0       } /* '\xb7' */,
-			{ 0xff, 0,       0xff, 0       } /* PrintScreen */,
-			{ 0xff, 0,       0xff, 0       } /* Pause */,
-			{ 0xff, 0,       0xff, 0       } /* Break */,
-			{ 0xff, 0,       0xff, 0       } /* SysRq */,
-			{ 0xff, 0,       0xff, 0       } /* '\xbc' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xbd' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xbe' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xbf' */,
-			{ 0xff, 0,       0xff, 0       } /* Windows */,
-			{ 0xff, 0,       0xff, 0       } /* Menu */,
-			{ 0xff, 0,       0xff, 0       } /* Power */,
-			{ 0xff, 0,       0xff, 0       } /* Sleep */,
-			{ 0xff, 0,       0xff, 0       } /* Wake */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc5' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc6' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc7' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc8' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc9' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xca' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xcb' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xcc' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xcd' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xce' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xcf' */,
-			{ 0xff, 0,       0xff, 0       } /* Zenkaku */,
-			{ 0xff, 0,       0xff, 0       } /* Muhenkan */,
-			{ 0xff, 0,       0xff, 0       } /* Henkan */,
-			{ 0xff, 0,       0xff, 0       } /* Hiragana */
+			{ 0x46, NOSHIFT, 0xff, 0xff    } /* ScrollLock */,
+			{ 0x45, NOSHIFT, 0xff, 0xff    } /* NumLock */,
+			{ 0x3a, SHIFT,   0xff, 0xff    } /* CapsLock */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xb3' */,
+			{ 0x2a, 0xfe,    0x36, 0xfe    } /* Shift */,
+			{ 0x1d, 0xfe,    0x9d, 0xfe    } /* Ctrl */,
+			{ 0x38, 0xfe,    0xb8, 0xfe    } /* Alt */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xb7' */,
+			{ 0xb7, NOSHIFT, 0xff, 0xff    } /* PrintScreen */,
+			{ 0xff, NOSHIFT, 0xff, 0xff    } /* Pause */,
+			{ 0xc6, NOSHIFT, 0xff, 0xff    } /* Break(ALT?) */,
+			{ 0x54, NOSHIFT, 0xff, 0xff    } /* SysRq(ALT?) */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbe' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbf' */,
+			{ 0xdb, NOSHIFT, 0xdc, NOSHIFT } /* Windows */,
+			{ 0xdd, NOSHIFT, 0xff, 0xff    } /* Menu */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Power */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Sleep */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Wake */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc7' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc8' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xca' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xce' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcf' */,
+			{ 0x29, NOSHIFT, 0xff, 0xff    } /* Zenkaku */,
+			{ 0x7b, NOSHIFT, 0xff, 0xff    } /* Muhenkan */,
+			{ 0x79, NOSHIFT, 0xff, 0xff    } /* Henkan */,
+			{ 0x70, NOSHIFT, 0xff, 0xff    } /* Hiragana */,
+			{ 0x70, SHIFT,   0xff, 0xff    } /* Katakana */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd7' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd8' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xda' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xde' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdf' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe0' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe1' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe2' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe3' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe4' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe7' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe8' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xea' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xeb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xec' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xed' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xee' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xef' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf0' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf1' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf2' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf3' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf4' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf7' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf8' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfa' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfe' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xff' */
 		#endif
 		#if (defined(TOWNS))
-			{ 0x35, NOSHIFT, 0xff, 0       } /* ' ' */,
-			{ 0x02, SHIFT,   0xff, 0       } /* '!' */,
+			{ 0x35, NOSHIFT, 0xff, 0xff    } /* ' ' */,
+			{ 0x02, SHIFT,   0xff, 0xff    } /* '!' */,
 			{ 0x03, SHIFT,   0x34, NOSHIFT } /* '\x22' */,
-			{ 0x04, SHIFT,   0xff, 0       } /* '#' */,
-			{ 0x05, SHIFT,   0xff, 0       } /* '%' */,
-			{ 0x06, SHIFT,   0xff, 0       } /* '$' */,
-			{ 0x07, SHIFT,   0xff, 0       } /* '&' */,
-			{ 0x08, SHIFT,   0xff, 0       } /* '\x27' */,
-			{ 0x09, SHIFT,   0xff, 0       } /* '(' */,
-			{ 0x0a, SHIFT,   0xff, 0       } /* ')' */,
+			{ 0x04, SHIFT,   0xff, 0xff    } /* '#' */,
+			{ 0x05, SHIFT,   0xff, 0xff    } /* '%' */,
+			{ 0x06, SHIFT,   0xff, 0xff    } /* '$' */,
+			{ 0x07, SHIFT,   0xff, 0xff    } /* '&' */,
+			{ 0x08, SHIFT,   0xff, 0xff    } /* '\x27' */,
+			{ 0x09, SHIFT,   0xff, 0xff    } /* '(' */,
+			{ 0x0a, SHIFT,   0xff, 0xff    } /* ')' */,
 			{ 0x28, SHIFT,   0x36, NOSHIFT } /* '*' */,
 			{ 0x27, SHIFT,   0x38, NOSHIFT } /* '+' */,
-			{ 0x31, NOSHIFT, 0xff, 0       } /* ',' */,
+			{ 0x31, NOSHIFT, 0xff, 0xff    } /* ',' */,
 			{ 0x0c, NOSHIFT, 0x39, NOSHIFT } /* '-' */,
 			{ 0x32, NOSHIFT, 0x47, NOSHIFT } /* '.' */,
 			{ 0x33, NOSHIFT, 0x37, NOSHIFT } /* '/' */,
@@ -1832,178 +1924,226 @@ void sgg_wm0_definesignal3sub(const int keycode)
 			{ 0x08, NOSHIFT, 0x3a, NOSHIFT } /* '7' */,
 			{ 0x09, NOSHIFT, 0x3b, NOSHIFT } /* '8' */,
 			{ 0x0a, NOSHIFT, 0x3c, NOSHIFT } /* '9' */,
-			{ 0x28, NOSHIFT, 0xff, 0       } /* ':' */,
-			{ 0x27, NOSHIFT, 0xff, 0       } /* ';' */,
-			{ 0x31, SHIFT,   0xff, 0       } /* '<' */,
+			{ 0x28, NOSHIFT, 0xff, 0xff    } /* ':' */,
+			{ 0x27, NOSHIFT, 0xff, 0xff    } /* ';' */,
+			{ 0x31, SHIFT,   0xff, 0xff    } /* '<' */,
 			{ 0x0c, SHIFT,   0x3d, NOSHIFT } /* '=' */,
-			{ 0x32, SHIFT,   0xff, 0       } /* '>' */,
-			{ 0x33, SHIFT,   0xff, 0       } /* '?' */,
-			{ 0x1b, NOSHIFT, 0xff, 0       } /* '@' */,
-			{ 0x1e, CAPLKON, 0xff, 0       } /* 'A' */,
-			{ 0x2e, CAPLKON, 0xff, 0       } /* 'B' */,
-			{ 0x2c, CAPLKON, 0xff, 0       } /* 'C' */,
-			{ 0x20, CAPLKON, 0xff, 0       } /* 'D' */,
-			{ 0x13, CAPLKON, 0xff, 0       } /* 'E' */,
-			{ 0x21, CAPLKON, 0xff, 0       } /* 'F' */,
-			{ 0x22, CAPLKON, 0xff, 0       } /* 'G' */,
-			{ 0x23, CAPLKON, 0xff, 0       } /* 'H' */,
-			{ 0x18, CAPLKON, 0xff, 0       } /* 'I' */,
-			{ 0x24, CAPLKON, 0xff, 0       } /* 'J' */,
-			{ 0x25, CAPLKON, 0xff, 0       } /* 'K' */,
-			{ 0x26, CAPLKON, 0xff, 0       } /* 'L' */,
-			{ 0x30, CAPLKON, 0xff, 0       } /* 'M' */,
-			{ 0x2f, CAPLKON, 0xff, 0       } /* 'N' */,
-			{ 0x19, CAPLKON, 0xff, 0       } /* 'O' */,
-			{ 0x1a, CAPLKON, 0xff, 0       } /* 'P' */,
-			{ 0x1a, CAPLKON, 0xff, 0       } /* 'Q' */,
-			{ 0x14, CAPLKON, 0xff, 0       } /* 'R' */,
-			{ 0x1f, CAPLKON, 0xff, 0       } /* 'S' */,
-			{ 0x15, CAPLKON, 0xff, 0       } /* 'T' */,
-			{ 0x17, CAPLKON, 0xff, 0       } /* 'U' */,
-			{ 0x2d, CAPLKON, 0xff, 0       } /* 'V' */,
-			{ 0x12, CAPLKON, 0xff, 0       } /* 'W' */,
-			{ 0x2b, CAPLKON, 0xff, 0       } /* 'X' */,
-			{ 0x16, CAPLKON, 0xff, 0       } /* 'Y' */,
-			{ 0x2a, CAPLKON, 0xff, 0       } /* 'Z' */,
-			{ 0x1c, NOSHIFT, 0xff, 0       } /* '[' */,
-			{ 0x0e, NOSHIFT, 0xff, 0       } /* '\' */,
-			{ 0x29, NOSHIFT, 0xff, 0       } /* ']' */,
-			{ 0x0d, NOSHIFT, 0xff, 0       } /* '^' */,
-			{ 0x34, SHIFT,   0xff, 0       } /* '_' */,
-			{ 0x1b, SHIFT,   0xff, 0       } /* '`' */,
-			{ 0x1e, CAPLKOF, 0xff, 0       } /* 'a' */,
-			{ 0x2e, CAPLKOF, 0xff, 0       } /* 'b' */,
-			{ 0x2c, CAPLKOF, 0xff, 0       } /* 'c' */,
-			{ 0x20, CAPLKOF, 0xff, 0       } /* 'd' */,
-			{ 0x13, CAPLKOF, 0xff, 0       } /* 'e' */,
-			{ 0x21, CAPLKOF, 0xff, 0       } /* 'f' */,
-			{ 0x22, CAPLKOF, 0xff, 0       } /* 'g' */,
-			{ 0x23, CAPLKOF, 0xff, 0       } /* 'h' */,
-			{ 0x18, CAPLKOF, 0xff, 0       } /* 'i' */,
-			{ 0x24, CAPLKOF, 0xff, 0       } /* 'j' */,
-			{ 0x25, CAPLKOF, 0xff, 0       } /* 'k' */,
-			{ 0x26, CAPLKOF, 0xff, 0       } /* 'l' */,
-			{ 0x30, CAPLKOF, 0xff, 0       } /* 'm' */,
-			{ 0x2f, CAPLKOF, 0xff, 0       } /* 'n' */,
-			{ 0x19, CAPLKOF, 0xff, 0       } /* 'o' */,
-			{ 0x1a, CAPLKOF, 0xff, 0       } /* 'p' */,
-			{ 0x11, CAPLKOF, 0xff, 0       } /* 'q' */,
-			{ 0x14, CAPLKOF, 0xff, 0       } /* 'r' */,
-			{ 0x1f, CAPLKOF, 0xff, 0       } /* 's' */,
-			{ 0x15, CAPLKOF, 0xff, 0       } /* 't' */,
-			{ 0x17, CAPLKOF, 0xff, 0       } /* 'u' */,
-			{ 0x2d, CAPLKOF, 0xff, 0       } /* 'v' */,
-			{ 0x12, CAPLKOF, 0xff, 0       } /* 'w' */,
-			{ 0x2b, CAPLKOF, 0xff, 0       } /* 'x' */,
-			{ 0x16, CAPLKOF, 0xff, 0       } /* 'y' */,
-			{ 0x2a, CAPLKOF, 0xff, 0       } /* 'z' */,
-			{ 0x1c, SHIFT,   0xff, 0       } /* '{' */,
-			{ 0x0e, SHIFT,   0xff, 0       } /* '|' */,
-			{ 0x29, SHIFT,   0xff, 0       } /* '}' */,
-			{ 0x0d, SHIFT,   0xff, 0       } /* '~' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x7f' */,
-			{ 0x01, NOSHIFT, 0xff, 0       } /* Esc */,
-			{ 0x5d, NOSHIFT, 0xff, 0       } /* F1 */,
-			{ 0x5e, NOSHIFT, 0xff, 0       } /* F2 */,
-			{ 0x5f, NOSHIFT, 0xff, 0       } /* F3 */,
-			{ 0x60, NOSHIFT, 0xff, 0       } /* F4 */,
-			{ 0x61, NOSHIFT, 0xff, 0       } /* F5 */,
-			{ 0x62, NOSHIFT, 0xff, 0       } /* F6 */,
-			{ 0x63, NOSHIFT, 0xff, 0       } /* F7 */,
-			{ 0x64, NOSHIFT, 0xff, 0       } /* F8 */,
-			{ 0x65, NOSHIFT, 0xff, 0       } /* F9 */,
-			{ 0x66, NOSHIFT, 0xff, 0       } /* F10 */,
-			{ 0x69, NOSHIFT, 0xff, 0       } /* F11 */,
-			{ 0x5b, NOSHIFT, 0xff, 0       } /* F12 */,
-			{ 0xff, 0,       0xff, 0       } /* F13 */,
-			{ 0xff, 0,       0xff, 0       } /* F14 */,
-			{ 0xff, 0,       0xff, 0       } /* F15 */,
-			{ 0xff, 0,       0xff, 0       } /* F16 */,
-			{ 0xff, 0,       0xff, 0       } /* F17 */,
-			{ 0xff, 0,       0xff, 0       } /* F18 */,
-			{ 0xff, 0,       0xff, 0       } /* F19 */,
-			{ 0xff, 0,       0xff, 0       } /* F20 */,
-			{ 0xff, 0,       0xff, 0       } /* '\x95' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x96' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x97' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x98' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x99' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9a' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9b' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9c' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9d' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9e' */,
-			{ 0xff, 0,       0xff, 0       } /* '\x9f' */,
+			{ 0x32, SHIFT,   0xff, 0xff    } /* '>' */,
+			{ 0x33, SHIFT,   0xff, 0xff    } /* '?' */,
+			{ 0x1b, NOSHIFT, 0xff, 0xff    } /* '@' */,
+			{ 0x1e, CAPLKON, 0xff, 0xff    } /* 'A' */,
+			{ 0x2e, CAPLKON, 0xff, 0xff    } /* 'B' */,
+			{ 0x2c, CAPLKON, 0xff, 0xff    } /* 'C' */,
+			{ 0x20, CAPLKON, 0xff, 0xff    } /* 'D' */,
+			{ 0x13, CAPLKON, 0xff, 0xff    } /* 'E' */,
+			{ 0x21, CAPLKON, 0xff, 0xff    } /* 'F' */,
+			{ 0x22, CAPLKON, 0xff, 0xff    } /* 'G' */,
+			{ 0x23, CAPLKON, 0xff, 0xff    } /* 'H' */,
+			{ 0x18, CAPLKON, 0xff, 0xff    } /* 'I' */,
+			{ 0x24, CAPLKON, 0xff, 0xff    } /* 'J' */,
+			{ 0x25, CAPLKON, 0xff, 0xff    } /* 'K' */,
+			{ 0x26, CAPLKON, 0xff, 0xff    } /* 'L' */,
+			{ 0x30, CAPLKON, 0xff, 0xff    } /* 'M' */,
+			{ 0x2f, CAPLKON, 0xff, 0xff    } /* 'N' */,
+			{ 0x19, CAPLKON, 0xff, 0xff    } /* 'O' */,
+			{ 0x1a, CAPLKON, 0xff, 0xff    } /* 'P' */,
+			{ 0x1a, CAPLKON, 0xff, 0xff    } /* 'Q' */,
+			{ 0x14, CAPLKON, 0xff, 0xff    } /* 'R' */,
+			{ 0x1f, CAPLKON, 0xff, 0xff    } /* 'S' */,
+			{ 0x15, CAPLKON, 0xff, 0xff    } /* 'T' */,
+			{ 0x17, CAPLKON, 0xff, 0xff    } /* 'U' */,
+			{ 0x2d, CAPLKON, 0xff, 0xff    } /* 'V' */,
+			{ 0x12, CAPLKON, 0xff, 0xff    } /* 'W' */,
+			{ 0x2b, CAPLKON, 0xff, 0xff    } /* 'X' */,
+			{ 0x16, CAPLKON, 0xff, 0xff    } /* 'Y' */,
+			{ 0x2a, CAPLKON, 0xff, 0xff    } /* 'Z' */,
+			{ 0x1c, NOSHIFT, 0xff, 0xff    } /* '[' */,
+			{ 0x0e, NOSHIFT, 0xff, 0xff    } /* '\' */,
+			{ 0x29, NOSHIFT, 0xff, 0xff    } /* ']' */,
+			{ 0x0d, NOSHIFT, 0xff, 0xff    } /* '^' */,
+			{ 0x34, SHIFT,   0xff, 0xff    } /* '_' */,
+			{ 0x1b, SHIFT,   0xff, 0xff    } /* '`' */,
+			{ 0x1e, CAPLKOF, 0xff, 0xff    } /* 'a' */,
+			{ 0x2e, CAPLKOF, 0xff, 0xff    } /* 'b' */,
+			{ 0x2c, CAPLKOF, 0xff, 0xff    } /* 'c' */,
+			{ 0x20, CAPLKOF, 0xff, 0xff    } /* 'd' */,
+			{ 0x13, CAPLKOF, 0xff, 0xff    } /* 'e' */,
+			{ 0x21, CAPLKOF, 0xff, 0xff    } /* 'f' */,
+			{ 0x22, CAPLKOF, 0xff, 0xff    } /* 'g' */,
+			{ 0x23, CAPLKOF, 0xff, 0xff    } /* 'h' */,
+			{ 0x18, CAPLKOF, 0xff, 0xff    } /* 'i' */,
+			{ 0x24, CAPLKOF, 0xff, 0xff    } /* 'j' */,
+			{ 0x25, CAPLKOF, 0xff, 0xff    } /* 'k' */,
+			{ 0x26, CAPLKOF, 0xff, 0xff    } /* 'l' */,
+			{ 0x30, CAPLKOF, 0xff, 0xff    } /* 'm' */,
+			{ 0x2f, CAPLKOF, 0xff, 0xff    } /* 'n' */,
+			{ 0x19, CAPLKOF, 0xff, 0xff    } /* 'o' */,
+			{ 0x1a, CAPLKOF, 0xff, 0xff    } /* 'p' */,
+			{ 0x11, CAPLKOF, 0xff, 0xff    } /* 'q' */,
+			{ 0x14, CAPLKOF, 0xff, 0xff    } /* 'r' */,
+			{ 0x1f, CAPLKOF, 0xff, 0xff    } /* 's' */,
+			{ 0x15, CAPLKOF, 0xff, 0xff    } /* 't' */,
+			{ 0x17, CAPLKOF, 0xff, 0xff    } /* 'u' */,
+			{ 0x2d, CAPLKOF, 0xff, 0xff    } /* 'v' */,
+			{ 0x12, CAPLKOF, 0xff, 0xff    } /* 'w' */,
+			{ 0x2b, CAPLKOF, 0xff, 0xff    } /* 'x' */,
+			{ 0x16, CAPLKOF, 0xff, 0xff    } /* 'y' */,
+			{ 0x2a, CAPLKOF, 0xff, 0xff    } /* 'z' */,
+			{ 0x1c, SHIFT,   0xff, 0xff    } /* '{' */,
+			{ 0x0e, SHIFT,   0xff, 0xff    } /* '|' */,
+			{ 0x29, SHIFT,   0xff, 0xff    } /* '}' */,
+			{ 0x0d, SHIFT,   0xff, 0xff    } /* '~' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x7f' */,
+			{ 0x01, NOSHIFT, 0xff, 0xff    } /* Esc */,
+			{ 0x5d, NOSHIFT, 0xff, 0xff    } /* F1 */,
+			{ 0x5e, NOSHIFT, 0xff, 0xff    } /* F2 */,
+			{ 0x5f, NOSHIFT, 0xff, 0xff    } /* F3 */,
+			{ 0x60, NOSHIFT, 0xff, 0xff    } /* F4 */,
+			{ 0x61, NOSHIFT, 0xff, 0xff    } /* F5 */,
+			{ 0x62, NOSHIFT, 0xff, 0xff    } /* F6 */,
+			{ 0x63, NOSHIFT, 0xff, 0xff    } /* F7 */,
+			{ 0x64, NOSHIFT, 0xff, 0xff    } /* F8 */,
+			{ 0x65, NOSHIFT, 0xff, 0xff    } /* F9 */,
+			{ 0x66, NOSHIFT, 0xff, 0xff    } /* F10 */,
+			{ 0x69, NOSHIFT, 0xff, 0xff    } /* F11 */,
+			{ 0x5b, NOSHIFT, 0xff, 0xff    } /* F12 */,
+			{ 0x74, NOSHIFT, 0xff, 0xff    } /* F13 */,
+			{ 0x75, NOSHIFT, 0xff, 0xff    } /* F14 */,
+			{ 0x76, NOSHIFT, 0xff, 0xff    } /* F15 */,
+			{ 0x77, NOSHIFT, 0xff, 0xff    } /* F16 */,
+			{ 0x78, NOSHIFT, 0xff, 0xff    } /* F17 */,
+			{ 0x79, NOSHIFT, 0xff, 0xff    } /* F18 */,
+			{ 0x7a, NOSHIFT, 0xff, 0xff    } /* F19 */,
+			{ 0x7b, NOSHIFT, 0xff, 0xff    } /* F20 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x95' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x96' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x97' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x98' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x99' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9a' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9b' */,
+			{ 0xf4, NOSHIFT, 0xff, 0xff    } /* EXT1(F28) */,
+			{ 0xf8, NOSHIFT, 0xff, 0xff    } /* EXT2(F29) */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9e' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9f' */,
 			{ 0x1d, NOSHIFT, 0x45, NOSHIFT } /* Enter */,
-			{ 0x0f, NOSHIFT, 0xff, 0       } /* BackSpace */,
-			{ 0x10, NOSHIFT, 0xff, 0       } /* Tab */,
-			{ 0xff, 0,       0xff, 0       } /* '\xa3' */,
-			{ 0x48, NOSHIFT, 0xff, 0       } /* Insert */,
-			{ 0x4b, NOSHIFT, 0xff, 0       } /* Delete */,
+			{ 0x0f, NOSHIFT, 0xff, 0xff    } /* BackSpace */,
+			{ 0x10, NOSHIFT, 0xff, 0xff    } /* Tab */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xa3' */,
+			{ 0x48, NOSHIFT, 0xff, 0xff    } /* Insert */,
+			{ 0x4b, NOSHIFT, 0xff, 0xff    } /* Delete */,
 			{ 0x4e, NOSHIFT, 0xe1, NOSHIFT } /* Home */,
-			{ 0xe2, NOSHIFT, 0xff, 0       } /* End */,
-			{ 0x6e, NOSHIFT, 0xff, 0       } /* PageUp */,
-			{ 0x70, NOSHIFT, 0x51, 0       } /* PageDown */,
-			{ 0xff, 0,       0xff, 0       } /* '\xaa' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xab' */,
-			{ 0x4f, NOSHIFT, 0xff, 0       } /* Left */,
-			{ 0x51, NOSHIFT, 0xff, 0       } /* Right */,
-			{ 0x4d, NOSHIFT, 0xff, 0       } /* Up */,
-			{ 0x50, NOSHIFT, 0xff, 0       } /* Down */,
-			{ 0xff, 0,       0xff, 0       } /* ScrollLock */,
-			{ 0xff, 0,       0xff, 0       } /* NumLock */,
-			{ 0xff, 0,       0xff, 0       } /* CapsLock */,
-			{ 0xff, 0,       0xff, 0       } /* '\xb3' */,
-			{ 0xff, 0,       0xff, 0       } /* Shift */,
-			{ 0xff, 0,       0xff, 0       } /* Ctrl */,
-			{ 0xff, 0,       0xff, 0       } /* Alt */,
-			{ 0xff, 0,       0xff, 0       } /* '\xb7' */,
-			{ 0xff, 0,       0xff, 0       } /* PrintScreen */,
-			{ 0xff, 0,       0xff, 0       } /* Pause */,
-			{ 0xff, 0,       0xff, 0       } /* Break */,
-			{ 0xff, 0,       0xff, 0       } /* SysRq */,
-			{ 0xff, 0,       0xff, 0       } /* '\xbc' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xbd' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xbe' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xbf' */,
-			{ 0xff, 0,       0xff, 0       } /* Windows */,
-			{ 0xff, 0,       0xff, 0       } /* Menu */,
-			{ 0xff, 0,       0xff, 0       } /* Power */,
-			{ 0xff, 0,       0xff, 0       } /* Sleep */,
-			{ 0xff, 0,       0xff, 0       } /* Wake */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc5' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc6' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc7' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc8' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xc9' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xca' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xcb' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xcc' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xcd' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xce' */,
-			{ 0xff, 0,       0xff, 0       } /* '\xcf' */,
-			{ 0xff, 0,       0xff, 0       } /* Zenkaku */,
-			{ 0xff, 0,       0xff, 0       } /* Muhenkan */,
-			{ 0xff, 0,       0xff, 0       } /* Henkan */,
-			{ 0xff, 0,       0xff, 0       } /* Hiragana */
+			{ 0xe2, NOSHIFT, 0xff, 0xff    } /* End */,
+			{ 0x6e, NOSHIFT, 0xff, 0xff    } /* PageUp */,
+			{ 0x70, NOSHIFT, 0xff, 0xff    } /* PageDown */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xaa' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xab' */,
+			{ 0x4f, NOSHIFT, 0xff, 0xff    } /* Left */,
+			{ 0x51, NOSHIFT, 0xff, 0xff    } /* Right */,
+			{ 0x4d, NOSHIFT, 0xff, 0xff    } /* Up */,
+			{ 0x50, NOSHIFT, 0xff, 0xff    } /* Down */,
+			{ 0xe0, NOSHIFT, 0xff, 0xff    } /* ScrollLock */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* NumLock */,
+			{ 0x55, NOSHIFT, 0xff, 0xff    } /* CapsLock */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xb3' */,
+			{ 0x53, 0xfe,    0xff, 0xff    } /* Shift */,
+			{ 0x52, 0xfe,    0xff, 0xff    } /* Ctrl */,
+			{ 0x5c, 0xfe,    0x72, 0xfe    } /* Alt */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xb7' */,
+			{ 0x7d, NOSHIFT, 0xff, 0xff    } /* COPY(PrintScreen) */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Pause */,
+			{ 0x7c, NOSHIFT, 0xff, 0xff    } /* Break */,
+			{ 0xdd, NOSHIFT, 0xff, 0xff    } /* SysRq */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbe' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbf' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Windows */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Menu */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Power */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Sleep */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Wake */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc7' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc8' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xca' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xce' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcf' */,
+			{ 0x71, NOSHIFT, 0xff, 0xff    } /* Zenkaku */,
+			{ 0x57, NOSHIFT, 0xff, 0xff    } /* Muhenkan */,
+			{ 0x58, NOSHIFT, 0xff, 0xff    } /* Henkan */,
+			{ 0x56, NOSHIFT, 0xff, 0xff    } /* Hiragana */,
+			{ 0x5a, NOSHIFT, 0xff, 0xff    } /* Katakana */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd7' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd8' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xda' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xde' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdf' */,
+/* e0～f7は、割り当てるのが面倒になった機種固有のマイナーキー */
+			{ 0x72, NOSHIFT, 0xff, 0xff    } /* 取消 */,
+			{ 0x73, NOSHIFT, 0xff, 0xff    } /* 実行 */,
+			{ 0x59, NOSHIFT, 0xff, 0xff    } /* かな漢字 */,
+			{ 0x4a, NOSHIFT, 0xff, 0xff    } /* 000 */,
+			{ 0x6b, NOSHIFT, 0xff, 0xff    } /* 漢字辞書 */,
+			{ 0x6c, NOSHIFT, 0xff, 0xff    } /* 単語抹消 */,
+			{ 0x6d, NOSHIFT, 0xff, 0xff    } /* 単語登録 */,
+			{ 0x6a, NOSHIFT, 0xff, 0xff    } /* 英字 */,
+			{ 0x6f, NOSHIFT, 0xff, 0xff    } /* カタカナ/英小文字 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xea' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xeb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xec' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xed' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xee' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xef' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf0' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf1' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf2' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf3' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf4' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf7' */,
+/* f8～ffは、マイナーシフトキー */
+			{ 0x67, NOSHIFT, 0x68, NOSHIFT } /* 親指シフト('\xf8') */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfa' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfe' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xff' */
 		#endif
 	};
 
 	if ((keycode & 0xfffff000) == 0) {
 		/* 従来通りの指定 */
-		if (' ' <= keycode && keycode <= 0xd3) {
+		if (' ' <= keycode && keycode <= 0xff) {
 			struct KEYTABLE *kt = &table[keycode - ' '];
 			int rawcode, st, shiftmap;
-			if ((rawcode = kt->rawcode0) != 0xff) {
-				shiftmap = shifttype[st = kt->shifttype0].type0;
+			if ((st = kt->shifttype0) < 0xf0) {
+				rawcode = kt->rawcode0;
+				shiftmap = shifttype[st].type0;
 				sgg_wm0_definesignal3sub3(rawcode, shiftmap);
 				sgg_wm0_definesignal3sub3(rawcode, shiftmap | 0x80000000);
 				if (shiftmap = shifttype[st].type1) {
 					sgg_wm0_definesignal3sub3(rawcode, shiftmap);
 					sgg_wm0_definesignal3sub3(rawcode, shiftmap | 0x80000000);
 				}
-				if ((rawcode = kt->rawcode1) != 0xff) {
-					shiftmap = shifttype[st = kt->shifttype1].type0;
+				if ((st = kt->shifttype1) < 0xf0) {
+					rawcode = kt->rawcode1;
+					shiftmap = shifttype[st].type0;
 					sgg_wm0_definesignal3sub3(rawcode, shiftmap);
 					sgg_wm0_definesignal3sub3(rawcode, shiftmap | 0x80000000);
 					if (shiftmap = shifttype[st].type1) {
@@ -2017,14 +2157,14 @@ void sgg_wm0_definesignal3sub(const int keycode)
 		int shiftmap = ((keycode >> 16) & 0x000000ff) | ((keycode >> 8) & 0x00ff0000)
 					  | ((keycode << 16) & 0xc0000000) | 0x0000c000;
 		int rawcode = keycode & 0x00003fff;
-		if (' ' + 0x1000 <= rawcode && rawcode <= 0x10d3) {
+		if (' ' + 0x1000 <= rawcode && rawcode <= 0x10ff) {
 			struct KEYTABLE *kt = &table[rawcode - (' ' + 0x1000)];
-			if ((rawcode = kt->rawcode0) != 0xff)
-				sgg_wm0_definesignal3sub3(rawcode, shiftmap);
-		} else if (' ' + 0x2000 <= rawcode && rawcode <= 0x20d3) {
+			if (kt->shifttype0 != 0xff)
+				sgg_wm0_definesignal3sub3(kt->rawcode0, shiftmap);
+		} else if (' ' + 0x2000 <= rawcode && rawcode <= 0x20ff) {
 			struct KEYTABLE *kt = &table[rawcode - (' ' + 0x2000)];
-			if ((rawcode = kt->rawcode1) != 0xff)
-				sgg_wm0_definesignal3sub3(rawcode, shiftmap);
+			if (kt->shifttype1 != 0xff)
+				sgg_wm0_definesignal3sub3(kt->rawcode1, shiftmap);
 		}
 	}
 	return;
@@ -2040,8 +2180,24 @@ void sgg_wm0_definesignal3sub2(const int rawcode, const int shiftmap)
 }
 */
 
-void sgg_wm0_definesignal3sub3(const int rawcode, const int shiftmap)
+void sgg_wm0_definesignal3sub3(int rawcode, const int shiftmap)
 {
+	if (rawcode == 0xff)
+		rawcode = 0x100;
+	sgg_execcmd0(0x0068, 12 * 4,
+			0x010c   /* define */,
+			7        /* opt(len) */,
+			rawcode  /* rawcode */,
+			shiftmap /* shiftmap */,
+			tapisigvec[3] /* vector(ofs) */,
+			0x03030000 | tapisigvec[4] /* vector(sel), cmd, len */,
+			defsig_signal[0] /* signal[0] */,
+			defsig_signal[1] /* signal[1] */,
+			defsig_signal[2] /* signal[2] */,
+			0x0000 /* EOC */,
+		0);
+
+#if 0
 	/* cmd, opt(len), rawコード, shift-lock-bitmap(mask, equal), subcmd,... */
 	static struct {
 		int cmd, length;
@@ -2069,6 +2225,7 @@ void sgg_wm0_definesignal3sub3(const int rawcode, const int shiftmap)
 	command.deccmd[7] = defsig_signal[1];
 	command.deccmd[8] = defsig_signal[2];
 	sgg_execcmd(&command);
+#endif
 	return;
 }
 
@@ -2203,10 +2360,10 @@ void sgg_wm0_definesignal3com()
 	#if (defined(TOWNS))
 		static struct {
 			int cmd, length;
-			int deccmd[6 * 8 + 3];
+			int deccmd[6 * 10 + 3];
 			int eoc;
 		} command = {
-			0x0068, 53 * 4, {
+			0x0068, 65 * 4, {
 				0x0110     /* clear */,
 				0          /* opt */,
 
@@ -2255,6 +2412,20 @@ void sgg_wm0_definesignal3com()
 				0x010c     /* define */,
 				4          /* opt(len) */,
 				0x5c       /* rawcode(Alt) */,
+				0x4000c000 /* shiftmap */,
+				~0x0040    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x72       /* rawcode(取消) */,
+				0x0000c000 /* shiftmap */,
+				0x0040     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x72       /* rawcode(取消) */,
 				0x4000c000 /* shiftmap */,
 				~0x0040    /* and bit */,
 				0x00050000 /* cmd(and) */,

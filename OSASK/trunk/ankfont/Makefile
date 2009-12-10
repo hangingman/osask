@@ -27,7 +27,7 @@ DISTDIR = ..
 $(DISTDIR)\$(TARGET) : $(TARGET)
 	copy $(TARGET) $(DISTDIR)
 
-$(TARGET) : $(SRC) Makefile
+$(TARGET) : $(SRC) makefile
 	txt2bin.exe
 
 clean:

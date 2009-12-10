@@ -1,5 +1,5 @@
-;	"boot.asm" ver.1.60
-;	OSASK/AT用のブートプログラム
+;	"boot.asm" ver.1.70
+;	OSASK用のブートプログラム
 ;	Copyright(C) 2001 H.Kawai (川合秀実)
 
 BootMdl			segment para use16

@@ -14,16 +14,16 @@ DISTDIR = ..
 $(DISTDIR)\$(TARGET) : $(TARGET)
 	copy $(TARGET) $(DISTDIR)
 
-$(TARGET) : $(SRC) Makefile
+$(TARGET) : $(SRC) makefile
 	$(MASMCNV) $(MASMCNV_FLAGS) $< $(TARGET:.exe=.asm)
 	$(ASM) $(ASM_FLAGS) /Fl$(APP).lst  $(TARGET:.exe=.asm)
 	$(LINK) $(APP),$(APP),$(APP),nul,nul
 
-$(SRC) : $(SRCS) Makefile
+$(SRC) : $(SRCS) makefile
 	echo on > $(SRC)
 	for %%i in ($(SRCS)) do type %%i >> $(SRC)
 
-init.3as : init.ask Makefile ..\depend.mak
+init.3as : init.ask makefile ..\depend.mak
 	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<
 	$(ASKA) init.i $@
 

@@ -1,32 +1,33 @@
-"sb16"の使い方の説明                      2001/08/30 川合秀実
+"sb17"の使い方の説明                      2001/09/28 川合秀実
 
 １．これは何か？
 
-  "sb16"は、OSASK ver.1.6の「OSASK16.EXE」を生成するのに必要なモジュールのソー
+  "sb17"は、OSASK ver.1.7の「OSASK17.EXE」を生成するのに必要なモジュールのソー
 スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
-そのまま利用しているものついては、このアーカイブに含まれていません。OSASK16.EXE
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK17.EXE
 を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.EXE     : ver.1.60
-    OSALINK0.OPT : ver.1.60
-    PIONEER0.BIN : ver.1.4
-    POKON0.BIN   : ver.1.5
-    SYSGG00.LIB  : ver.0.5
-    WINMAN0.BIN  : ver.1.1 (stack:4k malloc:92k)
-      (利用するライブラリやリンク方法が変わったので、バイナリーが変化しました)
-      (ソースは変わっていないのでアーカイブに含まれていません)
+    BASE.EXE     : ver.1.70
+    OSALINK0.OPT : ver.1.70
+    PAPI0.BIN    : ver.0.2
+    PIONEER0.BIN : ver.1.5
+    SYSGG00.LIB  : ver.0.6
+    WINMAN0.BIN  : ver.1.2
+    POKON0.BIN   : ver.1.7
+    PCAT/
+      VGADRV0.BIN  : ver.0.8
+    TOWNS/
+      VGADRV0.BIN  : ver.0.8
 
   (以前のバージョンのものを利用するもの)
 
     TAPI0.BIN    : ver.0.2
-    PAPI0.BIN    : ver.0.1
-    VGADRV0.BIN  : ver.0.7
     TIMERDRV.BIN : type-A ver.0.9
     KEYMOS0.BIN  : ver.0.3
-    FDCDRV0.BIN  : ver.1.2(PC/AT版), ver.1.0(TOWNS版)
     DECODE0.BIN  : ver.0.9
+    FDCDRV0.BIN  : ver.1.2(PC/AT版), ver.1.0(TOWNS版)
     ANKFONT0.BIN : ver.0.0
 
   このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
@@ -43,7 +44,7 @@
 ・Microsoft (R) Segmented Executable Linker  Version 5.60.339 Dec  5 1994
 ・lcc-win32 (LCC.EXEのタイムスタンプ2001/07/30、サイズ459,264バイト)
 ・Microsoft (R) Incremental Linker Version 5.12.8078
-・gg00lib5
+・gg00lib6
 ・stdlib4
 ・linkset0
 ・osalnk0p
@@ -101,9 +102,9 @@
 
   このドキュメントに関係のあるいくつかのURLを挙げておきます。
 
-    OSASKの開発者向けページ：
-                        http://www.imasy.org/~kawai/osask/developers.html
-    OSASKのページ：     http://www.imasy.org/~kawai/osask/
-    川合堂のページ：    http://www.imasy.org/~mone/kawaido/
-    OSASK伝言板：       http://www.imasy.org/~mone/osask/index.cgi
-    川合秀実のページ：  http://www.imasy.org/~kawai/
+    OSASKの開発者向けページ   http://www.imasy.org/~kawai/osask/developers.html
+    OSASKのページ             http://www.imasy.org/~kawai/osask/
+    小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
+    川合堂のページ            http://www.imasy.org/~mone/kawaido/
+    OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
+    川合秀実のページ          http://www.imasy.org/~kawai/
