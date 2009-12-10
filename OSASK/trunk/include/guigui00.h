@@ -48,17 +48,23 @@ void *malloc(const unsigned int nbytes);
 
 struct LIB_WORK *lib_init(struct LIB_WORK *work);
 void lib_init_nm(struct LIB_WORK *work);
+struct LIB_WORK *lib_init_am(struct LIB_WORK *work);
 void lib_waitsignal(int opt, int signaldw, int nest);
 struct LIB_WINDOW *lib_openwindow(struct LIB_WINDOW *window, int slot, int x_size, int y_size);
 void lib_openwindow_nm(struct LIB_WINDOW *window, int slot, int x_size, int y_size);
+void lib_openwindow_am(struct LIB_WINDOW *window, int slot, int x_size, int y_size);
 struct LIB_TEXTBOX *lib_opentextbox(int opt, struct LIB_TEXTBOX *textbox, int backcolor,
 	int x_size, int y_size, int x_pos, int y_pos, struct LIB_WINDOW *window, int charset,
 	int init_char);
 void lib_opentextbox_nm(int opt, struct LIB_TEXTBOX *textbox, int backcolor, int x_size,
 	int y_size, int x_pos, int y_pos, struct LIB_WINDOW *window, int charset, int init_char);
+void lib_opentextbox_am(int opt, struct LIB_TEXTBOX *textbox, int backcolor, int x_size,
+	int y_size, int x_pos, int y_pos, struct LIB_WINDOW *window, int charset, int init_char);
 void lib_waitsignaltime(int opt, int signaldw, int nest, unsigned int time0, unsigned int time1,
 	unsigned int time2);
 int *lib_opensignalbox(int bytes, int *signalbox, int eos, int rewind);
+void lib_opensignalbox_nm(int bytes, int *signalbox, int eos, int rewind);
+int *lib_opensignalbox_am(int bytes, int *signalbox, int eos, int rewind);
 void lib_definesignal0p0(int opt, int default_assign0, int default_assign1, int default_assign2);
 void lib_definesignal1p0(int opt, int default_assign0, int default_assign1,
 	struct LIB_WINDOW *default_assign2, int signal);
@@ -72,6 +78,8 @@ void lib_controlfreq(int slot, int freq);
 struct LIB_WINDOW *lib_openwindow1(struct LIB_WINDOW *window, int slot, int x_size, int y_size,
 	int flags, int base);
 void lib_openwindow1_nm(struct LIB_WINDOW *window, int slot, int x_size, int y_size, int flags,
+	int base);
+void lib_openwindow1_am(struct LIB_WINDOW *window, int slot, int x_size, int y_size, int flags,
 	int base);
 void lib_closewindow(int opt, struct LIB_WINDOW *window);
 void lib_controlwindow(int opt, struct LIB_WINDOW *window);
@@ -87,6 +95,10 @@ void lib_initmodulehandle(int opt, int slot);
 void lib_putblock1(struct LIB_WINDOW *win, int x, int y, int sx, int sy, int skip, void *p);
 struct LIB_GRAPHBOX *lib_opengraphbox(int opt, struct LIB_GRAPHBOX *gbox, int mode, int mode_opt,
 	int x_size, int y_size, int x_pos, int y_pos, struct LIB_WINDOW *window);
+void lib_opengraphbox_nm(int opt, struct LIB_GRAPHBOX *gbox, int mode, int mode_opt,
+	int x_size, int y_size, int x_pos, int y_pos, struct LIB_WINDOW *window);
+struct LIB_GRAPHBOX *lib_opengraphbox_am(int opt, struct LIB_GRAPHBOX *gbox, int mode, int mode_opt,
+	int x_size, int y_size, int x_pos, int y_pos, struct LIB_WINDOW *window);
 void lib_flushgraphbox(int opt, struct LIB_WINDOW *win, int x, int y, int sx, int sy, int skip,
 	void *p);
 void lib_drawline0(int opt, struct LIB_GRAPHBOX *gbox, int color, int x0, int y0, int x1, int y1);
@@ -96,6 +108,12 @@ void lib_convlines(int opt, int lines, struct LIB_LINES0 *src, struct LIB_LINES1
 void lib_initmodulehandle0(int opt, int slot);
 void lib_putblock02001(struct LIB_GRAPHBOX *gbox, void *buf, int vx0, int vy0);
 struct LIB_GRAPHBOX *lib_opengraphbox2(int opt, struct LIB_GRAPHBOX *gbox, int mode, int mode_opt,
+	int x_bsize, int y_bsize, int x_vsize, int y_vsize, int x_pos, int y_pos,
+	struct LIB_WINDOW *window);
+void lib_opengraphbox2_nm(int opt, struct LIB_GRAPHBOX *gbox, int mode, int mode_opt,
+	int x_bsize, int y_bsize, int x_vsize, int y_vsize, int x_pos, int y_pos,
+	struct LIB_WINDOW *window);
+struct LIB_GRAPHBOX *lib_opengraphbox2_am(int opt, struct LIB_GRAPHBOX *gbox, int mode, int mode_opt,
 	int x_bsize, int y_bsize, int x_vsize, int y_vsize, int x_pos, int y_pos,
 	struct LIB_WINDOW *window);
 void lib_putblock03001(struct LIB_GRAPHBOX *gbox, void *buf, int vx0, int vy0, void *tbuf,
@@ -109,6 +127,13 @@ void lib_drawlines1(int opt, struct LIB_WINDOW *win, int x0, int y0, int xsize, 
 void lib_drawpoints1(int opt, struct LIB_WINDOW *win, int x0, int y0, int xsize, int ysize,
 	int points, const struct LIB_POINTS *ofs);
 void lib_seuc2gg00(int len, const char *seuc, int *gg00, int ankbase, int rightbase);
+void lib_resizemodule(int opt, int slot, int newsize, int sig);
+void lib_drawpoint0(int opt, struct LIB_GRAPHBOX *gbox, int color, int x, int y);
+const int lib_getrandseed();
+void lib_putstring0(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *textbox,
+	int color, int bcolor, int len, const int *str);
+void lib_putstring1(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *tbox,
+	int col, int bcol, int base, int len, const int *str);
 
 #endif
 
@@ -123,9 +148,8 @@ void lib_steppath0(int opt, int slot, const char *name, int sig);
 const int lib_decodel2d3(int size, int src_ofs, int src_sel, int dest_ofs, int dest_sel);
 void lib_putstring_SJIS0(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *textbox,
 	int color, int backcolor, const char *str);
-void lib_putstring0(int opt, int x_pos, int y_pos, struct LIB_TEXTBOX *textbox,
-	int color, int backcolor, int len, const int *str);
 const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int dest_sel);
+void lib_settimertime2(int opt, int slot0, int slot1, unsigned int *time);
 
 #define	lib_init(work) \
 	(struct LIB_WORK *) lib_execcmd1(1 * 4 + 12, 0x0004, \
@@ -133,6 +157,10 @@ const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int d
 
 #define	lib_init_nm(work) \
 	lib_execcmd0(0x0004, (void *) (work), 0x0000)
+
+#define	lib_init_am(work) \
+	(struct LIB_WORK *) lib_execcmd1(1 * 4 + 12, 0x0004, \
+	malloc(sizeof (struct LIB_WORK)), 0x0000)
 
 #define	lib_waitsignal(opt, signaldw, nest) \
 	lib_execcmd0(0x0018, (int) (opt), (int) (signaldw), (int) (nest), 0x0000)
@@ -146,6 +174,11 @@ const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int d
 	lib_execcmd0(0x0020, (void *) (window), (int) (slot), (int) (x_size), \
 	(int) (y_size), 0x0000)
 
+#define	lib_openwindow_am(window, slot, x_size, y_size) \
+	(struct LIB_WINDOW *) lib_execcmd1(1 * 4 + 12, 0x0020, \
+	malloc(sizeof (struct LIB_WINDOW)), \
+	(int) (slot), (int) (x_size), (int) (y_size), 0x0000)
+
 #define	lib_opentextbox(opt, textbox, backcolor, x_size, y_size, x_pos, y_pos, window, charset, init_char) \
 	(struct LIB_TEXTBOX *) lib_execcmd1(2 * 4 + 12, 0x0028, (int) (opt), \
 	(textbox) ? (void *) (textbox) : malloc(sizeof (struct LIB_TEXTBOX) + 8 * (x_size) * (y_size)), \
@@ -158,6 +191,13 @@ const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int d
 	(int) (x_size), (int) (y_size), (int) (x_pos), (int) (y_pos), \
 	(void *) (window), (int) (charset), (int) (init_char), 0x0000)
 
+#define	lib_opentextbox_am(opt, textbox, backcolor, x_size, y_size, x_pos, y_pos, window, charset, init_char) \
+	(struct LIB_TEXTBOX *) lib_execcmd1(2 * 4 + 12, 0x0028, (int) (opt), \
+	malloc(sizeof (struct LIB_TEXTBOX) + 8 * (x_size) * (y_size)), \
+	(int) (backcolor), (int) (x_size), (int) (y_size), (int) (x_pos), \
+	(int) (y_pos), (void *) (window), (int) (charset), (int) (init_char), \
+	0x0000)
+
 #define	lib_waitsignaltime(opt, signaldw, nest, time0, time1, time2) \
 	lib_execcmd0(0x0018, (int) (opt), (int) (signaldw), (int) (nest), \
 	(int) (time0), (int) (time1), (int) (time2), 0x0000)
@@ -167,9 +207,14 @@ const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int d
 	(signalbox) ? (void *) (signalbox) : malloc(bytes), (int) (eos), \
 	(int) (rewind), 0x0000)
 
+
 #define	lib_opensignalbox_nm(bytes, signalbox, eos, rewind) \
 	lib_execcmd0(0x0060, (int) (bytes), (void *) (signalbox), (int) (eos), \
 	(int) (rewind), 0x0000)
+
+#define	lib_opensignalbox_am(bytes, signalbox, eos, rewind) \
+	(int *) lib_execcmd1(2 * 4 + 12, 0x0060, (int) (bytes), \
+	malloc(bytes), (int) (eos), (int) (rewind), 0x0000)
 
 #define	lib_definesignal0p0(opt, default_assign0, default_assign1, default_assign2) \
 	lib_execcmd0(0x0068, (int) (opt), (int) (default_assign0), \
@@ -209,6 +254,12 @@ const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int d
 	lib_execcmd0(0x0020, (void *) (window), (int) (slot) | 0x01, \
 	(int) (x_size), (int) (y_size), 0x01 | (int) (flags) << 8, (int) (base), \
 	0x0000)
+
+#define	lib_openwindow1_am(window, slot, x_size, y_size, flags, base) \
+	(struct LIB_WINDOW *) lib_execcmd1(1 * 4 + 12, 0x0020, \
+	malloc(sizeof (struct LIB_WINDOW)), \
+	(int) (slot) | 0x01, (int) (x_size), (int) (y_size), \
+	0x01 | (int) (flags) << 8, (int) (base), 0x0000)
 
 #define	lib_closewindow(opt, window) \
 	lib_execcmd0(0x0024, (int) (opt), (void *) (window), 0x0000)
@@ -261,6 +312,17 @@ const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int d
 	(int) (mode), (int) (mode_opt), (int) (x_size), (int) (y_size), \
 	(int) (x_pos), (int) (y_pos), (void *) (window), 0x0000)
 
+#define	lib_opengraphbox_nm(opt, graphbox, mode, mode_opt, x_size, y_size, x_pos, y_pos, window) \
+	lib_execcmd0(0x0030, (int) (opt), (void *) (graphbox), \
+	(int) (mode), (int) (mode_opt), (int) (x_size), (int) (y_size), \
+	(int) (x_pos), (int) (y_pos), (void *) (window), 0x0000)
+
+#define	lib_opengraphbox_am(opt, graphbox, mode, mode_opt, x_size, y_size, x_pos, y_pos, window) \
+	(struct LIB_GRAPHBOX *) lib_execcmd1(2 * 4 + 12, 0x0030, (int) (opt), \
+	malloc(sizeof (struct LIB_GRAPHBOX) + (x_size) * (y_size)), \
+	(int) (mode), (int) (mode_opt), (int) (x_size), (int) (y_size), \
+	(int) (x_pos), (int) (y_pos), (void *) (window), 0x0000)
+
 #define	lib_flushgraphbox(opt, win, x, y, sx, sy, skip, p) \
 	lib_execcmd0(0x004c, opt, (void *) (win), (int) (x), (int) (y), (int) (sx), \
 	(int) (sy), (int) (skip), (void *) (p), 0x000c, 0x0000)
@@ -294,6 +356,21 @@ const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int d
 	(int) (x_vsize), (int) (y_vsize), (int) (x_pos), (int) (y_pos), \
 	(void *) (window), 0x0000)
 
+#define	lib_opengraphbox2_nm(opt, graphbox, mode, mode_opt, x_bsize, y_bsize, \
+	x_vsize, y_vsize, x_pos, y_pos, window) \
+	lib_execcmd0(0x0030, (int) (opt), (void *) (graphbox), \
+	(int) (mode), (int) (mode_opt), (int) (x_bsize), (int) (y_bsize), \
+	(int) (x_vsize), (int) (y_vsize), (int) (x_pos), (int) (y_pos), \
+	(void *) (window), 0x0000)
+
+#define	lib_opengraphbox2_am(opt, graphbox, mode, mode_opt, x_bsize, y_bsize, \
+	x_vsize, y_vsize, x_pos, y_pos, window) \
+	(struct LIB_GRAPHBOX *) lib_execcmd1(2 * 4 + 12, 0x0030, (int) (opt), \
+	malloc(sizeof (struct LIB_GRAPHBOX) + (x_bsize) * (y_bsize)), \
+	(int) (mode), (int) (mode_opt), (int) (x_bsize), (int) (y_bsize), \
+	(int) (x_vsize), (int) (y_vsize), (int) (x_pos), (int) (y_pos), \
+	(void *) (window), 0x0000)
+
 #define lib_putblock03001(gbox, buf, vx0, vy0, tbuf, tbuf_skip, tcol0) \
 	lib_execcmd0(0x0058, 0x3001, (void *) (gbox), (void *) (buf), \
 	(int) (vx0), (int) (vy0), (void *) (tbuf), (int) (tbuf_skip), \
@@ -321,5 +398,26 @@ const int lib_decodetek0(int size, int src_ofs, int src_sel, int dest_ofs, int d
 #define	lib_seuc2gg00(len, seuc, gg00, ankbase, rightbase) \
 	lib_execcmd0(0x00ec, 0x0002, (int) (len), (void *) (seuc), 0x000c, \
 	(int *) (gg00), 0x000c, (int) (ankbase), (int) (rightbase), 0x0000)
+
+#define	lib_resizemodule(opt, slot, newsize, sig) \
+	lib_execcmd0(0x0120, 0x0000, (int) (slot), (int) (newsize), 1, \
+	(int) (sig), 0x0000)
+
+#define	lib_drawpoint0(opt, gbox, color, x, y) \
+	lib_execcmd0(0x0054, (int) (opt), (void *) (gbox), (int) (color), \
+	(int) (x), (int) (y), (int) (x), (int) (y), 0x0000)
+
+#define	lib_getrandseed() \
+	lib_execcmd1(2 * 4 + 12, 0x0118, (int) 0, (int) 0, (int) 0x0000)
+
+#define	lib_putstring0(opt, x_pos, y_pos, textbox, color, bcolor, len, str) \
+	lib_execcmd0(0x0040, (int) (opt) | 0x4000, (int) (x_pos),  (int) (y_pos), \
+	(void *) (textbox), (int) (color), (int) (bcolor), (int) (len), \
+	(void *) (str), (int) 0x000c, 0x0000)
+
+#define	lib_putstring1(opt, x_pos, y_pos, tbox, col, bcol, base, len, str) \
+	lib_execcmd0(0x0040, (int) (opt) | 0x4000, (int) (x_pos),  (int) (y_pos), \
+	(void *) (tbox), (int) (col), (int) (bcol), (int) (base), (int) (len), \
+	(void *) (str), (int) 0x000c, 0x0000)
 
 #endif

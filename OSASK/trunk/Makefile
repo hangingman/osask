@@ -49,40 +49,40 @@ $(ANKFONT) :
 
 pcat : FORCE
 #	copy /y base.as base.asm
-	echo ARCH = pcat> depend.mak
-	echo #TMENU = y>> depend.mak
+	echo ARCH = pcat>> depend.mak
 	$(MAKE)
 
 vmware : FORCE
 #	copy /y base.as base.asm
-	echo ARCH = pcat> depend.mak
+	echo ARCH = pcat>> depend.mak
 	echo VMWARE = y>> depend.mak
-	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 bochs : FORCE
 #	copy /y base.bch base.asm
-	echo ARCH = pcat> depend.mak
+	echo ARCH = pcat>> depend.mak
 	echo BOCHS = 13>> depend.mak
-	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 bochs12 : FORCE
 #	copy /y base.bch base.asm
-	echo ARCH = pcat> depend.mak
+	echo ARCH = pcat>> depend.mak
 	echo BOCHS = 12>> depend.mak
-	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 towns : FORCE 
 #	copy /y base.as base.asm
-	echo ARCH = towns> depend.mak
+	echo ARCH = towns>> depend.mak
 	echo TWSCRL1 = n>> depend.mak
 	echo TWVSW = 1024>> depend.mak
-	echo #TMENU = y>> depend.mak
 	$(MAKE)
 
 FORCE:
+	echo on > depend.mak
+	echo #DESIGN = WIN9X #Win9x style>> depend.mak
+	echo #DESIGN = TMENU #T-OSASK>> depend.mak
+	echo #DESIGN = CHO_OSASK #Cho-Kanji style OSASK>> depend.mak
+	echo #DESIGN = NEWSTYLE #NWSOS style>> depend.mak
 
 #$(BASE) : $(BASE:.exe=.obj)
 

@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" for TOWNS ver.1.3 copyright(C) 2002 川合秀実, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.1.4 copyright(C) 2002 川合秀実, I.Tak. */
 
 /* TWVSW is... TOWNS Vertial Screen Width! */
 #if (!defined(TWVSW))
@@ -72,9 +72,9 @@ syscmd:
 	PUSH(DS);
 	PUSH(ES);
 	PUSHAD();
-	EAX = all_sel;
+	PUSH(all_sel);
+	POP(DS);
 	MOV(ECX, CS);
-	DS = EAX;
 	ECX += 8;
 	ES = ECX;
 
@@ -1913,6 +1913,7 @@ void near GAPI_points()
 void near GAPI_removemouse();
 void near GAPI_putmouse();
 void near GAPI_clippingmouse();
+void near init_mousecursor();
 
 void near GAPI_mouse()
 /* option:bit0  直接指定(0)/間接指定(1)
@@ -1928,6 +1929,18 @@ void near GAPI_mouse()
 	cmd[4] = 0xffffffff; /* コマンド終了 */
 	EAX = cmd[8];
 	CLI();
+	TEST(AH, 0x03);
+	if (== 0) {
+		PUSH(GS);
+		PUSH(EBX);
+		LGS(ESI, [FS:EBX + 12]);
+		init_mousecursor();
+		POP(EBX);
+		POP(GS);
+		STI();
+		(offset) cmd += 20;
+		asmout("JMP next_command");
+	}
 	TEST(AH, 0x02);
 	if (!= 0) {
 		/* カーソルを消す */
@@ -1963,26 +1976,18 @@ void near GAPI_mouse()
 
 void near GAPI_init_sub();
 
-void near GAPI_init()
+void near init_mousecursor()
 {
-	int all_sel == 1 * 8;
-	int *cmd == FS:EBX;
+	unsigned char *cursor0 == GS:ESI; /* [y][x] */
+	int *cursor_buf == DS:EDI; /* [x][y] */
+	GAPI_WORK *work == DS:0x0000;
 
-	cmd[4] = 0xffffffff; /* 終了 */
-	(offset) cmd += 12;
+	PUSH(DS);
+	PUSH(ES);
+	POP(DS); /* DS == work */
 
-	GAPI_WORK *work == DS:0x0000, *workES == ES:0x0000;
-
-	unsigned char *cursor0 == CS:ESI; // [y][x]
-	int *cursor_buf == DS:EDI; // [x][y]
-
-	AX = ES;
-	asmout("MOV ESI,OFFSET #mouse_cursor");
-	DS = AX;
 	LEA((offset) cursor_buf, work->mouse_pattern[0]);
 	EDX = 0;
-
-	CLI();
 
 	ECX = 16;
 	do {
@@ -2044,7 +2049,6 @@ void near GAPI_init()
 	LEA((offset) shift, work->mouse_pattern[640]);
 	EBP = 3;
 
-	PUSH(EBX);
 	do {
 		ECX = 32;
 		do {
@@ -2078,18 +2082,48 @@ void near GAPI_init()
 		(offset) shift += 512;
 		EBP--;
 	} while (!= 0);
-	POP(EBX);
 
-	EAX = all_sel;
-	work->mx1 = 0x80000000; /* 非表示 */
-//	work->backup_addr = 0xa0000 + 800 * 600 / 8; /* 画面外 */
-//	work->taskcount = /* 0 */ ECX;
-	work->lockcount = /* 0 */ ECX;
-	work->mouselock = /* 0 */ ECX;
-	work->VGA_mode = /* 0 */ ECX;
-	work->mouseflag = /* 0 */ CL;
+	POP(DS);
+	return;
+
+	ALIGN(4);
+table:
+	DD(0x00000000); DD(0xff000000); DD(0x00ff0000); DD(0xffff0000);
+	DD(0x0000ff00); DD(0xff00ff00); DD(0x00ffff00); DD(0xffffff00);
+	DD(0x000000ff); DD(0xff0000ff); DD(0x00ff00ff); DD(0xffff00ff);
+	DD(0x0000ffff); DD(0xff00ffff); DD(0x00ffffff); DD(0xffffffff);
+}
+
+void near GAPI_init()
+{
+	int all_sel == 1 * 8;
+	int *cmd == FS:EBX;
+
+	cmd[4] = 0xffffffff; /* 終了 */
+	(offset) cmd += 12;
+
+	GAPI_WORK *work == DS:0x0000, *workES == ES:0x0000;
+
+//	PUSH(GS);
+//	PUSH(EBX);
+//	PUSH(CS);
+//	POP(GS);
+//	asmout("MOV ESI,OFFSET #mouse_cursor");
+	CLI();
+//	init_mousecursor();
+//	POP(EBX);
+//	POP(GS);
+
+	ECX = 0;
+	workES->mx1 = 0x80000000; /* 非表示 */
+//	workES->backup_addr = 0xa0000 + 800 * 600 / 8; /* 画面外 */
+//	workES->taskcount = /* 0 */ ECX;
+	workES->lockcount = /* 0 */ ECX;
+	workES->mouselock = /* 0 */ ECX;
+	workES->VGA_mode = /* 0 */ ECX;
+	workES->mouseflag = /* 0 */ CL;
 //	ECX++;
-//	work->nextcount = /* 1 */ ECX;
+//	workES->nextcount = /* 1 */ ECX;
 /*
 	EAX = syswork_sel;
 	DS = AX;
@@ -2103,9 +2137,9 @@ void near GAPI_init()
 
 	STI();
 //	EBP++; // EBP = 1;
-	DS = EAX;
 	asmout("JMP next_command");
 
+#if 0
 #if (!defined(TMENU))
 	/* デフォルトマウスカーソルパターン(16x16, mono) */
 	ALIGN(4);
@@ -2182,12 +2216,7 @@ mouse_cursor:
 	asmout("DB 00000000B,00000000B");
 	asmout("DB 00000000B,00000000B");
 #endif
-
-table:
-	DD(0x00000000); DD(0xff000000); DD(0x00ff0000); DD(0xffff0000);
-	DD(0x0000ff00); DD(0xff00ff00); DD(0x00ffff00); DD(0xffffff00);
-	DD(0x000000ff); DD(0xff0000ff); DD(0x00ff00ff); DD(0xffff00ff);
-	DD(0x0000ffff); DD(0xff00ffff); DD(0x00ffffff); DD(0xffffffff);
+#endif
 }
 
 void near GAPI_resetdevice()

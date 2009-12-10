@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.2b
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.3
     copyright(C) 2002 H.Kawai (川合秀実), I.Tak. */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -10,11 +10,17 @@
 segment PioneerMdl(USE32, PARA);
 default(code == PioneerMdl);
 
-#if (!defined(TMENU))
-	#define DEFAULT_TBOX_BCOL	 8
+#if (defined(WIN9X))
+	#define	DEFAULT_TBOX_BCOL	8
 
-#else
+#elif (defined(TMENU))
 	#define DEFAULT_TBOX_BCOL	15
+
+#elif (defined(CHO_OSASK))
+	#define DEFAULT_TBOX_BCOL	7
+
+#elif (defined(NEWSTYLE))
+	#define DEFAULT_TBOX_BCOL	8
 
 #endif
 
@@ -1422,11 +1428,15 @@ blank_b:
 	goto skip2;
 
 	ALIGN(2);
-	#if (!defined(TMENU))
-		asmout("wintitle_colortable DW 0008H, 0708H, 0, 040FH");
-	#else
-		asmout("wintitle_colortable  DW 0f07H, 0800H, 0, 000fH");
-		asmout("wintitle_colortable2 DW 000fH, 0008H, 0, 000cH");
+	asmout("wintitle_colortable:");
+	#if (defined(WIN9X))
+		DW(0x0008, 0x0708, 0, 0x040F);
+	#elif (defined(TMENU))
+		DW(0x0f07, 0x0800, 0, 0x000f);
+	#elif (defined(CHO_OSASK))
+		DW(0x0700, 0x0708, 0, 0x070f);
+	#elif (defined(NEWSTYLE))
+		DW(0x0008, 0x0708, 0, 0x040F);
 	#endif
 }
 
@@ -3955,159 +3965,199 @@ nextsignal:
 //	asmout("wintitle_colortable DD 0008H, 0708H, 0, 040FH");
 }
 
-#define PushBF(x0,y0,x1,y1,c) PUSH(c);PUSH(y1);PUSH(x1);PUSH(y0);PUSH(x0);PUSH(ws);PUSH(op);PUSH(cn)
-#define PushDrawBlock(slot,x,y,w,h,skip,ofs,sel) PUSH(sel);PUSH(ofs);PUSH(skip);PUSH(h);PUSH(w);PUSH(y);PUSH(x);PUSH(slot);PUSH(1);PUSH(0x00000414)
+#define PushDrawBlock(slot,x,y,w,h,skip,ofs,sel) \
+	PUSH(sel); PUSH(ofs); PUSH(skip); PUSH(h); PUSH(w); \
+	PUSH(y); PUSH(x); PUSH(slot); PUSH(1); PUSH(0x00000414)
 
 void near drawwindow()
 {
+	struct WINDAT {
+		unsigned char col_disabled, col_inactive, resv, col_active;
+		signed char x0, y0, x1, y1;
+	};
+	signed int t == EAX, width == EDX, height == EBX;
+	unsigned int wslot == EBP;
+	unsigned char winmode == CL;
+	WINDAT *windat == DS:ESI;
 	WINDOW *win == DS:EDI;
-	unsigned int w == EAX, h == EBX, t == EBP,
-		     op == ECX, ws == EDX, cn == ESI;
 
+	PUSH(ESI);
+	PUSH(EBP);
 
-	PUSH(EDI);PUSH(ESI); PUSH(EBP);
+	winmode = win->mode0;
+	asmout("mov esi, offset #windatarray");
+	width = win->x_size;
+	height = win->y_size;
+	winmode *= 8;
+	wslot = win->slot;
 
-	PUSH(0x20); cn = 0x0400; POP(op);		/* op = 0x20; */
-	t = 0; 	ws = win->slot;
-	w = win->x_size; h = win->y_size;
+	PUSH(CS);
+	POP(DS);
 
-	PUSH(t);						/* end of command */
+	PUSH(0);
+#if (defined(WIN9X))
+	asmout("mov eax, offset #closebutton");
+	width -= 21;
+	PushDrawBlock(wslot, EDX,5, 16,14, 0, EAX,CS);
+	width += 21;
+#elif (defined(TMENU))
+	asmout("mov eax, offset #closebutton");
+	PushDrawBlock(wslot, 4,4, 15,15, 1, EAX,CS);
+#elif (defined(CHO_OSASK))
+	asmout("mov eax, offset #picsmap");
+	PushDrawBlock(wslot, 4,4, 16,16, 0, EAX,CS);
+#elif (defined(NEWSTYLE))
+	/* nothing */
+#endif
+	t = (int) windat->col_disabled; /* t = *(int *) &windat->col_disabled; */
+	do {
+		SHR(t, winmode);
+		t &= 0x0f;
+		PUSH(t);
 
-	#if (!defined(TMENU))
-		w--;
-		h--;
-		PushBF(w, t, w, h, t); /* 描く順序と逆につむ */
-		PushBF(t, h, w, h, t);
-		PushBF(t, t, t, h, 8);
-		PushBF(t, t, w, t, 8);
-		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
-		ESP = EBX;
-		h = win->y_size;
-		w--;
-		h--;
-		t++; /* t = 1; */
-		h--;
-		PushBF(w, t, w, h, 7); /* 描く順序と逆につむ */
-		PushBF(t, h, w, h, 7);
-		PushBF(t, t, t, h, 15);
-		PushBF(t, t, w, t, 15);
-		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
-		ESP = EBX;
-		w--;
-		t++;
-		h = win->mode0;
-		w--;
-		t++; /* t = 3; */
-		asmout("MOVZX EBX,BYTE PTR CS:[EBX*2+wintitle_colortable+1]");
-		PushBF(t, t, w, 20, h);
-		h = win->y_size;
-		w++;
-		t--; /* t = 2; */
-		h -= 3;
-		PushBF(t, t, w, h, 8);
-		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
-		ESP = EBX;
+		t = windat->y1;
+		if (t < 0)
+			t += height;
+		PUSH(t);
 
-		// ウィンドウクローズボタンを描く
-		LEA(h, [w - 3]);
-		w -= 18;
-		t += 3; /* t = 5; */
-		PushBF(w, 18, h, 18, 0); /* 描く順序と逆につむ */
-		PushBF(h, t, h, 18, 0);
-		PushBF(w, t, w, 18, 15);
-		PushBF(w, t, h, t, 15);
-		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
-		ESP = EBX;
-		LEA(h, [w + 13]);
-		w++;
-		t++; /* t = 6; */
-		PushBF(w, t, h, 16, 8); /* 描く順序と逆につむ */
-		h++;
-		PushBF(h, t, h, 17, 7);
-		PushBF(w, 17, h, 17, 7);
-		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
-		LEA(ESP, [EBX + 4]);
-	#else
-		/* Window frame */
-		w--;	h--;					/* w = width -1; */
-		PushBF(t,t,w,t,t);								/* up */
-		/* PushBF(t,h-2,w,h,t);							/  down */
-		PUSH(t);PUSH(h); h-=2; PUSH(w);PUSH(h);PUSH(t);
-		h--; PUSH(ws);PUSH(op);PUSH(cn);
-		/* PushBF(w-2,1,w,h,t);							/  right */
-		PUSH(t);PUSH(h);PUSH(w); w-=2; PUSH(1);PUSH(w);
-		w--; PUSH(ws);PUSH(op);PUSH(cn);
-		PushBF(t,1,t,h,t);								/* left */
-		t++;					/* t=1, w=width-4, h=height-4; */
+		t = windat->x1;
+		if (t < 0)
+			t += width;
+		PUSH(t);
 
-		/* window filling */
-		PushBF(t,22,w,h,15);
-		/* title bar down*/
-		EBX = win->mode0;				/* h==EBX no longer needed :-) */
-		PushBF(t,21,w,21,0);			/* line between win and bar */
-		/* titlebar right */
-		asmout("MOVZX EBX, byte ptr CS:[EBX*2+wintitle_colortable2]");
-		/* PushBF(1,t,width-71,20,EBX); */
-		PUSH(EBX); PUSH(20);PUSH(w);
-		w -= 67;
-		PUSH(t);PUSH(w);
-		PUSH(ws);PUSH(op);PUSH(cn);
-		EBX = win->mode0;
-		/* titlebar mid line */
-		w--;
-		PushBF(w,1,w,20,0);
-		/* titlebar left */
-		asmout("MOVZX EBX, byte ptr CS:[EBX*2+wintitle_colortable+1]");
-		w--;
-		PushBF(1,t,w,20,EBX);
+		t = windat->y0;
+		if (t < 0)
+			t += height;
+		PUSH(t);
 
-		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
-		ESP = EBX;
+		t = windat->x0;
+		if (t < 0)
+			t += width;
+		PUSH(t);
 
-		/* Window close button */
-		t++;t++;					/* t=3; */
-		if (win->mode0 == 3) {		/* Active */
-			/* 2:button rim */
-			PushBF( t, 4, t,19,15);	/* left */
-			PushBF( t, 3,19, 3,15);	/* up */
-		}
-		/* 1:button fill */
-		t++;						/* t=4; */
-	//	PushBF(t,t,15,16,7);
-		asmout("MOV EAX,OFFSET #closebutton");
-		PushDrawBlock(ws, t,t, 15,15, 1, EAX,CS);
-		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
-		LEA(ESP, [EBX + 4]);
-	#endif
+		windat += 8;
+		PUSH(wslot);
+		PUSH(0x20);
+		PUSH(0x0400);
 
-	POP(EBP); POP(ESI);POP(EDI);
+		t = (int) windat->col_disabled; /* t = *(int *) &windat->col_disabled; */
+		TEST(t, 0x00ff0000);
+	} while (== 0);
+
+	PUSH(SS);
+	POP(DS);
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shell-call */
+	LEA(ESP, [EBX + 4]);
+
+	POP(EBP);
+	POP(ESI);
 	return;
 
-	#if (defined(TMENU))
-		ALIGN(4);
-closebutton:
+
+/*	タイトル用テキストボックスの色とウィンドウの色は本来無関係
+ *	なので別に管理したほうがよい，と思えてきたので，そうしてみた。
+ *	それに，Active/Inactiveで変わるのがタイトルバーの色だけとは
+ *	限らない。たとえばFVWMではFocusしたウィンドウとStickyな
+ *	ウィンドウとその他のウィンドウとをウィンドウ枠全体の色で
+ *	区別する。
+ */
+
+	ALIGN(4);
+windatarray:
+	#if (defined(WIN9X))
+		DB( 0, 0, 0, 0,  0,-1,  -1,-1);	/* frame downside line 0 */
+		DB( 7, 7, 0, 7,  1,-2,  -2,-2);	/* frame downside line 1 */
+		DB( 0, 7, 0, 4,  3, 3,  -4,20);	/* title bar */
+		DB( 8, 8, 0, 8,  2, 2,  -3,-3);	/* window */
+		DB( 0, 0, 0, 0, -1, 0,  -1,-1);	/* frame rightside line 0 */
+		DB( 7, 7, 0, 7, -2, 1,  -2,-2);	/* frame rightside line 1 */
+		DB(15,15, 0,15,  1, 1,   1,-2);	/* frame leftside line 1 */
+		DB( 8, 8, 0, 8,  0, 0,   0,-1);	/* frame leftside line 0 */
+		DB(15,15, 0,15,  1, 1,  -2, 1);	/* frame upside line 1 */
+		DB( 8, 8, 0, 8,  0, 0,  -1, 0);	/* frame upside line 0 */
+	/*	DB( 0, 0,-1, 0);	*/			/* End of data */
+	closebutton:
+		DD(0x0f0f0f0f, 0x0f0f0f0f, 0x0f0f0f0f, 0x000f0f0f);	/* ×箱(^^; */
+		DD(0x0808080f, 0x08080808, 0x08080808, 0x00070808);
+		DD(0x0808080f, 0x08080808, 0x08080808, 0x00070808);
+		DD(0x0808080f, 0x08080000, 0x00000808, 0x00070808);
+		DD(0x0808080f, 0x08000008, 0x08000008, 0x00070808);
+		DD(0x0808080f, 0x00000808, 0x08080000, 0x00070808);
+		DD(0x0808080f, 0x00080808, 0x08080800, 0x00070808);
+		DD(0x0808080f, 0x00000808, 0x08080000, 0x00070808);
+		DD(0x0808080f, 0x08000008, 0x08000008, 0x00070808);
+		DD(0x0808080f, 0x08080000, 0x00000808, 0x00070808);
+		DD(0x0808080f, 0x08080808, 0x08080808, 0x00070808);
+		DD(0x0808080f, 0x08080808, 0x08080808, 0x00070808);
+		DD(0x0707070f, 0x07070707, 0x07070707, 0x00070707);
 		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000);
-		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f000f00);
-		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000);
-		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f000f00);
-		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000);
-		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f000f00);
-		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000);
-		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f000f00);
-		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000);
-		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f000f00);
-		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000);
-		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f000f00);
-		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000);
-		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f000f00);
-		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000);
+	#elif (defined(TMENU))
+		DB( 0, 0, 0, 0,  0,-3,   -1,-1);	/* frame downside line */
+		DB(15,15, 0,15,  1,22,   -4,-4);	/* window */
+		DB( 0, 0, 0, 0,  1,21,   -4,21);	/* titlebar downside line */
+		DB(15, 8, 0,12, -71, 1,  -4,20);	/* titlebar right half*/
+		DB( 0, 0, 0, 0, -72, 1, -72,20);	/* titlebar mid line */
+		DB(15, 8, 0,15,  3, 4,    3,19);	/* close button leftside line */
+		DB(15, 8, 0,15,  3, 3,   19, 3);	/* close button upside line */
+		DB(15, 8, 0, 0,  1, 1,  -73,20);	/* titlebar left half */
+		DB( 0, 0, 0, 0, -3, 1,   -1,-4);	/* frame rightside line */
+		DB( 0, 0, 0, 0,  0, 1,    0,-4);	/* frame leftside line */
+		DB( 0, 0, 0, 0,  0, 0,   -1, 0);	/* frame upside line */
+		DB( 0, 0,-1, 0);					/* End of data */
+	closebutton:
+		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
+		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f00);
+		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
+		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f00);
+		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
+		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f00);
+		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
+		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f00);
+		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
+		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f00);
+		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
+		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f00);
+		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
+		DD(0x0f000f00, 0x0f000f00, 0x0f000f00, 0x0f00);
+		DD(0x00000000, 0x00000000, 0x00000000, 0x0000);
+	#elif (defined(CHO_OSASK))
+		DB( 0, 0, 0, 0,  0,-1,  -1,-1);	/* frame downside line */
+		DB(15,15, 0,15,  7, -8, -8,-8);	/* frame inner downside line */
+		DB(15,15, 0,15, -8, 29, -8,-9);	/* frame inner rightside line */
+		DB( 0, 0, 0, 0,  7, 29,  7,-8);	/* frame inner leftside line */
+		DB( 0, 0, 0, 0,  7, 28, -8,28);	/* frame inner upside line */
+		DB( 7, 7, 0, 7,  1, 1,  -2,-2);	/* window */
+		DB( 0, 0, 0, 0, -1, 1,  -1,-2);	/* frame rightside line */
+		DB(15,15, 0,15,  0, 1,   0,-2);	/* frame leftside line */
+		DB(15,15, 0,15,  0, 0,  -1, 0);	/* frame upside line */
+	/*	DB( 0, 0,-1, 0);	*/			/* End of data */
+	picsmap:
+		DD(0x0e070707, 0x0e07070e, 0x0e0e0e0e, 0x0e0e0e0e);	/* 超 */
+		DD(0x0e070707, 0x0707070e, 0x0e0e0707, 0x0e0e0707);
+		DD(0x0e070707, 0x0707070e, 0x0e0e0707, 0x0e0e0707);
+		DD(0x0e0e0e07, 0x070e0e0e, 0x070e0e07, 0x0e0e0707);
+		DD(0x0e070707, 0x0707070e, 0x0e0e0e07, 0x0e0e0e07);
+		DD(0x0e070707, 0x0707070e, 0x07070e0e, 0x070e0e0e);
+		DD(0x0e0e0e0e, 0x0e0e0e0e, 0x0707070e, 0x070e0e07);
+		DD(0x0e070707, 0x0707070e, 0x0e0e0e0e, 0x0e0e0e0e);
+		DD(0x0e070707, 0x0707070e, 0x07070e0e, 0x0e0e0707);
+		DD(0x0e070e07, 0x0e0e0e0e, 0x07070e0e, 0x0e0e0707);
+		DD(0x0e070e07, 0x0707070e, 0x07070e0e, 0x0e0e0707);
+		DD(0x0e070e0e, 0x0707070e, 0x0e0e0e0e, 0x0e0e0e0e);
+		DD(0x0e070e0e, 0x0707070e, 0x07070e0e, 0x0e0e0707);
+		DD(0x0e0e0e0e, 0x0e0e0e0e, 0x0707070e, 0x07070707);
+		DD(0x07070e0e, 0x0e0e0e07, 0x0e0e0e0e, 0x0e0e0e0e);
+		DD(0x07070e0e, 0x07070707, 0x0e0e0e0e, 0x070e0e0e);
+	#elif (defined(NEWSTYLE))
+		DB( 0, 0, 0, 0,  0,-1,  -1,-1);	/* frame downside line */
+		DB( 8, 8, 0, 8,  1,22,  -2,-2);	/* window */
+		DB( 0, 0, 0, 0,  1,21,  -2,21);	/* titlebar downside line */
+		DB( 0, 7, 0, 4,  1, 1,  -2,20);	/* titlebar */
+		DB( 0, 0, 0, 0, -1, 1,  -1,-2);	/* frame rightside line */
+		DB( 0, 0, 0, 0,  0, 1,   0,-2);	/* frame leftside line */
+		DB( 0, 0, 0, 0,  0, 0,  -1, 0);	/* frame upside line */
+		DB( 0, 0,-1, 0);				/* End of data */
 	#endif
 }
 
@@ -4278,131 +4328,107 @@ void near drawcomponent()
 }
 
 void near textbox_drawback()
+/* EAX:0x0010(box), 0x0020(boxfill) */
 // EDX:win_slot, ESI:textbox
-// EAX, ECX, EBXを破壊
+// EAX, ECX, EBX, EDIを破壊
 {
-	PUSH(EBP);
-	PUSH(EAX);
-	ESP -= 128 + 4;
-	EBP = ESP;
-
-	int *cmd == SS:EBP;
+	struct TBOXBACK {
+		unsigned char col;
+		signed char x0, y0, x1, y1;
+	};
+	int tmp == EDI, x_size == ECX, y_size == EBX, winslot == EDX, t == EAX;
 	TEXTBOX *textbox == DS:ESI;
+	TBOXBACK *tbp == CS:EDI;
 
-	EBX = 0;
-	EAX = 0x0400;
-//	ECX = 0x0020;
-	LEA(ECX, [EBX + 0x0020]);
-	cmd[  0] = EAX /* line command */;
-	cmd[  4] = ECX /* option(box-fill) */;
-	cmd[  8] = EDX /* window(slot-no) */;
-	cmd[ 32] = EAX /* line command */;
-	cmd[ 36] = ECX /* option(box-fill) */;
-	cmd[ 40] = EDX /* window(slot-no) */;
-	cmd[ 64] = EAX /* line command */;
-	cmd[ 68] = ECX /* option(box-fill) */;
-	cmd[ 72] = EDX /* window(slot-no) */;
-	cmd[ 96] = EAX /* line command */;
-	cmd[100] = ECX /* option(box-fill) */;
-	cmd[104] = EDX /* window(slot-no) */;
-	cmd[128] = EBX /* end of command */;
-	EAX = textbox->x0;
-	ECX = textbox->y0;
-	EAX -= 3;
-	ECX -= 3;
-	cmd[ 12] = EAX /* x0 */;
-	cmd[ 16] = ECX /* y0 */;
-	cmd[ 24] = ECX /* y1 */;
-	cmd[ 44] = EAX /* x0 */;
-	cmd[ 48] = ECX /* y0 */;
-	cmd[ 52] = EAX /* x1 */;
-	cmd[ 76] = EAX /* x0 */;
-	cmd[112] = ECX /* y0 */;
-	EAX = textbox->x_size;
-	ECX = textbox->y_size;
-	EAX *= 8;
-	ECX *= 8;
+	x_size = textbox->x_size;
+	y_size = textbox->y_size;
+	x_size *= 8;
+	y_size *= 8;
 	TEST(textbox->option, 0x10);
-	if (== 0) {
-		ECX *= 2;
-	}
-	EAX += textbox->x0;
-	ECX += textbox->y0;
-	EAX += 2;
-	ECX += 2;
-//	EBX = 0;
-	cmd[ 20] = EAX /* x1 */;
-	cmd[ 56] = ECX /* y1 */;
-	cmd[ 80] = ECX /* y0 */;
-	cmd[ 84] = EAX /* x1 */;
-	cmd[ 88] = ECX /* y1 */;
-	cmd[108] = EAX /* x0 */;
-	cmd[116] = EAX /* x1 */;
-	cmd[120] = ECX /* y1 */;
-	LEA(EAX, [EBX + 7]);
-	LEA(ECX, [EBX + 15]);
-	cmd[ 28] = /*  7 */ EAX /* color */;
-	cmd[ 60] = /*  7 */ EAX /* color */;
-	cmd[ 92] = /* 15 */ ECX /* color */;
-	cmd[124] = /* 15 */ ECX /* color */;
+	if (== 0)
+		y_size *= 2;
+
+	PUSH(0x0000); /* eoc */
+
+	//	DB(x0-1, y0-1, x1+0, y1+0, bc);
+	PUSH(textbox->backcolor);
+	tmp = y_size;
+	tmp += textbox->y0;
+	PUSH(tmp);
+	tmp = x_size;
+	tmp += textbox->x0;
+	PUSH(tmp);
+	tmp = textbox->y0;
+	tmp--;
+	PUSH(tmp);
+	tmp = textbox->x0;
+	tmp--;
+	PUSH(tmp);
+	PUSH(winslot);
+	PUSH(EAX);
+	PUSH(0x0400);
+
+	/* (offset) tbp = (offset) tb_table; */
+	asmout("MOV EDI,OFFSET #tb_table");
+
+	t = tbp->col;
+	do {
+		PUSH(t);
+		t = tbp->y1;
+		if (t >= 0)
+			t += y_size;
+		t += textbox->y0;
+		PUSH(t);
+		t = tbp->x1;
+		if (t >= 0)
+			t += x_size;
+		t += textbox->x0;
+		PUSH(t);
+		t = tbp->y0;
+		if (t >= 0)
+			t += y_size;
+		t += textbox->y0;
+		PUSH(t);
+		t = tbp->x0;
+		if (t >= 0)
+			t += x_size;
+		t += textbox->x0;
+		PUSH(t);
+		PUSH(winslot);
+		PUSH(0x0020);
+		PUSH(0x0400);
+		tbp += 5;
+		t = tbp->col;
+	} while (AL != 255);
+
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-	EAX = cmd[ 12];
-	ECX = cmd[ 16];
-	EAX++;
-	ECX++;
-	cmd[ 12] = EAX /* x0 */;
-	cmd[ 16] = ECX /* y0 */;
-	cmd[ 24] = ECX /* y1 */;
-	cmd[ 44] = EAX /* x0 */;
-	cmd[ 48] = ECX /* y0 */;
-	cmd[ 52] = EAX /* x1 */;
-	cmd[ 76] = EAX /* x0 */;
-	cmd[112] = ECX /* y0 */;
-	EAX = cmd[116];
-	ECX = cmd[120];
-	EAX--;
-	ECX--;
-	EBX = 0;
-	cmd[ 20] = EAX /* x1 */;
-	cmd[ 56] = ECX /* y1 */;
-	cmd[ 80] = ECX /* y0 */;
-	cmd[ 84] = EAX /* x1 */;
-	cmd[ 88] = ECX /* y1 */;
-	cmd[108] = EAX /* x0 */;
-	cmd[116] = EAX /* x1 */;
-	cmd[120] = ECX /* y1 */;
-	LEA(EAX, [EBX + 8]);
-	cmd[ 28] = /* 0 */ EBX /* color */;
-	cmd[ 60] = /* 0 */ EBX /* color */;
-	cmd[ 92] = /* 8 */ EAX /* color */;
-	cmd[124] = /* 8 */ EAX /* color */;
-	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-	EBX = [SS:ESP + 128 + 4];
-	EAX = cmd[ 12];
-	ECX = cmd[ 16];
-	cmd[  4] = EBX; // opt
-	EAX++;
-	ECX++;
-	cmd[ 12] = EAX /* x0 */;
-	cmd[ 16] = ECX /* y0 */;
-	EAX = cmd[116];
-	ECX = cmd[120];
-	EAX--;
-	ECX--;
-	cmd[ 20] = EAX /* x1 */;
-	cmd[ 24] = ECX /* y1 */;
-	EAX = textbox->backcolor;
-	ECX = 0;
-	cmd[ 28] = EAX /* color */;
-	cmd[ 32] = ECX /* end of command */;
-	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
-	ESP += 128 + 4;
-	POP(EAX);
-	POP(EBP);
+	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shell-call */
+	LEA(ESP, [EBX + 4]);
 	return;
+
+tb_table:
+	DB( 7, -2, -3,  1, -3); /* outside up */
+	DB( 7, -3, -3, -3,  1); /* outside left */
+	DB(15, -3,  2,  1,  2); /* outside down */
+	DB(15,  2, -3,  2,  2); /* outside right */
+	DB( 0, -1, -2,  0, -2); /* inside up */
+	DB( 0, -2, -2, -2,  0); /* inside left */
+	DB( 8, -2,  1,  0,  1); /* inside down */
+	DB( 8,  1, -2,  1,  1); /* inside right */
+	DB(255);
+
+	/* 正か零ならx1/y1、負ならx0/y0 */
+
+
+//	DB( 7, -4, -3, +1, -3); /* outside up */
+//	DB( 7, -3, -3, -3, +1); /* outside left */
+//	DB(15, -3, +2, +1, +2); /* outside down */
+//	DB(15, +2, -3, +2, +2); /* outside right */
+//	DB( 0, -3, -2, +0, -2); /* inside up */
+//	DB( 0, -2, -2, -2, +0); /* inside left */
+//	DB( 8, -2, +1, +0, +1); /* inside down */
+//	DB( 8, +1, -2, +1, +1); /* inside right */
+
 }
 
 void near lineconv()

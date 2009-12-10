@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.2.5c
+/* "pokon0.c":アプリケーションラウンチャー  ver.2.6
      copyright(C) 2002 小柳雅明, 川合秀実
     stack:4k malloc:84k file:1024k */
 
@@ -10,9 +10,9 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon25"
+#define POKON_VERSION "pokon26"
 
-#define POKO_VERSION "Heppoko-shell \"poko\" version 2.0\n    Copyright (C) 2002 OSASK Project\n"
+#define POKO_VERSION "Heppoko-shell \"poko\" version 2.1\n    Copyright (C) 2002 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
 
 #define	FILEAREA		(1024 * 1024)
@@ -801,8 +801,8 @@ void putcursor()
 {
 	struct STR_CONSOLE *pcons = console;
 	pcons->sleep = 0;
-	lib_putstring_ASCII(0x0001, pcons->curx, pcons->cury, &pcons->tbox.tbox, 0,
-		((pcons->col & pcons->cursorflag) | ((pcons->col >> 4) & ~(pcons->cursorflag))) & 0x0f, " ");
+	lib_putstring_ASCII(0x0001, pcons->curx, pcons->cury, &pcons->tbox.tbox,
+		pcons->col & 0x0f, (pcons->col >> 4) & 0x0f, (pcons->cursorflag) ? "\xff" : " ");
 	return;
 }
 
@@ -1944,13 +1944,38 @@ void open_console()
 /*	カーソル点滅のために、setmodeも拾う */
 /*	カーソル点滅のためのタイマーをイネーブルにする */
 {
+	static char charsetinit = 1;
 	struct STR_CONSOLE *pcons = console;
 	struct LIB_WINDOW *win = &pcons->win;
 	int i, j;
 	char *bp;
+
+	if (charsetinit) {
+		/* キャラクターセットの用意 */
+
+		#if (!defined(NEWSTYLE))
+			static unsigned char conscurfnt[] = {
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+			};
+		#elif (defined(NEWSTYLE))
+			static unsigned char conscurfnt[] = {
+				0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 
+				0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00
+			};
+		#endif
+
+		lib_loadfontset0(0x80000001 /* ANK font (8x16 mono) */, 0x0300 /* slot */);
+		lib_loadfontset(1 /* type(8x16 mono) */, 0x0310 /* slot */, 1 /* len */, conscurfnt);
+		lib_makecharset(0, 0x0320, 0x0300, 0xff, 0, 0x00);
+		lib_makecharset(0, 0x0330, 0x0310, 1,    0, 0xff);
+		lib_makecharset(0, 0x0340, 0, 0, 0, 0);
+		charsetinit = 0;
+	}
+
 	lib_openwindow1_nm(win, 0x0200, CONSOLESIZEX * 8, CONSOLESIZEY * 16, 0x0d, 256);
 	lib_opentextbox_nm(0x1000, &pcons->title.tbox, 0, 16,  1,  0,  0, win, 0x00c0, 0);
-	lib_opentextbox_nm(0x0001, &pcons->tbox.tbox,  0, CONSOLESIZEX, CONSOLESIZEY,  0,  0, win, 0x00c0, 0); // 5KB
+	lib_opentextbox_nm(0x0001, &pcons->tbox.tbox,  0, CONSOLESIZEX, CONSOLESIZEY,  0,  0, win, 0x0320, 0); // 5KB
 	lib_putstring_ASCII(0x0000, 0, 0, &pcons->title.tbox, 0, 0, POKON_VERSION" console");
 
 	bp = pcons->buf;

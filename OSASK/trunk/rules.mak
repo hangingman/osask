@@ -73,9 +73,21 @@ PREPROCESSOR_FLAGS += -DBOCHS -DNOHLT
 CFLAGS += -DBOCHS -DNOHLT
 endif
 endif
-ifeq ($(TMENU),y)
-PREPROCESSOR_FLAGS += -DTMENU
-CFLAGS += -DTMENU
+# design $(DESIGN)
+ifeq ($(WIN9X),y)
+DESIGN = WIN9X
 endif
-
-
+ifeq ($(TMENU),y)
+DESIGN = TMENU
+endif
+ifeq ($(CHO_OSASK),y)
+DESIGN = CHO_OSASK
+endif
+ifeq ($(NEWSTYLE),y)
+DESIGN = NEWSTYLE
+endif
+ifeq ($(DESIGN),)
+DESIGN = WIN9X
+endif
+PREPROCESSOR_FLAGS += -D$(DESIGN)
+CFLAGS += -D$(DESIGN)
