@@ -1,5 +1,13 @@
 ●主な変更点 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
+Version 3.6(2002/5)
+[OSASK 6042][OSASK 6047]
+・拡張子JPGがkjpegls.binに関連づけされました。
+・現在の状況で開けるウインドウサイズの目安が得られるAPIが追加されました。
+・VESA を使用した8bit-color, 16bit-color, 32bit-color 画面において、
+  screen shot が取れるようになりました(PC-AT版)。ただし、16bit-color,
+  32bit-color においては、保存したファイルをコンバータにかける必要があります。
+
 Version 3.5(2002/4)
 [OSASK 5859]
 ・pokonがデフォルトで開くテキストエディタがteditc01からteditc02

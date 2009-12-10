@@ -1,4 +1,4 @@
-/* "init.ask" ver.3.0 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
+/* "init.ask" ver.3.1 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -112,7 +112,9 @@ struct GUIGUI_work { /* SS:0xffffd000; */
 	void [1024];
 	area_man_struct linear_man[1024];
 	area_man_struct dummy_man[1024];
-	void [ 760];
+	void [512];
+	int infobuf[128];
+	void [120];
 	unsigned int timer_sec4, root_Paddr;
 	unsigned int dosload_phase, dosload_work[16];
 	unsigned int diskcache_Laddr, diskbuf_Paddr, diskbuf_Laddr;
@@ -458,7 +460,8 @@ void far Init()
 	//	PUSH((int) 0x0007 /* opt(present, R/W, user) */);
 	//	PUSH((int) ESI /* cmd(mapping) */);
 
-		/* mapping VRAM (0x000a0000～0x000bffff) */
+		/* mapping VRAM (0x000a0000～0x000bffff) & PC-card window & BIOS */
+		/* (0x000a0000～0x000fffff) */
 
 		PUSH((int) ECX /* addr64(high) */);
 		PUSH((int) 0x000a0000 /* addr64(low) */);
@@ -466,7 +469,7 @@ void far Init()
 		PUSH((int) ECX /* offset64(low) */);
 		PUSH((int) ECX /* pageset */);
 		PUSH((int) 0x000a0000 /* linear */);
-		PUSH((int) 128 * 1024 /* size */);
+		PUSH((int) 384 * 1024 /* size */);
 		PUSH((int) EAX /* opt(PCD, present, R/W, user, override) */);
 		PUSH((int) ESI /* cmd(mapping) */);
 
@@ -3493,7 +3496,7 @@ struct createtask_param {
 	unsigned int stack3size /* +48 */, stack3addr[8] /* +52 */;
 };
 
-void near create_task()
+void create_task()
 /*	タスクネームは設定しない
 	ES:EBX に モジュールパラメーター
 	SS:EBP に task_struct */
@@ -4128,6 +4131,10 @@ if (EBX == 0xffff)
 
 	/* ldt:0100～07ff ユーザー解放(112個) */
 
+	/* 104 : I/Oコントロール用の無制限セレクタ(これを使うアプリは川合秀実推奨が絶対に得られない。実験用) */
+	ldt_img[0x0100] = 0x0000ffff;
+	ldt_img[0x0104] = 0x00cff200;
+
 	tss_systemslot[0x0008] = 512; /* slotサイズ */
 	tss_systemslot[0x000c] = 0xffffffff; // 使用中(reserve)
 	tss_systemslot[0x00c0] = 256;
@@ -4356,7 +4363,7 @@ nextcmd:
 		if (EAX == 0x0140)
 			goto cmd0140; // send access-disabled-signal
 		if (EAX == 0x0144)
-			goto cmd0144; // send draw-finiched-signal
+			goto cmd0144; // send draw-finished-signal
 		INT(0x03);
 	}
 	if ((unsigned) EAX < 0x0400) {
@@ -4366,6 +4373,8 @@ nextcmd:
 			goto cmd0204; // add nest
 		if (EAX == 0x0208)
 			goto cmd0208; // add nest & return soft-int
+		if (EAX == 0x0210)
+			goto cmd0210;	/* get info */
 		if (EAX == 0x0240)
 			goto cmd0240; // set segment
 		if (EAX == 0x0300)
@@ -4810,6 +4819,25 @@ cmd0208:
 	ESP += 16;
 	goto nextcmd;
 
+cmd0210:
+	/* get info : cmd, opt, len, ofs, far-ptr */
+	ECX = cmd[ 8];
+	LES(EBX, cmd[16]);
+	GUIGUI_work *cmd0210_work == DS:0xffffd000;
+	PUSH(stack_sel);
+	LEA(EDX, cmd0210_work->infobuf[0]);
+	POP(DS);
+	EDX += cmd[12];
+	do {
+		EAX = [DS:EDX];
+		EDX += 4;
+		[ES:EBX] = EAX;
+		EBX += 4;
+		ECX--;
+	} while (!= 0);
+	(offset) cmd += 24;
+	goto nextcmd;
+
 cmd0240:
 	// set segment
 	// opt, selector, ar, limit, offset, base_selector
@@ -4858,8 +4886,8 @@ cmd0300:
 	}
 //	PUSH(ES);
 	GUIGUI_work *cmd0300_work == ES:0xffffd000;
-	EBX = stack_sel;
-	ES = BX;
+	PUSH(stack_sel);
+	POP(ES);
 	ECX = cmd0300_work->TAPI_sendmsgofs;
 //	POP(ES);
 	(int) [DS:EDX     ] = EAX;
@@ -6994,7 +7022,7 @@ nextcmd:
 		goto cmd0080; /* slotを使わないmapping */
 	if (EAX == 0x0084)
 		goto cmd0084; /* メモリ獲得 */
-#if (defined(PCAT)) || (defined(TOWNS) && defined(CLGD543X))
+	#if (defined(PCAT)) || (defined(TOWNS) && defined(CLGD543X))
 		if (EAX == 0x0088)
 			goto cmd0088;	/* AT専用ビデオドライバ変更 */
 							/* TOWNS専用VRAM&CRT出力切り替え */
@@ -7017,6 +7045,8 @@ nextcmd:
 		if (EAX == 0x00a0)
 			goto cmd00a0; /* CLGD存在確認&初期化 */
 	#endif
+	if (EAX == 0x00b0)
+		goto cmd00b0; /* set info */
 
 	if (EAX == 0x8010)
 		goto cmd8010;
@@ -7941,6 +7971,26 @@ cmd00a0:	/* CLGD detect & setup*/
 		(offset) cmd += 8;
 		goto nextcmd;
 	#endif
+
+cmd00b0:
+	/* set info : cmd, opt, len, ofs, far-ptr */
+	/* タスク別に設定できるような仕組みに拡張するのはまた今度 */
+	ECX = cmd[ 8];
+	LES(EDI, cmd[16]);
+	GUIGUI_work *cmd00b0_work == DS:0xffffd000;
+	PUSH(stack_sel);
+	LEA(EDX, cmd00b0_work->infobuf[0]);
+	POP(DS);
+	EDX += cmd[12];
+	do {
+		EAX = [ES:EDI];
+		EDI += 4;
+		[DS:EDX] = EAX;
+		EDX += 4;
+		ECX--;
+	} while (!= 0);
+	(offset) cmd += 24;
+	goto nextcmd;
 
 cmd8010:
 	// デバッグ用コマンド
@@ -9519,7 +9569,7 @@ void near initmalloc()
 
 
 #if 1
-void near set_modulesegment()
+void set_modulesegment()
 /* AL, AH = access_right
    ECX = size, EDX = base
    GS:EBX = DT-entry */

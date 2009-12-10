@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.9
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.3.0
     copyright(C) 2003 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -134,7 +134,7 @@ INT(0x03); /* コマンドエラーは許さない */
 	ALIGN(4);
 cmd_jumptable:
 	asmout("DD OFFSET cmd000,  OFFSET cmd004,  OFFSET cmd008,  OFFSET cmd00c ");
-	asmout("DD OFFSET cmd010,  OFFSET #cmderr, OFFSET cmd018,  OFFSET cmd01c ");
+	asmout("DD OFFSET cmd010,  OFFSET cmd014, OFFSET cmd018,  OFFSET cmd01c ");
 	asmout("DD OFFSET cmd020,  OFFSET cmd024,  OFFSET cmd028,  OFFSET cmd02c ");
 	asmout("DD OFFSET cmd030,  OFFSET cmd034,  OFFSET #cmderr, OFFSET cmd03c ");
 	asmout("DD OFFSET cmd040,  OFFSET cmd044,  OFFSET cmd048,  OFFSET cmd04c ");
@@ -726,6 +726,32 @@ void near cmd010()
 	(offset) cmd += 12;
 	work->softint_EIP = EAX;
 	work->softint_CS = ECX;
+	asmout("JMP nextcmd");
+}
+
+void cmd014()
+/* 各種info取得 : cmd, opt, ptr */
+/* lenなどはoptで決まるので書かなくてよい */
+{
+	int *cmd == DS:ESI;
+	if (cmd[4] != 0x10)
+		INT(0x03); /* window_max以外は今はエラー */
+	PUSH(0x0000);
+	PUSH(cmd[12]);
+	PUSH(cmd[ 8]);
+	PUSH(0);
+	PUSH(2);
+	PUSH(0);
+	PUSH(0x0210);
+	EBX = ESP;
+	CALL(0x0017,0); /* GUIGUI統合shellcall */
+	ESP += 28;
+	PUSH(DS);
+	LDS(EBX, cmd[8]);
+	(int) [DS:EBX + 0] -= 8 + 8;
+	(int) [DS:EBX + 4] -= 29 + 8;
+	POP(DS);
+	(offset) cmd += 16;
 	asmout("JMP nextcmd");
 }
 

@@ -1,50 +1,52 @@
-"src35"の使い方の説明                      2003/03/28 川合秀実
+"src36"の使い方の説明                      2003/05/03 川合秀実
 
 １．これは何か？
 
-  "src35"は、OSASK ver.3.5の「OSASK35.EXE」を生成するのに必要なモジュールのソー
+  "src36"は、OSASK ver.3.6の「OSASK36.EXE」を生成するのに必要なモジュールのソー
 スプログラムのセットです。ただし、以前のバージョンのものをそのまま利用している
-ものついては、このアーカイブに含まれていません。OSASK35.EXEを生成するのに必要な
+ものついては、このアーカイブに含まれていません。OSASK36.EXEを生成するのに必要な
 モジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    POKON0.C     : ver.3.5
+    INIT.ASK     : ver.3.1
+    PIONEER0.ASK : ver.3.0
+    WINMAN0.C    : ver.2.9
+    POKON0.C     : ver.3.6
     PCAT/
-      VESA16.ASK   : ver.0.1
-      VESA32.ASK   : ver.0.1
+      FDCDRV0.BIN  : ver.2.0
 
   (以前のバージョンのものを利用するもの)
 
     BOOT32.ASK   : ver.0.1
     OSASKINC.ASK : ver.0.0
-    INIT.ASK     : ver.3.0
     TAPI0.ASK    : ver.0.4
     PAPI0.ASK    : ver.0.6
     TIMERDRV.ASK : type-A ver.1.1
     FDCDRV0.BIN  : ver.1.9
     DECODE0.ASK  : ver.1.0
     IBMANK0.TXT  : ver.0.4
-    PIONEER0.ASK : ver.2.9
     SYSGG00.LIB  : ver.0.8
-    WINMAN0.C    : ver.2.8
-
     PCAT/
       BASE.NAS     : ver.2.3
       OSALINK1.OPT : ver.0.1
       VGADRV0.ASK  : ver.1.7
       KEYMOS0.BIN  : ver.0.7
       VESA8.ASK    : ver.0.0
+      VESA16.ASK   : ver.0.1
+      VESA32.ASK   : ver.0.1
     TOWNS/
       BASE.NAS     : ver.2.2
       OSALINK1.OPT : ver.0.0
       KEYMOS0.BIN  : ver.0.4
       VGADRV0.ASK  : ver.1.8
+      FDCDRV0.BIN  : ver.1.9
     NEC98/
       BASE.NAS     : ver.2.2
       OSALINK1.OPT : ver.0.0
       VGADRV0.ASK  : ver.1.7
       KEYMOS0.BIN  : ver.0.4
+      FDCDRV0.BIN  : ver.1.9
 
   このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
 るだけです。
@@ -162,10 +164,10 @@ base.nasを以下の指示にしたがって書き換える必要があります。
 
 ７．おまけ
 
-  このver.3.4移行のソースには、OSASKFDI.EXEを作ることなく、HDD/CF起動を可能にす
-るコードが、こっそりと含まれています。極めて危険ですし、動作可能な条件はかなり
-制限されるので、物好きな方がエミュレータなどで遊んでみるという程度の利用のみ、
-おすすめします。なおこの改造が可能なのはAT版のみです。
+  このソースには、OSASKFDI.EXEを作ることなく、HDD/CF起動を可能にするコードが、
+こっそりと含まれています。極めて危険ですし、動作可能な条件はかなり制限されるの
+で、物好きな方がエミュレータなどで遊んでみるという程度の利用のみ、おすすめしま
+す。なおこの改造が可能なのはAT版のみです。
 
   まず、適当な1440KBのディスクイメージを用意します。osat34iに付いてくるやつとか
 で十分です。これを一切の圧縮をかけないままにして、FDIMAGE0.BINと改名しておきま
@@ -183,7 +185,7 @@ FDIMAGE0.BINをさきほどのFAT16の区画のルートディレクトリにコピーします(この時ク
 0.BINのアクセスまでの間に何らかの障害があった場合は、「File Not Found!」になり
 ます。
 
-  なおもし1GHz以上の実マシンで実行するというなら、fdcdrv0.ask内の関数CFIDE_wait
-400ns()の「EAX = 400;」の部分を直すといいと思います。1200にしておけば3GHzまでOK
-です(手抜きなのでソフトウェアwaitになっているんです)。まともになる頃には直しま
-す。
+  なおもし3GHz以上の実マシンで実行するというなら、fdcdrv0.ask内の関数CFIDE_wait
+400ns()の「EAX = 1200;」の部分を直すといいと思います。1600にしておけば4GHzまで
+OKです(手抜きなのでソフトウェアwaitになっているんです)。まともになる頃には直し
+ます。

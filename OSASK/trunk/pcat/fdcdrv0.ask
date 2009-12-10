@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.1.9 copyright(C) 2003 H.Kawai(êÏçáèGé¿)
+// "fdcdrv0.ask" ver.2.0 copyright(C) 2003 H.Kawai(êÏçáèGé¿)
 
 #include "osaskinc.ask"
 
@@ -2121,14 +2121,17 @@ void FDC_loadFAT()
 		POP(DS);
 		PUSHAD();
 		AL = [DS:0x0018]; /* 0-3 */
+		EDX = (unsigned short) [DS:0x001a];
 		DS = [SS:ESP + 32]; /* work */
 		CL = AL;
 		CL &= 0x01;
 		CL <<= 4;
-		DL = AL;
-		EDX &= 0x02;
-		EDX <<= 6;
-		EDX ^= 0x1f0;
+		if (EDX == 0) {
+			DL = AL;
+			EDX &= 0x02;
+			EDX <<= 6;
+			EDX ^= 0x1f0;
+		}
 		work->CFport = EDX;
 		work->CFdev  = CL;
 		CFIDE_select();
@@ -3561,6 +3564,11 @@ void near save_dosname2()
 
 void CFIDE_select()
 {
+	unsigned int                         all_sel       ==  1 * 8;
+
+	if ((unsigned) EDX >= 0xc000)
+		goto pccard;
+
 	PUSH(EDX);
 	PUSH(EAX);
 	EDX |= 0x07;
@@ -3588,12 +3596,36 @@ ready:
 	CFIDE_wait400ns();
 	CLC();
 	return;
+
+pccard:
+	PUSH(DS);
+	PUSH(EDX);
+	PUSH(EAX);
+	PUSH(all_sel); /* all_sel */
+	POP(DS);
+	EDX *= 16;
+	do {
+		AL = [DS:EDX + 0x07]; /* status */
+		TEST(AL, 0x88);
+	} while (!= 0);
+	[DS:EDX + 0x06] = CL; /* drv/hed */
+	POP(EAX);
+	POP(EDX);
+	POP(DS);
+	CFIDE_wait400ns();
+	CLC();
+	return;
 }
 
 void CFIDE_ataread()
 /* 512Bå≈íË, EBXÇ…LBA, ì]ëóêÊÇÕDS:ESI */
 /* DX : 0x170Ç©0x1f0, CLÇÃbit4Ç™dev */
 {
+	unsigned int                         all_sel       ==  1 * 8;
+
+	if ((unsigned) EDX >= 0xc000)
+		goto pccard;
+
 	PUSH(EDX);
 	PUSH(EAX);
 	EDX |= 0x07;
@@ -3671,13 +3703,80 @@ err:
 	POP(EDX);
 	STC();
 	return;
+
+pccard:
+	PUSH(ES);
+	PUSH(EDX);
+	PUSH(EAX);
+	PUSH(all_sel);
+	POP(ES);
+	EDX *= 16;
+	do {
+		AL = [ES:EDX + 0x07]; /* status */
+		TEST(AL, 0x88);
+	} while (!= 0);
+	EAX = EBX;
+	(char) [ES:EDX + 0x0e] = 0x02; /* device control */
+	(char) [ES:EDX + 0x02] = 0x01; /* sector count */
+	(char) [ES:EDX + 0x03] = AL; /* LBA 0-7 */
+	(char) [ES:EDX + 0x04] = AH; /* LBA 8-15 */
+	EAX >>= 16;
+	AH |= CL;
+	(char) [ES:EDX + 0x05] = AL; /* LBA 16-23 */
+	AH |= 0x40;
+	(char) [ES:EDX + 0x06] = AH; /* LBA 24-27 */
+	(char) [ES:EDX + 0x07] = 0x20; /* command */
+	CFIDE_wait400ns();
+	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
+	do {
+		do {
+			AL = (char) [ES:EDX + 0x07]; /* status */
+			TEST(AL, 0x80);
+		} while (!= 0);
+		TEST(AL, 0x01);
+		if (!= 0)
+			goto err_cf;
+		TEST(AL, 0x08);
+	} while (== 0);
+	PUSH(ESI);
+	PUSH(ECX);
+	ECX = 512 / 8;
+	do {
+		AX = [ES:EDX + 0];
+		[DS:ESI + 0] = AX;
+		AX = [ES:EDX + 0];
+		[DS:ESI + 2] = AX;
+		AX = [ES:EDX + 0];
+		[DS:ESI + 4] = AX;
+		AX = [ES:EDX + 0];
+		[DS:ESI + 6] = AX;
+		ESI += 8;
+		ECX--;
+	} while (!= 0);
+	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
+	AL = (char) [ES:EDX + 0x07]; /* status */
+	POP(ECX);
+	POP(ESI);
+	POP(EAX);
+	POP(EDX);
+	POP(ES);
+	CLC();
+	return;
+
+err_cf:
+	AL = (char) [ES:EDX + 0x07]; /* status */
+	POP(EAX);
+	POP(EDX);
+	POP(ES);
+	STC();
+	return;
 }
 
 void CFIDE_wait400ns()
-/* 1GHzÇëzíËÇµÇΩéËî≤Ç´ */
+/* 3GHzÇëzíËÇµÇΩéËî≤Ç´ */
 {
 	PUSH(EAX);
-	EAX = 400;
+	EAX = 1200;
 	do {
 		EAX--;
 	} while (!= 0);
@@ -3733,6 +3832,11 @@ void CFIDE_atawrite()
 /* 512Bå≈íË, EBXÇ…LBA, ì]ëóå≥ÇÕDS:ESI */
 /* DX : 0x170Ç©0x1f0, CLÇÃbit4Ç™dev */
 {
+	unsigned int                         all_sel       ==  1 * 8;
+
+	if ((unsigned) EDX >= 0xc000)
+		goto pccard;
+
 	PUSH(EDX);
 	PUSH(EAX);
 	EDX |= 0x07;
@@ -3808,6 +3912,73 @@ err:
 	IN(AL, DX);
 	POP(EAX);
 	POP(EDX);
+	STC();
+	return;
+
+pccard:
+	PUSH(ES);
+	PUSH(EDX);
+	PUSH(EAX);
+	PUSH(all_sel);
+	POP(ES);
+	EDX *= 16;
+	do {
+		AL = [ES:EDX + 0x07]; /* status */
+		TEST(AL, 0x88);
+	} while (!= 0);
+	EAX = EBX;
+	(char) [ES:EDX + 0x0e] = 0x02; /* device control */
+	(char) [ES:EDX + 0x02] = 0x01; /* sector count */
+	(char) [ES:EDX + 0x03] = AL; /* LBA 0-7 */
+	(char) [ES:EDX + 0x04] = AH; /* LBA 8-15 */
+	EAX >>= 16;
+	AH |= CL;
+	(char) [ES:EDX + 0x05] = AL; /* LBA 16-23 */
+	AH |= 0x40;
+	(char) [ES:EDX + 0x06] = AH; /* LBA 24-27 */
+	(char) [ES:EDX + 0x07] = 0x30; /* command */
+	CFIDE_wait400ns();
+	do {
+		do {
+			AL = [ES:EDX + 0x07]; /* status */
+			TEST(AL, 0x80);
+		} while (!= 0);
+		TEST(AL, 0x01);
+		if (!= 0)
+			goto err_cf;
+		TEST(AL, 0x08);
+	} while (== 0);
+	PUSH(ESI);
+	PUSH(ECX);
+	ECX = 512 / 8;
+	do {
+		EAX = [DS:ESI + 0];
+		[ES:EDX + 0] = AX;
+		(unsigned int) EAX >>= 16;
+		[ES:EDX + 0] = AX;
+		EAX = [DS:ESI + 4];
+		[ES:EDX + 0] = AX;
+		(unsigned int) EAX >>= 16;
+		[ES:EDX + 0] = AX;
+		ESI += 8;
+		ECX--;
+	} while (!= 0);
+	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
+	AL = (char) [ES:EDX + 0x07]; /* status */
+	POP(ECX);
+	POP(ESI);
+	POP(EAX);
+	POP(EDX);
+	POP(ES);
+	CLC();
+	return;
+
+err_cf:
+	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
+	AL = (char) [ES:EDX + 0x07]; /* status */
+	POP(EAX);
+	POP(EDX);
+	POP(ES);
 	STC();
 	return;
 }

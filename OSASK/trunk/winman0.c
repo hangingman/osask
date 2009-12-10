@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.8
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.9
 		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
     stack:4k malloc:2160k file:2048k */
 
@@ -11,6 +11,7 @@
 #endif
 
 #define WALLPAPERMAXSIZE	(2048 * 1024)
+#define	SCRNSHOTMAXSIZ		2048 * 1024
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -145,6 +146,7 @@ static struct STR_JOB {
 	static struct STR_VBEMODE vbelist[128];
 	static int f3mode, f4mode;
 	static unsigned int vbeoverride[3];
+	static unsigned char vbecoldep = 0; /* 0(=4), 1(=8), 2(=16), 4(=32) */
 #elif (defined(TOWNS)) && (defined(CLGD543X))
 	static int pf13mode = -1; /* (^^; */
 #endif
@@ -194,7 +196,7 @@ void job_loadfont3(int flag, int dmy);
 void moswinsig_flagset();
 struct WM0_WINDOW *searchwin(int x, int y);
 
-#if (defined(TOWNS))
+#if (defined(PCAT) || defined(TOWNS))
 	void job_savevram0(void);
 	void job_savevram1(int flag, int dmy);
 	void job_savevram2(int flag, int dmy);
@@ -226,6 +228,8 @@ void sgg_wm0_definesignal3sub(const int keycode);
 void sgg_wm0_definesignal3sub2(const int rawcode, const int shiftmap);
 void sgg_wm0_definesignal3sub3(int rawcode, const int shiftmap);
 // void sgg_wm0_definesignal3com();
+
+void write_time();
 
 /* キー操作：
       F9:一番下のウィンドウへ
@@ -1516,61 +1520,11 @@ void OsaskMain()
 
 			#if (defined(TIMEX))
 		case SIG_WRITE_TIME: /* 0x0060 */
-			{
-				/* 2003.01.06 KIYOTO, nikq, Kawai */
-				static int cmd[] = { 0x008c, 0, 0, 0, 0x0000 };
-				static int msg[] = {
-					0x0048, 0x0001, -1, 0x00c0, TIMEX, TIMEY, TIMEC, TIMEBC, 23,
-					'0', '0', '0', '0', '/', '0', '0', '/', '0', '0', '(', '0', '0', '0', ')',
-					'0', '0', ':', '0', '0', ':', '0', '0',
-					/* "0000/00/00(000)00:00:00" */
-					0x0000
-				};
-				int year, month, day;
-				char *week;
-				lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
-				sgg_execcmd(cmd); /* 日付取得 */
-				msg[ 9] = (((unsigned char *) cmd)[14] >> 4) + '0';
-				msg[10] = (((unsigned char *) cmd)[14] & 15) + '0';
-				msg[11] = (((unsigned char *) cmd)[13] >> 4) + '0';
-				msg[12] = (((unsigned char *) cmd)[13] & 15) + '0';
-				msg[14] = (((unsigned char *) cmd)[12] >> 4) + '0';
-				msg[15] = (((unsigned char *) cmd)[12] & 15) + '0';
-				msg[17] = (((unsigned char *) cmd)[11] >> 4) + '0';
-				msg[18] = (((unsigned char *) cmd)[11] & 15) + '0';
-				msg[24] = (((unsigned char *) cmd)[10] >> 4) + '0';
-				msg[25] = (((unsigned char *) cmd)[10] & 15) + '0';
-				msg[27] = (((unsigned char *) cmd)[ 9] >> 4) + '0';
-				msg[28] = (((unsigned char *) cmd)[ 9] & 15) + '0';
-				msg[30] = (((unsigned char *) cmd)[ 8] >> 4) + '0';
-				msg[31] = (((unsigned char *) cmd)[ 8] & 15) + '0';
-				year = (((unsigned char *) cmd)[13] & 15)
-				     + (((unsigned char *) cmd)[13] >> 4) * 10
-				     + (((unsigned char *) cmd)[14] & 15) * 100
-				     + (((unsigned char *) cmd)[14] >> 4) * 1000;
-				month = (((unsigned char *) cmd)[12] & 15)
-				      + (((unsigned char *) cmd)[12] >> 4) * 10;
-				day = (((unsigned char *) cmd)[11] & 15)
-				    + (((unsigned char *) cmd)[11] >> 4) * 10;
-				if (month <= 2) {
-					year--;
-					month += 12;
-				}
-				week = &"SunMonTueWedThuFriSat"
-					[((year + (year / 4) - (year / 100) + (year / 400) + (13 * month + 8) / 5 + day) % 7) * 3];
-				msg[20] = week[0];
-				msg[21] = week[1];
-				msg[22] = week[2];
-				#if (TIMEX < 0)
-					msg[4] = x2 + TIMEX;
-				#endif
-				#if (TIMEY < 0)
-					msg[5] = y2 + TIMEY;
-				#endif
-				if (mx != 0x80000000)
-					lib_execcmd(msg);
-				break;
-			}
+			lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+			if (mx != 0x80000000)
+				write_time();
+		//	siglen = 1;
+			break;
 			#endif
 
 		case 0x0070: /* default-keybind-customize */
@@ -1725,7 +1679,7 @@ void OsaskMain()
 			writejob_n(4, 0x0038 /* loadfont */, 0x11 /* type */, 0, 0);
 			goto fin_wrtjob;
 
-#if (defined(TOWNS))
+#if (defined(PCAT) || defined(TOWNS))
 
 		case 0x0244 /* capture */:
 		//	siglen = 1;
@@ -1829,6 +1783,7 @@ void init_screen(const int x, const int y)
 	struct STR_BGV {
 		signed short col, x0, y0, x1, y1;
 	};
+	int x2y2[2];
 	#if (defined(WIN9X))
 		static struct STR_BGV linedata[] = {
 			{  8,   0, -28,  -1, -28 },
@@ -1907,6 +1862,10 @@ void init_screen(const int x, const int y)
 
 	struct STR_BGV *p;
 	int x0, y0, x1, y1;
+
+	x2y2[0] = x;
+	x2y2[1] = y - (RESERVELINE0 + RESERVELINE1);
+	sgg_execcmd0(0x00b0, 0, 2, 0, x2y2, 0x000c, 0x0000); /* set info */
 
 	if (old_x != x || old_y != y) {
 		wallpaper_exist = 0;
@@ -2025,6 +1984,9 @@ void init_screen(const int x, const int y)
 	#endif
 
 	sgg_wm0_putmouse(mx = mxx, my);
+	#if (defined(TIMEX))
+		write_time();
+	#endif
 	return;
 }
 
@@ -2432,7 +2394,7 @@ void runjobnext()
 			job_loadfont0(i, j, readjob());
 			break;
 
-		#if (defined(TOWNS))
+		#if (defined(PCAT) || defined(TOWNS))
 			case 0x003c /* capture */:
 		  	  job_savevram0();
 		  	  break;
@@ -2529,6 +2491,8 @@ void redirect_input(struct WM0_WINDOW *win)
 	#if (defined(PCAT))
 		sgg_wm0_definesignal3(3, 0x0100, 0x00701081 /* F1 */,
 			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
+		sgg_wm0_definesignal3(0, 0x0100, 0x00701086 /* F6 */,
+			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0244); /* CAPTURE */
 	#elif (defined(TOWNS))
 		sgg_wm0_definesignal3(2, 0x0100, 0x00701081 /* F1 */,
 			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
@@ -3290,6 +3254,9 @@ void gapi_driverinit(int drv)
 	#if (defined(PCAT))
 		/* sggでドライバ切り替えを指定 */
 		sgg_execcmd0(0x0088, 0x0000, drv, 0x0000);
+		if (drv == 3)
+			drv++;
+		vbecoldep = drv;
 	#endif
 
 	sgg_wm0_gapicmd_0010_0000();
@@ -3438,6 +3405,7 @@ void job_setvgamode2()
 void job_setvgamode3(const int sig, const int result)
 {
 	static int oldmode = 0x0012; /* VGA */
+	int x2y2[2];
 	int mode = job.int0 & 0x3fff;
 	// 0x0014しかこない
 	if (result == 0) {
@@ -3475,7 +3443,10 @@ void job_setvgamode3(const int sig, const int result)
 		}
 		if (mxx > x2 - 1 || my > y2 - 16) {
 			mxx = my = 1;
-		} 
+		}
+		x2y2[0] = x2;
+		x2y2[1] = y2 - (RESERVELINE0 + RESERVELINE1);
+		sgg_execcmd0(0x00b0, 0, 2, 0, x2y2, 0x000c, 0x0000); /* set info */
 		if (drv == 0) {
 			/* linear = 0を伝達 */
 			sgg_execcmd0(0x0088, 0x0001, 0, 0x0000);
@@ -3870,10 +3841,17 @@ void gapi_loadankfont()
 	return;
 }
 
-#if (defined(TOWNS))
+#if (defined(PCAT) || defined(TOWNS))
 
 void job_savevram0()
 {
+	#if (defined(PCAT))
+		if (vbecoldep == 0 || x2 * y2 * vbecoldep > SCRNSHOTMAXSIZ - 2048) {
+			job.now = 0;
+			return;
+		}
+	#endif
+
     /* 保存先用意 */
     lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
     job.func = &job_savevram1;
@@ -3886,7 +3864,12 @@ void job_savevram0()
 void job_savevram1(int flag, int dmy)
 {
     if (flag == 0) { /* open成功 */
+#if (defined(PCAT))
+		lib_resizemodule(0, 0x0200, x2 * y2 * vbecoldep + 2048, 0x0050 /* sig */);
+#endif
+#if (defined(TOWNS))
 		lib_resizemodule(0, 0x0200, x2 * y2 + 2048, 0x0050 /* sig */);
+#endif
 		job.func = &job_savevram2;
 	} else {
 		job.now = 0;
@@ -3894,16 +3877,18 @@ void job_savevram1(int flag, int dmy)
 	return;
 }
 
+static int dummy = 0; /* for align */
+
 static unsigned char tiffhead[] = {
 	0x49,0x49,0x2A,0x00,0x08,0x00,0x00,0x00,0x11,0x00,0xFE,0x00,0x04,0x00,0x01,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x00,0x04,
-	0x00,0x00,0x01,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x00,0x02,0x00,0x00,0x02,0x01,
+	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x00,0x00,
+	0x00,0x00,0x01,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x01,
 	0x03,0x00,0x01,0x00,0x00,0x00,0x08,0x00,0x00,0x00,0x03,0x01,0x03,0x00,0x01,0x00,
 	0x00,0x00,0x01,0x00,0x00,0x00,0x06,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x03,0x00,
 	0x00,0x00,0x0A,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x11,0x01,
 	0x04,0x00,0x01,0x00,0x00,0x00,0x00,0x08,0x00,0x00,0x15,0x01,0x03,0x00,0x01,0x00,
 	0x00,0x00,0x01,0x00,0x00,0x00,0x16,0x01,0x04,0x00,0x01,0x00,0x00,0x00,0x5E,0x02,
-	0x00,0x00,0x17,0x01,0x04,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x08,0x00,0x19,0x01,
+	0x00,0x00,0x17,0x01,0x04,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x19,0x01,
 	0x03,0x00,0x01,0x00,0x00,0x00,0xFF,0x00,0x00,0x00,0x1A,0x01,0x05,0x00,0x01,0x00,
 	0x00,0x00,0xF0,0x01,0x00,0x00,0x1B,0x01,0x05,0x00,0x01,0x00,0x00,0x00,0xF8,0x01,
 	0x00,0x00,0x1C,0x01,0x03,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x40,0x01,
@@ -3947,10 +3932,14 @@ void job_savevram2(int flag, int dmy)
 	int i;
 
 	if (flag == 0) { /* resize 成功 */
+#if (defined(PCAT))
+		if (lib_readmodulesize(0x0200) >= x2 * y2 * vbecoldep + 2048) {
+#elif (defined(TOWNS))
 		if (lib_readmodulesize(0x0200) >= x2 * y2 + 2048) {
+#endif
 			char *fp = (char *) job.readCSd10;
 			struct STR_PALETTE *pal = palette;
-			lib_mapmodule(0x0000, 0x0200, 0x7, 514 * 1024, fp, 0);
+			lib_mapmodule(0x0000, 0x0200, 0x7, SCRNSHOTMAXSIZ, fp, 0);
 			for (i = 0; i < 512 / 4; i++)
 				 ((int *) fp)[i] = ((int *) tiffhead)[i];
 			*(int *) &fp[0x1e] = x2;
@@ -3976,9 +3965,14 @@ void job_savevram2(int flag, int dmy)
 				fp[i * 2 + 0x0600 + 0] = ((i >> 4) & 0x03) * 0x55;
 				fp[i * 2 + 0x0600 + 1] = ((i >> 4) & 0x03) * 0x55;
 			}
-			sgg_debug00(0, x2 * y2, 0, 0xe0000000, 0x01280008,
-				(const int) fp + 2048, 0x000c);
-            lib_unmapmodule(0, 514 * 1024, fp);
+			#if (defined(PCAT))
+				sgg_debug00(0, x2 * y2 * vbecoldep, 0, 0xe0000000, 0x01280008,
+					(const int) fp + 2048, 0x000c);
+			#elif (defined(TOWNS))
+				sgg_debug00(0, x2 * y2, 0, 0xe0000000, 0x01280008,
+					(const int) fp + 2048, 0x000c);
+			#endif
+            lib_unmapmodule(0, SCRNSHOTMAXSIZ, fp);
 		    lib_initmodulehandle0(0x0008, 0x0200); /* user-dirに初期化 */
 		//	send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
 		//		0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
@@ -4320,6 +4314,65 @@ void job_vesacheck2()
 {
 	send_signal3dw(0x4243, 0x7f000002, 0x00be /* sig_vbelist */, (int) vbelist);
 	job.now = 0;
+	return;
+}
+
+#endif
+
+#if (defined(TIMEX))
+
+void write_time()
+{
+	/* 2003.01.06 KIYOTO, nikq, Kawai */
+	static int cmd[] = { 0x008c, 0, 0, 0, 0x0000 };
+	static int msg[] = {
+		0x0048, 0x0001, -1, 0x00c0, TIMEX, TIMEY, TIMEC, TIMEBC, 23,
+		'0', '0', '0', '0', '/', '0', '0', '/', '0', '0', '(', '0', '0', '0', ')',
+		'0', '0', ':', '0', '0', ':', '0', '0',
+		/* "0000/00/00(000)00:00:00" */
+		0x0000
+	};
+	int year, month, day;
+	char *week;
+	sgg_execcmd(cmd); /* 日付取得 */
+	msg[ 9] = (((unsigned char *) cmd)[14] >> 4) + '0';
+	msg[10] = (((unsigned char *) cmd)[14] & 15) + '0';
+	msg[11] = (((unsigned char *) cmd)[13] >> 4) + '0';
+	msg[12] = (((unsigned char *) cmd)[13] & 15) + '0';
+	msg[14] = (((unsigned char *) cmd)[12] >> 4) + '0';
+	msg[15] = (((unsigned char *) cmd)[12] & 15) + '0';
+	msg[17] = (((unsigned char *) cmd)[11] >> 4) + '0';
+	msg[18] = (((unsigned char *) cmd)[11] & 15) + '0';
+	msg[24] = (((unsigned char *) cmd)[10] >> 4) + '0';
+	msg[25] = (((unsigned char *) cmd)[10] & 15) + '0';
+	msg[27] = (((unsigned char *) cmd)[ 9] >> 4) + '0';
+	msg[28] = (((unsigned char *) cmd)[ 9] & 15) + '0';
+	msg[30] = (((unsigned char *) cmd)[ 8] >> 4) + '0';
+	msg[31] = (((unsigned char *) cmd)[ 8] & 15) + '0';
+	year = (((unsigned char *) cmd)[13] & 15)
+	     + (((unsigned char *) cmd)[13] >> 4) * 10
+	     + (((unsigned char *) cmd)[14] & 15) * 100
+	     + (((unsigned char *) cmd)[14] >> 4) * 1000;
+	month = (((unsigned char *) cmd)[12] & 15)
+	      + (((unsigned char *) cmd)[12] >> 4) * 10;
+	day = (((unsigned char *) cmd)[11] & 15)
+	    + (((unsigned char *) cmd)[11] >> 4) * 10;
+	if (month <= 2) {
+		year--;
+		month += 12;
+	}
+	week = &"SunMonTueWedThuFriSat"
+		[((year + (year / 4) - (year / 100) + (year / 400) + (13 * month + 8) / 5 + day) % 7) * 3];
+	msg[20] = week[0];
+	msg[21] = week[1];
+	msg[22] = week[2];
+	#if (TIMEX < 0)
+		msg[4] = x2 + TIMEX;
+	#endif
+	#if (TIMEY < 0)
+		msg[5] = y2 + TIMEY;
+	#endif
+	lib_execcmd(msg);
 	return;
 }
 

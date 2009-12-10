@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.3.5
+/* "pokon0.c":アプリケーションラウンチャー  ver.3.6
      copyright(C) 2003 小柳雅明, 川合秀実
     stack:4k malloc:88k file:4096k */
 
@@ -10,7 +10,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon35"
+#define POKON_VERSION "pokon36"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.4\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -43,6 +43,7 @@ static struct STR_VIEWER HELPLAY = { "HELO    BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER MMLPLAY = { "MMLPLAY BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER MCOPY   = { "MCOPYC1 BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER CMPTEK0 = { "CMPTEK0 BIN", 0, 0, 0, 0 };
+static struct STR_VIEWER JPGVIEW = { "KJPEGLS BIN", 0, 0, 0, 0 };
 
 struct STR_BANK *banklist;
 struct SGG_FILELIST *file;
@@ -155,7 +156,7 @@ struct STR_BANK *searchfrebank()
 
 	for (i = 0; i < MAX_BANK; i++, bank++) {
 		if (bank->tss == 0) {
-			bank->tss = -1; /* リザーブマーク */
+			bank->tss |= -1; /* リザーブマーク */
 			return bank;
 		}
 	}
@@ -544,7 +545,7 @@ int jsub_create_task1(int *sbp)
 			-1 /* Inner level */
 		);
 		bank->Llv[0].global = 27;
-		bank->Llv[0].inner  = -1;
+		bank->Llv[0].inner  |= -1;
 		sgg_settasklocallevel(tss,
 			1 * 32 /* local level 1 (起動・システム処理レベル) */,
 			12 * 64 + 0x0100 /* global level 12 (一般アプリケーション) */,
@@ -772,8 +773,8 @@ void job_resize_sub1(int cond)
 		/* unmapする */
 		/* 手動unlink (writeback) */
 		sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, fbuf->dirslot, fbuf->size, fbuf->paddr, 0x0000);
-		fbuf->dirslot = -1;
-		fbuf->linkcount = 0; /* 開放 */
+		fbuf->dirslot |= -1;
+		fbuf->linkcount &= 0; /* 開放 */
 		sgg_execcmd0(0x0020, 0x80000000 + 10, 0x1249, 0x0150,
 			pjob->param[0], pjob->param[1], pjob->param[2] >> 8, pjob->param[3], 
 			0x4243 /* to pokon0 */, 0x7f000002, SIGNAL_REFRESH_FLIST0, 1 /* 正常終了が-1だから */, 0x0000);
@@ -1092,7 +1093,7 @@ struct FILEBUF *searchfrefbuf()
 	int i;
 	for (i = 0; i < MAX_FILEBUF; i++, fbuf++) {
 		if (fbuf->linkcount == 0) {
-			fbuf->linkcount = -1; /* 予約マーク */
+			fbuf->linkcount |= -1; /* 予約マーク */
 			fbuf->readonly = 0;
 			fbuf->pipe = 0;
 			return fbuf;
@@ -1228,11 +1229,11 @@ void OsaskMain()
 	}
 
 	for (i = 0; i < MAX_BANK; i++)
-		banklist[i].tss = 0;
+		banklist[i].tss &= 0;
 
 	for (i = 0; i < MAX_FILEBUF; i++) {
-		fbuf0[i].dirslot = -1;
-		fbuf0[i].linkcount = 0;
+		fbuf0[i].dirslot |= -1;
+		fbuf0[i].linkcount &= 0;
 	}
 
 	for (;;) {
@@ -1288,7 +1289,7 @@ void OsaskMain()
 				for (i = 1; i < MAX_SELECTOR; i++) {
 					if (win[i].task == tss) {
 						if (win[i].mdlslot > 0)
-							win[i].mdlslot = -1;
+							win[i].mdlslot |= -1;
 						if (win[i].subtitle_str[0] != 0 && win[i].lp != NULL) {
 							win[i].lp = NULL;
 							lib_closewindow(0, &win[i].window);
@@ -1302,7 +1303,7 @@ void OsaskMain()
 
 				for (i = 0; i < MAX_SELECTORWAIT; i++) {
 					if (selwait[i].task == tss) {
-						selwait[i].task = 0;
+						selwait[i].task &= 0;
 						selwaitcount--;
 					}
 				}
@@ -1312,7 +1313,7 @@ void OsaskMain()
 				for (i = 0; i < MAX_ORDER; i++) {
 					if (tss != order[i].task)
 						continue;
-					order[i].task = 0;
+					order[i].task &= 0;
 				}
 
 		freefiles:
@@ -1428,9 +1429,9 @@ void OsaskMain()
 						win->sig[1] = sbp[4];
 						/* reloadのために、vmrefを捨てる */
 						for (vmr = vmref; vmr->fbuf != fbuf || vmr->task == 0; vmr++);
-						vmr->task = 0;
+						vmr->task &= 0;
 						unlinkfbuf(fbuf);
-						fbuf->linkcount = -1; /* このfbufをリザーブする */
+						fbuf->linkcount |= -1; /* このfbufをリザーブする */
 						writejob_n(13, JOB_RESIZE_FILE, *((int *) &fp->name[0]),
 							*((int *) &fp->name[4]), (*((int *) &fp->name[8]) << 8) | '.',
 							sbp[2], 0 /* new-size, max-linkcount */, 0, 0 /* task, signal */,
@@ -1847,6 +1848,8 @@ listup:
 							i = (int) &HELPLAY;
 						if (j == ('M' | 'M' << 8 | 'L' << 16))
 							i = (int) &MMLPLAY;
+						if (j == ('J' | 'P' << 8 | 'G' << 16))
+							i = (int) &JPGVIEW;
 						goto runviewer_ij;
 					}
 
