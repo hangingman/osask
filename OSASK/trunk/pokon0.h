@@ -72,11 +72,6 @@ enum {
 #define	SIGNAL_REFRESH_FLIST0					0x009d /* ファイルリストは変更しない */
 #define SIGNAL_RELOAD_FAT_COMPLETE              0x00a0 /* FAT再読み込み完了(Insert) */
 #define	SIGNAL_JSUB								0x00a4 /* 汎用シグナル */
-//#define SIGNAL_LOAD_APP_FILE_COMPLETE           0x00a4 /* ファイル読み込み完了(file load & execute) */
-//#define SIGNAL_CREATE_TASK_COMPLETE             0x00a8 /* タスク生成完了(create task) */
-//#define SIGNAL_LOAD_FILE_COMPLETE               0x00ac /* ファイル読み込み完了(file load) */
-//#define SIGNAL_LOAD_KERNEL_COMPLETE             0x00b0 /* ファイル読み込み完了(.EXE file load) */
-//#define SIGNAL_LOAD_BOOT_SECTOR_CODE_COMPLETE   0x00b4 /* ファイル読み込み完了(.EXE file load) */
 #define SIGNAL_FORMAT_COMPLETE                  0x00b8 /* フォーマット完了 */
 #define SIGNAL_WRITE_KERNEL_COMPLETE            0x00bc /* .EXE書き込み完了 */
 #define	SIGNAL_RESIZE_SUB0						0x00bd /* size == 0 からのリサイズ */
@@ -98,8 +93,9 @@ enum {
 	SIGNAL_CREATE_NEW,
 	SIGNAL_DELETE_FILE,
 	SIGNAL_RESIZE,
-	SIGNAL_CHANGE_SORT_MODE,
-	SIGNAL_LETTER_START = '!',
+	SIGNAL_CHANGE_SORT_MODE, /* 21 */
+	SIGNAL_DISK_CHANGE0, /* 10個必要(22-31) */
+	SIGNAL_LETTER_START = '!', /* 33 */
 	SIGNAL_LETTER_END = 'Z',
 	SIGNAL_WINDOW_CLOSE0 = 126,
 	SIGNAL_WINDOW_CLOSE1 = 127,
@@ -157,6 +153,8 @@ enum {
 #define JOB_EXT_OPEN					0x0040
 #define	JOB_SEND_TEST_MODULE_SIGNAL		0x0044
 #define	JOB_SEARCH_FP					0x0048
+#define JOB_CHANGE_DRIVE				0x004c
+#define JOB_LOAD_AND_EXEC_PSF			0x0050
 
 /* structs */
 struct FILELIST {
@@ -289,6 +287,8 @@ struct STR_PROCESS {
 void consoleout(char *s);
 void open_console();
 
+void poko_exec_cmd(const char *cmdlin);
+
 /* pokon console command */
 int poko_memory(const char *cmdlin);
 int poko_color(const char *cmdlin);
@@ -312,6 +312,8 @@ int poko_kill(const char *cmdlin);
 int poko_vesalist(const char *cmdlin);
 int poko_setvesa(const char *cmdlin);
 int poko_detectpcivga(const char *cmdlin);
+int poko_defkeybind(const char *cmdlin);
+int poko_defspkeybind(const char *cmdlin);
 
 /* */
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);

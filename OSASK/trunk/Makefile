@@ -81,7 +81,8 @@ towns : FORCE
 	echo ARCH = towns>> depend.mak
 	echo TWSCRL1 = n>> depend.mak
 	echo TWVSW = 1024>> depend.mak
-	echo VMODE = n>> depend.mak
+	echo VMODE = y>> depend.mak
+	echo CLGD543X = y>> depend.mak
 	$(MAKE)
 
 nec98 : FORCE 

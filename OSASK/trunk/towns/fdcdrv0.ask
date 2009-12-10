@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" for TOWNS ver.1.7 copyright(C) 2002 H.Kawai(川合秀実)
+// "fdcdrv0.ask" for TOWNS ver.1.9 copyright(C) 2003 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -135,6 +135,8 @@ nextcmd:
 		goto cmd0188; /* rename file */
 	if (EAX == 0x018c)
 		goto cmd018c; /* resize */
+	if (EAX == 0x0190)
+		goto cmd0190; /* change_drive(0-9) */
 
 	INT(0x03);
 
@@ -414,6 +416,10 @@ cmd013c: /* writeback cache */
 	POP((offset) cmd);
 //	POP(GS);
 	(offset) cmd += 12;
+	goto nextcmd;
+
+cmd0190: /* change drive */
+	(offset) cmd += 8;
 	goto nextcmd;
 }
 
@@ -1838,6 +1844,14 @@ void FDC_writeIPL2()
 	PUSH(all_sel);
 	POP(DS);
 	PUSH(ESI);
+	EAX = 0; /* とりあえず0クリア */
+	ESI = 0x104000;
+	ECX = 80 * 1024 / 4; /* max:80KB */
+	do {
+		[DS:ESI] = EAX;
+		ESI += 4;
+		ECX--;
+	} while (!= 0);
 	EDX = [FS:EBX +  8];
 	ESI = 0x100000;
 	ECX = SECTOR_BYTES / 4;
@@ -1849,21 +1863,10 @@ void FDC_writeIPL2()
 		ECX--;
 	} while (!= 0);
 	EDX = [FS:EBX + 16];
-	ESI = 0x104000;
-	PUSH(ESI);
-	EAX = 0;
-	ECX = 80 * 1024 / 4;
-	do {
-		[DS:ESI] = EAX;
-		ESI += 4;
-		ECX--;
-	} while (!= 0);
-	POP(ESI);
-	EDX += 512; // ヘッダを読み飛ばす
 	ECX = [FS:EBX + 12];
-	ECX += 1024 - 512 - 1;
-	ECX &= 0xfffffc00; // KB単位に切り上げ
-	PUSH(ECX);
+	ESI = 0x104000;
+	EDX += 512; // ヘッダを読み飛ばす
+	ECX -= 512 - 3;
 	(unsigned int) ECX /= 4;
 	do {
 		EAX = [DS:EDX];
@@ -1872,10 +1875,9 @@ void FDC_writeIPL2()
 		ESI += 4;
 		ECX--;
 	} while (!= 0);
-//	ECX = [FS:EBX + 12];
-//	ECX += 1024 - 512 - 1;
-//	ECX &= 0xfffffc00; // KB単位に切り上げ
-	POP(EAX);
+	EAX = [FS:EBX + 12];
+	EAX += 1024 - 512 - 1;
+	EAX &= 0xfffffc00; // KB単位に切り上げ
 	EAX += 8191;
 	(unsigned int) EAX /= 8192;
 	AL += 2;
@@ -1894,6 +1896,7 @@ void FDC_writeIPL2()
 	(int) work->WBFS[0] = 0xffff0001; /* bit0, 16-31 */
 	(int) work->WBFS[4] = 0xffffffff; /* bit32-63 */
 	(int) work->WBFS[8] = 0xffffffff; /* bit64-95 */
+	/* 80KB */
 
 	asmout("JMP FDC_format98");
 }

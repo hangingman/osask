@@ -1,48 +1,51 @@
-"src33"の使い方の説明                      2003/01/30 川合秀実
+"src34"の使い方の説明                      2003/03/01 川合秀実
 
 １．これは何か？
 
-  "src33"は、OSASK ver.3.3の「OSASK33.EXE」を生成するのに必要なモジュールのソー
+  "src34"は、OSASK ver.3.4の「OSASK34.EXE」を生成するのに必要なモジュールのソー
 スプログラムのセットです。ただし、以前のバージョンのものをそのまま利用している
-ものついては、このアーカイブに含まれていません。OSASK33.EXEを生成するのに必要な
+ものついては、このアーカイブに含まれていません。OSASK34.EXEを生成するのに必要な
 モジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BOOT32.ASK   : ver.0.1
-    VGADRV0.ASK  : ver.1.7
-    IBMANK0.TXT  : ver.0.4
-    PIONEER0.ASK : ver.2.9
-    WINMAN0.C    : ver.2.7
-    POKON0.C     : ver.3.3
-    PCAT/
-      BASE.NAS     : ver.2.3
-      OSALINK1.OPT : ver.0.1
-      FDCDRV0.BIN  : ver.1.8
-      VESA8.ASK    : ver.0.0
-      VESA16.ASK   : ver.0.0
-      VESA32.ASK   : ver.0.0
+    INIT.ASK     : ver.3.0
+    FDCDRV0.BIN  : ver.1.9
+    WINMAN0.C    : ver.2.8
+    POKON0.C     : ver.3.4
+    TOWNS/
+      VGADRV0.ASK  : ver.1.8
+
 
   (以前のバージョンのものを利用するもの)
 
+    BOOT32.ASK   : ver.0.1
     OSASKINC.ASK : ver.0.0
     TAPI0.ASK    : ver.0.4
     PAPI0.ASK    : ver.0.6
     TIMERDRV.ASK : type-A ver.1.1
     DECODE0.ASK  : ver.1.0
+    IBMANK0.TXT  : ver.0.4
+    PIONEER0.ASK : ver.2.9
     SYSGG00.LIB  : ver.0.8
+
     PCAT/
+      BASE.NAS     : ver.2.3
+      OSALINK1.OPT : ver.0.1
+      VGADRV0.ASK  : ver.1.7
       KEYMOS0.BIN  : ver.0.7
     TOWNS/
       BASE.NAS     : ver.2.2
       OSALINK1.OPT : ver.0.0
       KEYMOS0.BIN  : ver.0.4
-      FDCDRV0.BIN  : ver.1.7
     NEC98/
       BASE.NAS     : ver.2.2
       OSALINK1.OPT : ver.0.0
+      VGADRV0.ASK  : ver.1.7
+      VESA8.ASK    : ver.0.0
+      VESA16.ASK   : ver.0.0
+      VESA32.ASK   : ver.0.0
       KEYMOS0.BIN  : ver.0.4
-      FDCDRV0.BIN  : ver.1.7
 
   このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
 るだけです。
@@ -72,6 +75,10 @@ cnv0のオプション指定では、-lと-sを指定します。cpp0はプリプロセッサです。オプシ
 つけてください。またウィンドウデザインを指定するために「-DWIN9X」「-DTMENU」「
 -DCHO_OSASK」「-DNEWSTYLE」「-DWIN31」のいずれかも併せて指定します。以下は一例
 です。
+
+  ごめんなさい、さらに追記するべきものが増えました。TOWNS版を作るときは、「-DV
+MODE」と「-DCLGD543X」を書き加えたときに一般公開版になります。これらを省略すれ
+ば多少コンパクトにはなりますが、いくつかの機能が利用できなくなります。
 
 >cpp0 -I. -P -DPCAT -DWIN9X init.ask
 >aska init.i init.3as
@@ -161,7 +168,7 @@ base.nasを以下の指示にしたがって書き換える必要があります。
 で、物好きな方がエミュレータなどで遊んでみるという程度の利用のみ、おすすめしま
 す。なおこの改造が可能なのはAT版のみです。
 
-  まず、適当な1440KBのディスクイメージを用意します。osat33iに付いてくるやつとか
+  まず、適当な1440KBのディスクイメージを用意します。osat34iに付いてくるやつとか
 で十分です。これを一切の圧縮をかけないままにして、FDIMAGE0.BINと改名しておきま
 す。次に4台のうちのATAハードディスクのどれかを選び、その第一パーティションにFA
 T16の区画を作ります。サイズはいくつでもかまいません。そのハードディスク番号(0～

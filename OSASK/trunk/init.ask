@@ -1,4 +1,4 @@
-/* "init.ask" ver.2.9 copyright(C) 2003 H.Kawai(川合秀実), KIYOTO */
+/* "init.ask" ver.3.0 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -28,6 +28,11 @@ default(code == CODE);
 void putstr();
 void dumpreg();
 #endif
+
+#if (defined(TOWNS) && defined(CLGD543X))
+	void clgd543XDetectSetup();
+#endif
+
 
 struct LINE_CMD {
 	unsigned int cmd_no /* 0x0100 */;
@@ -859,7 +864,7 @@ void far Init()
 	STI(); // IF = 1;
 
 	/* フォントロード for debug */
-	#if (defined(BOCHS) || defined(NEC98))
+	#if (defined(BOCHS))
 		PUSH((int) 0x0000);
 		PUSH((int) 7 * 8 /* ankfont-sel */);
 		PUSH((int) 0x0000 /* offset */);
@@ -6989,9 +6994,10 @@ nextcmd:
 		goto cmd0080; /* slotを使わないmapping */
 	if (EAX == 0x0084)
 		goto cmd0084; /* メモリ獲得 */
-	#if (defined(PCAT))
+#if (defined(PCAT)) || (defined(TOWNS) && defined(CLGD543X))
 		if (EAX == 0x0088)
-			goto cmd0088; /* AT専用 ビデオドライバ変更 */
+			goto cmd0088;	/* AT専用ビデオドライバ変更 */
+							/* TOWNS専用VRAM&CRT出力切り替え */
 	#endif
 	#if (defined(PCAT)) || (defined(TOWNS))
 		if (EAX == 0x008c)
@@ -7004,6 +7010,12 @@ nextcmd:
 			goto cmd0094; /* AT専用 VESA情報報告 */
 		if (EAX == 0x0098)
 			goto cmd0098; /* AT専用 PCIデバイス調査 */
+	#endif
+	if (EAX == 0x009c)
+		goto cmd009c; /* change drive */
+	#if (defined(TOWNS)) && (defined(CLGD543X))
+		if (EAX == 0x00a0)
+			goto cmd00a0; /* CLGD存在確認&初期化 */
 	#endif
 
 	if (EAX == 0x8010)
@@ -7536,7 +7548,65 @@ cmd0088:
 			(offset) cmd += 12;
 			goto nextcmd;
 		}
+		INT(0x03);
 
+	#elif (defined(TOWNS) && defined(CLGD543X))
+cmd0088:	/* VRAM/CRT出力変更 */
+			/* cmd, opt, drv */
+		/* VRAM_selの準備 */
+		PUSH(syswork_sel);
+		EAX = cmd[8]; /* drv */
+		POP(DS);
+		EBP = 512 * 1024;
+		DX = 0x055c;
+		CMP(AH, 1);
+		if ((unsigned) <) {	/* TOWNS汎用型 */
+			ESI = 0x80100000;
+			IN(AX, 0x0030); /* CPU識別レジスタ */
+			AL &= 0x07;
+			CMP(AL, 0x03);
+			if (==) /* i386SX */
+				ESI = 0x00b00000;
+			AL = 0;
+			OUT(DX, AL);
+		} else {
+			ESI = 0x89400000; /* CLGD543X */
+			if (!=)
+				EBP += EBP;
+			AL = 1;
+			EBP += EBP;
+			OUT(DX, AL); /* CRT 出力切替え */
+		}
+		DL = [DS:0x001c + 2 /* eflags[2] */];
+		ECX = 0x1007 /* present, R/W, user, override */;
+		TEST(DL, 0x04);
+		if (!= 0)
+			CL = 0x1f /* VRAMはキャッシュしない(PCD=1) */;
+		PUSH(FS);
+		PUSH(EBX);
+		PUSH(0);
+		PUSH(0 /* addr64(high) */);
+		PUSH(ESI /* addr64(low) */);
+		PUSH(0 /* offset64(high) */);
+		PUSH(0 /* offset64(low) */);
+		PUSH(0 /* pageset */);
+		PUSH((int) 0xe0000000 /* linear */);
+		PUSH(EBP /* size */);
+		PUSH(ECX /* opt */);
+		PUSH((int) 0x0108 /* cmd(mapping) */);
+		PUSH(SS);
+		POP(FS);
+		EBX = ESP;
+		CALLFAR0(papi_sel);
+		ESP += 40;
+		POP(EBX);
+		POP(FS);
+
+		(offset) cmd += 12;
+		goto nextcmd;
+	#endif
+
+	#if (defined(PCAT))
 cmd008c:
 		/* KIYOTOさん改造, [OSASK 5504] */
 		/* (さらに川合が改良) */
@@ -7842,6 +7912,34 @@ cmd0098:
 			(offset) cmd += 20;
 			goto nextcmd;
 	//	}
+	#endif
+
+cmd009c:
+	/* change drive */
+	/* cmd, opt(0-9) */
+	PUSH(FS);
+	PUSH((offset) cmd);
+	PUSH((int) 0);
+	PUSH((int) cmd[4]);
+	PUSH((int) 0x0190 /* change drive */);
+	EBX = ESP;
+	PUSH(SS);
+	POP(FS);
+	CALLFAR0(fdcdrive_sel);
+	ESP += 12;
+	POP((offset) cmd);
+	POP(FS);
+	(offset) cmd += 8;
+	goto nextcmd;
+
+	#if (defined(TOWNS) && defined(CLGD543X))
+cmd00a0:	/* CLGD detect & setup*/
+			/* cmd, ret-buf */
+		clgd543XDetectSetup();
+		EAX <<= 8;
+		cmd[4] = EAX;
+		(offset) cmd += 8;
+		goto nextcmd;
 	#endif
 
 cmd8010:
@@ -9712,5 +9810,201 @@ void dumpreg()
 	ESP = EBP;
 
 	for (;;);
+}
+#endif
+
+/* 本来はこういうのはビデオドライバ側に書いておいて、呼び出すのが正しいんだけどね */
+#if (defined(TOWNS) && defined(CLGD543X))
+
+#define CLGD5430_ID 0x28
+#define CLGD5434_ID 0x2a
+
+/* 画面モード一つしか対応してないからdetect&setup */
+
+void clgd543XDetectSetup()
+{
+	char *clgdDat == CS:ESI;
+	asmout("MOV ESI,.clgd543XDetect_data");
+
+	/****** detect ******/
+	DH = 0x03;
+	ECX = 0;
+	do {
+	  DL = clgdDat[0];
+	  AL = clgdDat[1];
+	  OUT(DX, AL);
+	  (offset) clgdDat++; CMP(ECX, 6);
+	  (offset) clgdDat++; ECX++;
+	} while((unsigned) <);
+
+	/* CLGD なら lockReg に書き込んだ0x12が読み込める */
+	EDX++;				IN(AL, DX);	/* 0x03c5 */
+	if (AL != 0x12) {
+		EAX = 0;
+		return;	/* not CLGD */
+	}
+
+	/* 型番チェック */
+	DL = 0xd4;	AL = 0x27;	OUT(DX, AL);	/* 0x3d4, 0x27 for ident reg */
+	EDX++;				IN(AL, DX);	/* 0x03d5 */
+	(unsigned char) AL >>= 2;			/* 下位2ビットはリビジョン */
+	if (AL == CLGD5430_ID){
+		AH = 0x35;	/* VRAM 1MB */
+		PUSH(1);
+		PUSH(0x5a);	/* SR16 */
+		PUSH(0x30);	/* SRF: 32bit & 64byte FIFO */
+	} else {
+		AH = 0x3f;	/* 2MB */
+		PUSH(2);
+		PUSH(0x58);	/* SR16 */
+		PUSH(0x38);	/* SRF: 64bit & 64byte FIFO */
+	}
+
+	/* end reset */
+	DL = 0xc4;	AL = 0;		OUT(DX, AL);	/* 0x03c4, 0 */
+	EDX++;		AL = 3;		OUT(DX, AL);	/* 0x03c5, 3 */
+
+	/* set vram amount */
+	EDX--;	AL = 0x0f;		OUT(DX, AL);	/* 0x03c4, 0x0f */
+	EDX++;	AL = AH;		OUT(DX, AL);	/* 0x03c5, 0x35 or 0x3f */
+
+	/******* Setup *******/
+
+	DL = 0xda;			IN(AL, DX);
+	DL = 0xc0;	AL = 0;	OUT(DX, AL);		/* 0x03c0,0 enable palette access */
+
+	DL = 0xc4;			OUT(DX, AL);	/* 0x03c4, 0 */
+	EDX++;		EAX++;	OUT(DX, AL);	/* 0x03c5, 1 */
+
+	/* MiscOutReg */
+	DL = 0xc2;	AL = 0xef;	OUT(DX, AL);
+
+	/* Sequencer; */
+	CL = 14;
+	do {
+		DL = 0xc4;	AL = clgdDat[0];		OUT(DX,AL);
+		if (AL == 0x0f)
+			POP(EAX);
+		else if (AL == 0x16)
+			POP(EAX);
+		else
+			AL = clgdDat[1];
+		EDX++;					OUT(DX, AL);
+		(offset) clgdDat++; (offset) clgdDat++;
+		ECX--;
+	} while (!= 0);
+
+	/* CRTC */
+	DL = 0xd4;	AL = 0x11;	OUT(DX, AL);	/* 0x3d4, 0x11 */
+	EDX++; AL = clgdDat[17]; AL &= 0x7f;	/* PR bit = 0. 0-7 CRTC regs modifiable */
+	OUT(DX, AL);	/* 0x3d5, IN(0x3d5) & 0x7f */
+	CL = 0;
+	do {
+		EDX--;	AL = CL;		OUT(DX, AL);
+		EDX++;	AL = *clgdDat;	OUT(DX, AL);
+		(offset) clgdDat++;
+		CMP(CL, 29);	ECX++;
+	} while ((unsigned) <);
+
+	/* Graphics */
+	CL = 0;
+	do {
+		DL = 0xce;	AL = CL;	OUT(DX, AL);
+		EDX++;	AL = *clgdDat;	OUT(DX, AL);
+		(offset) clgdDat++;
+		CMP(CL, 11);	ECX++;
+	} while ((unsigned) <);
+
+	/* Attribute */
+	CL = 0;
+	do {
+		DL = 0xda;				IN(AL, DX);
+		DL = 0xc0;	AL = CL;	OUT(DX, AL);
+	  	AL = *clgdDat;			OUT(DX, AL);
+		(offset) clgdDat++;
+		CMP(CL, 20);	ECX++;
+	} while((unsigned) <);
+
+	/* パレット設定 0-15 */
+	DL = 0xc6;	AL = 0xff;	OUT(DX, AL);	/* 0x3c6, 0xff for pixel mask ? */
+	DL = 0xc8;	AL = 0;		OUT(DX, AL);	/* 0x3c8, 0 access count=0 */
+	EAX = 0; EDX++;
+	do {
+		if (AH != 8) {
+			CH = 3;
+			do {	/* 色番号AHに順次R,G,Bを充てていく */
+				CL = 2; AL = AH; CL += CH; AL <<= CL; AL &= 32;
+				if (!=0) {
+					TEST(AH, 8); if (!=0) AL += AL;
+					EAX--;
+				}
+				OUT(DX, AL);
+				CH--;
+			} while (!= 0);
+		} else {
+			AL = 192 / 4;
+			OUT(DX, AL); OUT(DX, AL); OUT(DX, AL);
+		}
+		CMP(AH, 15);
+		AH++;
+	} while((unsigned) <);
+
+	/* パレット設定 192-255 */
+	DL = 0xc8;	AL = 192;	OUT(DX,AL);	/* 0x3c8, 0 access count=192 */
+	ESI = 0; EDX++;
+	do {
+		CH = 3;
+		do {	/* 色番号ALに順次R,G,Bを充てていく */
+			CL = 3; EAX = ESI; CL -= CH; CL += CL; AL >>= CL; AL &= 0x03;
+			AH = AL; AAD(20);
+			OUT(DX, AL);
+			CH--;
+		} while (!= 0);
+	  CMP(ESI, 63);
+	  ESI++;
+	} while ((unsigned) <);
+
+	DL = 0xc4;	AL = 0;	OUT(DX, AL);	/* 0x3c4, 0 Sequencer0 */
+	EDX++;		AL = 3;	OUT(DX, AL);	/* 0x3c5, 3 end reset */
+
+	DL = 0xda;				IN(AL, DX);		/* 0x3da */
+	DL = 0xc0;	AL = 0x20;	OUT(DX, AL);	/* 0x3c0, 0x20 disable palette access */
+
+	/* Hidden DAC */
+	DL = 0xc6;	AL = 0;		OUT(DX, AL);	/* 0x3c6, 0 */
+				AL = 0xff;	OUT(DX, AL);	/* 0x3c6, 0xff */
+	IN(AL, DX);	IN(AL, DX);	IN(AL, DX);	IN(AL, DX);
+				AL = 0;		OUT(DX, AL);	/* 0x3c6, 0 for HIDDENDAC */
+
+//	DX = 0x055c;	EAX++;		OUT(DX, AL);	/* 0x55c, 1 switch RGBout to CLGD */
+	POP(EAX);
+//	return;		/* ret のマシン語コードは 0xc3 (^^;ぉぃぉぃ */
+
+clgd543XDetect_data:
+	DB(0xc3,1);				/* enable cirrus ports */
+	DB(0xc4,0, 0xc5,1);		/* synchronous reset */
+	DB(0xc2,0xed);			/* disable display memory bit = 0 */
+	DB(0xc4,6, 0xc5,0x12);	/* unlock cirrus special */
+	DB(0xc4,6);
+	/* MiscOutReg:	DB(0xef); */
+	/* Sequencer: */
+	DB(0,0x00, 1,0x01, 2,0x0f, 3,0x00, 4,0x0e, 7,0xe1);
+	DB(0x0e,0x6f);
+	DB(0x0f,0x30, 0x12,0x00, 0x13,0x00, 0x16,0x5a, 0x17,0x00);
+	DB(0x1e,0x2a);
+	DB(0x1f,0x1a);
+	/* CRTC: */
+	DB(0xa2, 0x7f, 0x80, 0x81, 0x81, 0x01, 0x24, 0xfd);
+	DB(0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+	DB(0x03, 0x00, 0xff, 0x80, 0x00, 0x03, 0x04, 0xc3);
+	DB(0xff, 0x00, 0xe0, 0x82, 0x00, 0x00);
+	/* Graphics: */
+	DB(0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x05, 0x0f);
+	DB(0xff, 0x00, 0x00, 0x20);
+	/* Attribute: */
+	DB(0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07);
+	DB(0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f);
+	DB(0x41, 0x00, 0x0f, 0x00, 0x00);
+	/* HiddenDAC:	DB(0x00); */
 }
 #endif

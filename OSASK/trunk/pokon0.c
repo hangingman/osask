@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.3.3
+/* "pokon0.c":アプリケーションラウンチャー  ver.3.4
      copyright(C) 2003 小柳雅明, 川合秀実
     stack:4k malloc:88k file:4096k */
 
@@ -10,7 +10,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon33"
+#define POKON_VERSION "pokon34"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.4\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -210,6 +210,7 @@ void job_resize_sub1(int cond);
 void job_resize_sub2(int cond);
 void job_execute_cons0(int cond);
 void job_execute_cons1(int cond);
+void job_exec_psf_sub0(int cond);
 
 #define	ppj(member)		(PPJ_ ## member)
 
@@ -422,6 +423,25 @@ lib_putstring_ASCII(0x0000, 0, 0, &selwin0[0].subtitle.tbox, 0, 0, "debug!(2)");
 			}
 			pjob->now = 0;
 			break;
+
+		case JOB_CHANGE_DRIVE:
+			if (need_wb == 0)
+				sgg_execcmd0(0x009c, readjob(), 0x0000);
+			pjob->now = 0;
+			break;
+
+		case JOB_LOAD_AND_EXEC_PSF:
+			autoreadjob(ppj(prm0), ppj(prm1), ppj(prm2), 0);
+			if ((pjob->fp = searchfid((char *) &pjob->param[0])) == NULL) {
+				pjob->now = 0; /* ファイルがなかった */
+				break;
+			}
+			if ((pjob->fbuf = searchfrefbuf()) == NULL) {
+				pjob->now = 0; /* リソースがなかった */
+				break;
+			}
+			jsub_fbufready0(job_exec_psf_sub0);
+			break;
 		}
 	} while (pjob->now == 0);
 	return;
@@ -627,6 +647,8 @@ void job_create_sysdisk0(int cond)
 		pjob->fp = searchfid1("OSASKBS1BIN");
 	#elif (defined(TOWNS))
 		pjob->fp = searchfid1("OSAIPLT0BIN");
+	#elif (defined(NEC98))
+		pjob->fp = searchfid1("OSAIPLN0BIN");
 	#endif
 	if (cond == 0)
 		goto err;
@@ -786,6 +808,100 @@ void job_resize_sub2(int cond)
 	return;
 }
 
+void job_exec_psf_sub0(int cond)
+{
+	struct STR_JOBLIST *pjob = &job;
+	if (cond) {
+		unsigned char *fp = (unsigned char *) readCSd10, *fp1 = fp + pjob->fbuf->size;
+		static unsigned char cmdline0[1024], *p;
+		sgg_execcmd0(0x0080, FILEAREA, pjob->fbuf->paddr, fp, 0x0000); /* スロットを使わないマッピング */
+		while (fp < fp1) {
+			p = cmdline0;
+			while (fp < fp1 && *fp <= ' ')
+				fp++;
+			if (fp >= fp1)
+				break;
+			while (fp < fp1 && *fp != '\r' && *fp != '\n' && p < &cmdline0[1023])
+				*p++ = *fp++;
+			*p = '\0';
+			poko_exec_cmd(cmdline0);
+		}
+		unlinkfbuf(pjob->fbuf);
+	}
+	pjob->now = 0;
+	return;
+}
+
+void poko_exec_cmd(const char *p)
+{
+	while (*p != '\0' && *p <= ' ')
+		p++;
+	if (*p != '\0' && *p != '/') {
+		int status = -ERR_BAD_COMMAND;
+		static struct STR_POKON_CMDLIST {
+			int (*fnc)(const char *);
+			const char *cmd;
+			char skip, prmflg;
+		} cmdlist[] = {
+			poko_memory,		"memory", 6, 0,
+			poko_color,			"color", 5, 1,
+			poko_cls,			"cls", 3, 0,
+			poko_mousespeed,	"mousespeed", 10, 1,
+			poko_setdefaultIL,	"setdefaultIL", 12, 1,
+			poko_tasklist,		"tasklist", 8, 0,
+			poko_sendsignalU,	"sendsignalU", 11, 1,
+			poko_LLlist,		"LLlist", 6, 1,
+			poko_setIL,			"setIL", 5, 1,
+			poko_create,		"create", 6, 1,
+			poko_delete,		"delete", 6, 1,
+			poko_rename,		"rename", 6, 1,
+			poko_resize,		"resize", 6, 1,
+			poko_nfname,		"nfname", 6, 1,
+			poko_autodecomp,	"autodecomp", 10, 1,
+			poko_sortmode,		"sortmode", 8, 1,
+			poko_kill,			"kill", 4, 1,
+			#if (defined(PCAT))
+				poko_vesalist,		"vesalist", 8, 1,
+				poko_setvesa,		"setvesa", 7, 1,
+				poko_detectpcivga,	"detectpcivga", 12, 2,
+			#endif
+			poko_defkeybind,	"defkeybind", 10, 1,
+			poko_defspkeybind,	"defspkeybind", 12, 1,
+			poko_exec,			"exec", 4, 1,
+			#if defined(DEBUG)
+				poko_debug,			"debug", 5, 1,
+			#endif
+			NULL,				NULL, 0, 0
+		};
+		struct STR_POKON_CMDLIST *pcmdlist = cmdlist;
+		do {
+			const char *line = p, *cmd = pcmdlist->cmd;
+			while (*line == *cmd) {
+				line++;
+				cmd++;
+			}
+			if (*cmd == '\0' && *line == ' ') {
+				if (pcmdlist->skip) {
+					p += pcmdlist->skip;
+					while (*p == ' ')
+						p++;
+				}
+				status = -ERR_ILLEGAL_PARAMETERS;
+				if (pcmdlist->prmflg == 0 && *p != '\0')
+					break;
+				if (pcmdlist->prmflg == 1 && *p == '\0')
+					break;
+				status = (*(pcmdlist->fnc))(p);
+				break;
+			}
+		} while ((++pcmdlist)->fnc);
+		if (status < 0)
+			consoleout((char *) pokon_error_message[-status - ERR_CODE_START]);
+		if (status == 1)
+			consoleout("\n");
+	}
+	return;
+}
 
 /////
 
@@ -934,6 +1050,7 @@ void openselwin(struct FILESELWIN *win, const char *title, const char *subtitle)
 		{ DEFSIG_EXT1 | DEFSIG_SHIFT | DEFSIG_CTRL | 'S' /* Shif+Ctrl */,	0, SIGNAL_RESIZE },
 		{ DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT | 'S' /* Ctrl */,	0, SIGNAL_CHANGE_SORT_MODE },
 		{ DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_ALT | 'S' /* Alt */,	0, SIGNAL_CHANGE_SORT_MODE },
+		{ DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT | '0' /* Shift+0 */,	9, SIGNAL_DISK_CHANGE0 },
 		{ SIGNAL_LETTER_START /* letters */,SIGNAL_LETTER_END - SIGNAL_LETTER_START,  SIGNAL_LETTER_START },
 		{ 0,                               0,  0 }
 	};
@@ -1017,7 +1134,11 @@ void OsaskMain()
 	struct SGG_FILELIST *fp;
 	struct SELECTORWAIT *selwait;
 	int selwaitcount = 0;
-	signed char bootflags = 0;
+	#if (defined(PCAT))
+		signed char bootflags = 4;
+	#else
+		signed char bootflags = 0;
+	#endif
 	signed char fmode = STATUS_BOOTING;
 	unsigned char selwincount = 1;
 
@@ -1135,17 +1256,25 @@ void OsaskMain()
 
 			case 98:
 			//	siglen = 1;
-				bootflags |= 0x02;
+				bootflags ^= 0x02;
 				goto bootflags_check;
 
 			case SIGNAL_BOOT_COMPLETE:
 			//	siglen = 1;
-				bootflags |= 0x01;
+				bootflags ^= 0x01;
 	bootflags_check:
 				if (bootflags == 0x03) {
 					win[0].ext = ext_ALL;
 					list_set(&win[0]);
 					fmode = STATUS_RUN_APPLICATION;
+
+					/* ここで"OSASK0.PSF"バッチファイルを探して、読み込み&実行 */
+					/* Pokon Script File */
+					/* 行頭が'/'だったら、注釈とみなす */
+					/* ファイル領域の最後の4096バイトを使用 */
+					/* 入りきらないようなら、エラーなので実行しない */
+					writejob_n(4, JOB_LOAD_AND_EXEC_PSF, 'O' | 'S' << 8 | 'A' << 16 | 'S' << 24,
+						'K' | '0' << 8 | ' ' << 16 | ' ' << 24, '.' | 'P' << 8 | 'S' << 16 | 'F' << 24);
 				}
 				break;
 
@@ -1411,7 +1540,8 @@ write_exe:
 					siglen++; /* siglen = 2; */
 					sgg_debug00(0, sizeof vbebuf, 0, sbp[1],
 						0x000c | (0x3000 << 8) + 0xf80000, (const int) vbebuf, 0x000c);
-					break;
+					bootflags ^= 0x04;
+					goto bootflags_check;
 				#endif
 
 			}
@@ -1583,70 +1713,7 @@ write_exe:
 						pcons->cursorflag = 0;
 						putcursor();
 					}
-					while (*p == ' ')
-						p++;
-					if (*p) {
-						int status = -ERR_BAD_COMMAND;
-						static struct STR_POKON_CMDLIST {
-							int (*fnc)(const char *);
-							const char *cmd;
-							char skip, prmflg;
-						} cmdlist[] = {
-							poko_memory,		"memory", 6, 0,
-							poko_color,			"color", 5, 1,
-							poko_cls,			"cls", 3, 0,
-							poko_mousespeed,	"mousespeed", 10, 1,
-							poko_setdefaultIL,	"setdefaultIL", 12, 1,
-							poko_tasklist,		"tasklist", 8, 0,
-							poko_sendsignalU,	"sendsignalU", 11, 1,
-							poko_LLlist,		"LLlist", 6, 1,
-							poko_setIL,			"setIL", 5, 1,
-							poko_create,		"create", 6, 1,
-							poko_delete,		"delete", 6, 1,
-							poko_rename,		"rename", 6, 1,
-							poko_resize,		"resize", 6, 1,
-							poko_nfname,		"nfname", 6, 1,
-							poko_autodecomp,	"autodecomp", 10, 1,
-							poko_sortmode,		"sortmode", 8, 1,
-							poko_kill,			"kill", 4, 1,
-							#if (defined(PCAT))
-								poko_vesalist,		"vesalist", 8, 1,
-								poko_setvesa,		"setvesa", 7, 1,
-								poko_detectpcivga,	"detectpcivga", 12, 2,
-							#endif
-							poko_exec,			"exec", 4, 1,
-#if defined(DEBUG)
-							poko_debug,			"debug", 5, 1,
-#endif
-							NULL,				NULL, 0, 0
-						};
-						struct STR_POKON_CMDLIST *pcmdlist = cmdlist;
-						do {
-							const char *line = p, *cmd = pcmdlist->cmd;
-							while (*line == *cmd) {
-								line++;
-								cmd++;
-							}
-							if (*cmd == '\0' && *line == ' ') {
-								if (pcmdlist->skip) {
-									p += pcmdlist->skip;
-									while (*p == ' ')
-										p++;
-								}
-								status = -ERR_ILLEGAL_PARAMETERS;
-								if (pcmdlist->prmflg == 0 && *p != '\0')
-									break;
-								if (pcmdlist->prmflg == 1 && *p == '\0')
-									break;
-								status = (*(pcmdlist->fnc))(p);
-								break;
-							}
-						} while ((++pcmdlist)->fnc);
-						if (status < 0)
-							consoleout((char *) pokon_error_message[-status - ERR_CODE_START]);
-						if (status == 1)
-							consoleout("\n");
-					}
+					poko_exec_cmd(p);
 			prompt:
 					consoleout(POKO_PROMPT);
 					if (pcons->cursoractive) {
@@ -1924,7 +1991,17 @@ listup:
 					}
 					break;
 
-				default: /* search filename */
+				default:
+					if (SIGNAL_DISK_CHANGE0 <= sig && sig <= SIGNAL_DISK_CHANGE0 + 9) {
+						writejob_n(4,
+							JOB_CHECK_WB_CACHE,
+							JOB_CHANGE_DRIVE, sig - SIGNAL_DISK_CHANGE0,
+							JOB_INVALID_DISKCACHE
+						);
+						break;
+					}
+
+					/* search filename */
 					if (cur < 0 /* ファイルが１つもない */)
 						break;
 					/* search from current to bottom */
@@ -2074,33 +2151,35 @@ void consoleout(char *s)
 {
 	struct STR_CONSOLE *pcons = console;
 	char *cbp0 = pcons->buf + pcons->cury * (CONSOLESIZEX + 2);
-	while (*s) {
-		if (*s == '\n') {
-			s++;
-			cbp0[CONSOLESIZEX + 1] = pcons->col;
-			putconsline(pcons->cury);
-			pcons->cury++;
-			pcons->curx = 0;
-			if (pcons->cury == CONSOLESIZEY) {
-				/* スクロールする */
-				int i, j;
-				char *bp = pcons->buf;
-				bp[CONSOLESIZEY * (CONSOLESIZEX + 2) + (CONSOLESIZEX + 1)] = pcons->col;
-				for (j = 0; j < CONSOLESIZEY; j++) {
-					for (i = 0; i < CONSOLESIZEX + 2; i++)
-						bp[i] = bp[i + (CONSOLESIZEX + 2)];
-					putconsline(j);
-					bp += CONSOLESIZEX + 2;
+	if (pcons->curx != -1) {
+		while (*s) {
+			if (*s == '\n') {
+				s++;
+				cbp0[CONSOLESIZEX + 1] = pcons->col;
+				putconsline(pcons->cury);
+				pcons->cury++;
+				pcons->curx = 0;
+				if (pcons->cury == CONSOLESIZEY) {
+					/* スクロールする */
+					int i, j;
+					char *bp = pcons->buf;
+					bp[CONSOLESIZEY * (CONSOLESIZEX + 2) + (CONSOLESIZEX + 1)] = pcons->col;
+					for (j = 0; j < CONSOLESIZEY; j++) {
+						for (i = 0; i < CONSOLESIZEX + 2; i++)
+							bp[i] = bp[i + (CONSOLESIZEX + 2)];
+						putconsline(j);
+						bp += CONSOLESIZEX + 2;
+					}
+					pcons->cury = CONSOLESIZEY - 1;
 				}
-				pcons->cury = CONSOLESIZEY - 1;
+				cbp0 = pcons->buf + pcons->cury * (CONSOLESIZEX + 2);
+			} else {
+				cbp0[pcons->curx++] = *s++;
 			}
-			cbp0 = pcons->buf + pcons->cury * (CONSOLESIZEX + 2);
-		} else {
-			cbp0[pcons->curx++] = *s++;
 		}
+		cbp0[CONSOLESIZEX + 1] = pcons->col;
+		putconsline(pcons->cury);
 	}
-	cbp0[CONSOLESIZEX + 1] = pcons->col;
-	putconsline(pcons->cury);
 	return;
 }
 
@@ -2715,10 +2794,10 @@ int poko_vesalist(const char *cmdlin)
 		goto error;
 	if (i > 3)
 		goto error;
-	if (vbebuf[127].flag == 0) {
-		consoleout("\nVESA-info isn't got yet.");
-		return 1;
-	}
+//	if (vbebuf[127].flag == 0) {
+//		consoleout("\nVESA-info isn't got yet.");
+//		return 1;
+//	}
 	if (vbebuf[127].dummy == 0) {
 		consoleout("\nVESA BIOS is not found.");
 		return 1;
@@ -2769,10 +2848,10 @@ int poko_setvesa(const char *cmdlin)
 	if (*cmdlin == '\0')
 		goto error;
 	j = cons_getdec_skpspc(&cmdlin);
-	if (vbebuf[127].flag == 0) {
-		consoleout("\nVESA-info isn't got yet.");
-		return 1;
-	}
+//	if (vbebuf[127].flag == 0) {
+//		consoleout("\nVESA-info isn't got yet.");
+//		return 1;
+//	}
 	if (vbebuf[127].dummy == 0) {
 		consoleout("\nVESA BIOS is not found.");
 		return 1;
@@ -2878,6 +2957,39 @@ error:
 }
 
 #endif
+
+int poko_defkeybind(const char *cmdlin)
+{
+	int i, raw0, shft0, raw1, shft1;
+	i = cons_getdec_skpspc(&cmdlin);
+	raw0  = cons_getdec_skpspc(&cmdlin);
+	shft0 = cons_getdec_skpspc(&cmdlin);
+	raw1  = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin == '\0')
+		goto error;
+	shft1 = cons_getdec_skpspc(&cmdlin);
+	sgg_execcmd0(0x0020, 0x80000000 + 5, 0x3244, 0x7f000003,
+		0x0070, i, raw0 | shft0 << 8 | raw1 << 16 | shft1 << 24, 0x0000);
+	return 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+
+int poko_defspkeybind(const char *cmdlin)
+{
+	int i, j, k;
+	i = cons_getdec_skpspc(&cmdlin);
+	j  = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin == '\0')
+		goto error;
+	k = cons_getdec_skpspc(&cmdlin);
+	sgg_execcmd0(0x0020, 0x80000000 + 6, 0x3245, 0x7f000004, 0x0074, i, j, k, 0x0000);
+	return 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
 
 int poko_exec(const char *cmdlin)
 {

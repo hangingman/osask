@@ -74,6 +74,11 @@ ifeq ($(VMODE),y)
 PREPROCESSOR_FLAGS += -DVMODE
 CFLAGS += -DVMODE
 endif
+# CLGD543X support
+ifeq ($(CLGD543X),y)
+PREPROCESSOR_FLAGS += -DCLGD543X
+CFLAGS += -DCLGD543X
+endif
 endif
 # for PC/AT
 ifeq ($(ARCH),pcat)

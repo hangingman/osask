@@ -1,8 +1,9 @@
-/* "VGADRV0.ASK" for TOWNS ver.1.7 copyright(C) 2003 川合秀実, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.1.8 copyright(C) 2003 I.Tak., 川合秀実 */
 
-#if defined(VMODE)
+#if (defined(VMODE) || defined(CLGD543X))
 	#undef TWVSW			/* 1024でないとインターレースできない */
 	#define TWVSW	1024	/* インターレースしないなら問題ないが */
+							/* CLGDには1024のパラメータしか作ってない */
 #endif
 
 /* TWVSW is... TOWNS Vertial Screen Width! */
@@ -2786,18 +2787,39 @@ void near GAPI_VGA640()
 	EDX = 480 - 15 /* 前もってmouseの大きさの分を引いてある */;
 		/* マウスのy方向のクリッピングができるようになったら、この措置は不要 */
 	asmout("MOV ESI,OFFSET #param640");
-	if (EAX != 0) {
+	#if (defined(CLGD543X))
+		if (AH != 0) {		/* アクセラモード */
+			DX = 0x440;
+			AL = 0x11;
+			OUT(DX, AL);
+			ECX = 0;
+			DL = 0x42;
+			ECX--;
+			EAX = 0;
+			OUT(DX, AX);
+			wsub->scr_width = ECX;	/* -1 でスクロール抑制 */
+			asmout("jmp next_command");
+		}
+	#endif
+	EAX--;
+	if (== 0) {
 	//	asmout("ADD ESI,#param768 - #param640");
 		DB(0x83, 0xc6);
 		asmout("DB #param768 - #param640");
 		ECX -= 640 - 768;	/* 128を足すのは3バイト無駄(なるほど、うまい!) */
 		EDX += 512 - 480;
 	}
+	#if (defined(VMODE))
+		EAX--;
+		if(== 0){
+		//	asmout("ADD ESI,#param640V - #param640");
+			DB(0x83, 0xc6);
+			asmout("DB #param640V - #param640");
+		}
+	#endif
 	wsub->scr_width  = ECX;
 	wsub->scr_height = EDX;
 
-//	AX = CS;
-//	DS = AX;
 	PUSH(CS);
 	POP(DS);
 
@@ -2840,8 +2862,6 @@ cl4in:
 	OUT(DX, AL);
 
 	STI();
-//	EAX = all_sel;
-//	DS = AX;
 	PUSH(all_sel);
 	POP(DS);
 	asmout("JMP next_command");
@@ -2853,24 +2873,24 @@ cl4:
 	ALIGN(4);
 
 param640:
-#if (!defined(VMODE))
 	/* CRTC */
 	DW(0x0060,    0x02c0,                 0x031f,    0x0000, 0x0004, 0x0000);
 	DW(0x0419,    0x008a, 0x030a, 0x008a, 0x030a,    0x0046, 0x0406, 0x0046);
 	DW(0x0406,    0x0000, 0x008a, 0x0000, TWVSW / 8, 0x0000, 0x008a, 0x0000);
 	DW(TWVSW / 8, 0x0058, 0x0001, 0x0000, CRTC28,    0x0002, 0x0000, 0x0192);
-#else /* defined(VMODE) */
-	DW(0x0086,    0x0610,                 0x071b,    0x0006, 0x000c, 0x0012);
-	DW(0x020c,    0x0179, 0x0679, 0x0179, 0x0679,    0x002a, 0x020a, 0x002a);
-	DW(0x020a,    0x0000, 0x0179, 0x0080, TWVSW / 4, 0x0000, 0x0179, 0x0080);
-	DW(TWVSW / 4, 0x0064, 0x0001, 0x0101,CRTC28|0x4000,0x000c,0x0003,0x01ca);
-#endif
 param768:
 	/* CRTC */
 	DW(0x0060,    0x0338,                 0x0397,    0x0000, 0x0004, 0x0000);
 	DW(0x0433,    0x008a, 0x038a, 0x008a, 0x038a,    0x0034, 0x0434, 0x0034);
 	DW(0x0434,    0x0000, 0x008a, 0x0000, TWVSW / 8, 0x0000, 0x008a, 0x0000);
 	DW(TWVSW / 8, 0x0058, 0x0001, 0x0000, CRTC28,    0x0000, 0x0000, 0x0192);
+	#if (defined(VMODE))
+param640V:
+		DW(0x0086,    0x0610,                 0x071b,    0x0006, 0x000c, 0x0012);
+		DW(0x020c,    0x0179, 0x0679, 0x0179, 0x0679,    0x002a, 0x020a, 0x002a);
+		DW(0x020a,    0x0000, 0x0179, 0x0080, TWVSW / 4, 0x0000, 0x0179, 0x0080);
+		DW(TWVSW / 4, 0x0064, 0x0001, 0x0101,CRTC28+0x4000,0x000c,0x0003,0x01ca);
+	#endif
 }
 
 void near GAPI_accesslock()
@@ -3250,6 +3270,10 @@ skip_imul:
 	POP(vx); /* mouse x */
 	sx = wsub->scr_x0;
 	sy = wsub->scr_y0;
+	#if (defined(CLGD543X))
+		if ((signed)sx < 0)
+			return;
+	#endif
 	vx -= sx;
 	if ((unsigned) >= 0) {
 		vx -= wsub->scr_width;

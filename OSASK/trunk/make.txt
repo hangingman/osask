@@ -1,5 +1,5 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2002.1.31 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
+2002.3.10 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 
@@ -63,6 +63,9 @@ make pcat DESIGN=WIN9X
 ・TWVSW = n (768 <= n <= 1024 の 8の倍数) の数値を設定すると
 仮想画面の幅を変更できます。高さは自動的に決まります。
 ・VMODE = y とすると、ビデオモードが有効になります。
+・CLGD543X = y とすると、Fresh-E,ES,ET,FS,FT HA HB HC (全てアクセラ未換装)
+シリーズでビデオアクセラレータCLGD543Xを使用した画面モードが使用可能に
+なります。
 
 ◎その他
 ・一部の生成ファイルが無い状態で make clean あるいは make dist_cleanす
