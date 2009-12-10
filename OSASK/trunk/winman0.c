@@ -1,5 +1,5 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.4
-		copyright(C) 2001 川合秀実
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.5
+		copyright(C) 2002 川合秀実
     stack:4k malloc:92k file:768k */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
@@ -16,6 +16,8 @@
 #define JOBLIST_SIZE		 256		// 1KB
 #define	MAX_SOUNDTRACK		  16		// 0.5KB
 #define	DEFSIGBUFSIZ		2048
+
+//#define TWVSW				1024
 
 #define WINFLG_MUSTREDRAW		0x80000000	/* bit31 */
 #define WINFLG_OVERRIDEDISABLED	0x01000000	/* bit24 */
@@ -1567,12 +1569,11 @@ void job_setvgamode2()
 
 		}
 #endif
-			x2 = 1024;
-			y2 = 512;
+			x2 = TWVSW;
+			y2 = 512*1024/TWVSW;
 			/* 画面モード0設定(640x480) */
 			/* 画面モード1設定(768x512) */
 			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job_int0 /* mode */, 0x0000, 0x0000);
-
 
 		sgg_wm0_gapicmd_001c_0004(); /* ハードウェア初期化 */
 		init_screen(x2, y2);

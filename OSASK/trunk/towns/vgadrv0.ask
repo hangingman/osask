@@ -1,4 +1,17 @@
-/* "VGADRV0.ASK" for TOWNS ver.1.0 copyright(C) 2001 川合秀実, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.1.1 copyright(C) 2002 川合秀実, I.Tak. */
+
+/* TWVSW is... TOWNS Vertial Screen Width! */
+//#define TWVSW 	1024	/* must be multiple of 8 */
+
+#if (TWVSW & (TWVSW-1))	/* TWVSW is not 0 nor power of 2. */
+	#undef  TWVSWlog2	/*  ！要らないかも！ */
+	#define IMUL_TWVSW(reg)		IMUL(reg, TWVSW);
+	#define	CRTC28	0x803f	/* 0x800f(TWVSW == 1024) */
+#else
+	#define TWVSWlog2 10	/* log2(TWVSW) */
+	#define IMUL_TWVSW(reg)		reg *= TWVSW;
+	#define	CRTC28	0x800f	/* (TWVSW != 1024) */
+#endif
 
 segment GapiMdl(USE32, PARA);
 
@@ -58,10 +71,10 @@ syscmd:
 	PUSH(ES);
 	PUSHAD();
 	EAX = all_sel;
-	CX = CS;
-	DS = AX;
-	CX += 8;
-	ES = CX;
+	MOV(ECX, CS);
+	DS = EAX;
+	ECX += 8;
+	ES = ECX;
 
 asmout("next_command:");
 
@@ -194,7 +207,7 @@ void near GAPI_fontwrite()
 	if (!= 0)
 		goto error; /* 4の倍数以外はまだサポートしてない */
 
-	ESI *= 1024;
+	IMUL_TWVSW(ESI);
 	ESI += EAX;
 
 	int *font == ES:EDI;
@@ -263,51 +276,51 @@ void near GAPI_fontwrite()
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  0 + 4] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  0 + 4] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  0 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  0 + 0] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  1 + 4] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  1 + 4] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  1 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  1 + 0] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  2 + 4] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  2 + 4] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  2 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  2 + 0] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  3 + 4] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  3 + 4] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
-			[DS:ESI + 0xe0000000 + 1024 *  3 + 0] = EAX;
-			ESI += 1024 * 4;
+			[DS:ESI + 0xe0000000 + TWVSW *  3 + 0] = EAX;
+			ESI += TWVSW * 4;
 			ECX--;
 		} while (!= 0);
 		POP(ECX);
-		ESI -= 1024 * 16 - 8;
+		ESI -= TWVSW * 16 - 8;
 		ECX--;
 	} while (!= 0);
 	ESP += 64;
@@ -338,51 +351,51 @@ opt1:
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  0 + 4] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  0 + 4] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  0 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  0 + 0] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  1 + 4] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  1 + 4] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  1 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  1 + 0] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  2 + 4] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  2 + 4] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  2 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  2 + 0] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
 			EDX = EBX;
 			(unsigned int) EBX /= 16;
 			EDX &= 0x0f;
-			[DS:ESI + 0xe0000000 + 1024 *  3 + 4] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  3 + 4] = EAX;
 
 			EAX = [SS:ESP + EDX * 4 + 4];
-			[DS:ESI + 0xe0000000 + 1024 *  3 + 0] = EAX;
-			ESI += 1024 * 4;
+			[DS:ESI + 0xe0000000 + TWVSW *  3 + 0] = EAX;
+			ESI += TWVSW * 4;
 			ECX--;
 		} while (!= 0);
 		POP(ECX);
-		ESI -= 1024 * 8 - 8;
+		ESI -= TWVSW * 8 - 8;
 		ECX--;
 	} while (!= 0);
 	ESP += 64;
@@ -396,7 +409,7 @@ opt2:
 	if (!= 0)
 		goto error; /* 4の倍数以外はまだサポートしてない */
 
-	ESI *= 1024;
+	IMUL_TWVSW(ESI);
 	ESI += EAX;
 
 //	int *font == ES:EDI;
@@ -417,26 +430,26 @@ opt2:
 		do {
 			EAX = font[ 0]; /* 4dots */
 			EDX = font[ 4];
-			[DS:ESI + 0xe0000000 + 1024 *  0 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 1024 *  0 + 4] = EDX;
+			[DS:ESI + 0xe0000000 + TWVSW *  0 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  0 + 4] = EDX;
 			EAX = font[ 8]; /* 4dots */
 			EDX = font[12];
-			[DS:ESI + 0xe0000000 + 1024 *  1 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 1024 *  1 + 4] = EDX;
+			[DS:ESI + 0xe0000000 + TWVSW *  1 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  1 + 4] = EDX;
 			EAX = font[16]; /* 4dots */
 			EDX = font[20];
-			[DS:ESI + 0xe0000000 + 1024 *  2 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 1024 *  2 + 4] = EDX;
+			[DS:ESI + 0xe0000000 + TWVSW *  2 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  2 + 4] = EDX;
 			EAX = font[24]; /* 4dots */
 			EDX = font[28];
 			(offset) font += 32;
-			[DS:ESI + 0xe0000000 + 1024 *  3 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 1024 *  3 + 4] = EDX;
-			ESI += 1024 * 4;
+			[DS:ESI + 0xe0000000 + TWVSW *  3 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  3 + 4] = EDX;
+			ESI += TWVSW * 4;
 			ECX--;
 		} while (!= 0);
 		POP(ECX);
-		ESI -= 1024 * 16 - 8;
+		ESI -= TWVSW * 16 - 8;
 		ECX--;
 	} while (!= 0);
 	(offset) cmd = (offset) string;
@@ -455,26 +468,26 @@ opt3:
 		do {
 			EAX = font[ 0]; /* 4dots */
 			EDX = font[ 4];
-			[DS:ESI + 0xe0000000 + 1024 *  0 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 1024 *  0 + 4] = EDX;
+			[DS:ESI + 0xe0000000 + TWVSW *  0 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  0 + 4] = EDX;
 			EAX = font[ 8]; /* 4dots */
 			EDX = font[12];
-			[DS:ESI + 0xe0000000 + 1024 *  1 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 1024 *  1 + 4] = EDX;
+			[DS:ESI + 0xe0000000 + TWVSW *  1 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  1 + 4] = EDX;
 			EAX = font[16]; /* 4dots */
 			EDX = font[20];
-			[DS:ESI + 0xe0000000 + 1024 *  2 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 1024 *  2 + 4] = EDX;
+			[DS:ESI + 0xe0000000 + TWVSW *  2 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  2 + 4] = EDX;
 			EAX = font[24]; /* 4dots */
 			EDX = font[28];
 			(offset) font += 32;
-			[DS:ESI + 0xe0000000 + 1024 *  3 + 0] = EAX;
-			[DS:ESI + 0xe0000000 + 1024 *  3 + 4] = EDX;
-			ESI += 1024 * 4;
+			[DS:ESI + 0xe0000000 + TWVSW *  3 + 0] = EAX;
+			[DS:ESI + 0xe0000000 + TWVSW *  3 + 4] = EDX;
+			ESI += TWVSW * 4;
 			ECX--;
 		} while (!= 0);
 		POP(ECX);
-		ESI -= 1024 * 16 - 8;
+		ESI -= TWVSW * 16 - 8;
 		ECX--;
 	} while (!= 0);
 	(offset) cmd = (offset) string;
@@ -502,7 +515,7 @@ void near GAPI_line()
 		EBP = cmd[20]; /* y1 */
 		ESI = cmd[12]; /* y0 */
 		EBP -= ESI;
-		ESI *= 1024;
+		IMUL_TWVSW(ESI);
 boxfill:
 		EDX = cmd[ 8]; /* x0 */
 		EDI = cmd[16]; /* x1 */
@@ -535,15 +548,15 @@ boxfill:
 						ECX -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								[DS:ESI + 1024 * 0] = AL;
-								[DS:ESI + 1024 * 1] = AL;
-								[DS:ESI + 1024 * 2] = AL;
-								[DS:ESI + 1024 * 3] = AL;
-								[DS:ESI + 1024 * 4] = AL;
-								[DS:ESI + 1024 * 5] = AL;
-								[DS:ESI + 1024 * 6] = AL;
-								[DS:ESI + 1024 * 7] = AL;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 0] = AL;
+								[DS:ESI + TWVSW * 1] = AL;
+								[DS:ESI + TWVSW * 2] = AL;
+								[DS:ESI + TWVSW * 3] = AL;
+								[DS:ESI + TWVSW * 4] = AL;
+								[DS:ESI + TWVSW * 5] = AL;
+								[DS:ESI + TWVSW * 6] = AL;
+								[DS:ESI + TWVSW * 7] = AL;
+								ESI += TWVSW * 8;
 								ECX -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -551,7 +564,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] = AL;
-								ESI += 1024;
+								ESI += TWVSW;
 								ECX--;
 							} while (!= 0);
 						}
@@ -570,15 +583,15 @@ boxfill:
 						ECX -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								[DS:ESI + 1024 * 0] = EAX;
-								[DS:ESI + 1024 * 1] = EAX;
-								[DS:ESI + 1024 * 2] = EAX;
-								[DS:ESI + 1024 * 3] = EAX;
-								[DS:ESI + 1024 * 4] = EAX;
-								[DS:ESI + 1024 * 5] = EAX;
-								[DS:ESI + 1024 * 6] = EAX;
-								[DS:ESI + 1024 * 7] = EAX;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 0] = EAX;
+								[DS:ESI + TWVSW * 1] = EAX;
+								[DS:ESI + TWVSW * 2] = EAX;
+								[DS:ESI + TWVSW * 3] = EAX;
+								[DS:ESI + TWVSW * 4] = EAX;
+								[DS:ESI + TWVSW * 5] = EAX;
+								[DS:ESI + TWVSW * 6] = EAX;
+								[DS:ESI + TWVSW * 7] = EAX;
+								ESI += TWVSW * 8;
 								ECX -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -586,7 +599,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] = EAX;
-								ESI += 1024;
+								ESI += TWVSW;
 								ECX--;
 							} while (!= 0);
 						}
@@ -603,15 +616,15 @@ boxfill:
 						ECX -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								[DS:ESI + 1024 * 0] = AL;
-								[DS:ESI + 1024 * 1] = AL;
-								[DS:ESI + 1024 * 2] = AL;
-								[DS:ESI + 1024 * 3] = AL;
-								[DS:ESI + 1024 * 4] = AL;
-								[DS:ESI + 1024 * 5] = AL;
-								[DS:ESI + 1024 * 6] = AL;
-								[DS:ESI + 1024 * 7] = AL;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 0] = AL;
+								[DS:ESI + TWVSW * 1] = AL;
+								[DS:ESI + TWVSW * 2] = AL;
+								[DS:ESI + TWVSW * 3] = AL;
+								[DS:ESI + TWVSW * 4] = AL;
+								[DS:ESI + TWVSW * 5] = AL;
+								[DS:ESI + TWVSW * 6] = AL;
+								[DS:ESI + TWVSW * 7] = AL;
+								ESI += TWVSW * 8;
 								ECX -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -619,7 +632,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] = AL;
-								ESI += 1024;
+								ESI += TWVSW;
 								ECX--;
 							} while (!= 0);
 						}
@@ -640,7 +653,7 @@ boxfill:
 						EBX = ESI;
 						do {
 							[DS:ESI           ] = AL;
-							ESI += 1024;
+							ESI += TWVSW;
 							ECX--;
 						} while (!= 0);
 						EDI--;
@@ -684,7 +697,7 @@ boxfill:
 							EDI--;
 						} while (!= 0);
 					}
-					LEA(ESI, [EBX + 1024]);
+					LEA(ESI, [EBX + TWVSW]);
 					POP(EDI);
 					EBP--;
 				} while (!= 0);
@@ -704,19 +717,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								CL = [DS:ESI + 1024 * 0];	DL = [DS:ESI + 1024 * 1];
+								CL = [DS:ESI + TWVSW * 0];	DL = [DS:ESI + TWVSW * 1];
 								CL ^= AL;					DL ^= AL;
-								[DS:ESI + 1024 * 0] = CL;	[DS:ESI + 1024 * 1] = DL;
-								CL = [DS:ESI + 1024 * 2];	DL = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = CL;	[DS:ESI + TWVSW * 1] = DL;
+								CL = [DS:ESI + TWVSW * 2];	DL = [DS:ESI + TWVSW * 3];
 								CL ^= AL;					DL ^= AL;
-								[DS:ESI + 1024 * 2] = CL;	[DS:ESI + 1024 * 3] = DL;
-								CL = [DS:ESI + 1024 * 4];	DL = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = CL;	[DS:ESI + TWVSW * 3] = DL;
+								CL = [DS:ESI + TWVSW * 4];	DL = [DS:ESI + TWVSW * 5];
 								CL ^= AL;					DL ^= AL;
-								[DS:ESI + 1024 * 4] = CL;	[DS:ESI + 1024 * 5] = DL;
-								CL = [DS:ESI + 1024 * 6];	DL = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = CL;	[DS:ESI + TWVSW * 5] = DL;
+								CL = [DS:ESI + TWVSW * 6];	DL = [DS:ESI + TWVSW * 7];
 								CL ^= AL;					DL ^= AL;
-								[DS:ESI + 1024 * 6] = CL;	[DS:ESI + 1024 * 7] = DL;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = CL;	[DS:ESI + TWVSW * 7] = DL;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -724,7 +737,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] ^= AL;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -744,19 +757,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								ECX = [DS:ESI + 1024 * 0];	EDX = [DS:ESI + 1024 * 1];
+								ECX = [DS:ESI + TWVSW * 0];	EDX = [DS:ESI + TWVSW * 1];
 								ECX ^= EAX;					EDX ^= EAX;
-								[DS:ESI + 1024 * 0] = ECX;	[DS:ESI + 1024 * 1] = EDX;
-								ECX = [DS:ESI + 1024 * 2];	EDX = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = ECX;	[DS:ESI + TWVSW * 1] = EDX;
+								ECX = [DS:ESI + TWVSW * 2];	EDX = [DS:ESI + TWVSW * 3];
 								ECX ^= EAX;					EDX ^= EAX;
-								[DS:ESI + 1024 * 2] = ECX;	[DS:ESI + 1024 * 3] = EDX;
-								ECX = [DS:ESI + 1024 * 4];	EDX = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = ECX;	[DS:ESI + TWVSW * 3] = EDX;
+								ECX = [DS:ESI + TWVSW * 4];	EDX = [DS:ESI + TWVSW * 5];
 								ECX ^= EAX;					EDX ^= EAX;
-								[DS:ESI + 1024 * 4] = ECX;	[DS:ESI + 1024 * 5] = EDX;
-								ECX = [DS:ESI + 1024 * 6];	EDX = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = ECX;	[DS:ESI + TWVSW * 5] = EDX;
+								ECX = [DS:ESI + TWVSW * 6];	EDX = [DS:ESI + TWVSW * 7];
 								ECX ^= EAX;					EDX ^= EAX;
-								[DS:ESI + 1024 * 6] = ECX;	[DS:ESI + 1024 * 7] = EDX;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = ECX;	[DS:ESI + TWVSW * 7] = EDX;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -764,7 +777,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] ^= EAX;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -782,19 +795,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								CL = [DS:ESI + 1024 * 0];	DL = [DS:ESI + 1024 * 1];
+								CL = [DS:ESI + TWVSW * 0];	DL = [DS:ESI + TWVSW * 1];
 								CL ^= AL;					DL ^= AL;
-								[DS:ESI + 1024 * 0] = CL;	[DS:ESI + 1024 * 1] = DL;
-								CL = [DS:ESI + 1024 * 2];	DL = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = CL;	[DS:ESI + TWVSW * 1] = DL;
+								CL = [DS:ESI + TWVSW * 2];	DL = [DS:ESI + TWVSW * 3];
 								CL ^= AL;					DL ^= AL;
-								[DS:ESI + 1024 * 2] = CL;	[DS:ESI + 1024 * 3] = DL;
-								CL = [DS:ESI + 1024 * 4];	DL = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = CL;	[DS:ESI + TWVSW * 3] = DL;
+								CL = [DS:ESI + TWVSW * 4];	DL = [DS:ESI + TWVSW * 5];
 								CL ^= AL;					DL ^= AL;
-								[DS:ESI + 1024 * 4] = CL;	[DS:ESI + 1024 * 5] = DL;
-								CL = [DS:ESI + 1024 * 6];	DL = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = CL;	[DS:ESI + TWVSW * 5] = DL;
+								CL = [DS:ESI + TWVSW * 6];	DL = [DS:ESI + TWVSW * 7];
 								CL ^= AL;					DL ^= AL;
-								[DS:ESI + 1024 * 6] = CL;	[DS:ESI + 1024 * 7] = DL;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = CL;	[DS:ESI + TWVSW * 7] = DL;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -802,7 +815,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] ^= AL;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -824,7 +837,7 @@ boxfill:
 						EBX = ESI;
 						do {
 							[DS:ESI           ] ^= AL;
-							ESI += 1024;
+							ESI += TWVSW;
 							ECX--;
 						} while (!= 0);
 						EDI--;
@@ -872,7 +885,7 @@ boxfill:
 							EDI--;
 						} while (!= 0);
 					}
-					LEA(ESI, [EBX + 1024]);
+					LEA(ESI, [EBX + TWVSW]);
 					POP(EDI);
 					EBP--;
 				} while (!= 0);
@@ -892,19 +905,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								CL = [DS:ESI + 1024 * 0];	DL = [DS:ESI + 1024 * 1];
+								CL = [DS:ESI + TWVSW * 0];	DL = [DS:ESI + TWVSW * 1];
 								CL &= AL;					DL &= AL;
-								[DS:ESI + 1024 * 0] = CL;	[DS:ESI + 1024 * 1] = DL;
-								CL = [DS:ESI + 1024 * 2];	DL = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = CL;	[DS:ESI + TWVSW * 1] = DL;
+								CL = [DS:ESI + TWVSW * 2];	DL = [DS:ESI + TWVSW * 3];
 								CL &= AL;					DL &= AL;
-								[DS:ESI + 1024 * 2] = CL;	[DS:ESI + 1024 * 3] = DL;
-								CL = [DS:ESI + 1024 * 4];	DL = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = CL;	[DS:ESI + TWVSW * 3] = DL;
+								CL = [DS:ESI + TWVSW * 4];	DL = [DS:ESI + TWVSW * 5];
 								CL &= AL;					DL &= AL;
-								[DS:ESI + 1024 * 4] = CL;	[DS:ESI + 1024 * 5] = DL;
-								CL = [DS:ESI + 1024 * 6];	DL = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = CL;	[DS:ESI + TWVSW * 5] = DL;
+								CL = [DS:ESI + TWVSW * 6];	DL = [DS:ESI + TWVSW * 7];
 								CL &= AL;					DL &= AL;
-								[DS:ESI + 1024 * 6] = CL;	[DS:ESI + 1024 * 7] = DL;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = CL;	[DS:ESI + TWVSW * 7] = DL;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -912,7 +925,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] &= AL;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -932,19 +945,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								ECX = [DS:ESI + 1024 * 0];	EDX = [DS:ESI + 1024 * 1];
+								ECX = [DS:ESI + TWVSW * 0];	EDX = [DS:ESI + TWVSW * 1];
 								ECX &= EAX;					EDX &= EAX;
-								[DS:ESI + 1024 * 0] = ECX;	[DS:ESI + 1024 * 1] = EDX;
-								ECX = [DS:ESI + 1024 * 2];	EDX = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = ECX;	[DS:ESI + TWVSW * 1] = EDX;
+								ECX = [DS:ESI + TWVSW * 2];	EDX = [DS:ESI + TWVSW * 3];
 								ECX &= EAX;					EDX &= EAX;
-								[DS:ESI + 1024 * 2] = ECX;	[DS:ESI + 1024 * 3] = EDX;
-								ECX = [DS:ESI + 1024 * 4];	EDX = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = ECX;	[DS:ESI + TWVSW * 3] = EDX;
+								ECX = [DS:ESI + TWVSW * 4];	EDX = [DS:ESI + TWVSW * 5];
 								ECX &= EAX;					EDX &= EAX;
-								[DS:ESI + 1024 * 4] = ECX;	[DS:ESI + 1024 * 5] = EDX;
-								ECX = [DS:ESI + 1024 * 6];	EDX = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = ECX;	[DS:ESI + TWVSW * 5] = EDX;
+								ECX = [DS:ESI + TWVSW * 6];	EDX = [DS:ESI + TWVSW * 7];
 								ECX &= EAX;					EDX &= EAX;
-								[DS:ESI + 1024 * 6] = ECX;	[DS:ESI + 1024 * 7] = EDX;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = ECX;	[DS:ESI + TWVSW * 7] = EDX;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -952,7 +965,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] &= EAX;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -970,19 +983,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								CL = [DS:ESI + 1024 * 0];	DL = [DS:ESI + 1024 * 1];
+								CL = [DS:ESI + TWVSW * 0];	DL = [DS:ESI + TWVSW * 1];
 								CL &= AL;					DL &= AL;
-								[DS:ESI + 1024 * 0] = CL;	[DS:ESI + 1024 * 1] = DL;
-								CL = [DS:ESI + 1024 * 2];	DL = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = CL;	[DS:ESI + TWVSW * 1] = DL;
+								CL = [DS:ESI + TWVSW * 2];	DL = [DS:ESI + TWVSW * 3];
 								CL &= AL;					DL &= AL;
-								[DS:ESI + 1024 * 2] = CL;	[DS:ESI + 1024 * 3] = DL;
-								CL = [DS:ESI + 1024 * 4];	DL = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = CL;	[DS:ESI + TWVSW * 3] = DL;
+								CL = [DS:ESI + TWVSW * 4];	DL = [DS:ESI + TWVSW * 5];
 								CL &= AL;					DL &= AL;
-								[DS:ESI + 1024 * 4] = CL;	[DS:ESI + 1024 * 5] = DL;
-								CL = [DS:ESI + 1024 * 6];	DL = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = CL;	[DS:ESI + TWVSW * 5] = DL;
+								CL = [DS:ESI + TWVSW * 6];	DL = [DS:ESI + TWVSW * 7];
 								CL &= AL;					DL &= AL;
-								[DS:ESI + 1024 * 6] = CL;	[DS:ESI + 1024 * 7] = DL;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = CL;	[DS:ESI + TWVSW * 7] = DL;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -990,7 +1003,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] &= AL;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -1015,19 +1028,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								CL = [DS:ESI + 1024 * 0];	DL = [DS:ESI + 1024 * 1];
+								CL = [DS:ESI + TWVSW * 0];	DL = [DS:ESI + TWVSW * 1];
 								CL |= AL;					DL |= AL;
-								[DS:ESI + 1024 * 0] = CL;	[DS:ESI + 1024 * 1] = DL;
-								CL = [DS:ESI + 1024 * 2];	DL = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = CL;	[DS:ESI + TWVSW * 1] = DL;
+								CL = [DS:ESI + TWVSW * 2];	DL = [DS:ESI + TWVSW * 3];
 								CL |= AL;					DL |= AL;
-								[DS:ESI + 1024 * 2] = CL;	[DS:ESI + 1024 * 3] = DL;
-								CL = [DS:ESI + 1024 * 4];	DL = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = CL;	[DS:ESI + TWVSW * 3] = DL;
+								CL = [DS:ESI + TWVSW * 4];	DL = [DS:ESI + TWVSW * 5];
 								CL |= AL;					DL |= AL;
-								[DS:ESI + 1024 * 4] = CL;	[DS:ESI + 1024 * 5] = DL;
-								CL = [DS:ESI + 1024 * 6];	DL = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = CL;	[DS:ESI + TWVSW * 5] = DL;
+								CL = [DS:ESI + TWVSW * 6];	DL = [DS:ESI + TWVSW * 7];
 								CL |= AL;					DL |= AL;
-								[DS:ESI + 1024 * 6] = CL;	[DS:ESI + 1024 * 7] = DL;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = CL;	[DS:ESI + TWVSW * 7] = DL;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -1035,7 +1048,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] |= AL;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -1055,19 +1068,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								ECX = [DS:ESI + 1024 * 0];	EDX = [DS:ESI + 1024 * 1];
+								ECX = [DS:ESI + TWVSW * 0];	EDX = [DS:ESI + TWVSW * 1];
 								ECX |= EAX;					EDX |= EAX;
-								[DS:ESI + 1024 * 0] = ECX;	[DS:ESI + 1024 * 1] = EDX;
-								ECX = [DS:ESI + 1024 * 2];	EDX = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = ECX;	[DS:ESI + TWVSW * 1] = EDX;
+								ECX = [DS:ESI + TWVSW * 2];	EDX = [DS:ESI + TWVSW * 3];
 								ECX |= EAX;					EDX |= EAX;
-								[DS:ESI + 1024 * 2] = ECX;	[DS:ESI + 1024 * 3] = EDX;
-								ECX = [DS:ESI + 1024 * 4];	EDX = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = ECX;	[DS:ESI + TWVSW * 3] = EDX;
+								ECX = [DS:ESI + TWVSW * 4];	EDX = [DS:ESI + TWVSW * 5];
 								ECX |= EAX;					EDX |= EAX;
-								[DS:ESI + 1024 * 4] = ECX;	[DS:ESI + 1024 * 5] = EDX;
-								ECX = [DS:ESI + 1024 * 6];	EDX = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = ECX;	[DS:ESI + TWVSW * 5] = EDX;
+								ECX = [DS:ESI + TWVSW * 6];	EDX = [DS:ESI + TWVSW * 7];
 								ECX |= EAX;					EDX |= EAX;
-								[DS:ESI + 1024 * 6] = ECX;	[DS:ESI + 1024 * 7] = EDX;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = ECX;	[DS:ESI + TWVSW * 7] = EDX;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -1075,7 +1088,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] |= EAX;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -1093,19 +1106,19 @@ boxfill:
 						EBP -= 8;
 						if ((unsigned) >= 0) {
 							do {
-								CL = [DS:ESI + 1024 * 0];	DL = [DS:ESI + 1024 * 1];
+								CL = [DS:ESI + TWVSW * 0];	DL = [DS:ESI + TWVSW * 1];
 								CL |= AL;					DL |= AL;
-								[DS:ESI + 1024 * 0] = CL;	[DS:ESI + 1024 * 1] = DL;
-								CL = [DS:ESI + 1024 * 2];	DL = [DS:ESI + 1024 * 3];
+								[DS:ESI + TWVSW * 0] = CL;	[DS:ESI + TWVSW * 1] = DL;
+								CL = [DS:ESI + TWVSW * 2];	DL = [DS:ESI + TWVSW * 3];
 								CL |= AL;					DL |= AL;
-								[DS:ESI + 1024 * 2] = CL;	[DS:ESI + 1024 * 3] = DL;
-								CL = [DS:ESI + 1024 * 4];	DL = [DS:ESI + 1024 * 5];
+								[DS:ESI + TWVSW * 2] = CL;	[DS:ESI + TWVSW * 3] = DL;
+								CL = [DS:ESI + TWVSW * 4];	DL = [DS:ESI + TWVSW * 5];
 								CL |= AL;					DL |= AL;
-								[DS:ESI + 1024 * 4] = CL;	[DS:ESI + 1024 * 5] = DL;
-								CL = [DS:ESI + 1024 * 6];	DL = [DS:ESI + 1024 * 7];
+								[DS:ESI + TWVSW * 4] = CL;	[DS:ESI + TWVSW * 5] = DL;
+								CL = [DS:ESI + TWVSW * 6];	DL = [DS:ESI + TWVSW * 7];
 								CL |= AL;					DL |= AL;
-								[DS:ESI + 1024 * 6] = CL;	[DS:ESI + 1024 * 7] = DL;
-								ESI += 1024 * 8;
+								[DS:ESI + TWVSW * 6] = CL;	[DS:ESI + TWVSW * 7] = DL;
+								ESI += TWVSW * 8;
 								EBP -= 8;
 							} while ((unsigned) > 0);
 						}
@@ -1113,7 +1126,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI           ] |= AL;
-								ESI += 1024;
+								ESI += TWVSW;
 								EBP--;
 							} while (!= 0);
 						}
@@ -1136,7 +1149,7 @@ line_fin:
 	EBP = cmd[20]; // y1
 	ESI = cmd[12]; // y0
 	EBP -= ESI;
-	ESI *= 1024;
+	IMUL_TWVSW(ESI);
 	if ((unsigned) EBP <= 1)
 		goto boxfill;
 	PUSH(ESI);
@@ -1154,7 +1167,7 @@ line_fin:
 	/* ESI : VRAM上のアドレス */
 	EBP--;
 	EDX = cmd[20];
-	EDX *= 1024;
+	IMUL_TWVSW(EDX);
 	EDX += cmd[ 8];
 	EDX += 0xe0000000;
 	if (CL == 0) { /* pset */
@@ -1168,14 +1181,14 @@ line_fin:
 			EDI--;
 		} while (!= 0);
 		POP(EDI);
-		ECX += 1024;
+		ECX += TWVSW;
 		EDI += cmd[16];
-		EDI += 0xe0000000 + 1024;
+		EDI += 0xe0000000 + TWVSW;
 		do {
 			[DS:ECX] = AL;
-			ECX += 1024;
+			ECX += TWVSW;
 			[DS:EDI] = AL;
-			EDI += 1024;
+			EDI += TWVSW;
 			EBP--;
 		} while (!= 0);
 		(offset) cmd += 28;
@@ -1192,14 +1205,14 @@ line_fin:
 			EDI--;
 		} while (!= 0);
 		POP(EDI);
-		ECX += 1024;
+		ECX += TWVSW;
 		EDI += cmd[16];
-		EDI += 0xe0000000 + 1024;
+		EDI += 0xe0000000 + TWVSW;
 		do {
 			[DS:ECX] ^= AL;
-			ECX += 1024;
+			ECX += TWVSW;
 			[DS:EDI] ^= AL;
-			EDI += 1024;
+			EDI += TWVSW;
 			EBP--;
 		} while (!= 0);
 		(offset) cmd += 28;
@@ -1216,14 +1229,14 @@ line_fin:
 			EDI--;
 		} while (!= 0);
 		POP(EDI);
-		ECX += 1024;
+		ECX += TWVSW;
 		EDI += cmd[16];
-		EDI += 0xe0000000 + 1024;
+		EDI += 0xe0000000 + TWVSW;
 		do {
 			[DS:ECX] &= AL;
-			ECX += 1024;
+			ECX += TWVSW;
 			[DS:EDI] &= AL;
-			EDI += 1024;
+			EDI += TWVSW;
 			EBP--;
 		} while (!= 0);
 		(offset) cmd += 28;
@@ -1240,14 +1253,14 @@ line_fin:
 			EDI--;
 		} while (!= 0);
 		POP(EDI);
-		ECX += 1024;
+		ECX += TWVSW;
 		EDI += cmd[16];
-		EDI += 0xe0000000 + 1024;
+		EDI += 0xe0000000 + TWVSW;
 		do {
 			[DS:ECX] |= AL;
-			ECX += 1024;
+			ECX += TWVSW;
 			[DS:EDI] |= AL;
-			EDI += 1024;
+			EDI += TWVSW;
 			EBP--;
 		} while (!= 0);
 		(offset) cmd += 28;
@@ -1276,8 +1289,8 @@ void near GAPI_putbox()
 	PUSH(EBP);
 	asmout("LES EDI,FWORD PTR FS:[EBX+28]");
 	ESI = cmd[12]; /* y */
-	EBP = 1024;
-	ESI *= 1024;
+	EBP = TWVSW;
+	IMUL_TWVSW(ESI);
 	ESI += cmd[ 8]; /* x */
 	EBP -= cmd[16]; /* xsize */
 	EDX = cmd[20]; /* ysize */
@@ -1342,7 +1355,7 @@ void near GAPI_linesub_pset()
 	EAX = ESI;
 	(unsigned int) ECX >>= 16;
 	(unsigned int) EAX >>= 16;
-	ECX *= 1024;
+	IMUL_TWVSW(ECX);
 	LEA(EBP, [EAX + ECX + 0xe0000000]);
 	EAX = 0x00010000;
 	ECX = 0xffff0000;
@@ -1401,7 +1414,7 @@ general:
 		ECX = ESI;
 		(unsigned int) EDX >>= 16;
 		(unsigned int) ECX >>= 16;
-		EDX *= 1024;
+		IMUL_TWVSW(EDX);
 		ESI += [SS:ESP];
 		EDI += EBX;
 		(char) [DS:EDX + ECX + 0xe0000000] = AL;
@@ -1413,7 +1426,7 @@ general:
 line_xpd_yp1:
 	EDI = EBP;
 	POP(EAX);
-	EBP = 1024;
+	EBP = TWVSW;
 line_xpmd_yp1:
 	ESI <<= 16;
 	POP(ECX);
@@ -1429,7 +1442,7 @@ line_xpmd_yp1:
 line_xmd_yp1:
 	EDI = EBP;
 	POP(EAX);
-	EBP = 1023;
+	EBP = TWVSW - 1;
 	goto line_xpmd_yp1;
 
 #if 0
@@ -1439,7 +1452,7 @@ line_xmd_yp1:
 	do {
 		(char) [DS:EDI] = AL;
 		ESI += EDX;
-		ADC(EDI, 1023); /* CF == 1なら+1024, CF == 0なら+1023 */
+		ADC(EDI, TWVSW - 1); /* CF == 1なら+TWVSW, CF == 0なら+TWVSW - 1 */
 		ECX--;
 	} while (!= 0);
 	return;
@@ -1448,7 +1461,7 @@ line_xmd_yp1:
 line_xpd_ym1:
 	EDI = EBP;
 	POP(EAX);
-	EBP = 0 - 1024;
+	EBP = 0 - TWVSW;
 	goto line_xpmd_yp1;
 
 #if 0
@@ -1458,7 +1471,7 @@ line_xpd_ym1:
 	do {
 		(char) [DS:EDI] = AL;
 		ESI += EDX;
-		ADC(EDI, 0 - 1024);
+		ADC(EDI, 0 - TWVSW);
 		ECX--;
 	} while (!= 0);
 	return;
@@ -1467,7 +1480,7 @@ line_xpd_ym1:
 line_xmd_ym1:
 	EDI = EBP;
 	POP(EAX);
-	EBP = 0 - 1025;
+	EBP = 0 - TWVSW - 1;
 	goto line_xpmd_yp1;
 
 #if 0
@@ -1477,7 +1490,7 @@ line_xmd_ym1:
 	do {
 		(char) [DS:EDI] = AL;
 		ESI += EDX;
-		ADC(EDI, 0 - 1025); /* CF == 1なら-1024, CF == 0なら-1025 */
+		ADC(EDI, 0 - TWVSW - 1); /* CF == 1なら-TWVSW, CF == 0なら-TWVSW - 1 */
 		ECX--;
 	} while (!= 0);
 	return;
@@ -1493,7 +1506,7 @@ line_xp1_ypd:
 		EDI += EBX;
 		SBB(EDX, EDX); /* CF == 0ならEDX = 0, CF == 1ならEDX = -1 */
 		(char) [DS:ESI] = AL;
-		EDX &= 1024;
+		EDX &= TWVSW;
 	//	ESI++;
 	//	ESI += EDX;
 		ECX--;
@@ -1512,7 +1525,7 @@ line_xp1_ymd:
 		EDI += EBX;
 		ADC(EDX, 0xffffffff); /* CF == 0ならEDX = -1, CF == 1ならEDX = 0 */
 		(char) [DS:ESI] = AL;
-		EDX &= 0 - 1024;
+		EDX &= 0 - TWVSW;
 	//	ESI++;
 	//	ESI += EDX;
 		ECX--;
@@ -1530,7 +1543,7 @@ line_xm1_ypd:
 		EDI += EBX;
 		SBB(EDX, EDX); /* CF == 0ならEDX = 0, CF == 1ならEDX = -1 */
 		(char) [DS:ESI] = AL;
-		EDX &= 1024;
+		EDX &= TWVSW;
 	//	ESI--;
 	//	ESI += EDX;
 		ECX--;
@@ -1549,7 +1562,7 @@ line_xm1_ymd:
 		EDI += EBX;
 		ADC(EDX, 0xffffffff); /* CF == 0ならEDX = -1, CF == 1ならEDX = 0 */
 		(char) [DS:ESI] = AL;
-		EDX &= 0 - 1024;
+		EDX &= 0 - TWVSW;
 	//	ESI--;
 	//	ESI += EDX;
 		ECX--;
@@ -1558,7 +1571,7 @@ line_xm1_ymd:
 	return;
 
 line_xp1_yp1:
-	EDX = 1024 + 1;
+	EDX = TWVSW + 1;
 line_x1_y1:
 	POP(EAX);
 	ESI = EBP;
@@ -1571,15 +1584,15 @@ line_x1_y1:
 	return;
 
 line_xp1_ym1:
-	EDX = 1 - 1024;
+	EDX = 1 - TWVSW;
 	goto line_x1_y1;
 
 line_xm1_yp1:
-	EDX = 1024 - 1;
+	EDX = TWVSW - 1;
 	goto line_x1_y1;
 
 line_xm1_ym1:
-	EDX = 0 - 1024 - 1;
+	EDX = 0 - TWVSW - 1;
 	goto line_x1_y1;
 }
 
@@ -1599,7 +1612,7 @@ void near GAPI_linesub_xor()
 		ECX = ESI;
 		(unsigned int) EDX >>= 16;
 		(unsigned int) ECX >>= 16;
-		EDX *= 1024;
+		IMUL_TWVSW(EDX);
 		ESI += [SS:ESP];
 		EDI += EBX;
 		(char) [DS:EDX + ECX + 0xe0000000] ^= AL;
@@ -1625,7 +1638,7 @@ void near GAPI_linesub_or()
 		ECX = ESI;
 		(unsigned int) EDX >>= 16;
 		(unsigned int) ECX >>= 16;
-		EDX *= 1024;
+		IMUL_TWVSW(EDX);
 		ESI += [SS:ESP];
 		EDI += EBX;
 		(char) [DS:EDX + ECX + 0xe0000000] |= AL;
@@ -1651,7 +1664,7 @@ void near GAPI_linesub_and()
 		ECX = ESI;
 		(unsigned int) EDX >>= 16;
 		(unsigned int) ECX >>= 16;
-		EDX *= 1024;
+		IMUL_TWVSW(EDX);
 		ESI += [SS:ESP];
 		EDI += EBX;
 		(char) [DS:EDX + ECX + 0xe0000000] &= AL;
@@ -1827,7 +1840,7 @@ void near GAPI_points()
 			ESI += dat[0]; /* x0 */
 			EDI += dat[4]; /* y0 */
 			EAX = dat[8]; /* color */
-			EDI *= 1024;
+			IMUL_TWVSW(EDI);
 			(offset) dat += 12;
 			(char) [DS:EDI + ESI + 0xe0000000] = AL;
 			ECX--;
@@ -1845,7 +1858,7 @@ void near GAPI_points()
 			ESI += dat[0]; /* x0 */
 			EDI += dat[4]; /* y0 */
 			EAX = dat[8]; /* color */
-			EDI *= 1024;
+			IMUL_TWVSW(EDI);
 			(offset) dat += 12;
 			(char) [DS:EDI + ESI + 0xe0000000] &= AL;
 			ECX--;
@@ -1863,7 +1876,7 @@ void near GAPI_points()
 			ESI += dat[0]; /* x0 */
 			EDI += dat[4]; /* y0 */
 			EAX = dat[8]; /* color */
-			EDI *= 1024;
+			IMUL_TWVSW(EDI);
 			(offset) dat += 12;
 			(char) [DS:EDI + ESI + 0xe0000000] |= AL;
 			ECX--;
@@ -1881,7 +1894,7 @@ void near GAPI_points()
 			ESI += dat[0]; /* x0 */
 			EDI += dat[4]; /* y0 */
 			EAX = dat[8]; /* color */
-			EDI *= 1024;
+			IMUL_TWVSW(EDI);
 			(offset) dat += 12;
 			(char) [DS:EDI + ESI + 0xe0000000] ^= AL;
 			ECX--;
@@ -2088,7 +2101,7 @@ void near GAPI_init()
 
 	STI();
 //	EBP++; // EBP = 1;
-	DS = AX;
+	DS = EAX;
 	asmout("JMP next_command");
 
 	/* デフォルトマウスカーソルパターン(16x16, mono) */
@@ -2233,7 +2246,7 @@ void near GAPI_VGA640()
 	//	asmout("ADD ESI,#param768 - #param640");
 		DB(0x83, 0xc6);
 		asmout("DB #param768 - #param640");
-		ECX += 768 - 640;
+		ECX -= 640 - 768;	/* 128を足すのは3バイト無駄(なるほど、うまい!) */
 		EDX += 512 - 480;
 	}
 	wsub->scr_width  = ECX;
@@ -2297,17 +2310,17 @@ cl4:
 
 param640:
 	/* CRTC */
-	DW(0x0060, 0x02c0,                 0x031f, 0x0000, 0x0004, 0x0000);
-	DW(0x0419, 0x008a, 0x030a, 0x008a, 0x030a, 0x0046, 0x0406, 0x0046);
-	DW(0x0406, 0x0000, 0x008a, 0x0000, 0x0080, 0x0000, 0x008a, 0x0000);
-	DW(0x0080, 0x0058, 0x0001, 0x0000, 0x800f, 0x0002, 0x0000, 0x0192);
+	DW(0x0060,    0x02c0,                 0x031f,    0x0000, 0x0004, 0x0000);
+	DW(0x0419,    0x008a, 0x030a, 0x008a, 0x030a,    0x0046, 0x0406, 0x0046);
+	DW(0x0406,    0x0000, 0x008a, 0x0000, TWVSW / 8, 0x0000, 0x008a, 0x0000);
+	DW(TWVSW / 8, 0x0058, 0x0001, 0x0000, CRTC28,    0x0002, 0x0000, 0x0192);
 
 param768:
 	/* CRTC */
-	DW(0x0060, 0x0338,                 0x0397, 0x0000, 0x0004, 0x0000);
-	DW(0x0433, 0x008a, 0x038a, 0x008a, 0x038a, 0x0034, 0x0434, 0x0034);
-	DW(0x0434, 0x0000, 0x008a, 0x0000, 0x0080, 0x0000, 0x008a, 0x0000);
-	DW(0x0080, 0x0058, 0x0001, 0x0000, 0x800f, 0x0000, 0x0000, 0x0192);
+	DW(0x0060,    0x0338,                 0x0397,    0x0000, 0x0004, 0x0000);
+	DW(0x0433,    0x008a, 0x038a, 0x008a, 0x038a,    0x0034, 0x0434, 0x0034);
+	DW(0x0434,    0x0000, 0x008a, 0x0000, TWVSW / 8, 0x0000, 0x008a, 0x0000);
+	DW(TWVSW / 8, 0x0058, 0x0001, 0x0000, CRTC28,    0x0000, 0x0000, 0x0192);
 }
 
 void near GAPI_accesslock()
@@ -2459,44 +2472,44 @@ void near GAPI_mouse_drawsub16()
 /* EAX, ECXのみ破壊。 */
 {
 	int *b == ES:EDX, *p == DS:ESI, *q == ES:EDI;
-	EAX = p[0x0000]; ECX = p[0x0400]; b[ 0] = EAX; b[ 4] = ECX;
+	EAX = p[TWVSW *  0]; ECX = p[TWVSW *  1]; b[ 0] = EAX; b[ 4] = ECX;
 	EAX &= q[  0]; ECX &= q[  8]; EAX ^= q[  4]; ECX ^= q[ 12];
-	p[0x0000] = EAX; p[0x0400] = ECX;
-	EAX = p[0x0800]; ECX = p[0x0c00]; b[ 8] = EAX; b[12] = ECX;
+	p[TWVSW *  0] = EAX; p[TWVSW *  1] = ECX;
+	EAX = p[TWVSW *  2]; ECX = p[TWVSW *  3]; b[ 8] = EAX; b[12] = ECX;
 	EAX &= q[ 16]; ECX &= q[ 24]; EAX ^= q[ 20]; ECX ^= q[ 28];
-	p[0x0800] = EAX; p[0x0c00] = ECX;
-	EAX = p[0x1000]; ECX = p[0x1400]; b[16] = EAX; b[20] = ECX;
+	p[TWVSW *  2] = EAX; p[TWVSW *  3] = ECX;
+	EAX = p[TWVSW *  4]; ECX = p[TWVSW *  5]; b[16] = EAX; b[20] = ECX;
 	EAX &= q[ 32]; ECX &= q[ 40]; EAX ^= q[ 36]; ECX ^= q[ 44];
-	p[0x1000] = EAX; p[0x1400] = ECX;
-	EAX = p[0x1800]; ECX = p[0x1c00]; b[24] = EAX; b[28] = ECX;
+	p[TWVSW *  4] = EAX; p[TWVSW *  5] = ECX;
+	EAX = p[TWVSW *  6]; ECX = p[TWVSW *  7]; b[24] = EAX; b[28] = ECX;
 	EAX &= q[ 48]; ECX &= q[ 56]; EAX ^= q[ 52]; ECX ^= q[ 60];
-	p[0x1800] = EAX; p[0x1c00] = ECX;
-	EAX = p[0x2000]; ECX = p[0x2400]; b[32] = EAX; b[36] = ECX;
+	p[TWVSW *  6] = EAX; p[TWVSW *  7] = ECX;
+	EAX = p[TWVSW *  8]; ECX = p[TWVSW *  9]; b[32] = EAX; b[36] = ECX;
 	EAX &= q[ 64]; ECX &= q[ 72]; EAX ^= q[ 68]; ECX ^= q[ 76];
-	p[0x2000] = EAX; p[0x2400] = ECX;
-	EAX = p[0x2800]; ECX = p[0x2c00]; b[40] = EAX; b[44] = ECX;
+	p[TWVSW *  8] = EAX; p[TWVSW *  9] = ECX;
+	EAX = p[TWVSW * 10]; ECX = p[TWVSW * 11]; b[40] = EAX; b[44] = ECX;
 	EAX &= q[ 80]; ECX &= q[ 88]; EAX ^= q[ 84]; ECX ^= q[ 92];
-	p[0x2800] = EAX; p[0x2c00] = ECX;
-	EAX = p[0x3000]; ECX = p[0x3400]; b[48] = EAX; b[52] = ECX;
+	p[TWVSW * 10] = EAX; p[TWVSW * 11] = ECX;
+	EAX = p[TWVSW * 12]; ECX = p[TWVSW * 13]; b[48] = EAX; b[52] = ECX;
 	EAX &= q[ 96]; ECX &= q[104]; EAX ^= q[100]; ECX ^= q[108];
-	p[0x3000] = EAX; p[0x3400] = ECX;
-	EAX = p[0x3800]; ECX = p[0x3c00]; b[56] = EAX; b[60] = ECX;
+	p[TWVSW * 12] = EAX; p[TWVSW * 13] = ECX;
+	EAX = p[TWVSW * 14]; ECX = p[TWVSW * 15]; b[56] = EAX; b[60] = ECX;
 	EAX &= q[112]; ECX &= q[120]; EAX ^= q[116]; ECX ^= q[124];
-	p[0x3800] = EAX; p[0x3c00] = ECX;
+	p[TWVSW * 14] = EAX; p[TWVSW * 15] = ECX;
 	return;
 }
 
 void near GAPI_mouse_erasesub16()
 {
 	int *b == ES:EDI, *p == DS:ESI;
-	EAX = b[ 0]; ECX = b[ 4]; p[0x0000] = EAX; p[0x0400] = ECX;
-	EAX = b[ 8]; ECX = b[12]; p[0x0800] = EAX; p[0x0c00] = ECX;
-	EAX = b[16]; ECX = b[20]; p[0x1000] = EAX; p[0x1400] = ECX;
-	EAX = b[24]; ECX = b[28]; p[0x1800] = EAX; p[0x1c00] = ECX;
-	EAX = b[32]; ECX = b[36]; p[0x2000] = EAX; p[0x2400] = ECX;
-	EAX = b[40]; ECX = b[44]; p[0x2800] = EAX; p[0x2c00] = ECX;
-	EAX = b[48]; ECX = b[52]; p[0x3000] = EAX; p[0x3400] = ECX;
-	EAX = b[56]; ECX = b[60]; p[0x3800] = EAX; p[0x3c00] = ECX;
+	EAX = b[ 0]; ECX = b[ 4]; p[TWVSW *  0] = EAX; p[TWVSW *  1] = ECX;
+	EAX = b[ 8]; ECX = b[12]; p[TWVSW *  2] = EAX; p[TWVSW *  3] = ECX;
+	EAX = b[16]; ECX = b[20]; p[TWVSW *  4] = EAX; p[TWVSW *  5] = ECX;
+	EAX = b[24]; ECX = b[28]; p[TWVSW *  6] = EAX; p[TWVSW *  7] = ECX;
+	EAX = b[32]; ECX = b[36]; p[TWVSW *  8] = EAX; p[TWVSW *  9] = ECX;
+	EAX = b[40]; ECX = b[44]; p[TWVSW * 10] = EAX; p[TWVSW * 11] = ECX;
+	EAX = b[48]; ECX = b[52]; p[TWVSW * 12] = EAX; p[TWVSW * 13] = ECX;
+	EAX = b[56]; ECX = b[60]; p[TWVSW * 14] = EAX; p[TWVSW * 15] = ECX;
 	return;
 }
 
@@ -2627,14 +2640,14 @@ void near GAPI_clippingmouse()
 				}
 			}
 		}
-	} else /* (false) */ if (x >= 1024 - 16) {
-		work->mx1 = 1024;
+	} else /* (false) */ if (x >= TWVSW - 16) {
+		work->mx1 = TWVSW;
 		maskflag |= 0x10;
-		if (x >= 1024 - 12) {
+		if (x >= TWVSW - 12) {
 			maskflag |= 0x18;
-			if (x >= 1024 - 8) {
+			if (x >= TWVSW - 8) {
 				maskflag |= 0x1c;
-				if (x >= 1024 - 4) {
+				if (x >= TWVSW - 4) {
 					maskflag |= 0x1e;
 				}
 			}
@@ -2658,7 +2671,7 @@ void near GAPI_clippingmouse()
 //	}
 //	IMUL((offset) p, y, 100);
 	(offset) p = y;
-	(offset) p *= 1024;
+	IMUL_TWVSW((offset) p);
 skip_imul:
 	work->maskflag = maskflag;
 	work->mouseline = mouseline;
@@ -2718,9 +2731,16 @@ skip_imul:
 			/* From now EBP, ESI(== vx, vy) can be destroyed. */
 			EBP = sx;
 			haj = sx;
-			EBP <<= 22;
-			haj &= 7;
-			SHRD(EBP, sy, 25); /* FA = yyyyyyyy:yxxxxxxxb */
+			#if (defined(TWVSWlog2))
+				EBP <<= 32 - TWVSWlog2;
+				haj &= 7;
+				SHRD(EBP, sy, 32 - TWVSWlog2 + 3); /* FA = yyyyyyyy:yxxxxxxxb */
+			#else
+				IMUL(sy, TWVSW / 8);
+				EBP /= 8;
+				haj &= 7;
+				EBP += sy; /* FA = yyyyyyyy:yxxxxxxxb */
+		 	#endif
 			NEG(haj);
 			EDX = 0x0440;
 			haj += 0x8a;
@@ -2733,9 +2753,16 @@ skip_imul:
 			DL = 0x40;  AL =  21; OUT(DX,  AL); /* FA1 */
 			DL = 0x42; EAX = EBP; OUT(DX, EAX);
 		#else
-			sx <<= 22;
-			EDX = 0x0440;
-			SHRD(sx, sy, 25); /* FA = yyyyyyyy:yxxxxxxxb */
+			#if (defined(TWVSWlog2))
+				sx <<= 32 - TWVSWlog2;
+				EDX = 0x0440;
+				SHRD(sx, sy, 32 - TWVSWlog2 + 3); /* FA = yyyyyyyy:yxxxxxxxb */
+			#else
+				IMUL(sy, TWVSW / 8);
+				sx /= 8;
+				EDX = 0x440;
+				sx += sy; /* FA = yyyyyyyy:yxxxxxxxb */
+			#endif
 			            AL = 17; OUT(DX,  AL); /* FA0 */
 			DL = 0x42; EAX = sx; OUT(DX, EAX);
 			DL = 0x40;  AL = 21; OUT(DX,  AL); /* FA1 */

@@ -61,13 +61,20 @@ vmware : FORCE
 bochs : FORCE
 	copy /y base.bch base.asm
 	echo ARCH = pcat> depend.mak
-	echo BOCHS = y>> depend.mak
+	echo BOCHS = 13>> depend.mak
+	$(MAKE)
+
+bochs12 : FORCE
+	copy /y base.bch base.asm
+	echo ARCH = pcat> depend.mak
+	echo BOCHS = 12>> depend.mak
 	$(MAKE)
 
 towns : FORCE 
 	copy /y base.as base.asm
 	echo ARCH = towns> depend.mak
 	echo TWSCRL1 = n>> depend.mak
+	echo TWVSW = 1024>> depend.mak
 	$(MAKE)
 
 FORCE:
@@ -88,7 +95,7 @@ winman0.bim : winman0.obj
 winman0.bin : winman0.bim
 	$(BIM2BIN) malloc:92k file:768k input:$< output:$@
 
-%.i : %.ask
+%.i : %.ask .\depend.mak
 	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<
 
 %.3as : %.i
@@ -100,7 +107,7 @@ winman0.bin : winman0.bim
 %.obj : %.asm
 	$(ASM) $(ASM_FLAGS) /Fl$*.lst $*.asm
 
-%.obj : %.c
+%.obj : %.c .\depend.mak
 	$(CC) $< $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC)
 
 %.exe : %.obj # for ASKA objs

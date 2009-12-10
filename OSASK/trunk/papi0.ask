@@ -1,4 +1,4 @@
-/* "papi0.ask" ver.0.3 copyright(C) 2001 H.Kawai(川合秀実) */
+/* "papi0.ask" ver.0.4 copyright(C) 2002 H.Kawai(川合秀実) */
 /* 64bitタイプ */
 
 segment PapiMdl(USE32, PARA);
@@ -88,10 +88,10 @@ void far PAPI_syscmd()
 	WORK *work == DS:0;
 
 	PUSHAD();
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
-	DS = AX;
+	EAX += 8;
+	DS = EAX;
 nextcmd:
 	EAX = *cmd;
 	if (EAX == 0)
@@ -144,7 +144,7 @@ cmd0100:
 	goto nextcmd;
 
 cmd0104:
-	asmout("MOV FS:[EBX+4],OFFSET PageFaultHandler");
+	asmout("MOV DWORD PTR FS:[EBX+4],OFFSET PageFaultHandler");
 	(short) cmd[8] = CS;
 	(offset) cmd += 12;
 	goto nextcmd;
@@ -167,20 +167,22 @@ cmd0108:
 	}
 	if (cmd[32] == 0) {
 		PUSH(DS);
-		EAX = pdepte_sel;
-		DS = AX;
+		PUSH((int) pdepte_sel);
+		POP(DS);
 		ECX = cmd[ 8]; /* size */
 		EDX = cmd[12]; /* linear */
 		EAX = cmd[28];
-		ESI = cmd[ 4] /* opt(bit0～11はページ属性) */;
-		EAX += cmd[20];
-		ESI &= 0xfff;
-		EAX |= ESI;
+	//	if (ECX != 0) {
+			ESI = cmd[ 4] /* opt(bit0～11はページ属性) */;
+			EAX += cmd[20];
+			ESI &= 0xfff;
+			EAX |= ESI;
 //if ((unsigned) EAX >= 0x00800000) {
 //if (ECX != 0x00100000)
 //INT(0x03);
 //}
-		mapping();
+			mapping();
+	//	}
 		EAX = cmd[ 4];
 		TEST(EAX, 0x1000); /* over-mapping */
 		if (!= 0) {
@@ -223,15 +225,17 @@ cmd0108:
 	(unsigned int) ECX >>= 12;
 	EAX++; /* linearで0は使いうるから */
 	LEA(ESI, (int) [work->linear_addr64]);
-	AAC_regist();
-	PUSH(DS);
-	EAX = pdepte_sel;
-	DS = AX;
-	ECX = cmd[ 8]; /* size */
-	EDX = cmd[12]; /* linear */
-	unmapping();
+//	if (ECX != 0) {
+		AAC_regist();
+		PUSH(DS);
+		PUSH((int) pdepte_sel);
+		POP(DS);
+		ECX = cmd[ 8]; /* size */
+		EDX = cmd[12]; /* linear */
+		unmapping();
+		POP(DS);
+//	}
 	(offset) cmd += 36;
-	POP(DS);
 	goto nextcmd;
 
 cmd010c:
@@ -239,8 +243,8 @@ cmd010c:
 	/* cmd, opt, size, linear, pageset */
 
 	PUSH(DS);
-	EAX = pdepte_sel;
-	DS = AX;
+	PUSH((int) pdepte_sel);
+	POP(DS);
 	ECX = cmd[ 8]; /* size */
 	EDX = cmd[12]; /* linear */
 	unmapping();
@@ -1224,9 +1228,9 @@ void far PageFaultHandler()
 
 	PUSH(DS);
 	PUSHAD();
-	AX = CS;
-	AX += 8;
-	DS = AX;
+	MOV(EAX, CS);
+	EAX += 8;
+	DS = EAX;
 	asmout("TEST BYTE PTR SS:[ESP+36],01H");
 	if (== 0) {
 		/* ページ不在 */

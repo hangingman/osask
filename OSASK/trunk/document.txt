@@ -1,37 +1,37 @@
-"sb20"の使い方の説明                      2002/01/05 川合秀実
+"sb21"の使い方の説明                      2002/02/02 川合秀実
 
 １．これは何か？
 
-  "sb20"は、OSASK ver.2.0の「OSASK20.EXE」を生成するのに必要なモジュールのソー
+  "sb21"は、OSASK ver.2.1の「OSASK21.EXE」を生成するのに必要なモジュールのソー
 スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
-そのまま利用しているものついては、このアーカイブに含まれていません。OSASK20.EXE
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK21.EXE
 を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    INIT.ASK     : ver.2.0
-    PIONEER0.BIN : ver.1.8
-    WINMAN0.BIN  : ver.1.4
-    POKON0.BIN   : ver.2.0
+    INIT.ASK     : ver.2.1
+    PAPI0.BIN    : ver.0.4
+    PIONEER0.BIN : ver.1.9
+    WINMAN0.BIN  : ver.1.5
+    POKON0.BIN   : ver.2.1
+    ANKFONT0.BIN : ver.0.2
     PCAT/
-      VGADRV0.BIN  : ver.1.1
-      FDCDRV0.BIN  : ver.1.3
+      FDCDRV0.BIN  : ver.1.4
     TOWNS/
-      FDCDRV0.BIN  : ver.1.3
+      FDCDRV0.BIN  : ver.1.4
+      VGADRV0.BIN  : ver.1.1
 
   (以前のバージョンのものを利用するもの)
 
     BASE.EXE     : ver.1.9
     OSALINK0.OPT : ver.1.9
     TAPI0.BIN    : ver.0.3
-    PAPI0.BIN    : ver.0.3
     TIMERDRV.BIN : type-A ver.0.9
     KEYMOS0.BIN  : ver.0.3
     DECODE0.BIN  : ver.0.9
     SYSGG00.LIB  : ver.0.7
-    ANKFONT0.BIN : ver.0.1
-    TOWNS/
-      VGADRV0.BIN  : ver.1.0
+    PCAT/
+      VGADRV0.BIN  : ver.1.1
 
   このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
 いるだけです。
@@ -40,7 +40,7 @@
 
   使用したアセンブラ、コンパイラ、コンバーター、ライブラリーは以下の通りです。
 
-・ASKA version 1.0 beta 18
+・ASKA version 1.0 beta 19 Modified by RisaPapa (たぶんbeta 18でもOK)
 ・masmcnv2
 ・MASM version 6.14.8444
 ・Microsoft (R) Incremental Linker Version 5.12.8078
@@ -81,11 +81,14 @@ lib4の3つをまとめて入手できます。
   またVMware対応バイナリーを生成する場合は、-DPCATに加えて-DVMWAREを指定してく
 ださい。
 
-  Bochs対応バイナリーを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に、bas
-e.asmを以下の指示にしたがって書き換える必要があります。
+  Bochs 1.3対応バイナリーを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に
+、base.asmを以下の指示にしたがって書き換える必要があります。
 
 ・73行目と78行目のセミコロンだけを削除する。
 ・377行目の(セミコロンの前の)0を1に変更する。
+
+  Bochs 1.2.1対応バイナリーを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指
+定した上に、base.asmをBochs 1.3と同様に書き換えてください。
 
 ３．説明＆注意点
 

@@ -55,9 +55,12 @@ enum {
 #define SIGNAL_REQUEST_DIALOG                   0x0084 /* ダイアログ要求シグナル */
 #define SIGNAL_REQUEST_DIALOG2                  0x0088
 #define	SIGNAL_FREE_FILES						0x008c /* ファイル開放要求(えせファイルシステム用) */
+#define SIGNAL_RESIZE_FILE						0x008d /* cmd, addr, new-size, task, sig, slot */
 #define	SIGNAL_NEED_WB							0x0090 /* ファイルキャッシュはライトバックが必要 */
 #define	SIGNAL_NO_WB_CACHE						0x0094 /* to clear need_wb */
 #define	SIGNAL_CHECK_WB_CACHE_NEXT				0x0098 /* JOB_CHECK_WB_CACHEの作業用シグナル */
+#define	SIGNAL_REFRESH_FLIST					0x009c
+#define	SIGNAL_REFRESH_FLIST0					0x009d /* ファイルリストは変更しない */
 #define SIGNAL_RELOAD_FAT_COMPLETE              0x00a0 /* FAT再読み込み完了(Insert) */
 #define SIGNAL_LOAD_APP_FILE_COMPLETE           0x00a4 /* ファイル読み込み完了(file load & execute) */
 #define SIGNAL_CREATE_TASK_COMPLETE             0x00a8 /* タスク生成完了(create task) */
@@ -80,6 +83,9 @@ enum {
 	SIGNAL_START_WB,
 	SIGNAL_FORCE_CHANGED,
 	SIGNAL_CHECK_WB_CACHE,
+	SIGNAL_CREATE_NEW,
+	SIGNAL_DELETE_FILE,
+	SIGNAL_RESIZE,
 	SIGNAL_LETTER_START = '!',
 	SIGNAL_LETTER_END = 'Z',
 	SIGNAL_WINDOW_CLOSE0 = 126,
@@ -94,6 +100,8 @@ enum {
 	COMMAND_CHANGE_FORMAT_MODE,                     /* change format-mode */
 	COMMAND_OPEN_CONSOLE,                           /* open console */
 	COMMAND_OPEN_MONITOR,                           /* open monitor */
+	COMMAND_BINEDIT,								/* binary edit */
+	COMMAND_TXTEDIT,								/* text viewer */
 	COMMAND_SIGNAL_END = 0xff,
 };
 
@@ -126,6 +134,10 @@ enum {
 #define JOB_WRITEBACK_CACHE				0x0020  /* writeback cache */
 #define JOB_INVALID_WB_CACHE			0x0024  /* invalid WB cache */
 #define JOB_FREE_MEMORY					0x0028	/* free memory */
+#define	JOB_CREATE_FILE					0x002c
+#define	JOB_DELETE_FILE					0x0030
+#define	JOB_RENAME_FILE					0x0034
+#define	JOB_RESIZE_FILE					0x0038
 
 /* structs */
 struct FILELIST {
@@ -168,7 +180,7 @@ struct STR_JOBLIST {
 };
 
 struct VIRTUAL_MODULE_REFERENCE {
-	int task, module_paddr;
+	int task, module_paddr, virtualmodule;
 };
 
 struct STR_CONSOLE {
@@ -181,6 +193,11 @@ struct STR_CONSOLE {
 
 struct STR_OPEN_ORDER {
 	int task, num, fileid, dummy;
+};
+
+struct STR_VIEWER {
+	char binary[12];
+	int signal[4];
 };
 
 /* functions */
@@ -197,7 +214,12 @@ int poko_tasklist(const char *cmdlin);
 int poko_sendsignalU(const char *cmdlin);
 int poko_LLlist(const char *cmdlin);
 int poko_setIL(const char *cmdlin);
+int poko_create(const char *cmdlin);
+int poko_delete(const char *cmdlin);
+int poko_rename(const char *cmdlin);
+int poko_resize(const char *cmdlin);
 int poko_debug(const char *cmdlin);
+int poko_nfname(const char *cmdlin);
 
 /* */
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);

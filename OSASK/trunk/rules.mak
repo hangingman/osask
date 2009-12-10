@@ -34,24 +34,39 @@ OBJ2BIM_ALIGN_FLAGS = text_align:1 data_align:4 bss_align:4
 DEFAULT_RULE_FILE = osask.rul
 
 # architecture dependency
+# for FM-TOWNS
 ifeq ($(ARCH),towns)
 PREPROCESSOR_FLAGS += -DTOWNS
 CFLAGS += -DTOWNS
-endif
+# enable 1-pixel scroll
 ifeq ($(TWSCRL1),y)
 PREPROCESSOR_FLAGS += -DTWSCRL1
 CFLAGS += -DTWSCRL1
 endif
+# set "TOWNS Vertial Screen Width"
+ifneq ($(TWVSW),)
+PREPROCESSOR_FLAGS += -DTWVSW=$(TWVSW)
+CFLAGS += -DTWVSW=$(TWVSW)
+else
+PREPROCESSOR_FLAGS += -DTWVSW=1024
+CFLAGS += -DTWVSW=1024
+endif
+endif
+# for PC/AT
 ifeq ($(ARCH),pcat)
 PREPROCESSOR_FLAGS += -DPCAT
 CFLAGS += -DPCAT
-endif
 ifeq ($(VMWARE),y)
 PREPROCESSOR_FLAGS += -DVMWARE
 CFLAGS += -DVMWARE
 endif
-ifeq ($(BOCHS),y)
+ifeq ($(BOCHS),13)
 PREPROCESSOR_FLAGS += -DBOCHS
 CFLAGS += -DBOCHS
+endif
+ifeq ($(BOCHS),12)
+PREPROCESSOR_FLAGS += -DBOCHS -DNOHLT
+CFLAGS += -DBOCHS -DNOHLT
+endif
 endif
 
