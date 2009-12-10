@@ -1,0 +1,62 @@
+
+    srcat09 の著作権情報
+
+  このアーカイブに含まれるファイルは、以下の31個です。
+
+・BASE/
+    BASEHEAD.ASM
+    BOOT.ASM
+    INIT.ASK
+    BASEFOOT.ASM
+    MAKEBASE.BAT
+・TAPI0.ASK
+・TIMERDRV.ASK
+・KEYMOS0.ASK
+・DECODE0.ASK
+・FDCDRV0.ASK
+・VGADRV0.ASK
+・VESADRV0.ASK
+・PIONEER0.ASK
+・ANKFONT/
+    FONTTEXT.TXT
+    TXT2BIN.C
+    TXT2BIN.EXE
+・WINMAN0.C
+・POKON0.C
+・INC.ASM
+・SGG00L01/
+    SYSGG00.H
+    EXECCMD.ASM
+    INIT.C
+    FWINMAN.C
+    FPOKON.C
+    FDEBUG.C
+    MAKELIB.BAT
+    SYSGG00.LIB
+    SYSGG00.OPT
+・COPYRIGH.TXT
+・LICENSE.TXT
+・DOCUMENT.TXT
+
+  これらの著作権は以下の人々にあります。
+
+・平木敬太郎さん  (FONTTEXT.TXTの全て)
+    URL     http://hp.vector.co.jp/authors/VA000874/
+    e-mail  PAF03513@nifty.ne.jp
+
+・ODPさん  (VGADRV0.ASKの一部)
+    e-mail  shoe16@wizard.elec.waseda.ac.jp
+
+・小柳雅明さん （POKON0.Cの一部）
+    URL     http://homepage1.nifty.com/dreaming/
+    e-mail  Koyanagi.Masaaki@nifty.ne.jp
+
+・川合秀実  (残り全部)
+    URL     http://www.imasy.org/~kawai/
+    e-mail  kawai@imasy.org
+
+  このプログラムは、著作権者の総意により「川合堂ライセンス-01」によってライセン
+スされています。このライセンスの範囲でご利用くださいますようお願いいたします。ラ
+イセンスの内容につきましては、LICENSE.TXTをご覧ください。
+
+  著作権に関するお問い合わせは、川合秀実が代表で受け付けます。
