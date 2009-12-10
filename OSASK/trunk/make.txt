@@ -1,14 +1,12 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2002.3.10 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
+2002.8.5 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 
 0. document.txt の２．コンパイル＆アセンブル方法を参照して
 必要なファイルをPATH の通ったディレクトリに置きます。
 http://www.imasy.org/~kawai/osask/developers.html
-の tolset04 をダウンロードして使って下さい。
-※一部のオプションのmakeが失敗します。このアーカイブの中のnaskcnv0.exe
-を tolset04 のものと入れ換えて下さい。
+の tolset05 をダウンロードして使って下さい。
 
 1. 対象とするアーキテクチャに従って make にパラメータを与えて実行します。
 (1) PC/AT 互換機
@@ -74,7 +72,8 @@ make pcat DESIGN=WIN9X
 
 ・make towns を行った後 make bootimg を実行すると OSASK.EXEを 0x8000～用に
 リロケートした OSASK.SYS を生成します。生成には imgtol.com が必要です。
-imgtol.com は tolset05 の中にあります。
+imgtol.com は tolset05 の中にあります。Windows 2000/XP では、imgtol.com
+実行時に画面がクリアされますが実行には問題はありません。
 
 
 ◎著作権

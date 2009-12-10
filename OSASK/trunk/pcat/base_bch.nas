@@ -1,4 +1,4 @@
-;	"base.nas" ver.2.3
+;	"base.nas" ver.2.5
 ;	OSASK/PCAT用のブートプログラム
 ;	Copyright(C) 2003 H.Kawai (川合秀実)
 
@@ -76,6 +76,12 @@ Entry:
 
 ;	JMP		V86TaskEntry
 
+; KHBIOS用スクリプト
+	DB		0x10,0x89,0x00,0xd8,0x00,0x00
+	DD		0x8000,36
+	DB		0x1a
+	DW		0x0000,0x0800
+
 .entry2:
 	MOV		 SI, DS
 	MOV		 DS, WORD [CS:.SysWorkSeg]
@@ -107,6 +113,8 @@ Entry:
 	SHR		 AL,4
 	AND		 AL,0x07
 	MOV		BYTE [boot_keylock],AL
+	MOV		AX,[CS:0x0002]
+	MOV		[CFport],AX
 
 	mov	 ax, word ds:[VGA_mode]
 	int	10h

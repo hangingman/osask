@@ -1,4 +1,4 @@
-;	"base.nas" ver.2.4
+;	"base.nas" ver.2.5
 ;	OSASK/PCAT用のブートプログラム
 ;	Copyright(C) 2003 H.Kawai (川合秀実)
 
@@ -113,6 +113,8 @@ Entry:
 	SHR		 AL,4
 	AND		 AL,0x07
 	MOV		BYTE [boot_keylock],AL
+	MOV		AX,[CS:0x0002]
+	MOV		[CFport],AX
 
 ;	mov	 ax, word ds:[VGA_mode]
 ;	int	10h

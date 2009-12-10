@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.3.8
+/* "pokon0.c":アプリケーションラウンチャー  ver.3.9
      copyright(C) 2003 小柳雅明, 川合秀実
     stack:4k malloc:88k file:4096k */
 
@@ -54,9 +54,9 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon38"
+#define POKON_VERSION "pokon39"
 
-#define POKO_VERSION "Heppoko-shell \"poko\" version 2.5\n    Copyright (C) 2003 OSASK Project\n"
+#define POKO_VERSION "Heppoko-shell \"poko\" version 2.6\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
 
 #define	FILEAREA		(4 * 1024 * 1024)
@@ -471,8 +471,13 @@ lib_putstring_ASCII(0x0000, 0, 0, &selwin0[0].subtitle.tbox, 0, 0, "debug!(2)");
 			break;
 
 		case JOB_CHANGE_DRIVE:
-			if (need_wb == 0)
-				sgg_execcmd0(0x009c, readjob(), 0x0000);
+			i = readjob();
+			if (need_wb == 0) {
+				sgg_execcmd0(0x009c, 0x190, i, 0x0000); /* 本当はこの方法は良くない */
+					/* アクセスが競合するかもしれないから、本当ならシステムタスクを経由するべき */
+				sgg_format(0x0114, SIGNAL_RELOAD_FAT_COMPLETE); /* INVALID_DISKCACHE */
+				break;
+			}
 			pjob->now = 0;
 			break;
 
@@ -491,6 +496,17 @@ lib_putstring_ASCII(0x0000, 0, 0, &selwin0[0].subtitle.tbox, 0, 0, "debug!(2)");
 				break;
 			}
 			jsub_fbufready0(job_exec_psf_sub0);
+			break;
+
+		case JOB_CHANGE_DEVICE:
+			i = readjob();
+			if (need_wb == 0) {
+				sgg_execcmd0(0x009c, 0x194, i, 0x0000); /* 本当はこの方法は良くない */
+					/* アクセスが競合するかもしれないから、本当ならシステムタスクを経由するべき */
+				sgg_format(0x0114, SIGNAL_RELOAD_FAT_COMPLETE); /* INVALID_DISKCACHE */
+				break;
+			}
+			pjob->now = 0;
 			break;
 		}
 	} while (pjob->now == 0);
@@ -920,6 +936,13 @@ void poko_exec_cmd(const char *p)
 			poko_defspkeybind,	"defspkeybind", 12, 1,
 			poko_setwindef,		"setwindef", 9, 1,
 			poko_run,			"run", 3, 1,
+			#if (defined(PCAT) | defined(TOWNS))
+				poko_drvfd,			"drvfd", 5, 1,
+				poko_drvcf,			"drvcf", 5, 1,
+			#endif
+			#if (defined(PCAT))
+				poko_drvata,		"drvata", 6, 1,
+			#endif
 			poko_exec,			"exec", 4, 1,
 			#if defined(DEBUG)
 				poko_debug,			"debug", 5, 1,
@@ -1202,7 +1225,7 @@ void openselwin(struct FILESELWIN *win, const char *title, const char *subtitle)
 		{ DEFSIG_EXT1 | DEFSIG_SHIFT | DEFSIG_CTRL | 'S' /* Shif+Ctrl */,	0, SIGNAL_RESIZE },
 		{ DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT | 'S' /* Ctrl */,	0, SIGNAL_CHANGE_SORT_MODE },
 		{ DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_NOCTRL | DEFSIG_ALT | 'S' /* Alt */,	0, SIGNAL_CHANGE_SORT_MODE },
-		{ DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT | '0' /* Shift+0 */,	9, SIGNAL_DISK_CHANGE0 },
+		{ DEFSIG_EXT1 | DEFSIG_NOSHIFT | DEFSIG_CTRL | DEFSIG_NOALT | '0' /* Ctrl+0 */,	9, SIGNAL_DISK_CHANGE0 },
 		{ SIGNAL_LETTER_START /* letters */,SIGNAL_LETTER_END - SIGNAL_LETTER_START,  SIGNAL_LETTER_START },
 		{ 0,                               0,  0 }
 	};
@@ -2334,10 +2357,9 @@ listup:
 
 				default:
 					if (SIGNAL_DISK_CHANGE0 <= sig && sig <= SIGNAL_DISK_CHANGE0 + 9) {
-						writejob_n(4,
+						writejob_n(3,
 							JOB_CHECK_WB_CACHE,
-							JOB_CHANGE_DRIVE, sig - SIGNAL_DISK_CHANGE0,
-							JOB_INVALID_DISKCACHE
+							JOB_CHANGE_DRIVE, sig - SIGNAL_DISK_CHANGE0
 						);
 						break;
 					}
@@ -3435,6 +3457,80 @@ int poko_run(const char *cmdlin)
 error:
 	return -ERR_ILLEGAL_PARAMETERS;
 }
+
+#if (defined(PCAT) | defined(TOWNS))
+
+int poko_drvfd(const char *cmdlin)
+{
+	int i;
+	if (*cmdlin == '\0')
+		goto error;
+	i = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin != '\0')
+		goto error;
+	if (i > 255 || i < 0)
+		goto error;
+
+	writejob_n(3,
+		JOB_CHECK_WB_CACHE,
+		JOB_CHANGE_DEVICE, i | 0x0000
+	);
+	return 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+
+}
+
+int poko_drvcf(const char *cmdlin)
+{
+	int i;
+	if (*cmdlin == '\0')
+		goto error;
+	i = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin != '\0')
+		goto error;
+	if (i > 255 || i < 0)
+		goto error;
+
+	writejob_n(3,
+		JOB_CHECK_WB_CACHE,
+		JOB_CHANGE_DEVICE, i | 0x0200
+	);
+	return 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+
+}
+
+#endif
+
+#if (defined(PCAT))
+
+int poko_drvata(const char *cmdlin)
+{
+	int i;
+	if (*cmdlin == '\0')
+		goto error;
+	i = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin != '\0')
+		goto error;
+	if (i > 255 || i < 0)
+		goto error;
+
+	writejob_n(3,
+		JOB_CHECK_WB_CACHE,
+		JOB_CHANGE_DEVICE, i | 0x0100
+	);
+	return 1;
+
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+
+}
+
+#endif
 
 int poko_exec(const char *cmdlin)
 {

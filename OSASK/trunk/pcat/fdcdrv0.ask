@@ -1,10 +1,11 @@
-// "fdcdrv0.ask" ver.2.1 copyright(C) 2003 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.2.2 copyright(C) 2003 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
-//	#define	EXT_CFIDE	1
-		/* これをやるなら、直接起動ではないと思わせておくのがいい */
-		/* メモリが少しもったいないが、まにあわせなのでまあいいだろう */
+/* とりあえず今のところは相変わらずFDからの起動を想定 */
+/* フォーマットコマンドをFDモード以外で実行しないこと */
+
+//	#define CFPOWERAUTOOFF	1
 
 segment CODE(USE32, PARA);
 default(code == CODE);
@@ -51,12 +52,9 @@ struct FDC_WORK {
 	char WBF[4]; /* ドライブ単位 */
 	int WBFS[360]; /* セクタ単位 */ /* 1.2MBでは160バイト, 1.44MBでは360バイト */
 
-	#if (!defined(EXT_CFIDE))
-		void [148];
-	#else
-		int CFIDE_name[12], CFport, CFbaseLBA;
-		char CFdev, CFerrflg, [2], [124];
-	#endif
+	int CFIDE_name[12], CFport, CFbaseLBA;
+	char CFdev, CFerrflg, CFpower, CFdev2;
+	int readsecs, writesecs, formatsecs, loadfat, cardbus, [104]; /* test4, test6, test5 */
 
 	/* 0x0800～0xfff */
 	void [2048];
@@ -64,7 +62,8 @@ struct FDC_WORK {
 
 void FDC_Init();
 void FDC_dosload();
-void FDC_loadFAT();
+void FDC_loadFAT_fd();
+void FDC_loadFAT_cfide();
 void FDC_format();
 void FDC_writeIPL();
 void FDC_format2();
@@ -82,14 +81,17 @@ void FDC_resizefile();
 void FDC_writebackcache();
 void save_dosname();
 void save_dosname2();
+void poweron();
+void poweroff();
+void close_all();
+void open_cf();
+void errorfile();
 
-#if (defined(EXT_CFIDE))
-	/* 手抜き満載 */
-	void CFIDE_select();
-	void CFIDE_ataread();
-	void CFIDE_wait400ns();
-	void CFIDE_atawrite();
-#endif
+/* 手抜き満載 */
+void CFIDE_select();
+void CFIDE_ataread();
+void CFIDE_wait400ns();
+void CFIDE_atawrite();
 
 void far FDC_syscmd()
 {
@@ -150,6 +152,8 @@ nextcmd:
 		goto cmd018c; /* resize */
 	if (EAX == 0x0190)
 		goto cmd0190; /* change_drive(0-9) */
+	if (EAX == 0x0194)
+		goto cmd0194; /* change_device */
 
 	INT(0x03);
 
@@ -203,15 +207,12 @@ cmd010c:
 	EAX = 0;
 	ECX = cmd[4];
 	(offset) cmd += 8;
-	#if (!defined(EXT_CFIDE))
-		/* EXT_CFIDEでは、ディスクイメージ付きOSASKがもうできない */
-		if ((unsigned) EAX < ECX) {
-			do {
-				BTS(work->track[0], EAX);
-				EAX++;
-			} while ((unsigned) EAX < ECX);
-		}
-	#endif
+	if ((unsigned) EAX < ECX) {
+		do {
+			BTS(work->track[0], EAX);
+			EAX++;
+		} while ((unsigned) EAX < ECX);
+	}
 	goto nextcmd;
 
 #if 0
@@ -241,7 +242,7 @@ cmd0110:
 	PUSH((offset) cmd);
 	EDX = cmd[4]; /* EDX:完了のシグナル */
 	ECX = cmd[8]; /* ECX:作業中のシグナル */
-	FDC_loadFAT();
+	CALL(work->loadfat);
 	POP((offset) cmd);
 	(offset) cmd += 12;
 	goto nextcmd;
@@ -417,15 +418,80 @@ cmd013c: /* writeback cache */
 	goto nextcmd;
 
 cmd0190: /* change drive */
-	#if (defined(EXT_CFIDE))
-		AL = cmd[4];
-		AL += 0x30;
-		(char) work->CFIDE_name[7] = AL;
+	AL = cmd[4];
+	AL += 0x30;
+	(char) work->CFIDE_name[7] = AL;
+	(offset) cmd += 8;
+	goto nextcmd;
+
+cmd0194:
+	/* change device */
+	#if (!defined(CFPOWERAUTOOFF))
+		poweroff();
 	#endif
+	close_all();
+	ECX = cmd[4]; /* CL:no, CH:device-type */
+	if (CH == 0x00) {
+		/* FDD */
+		asmout("MOV EAX,FDC_MC_test4_fd");
+		work->readsecs = EAX;
+		asmout("MOV EAX,FDC_MC_test6_fd");
+		work->writesecs = EAX;
+		asmout("MOV EAX,FDC_MC_test5_fd");
+		work->formatsecs = EAX;
+		asmout("MOV EAX,FDC_loadFAT_fd");
+		work->loadfat = EAX;
+		/* 手抜きなのでFDドライブは0と決め付けている */
+	}
+	if (CH == 0x01) {
+		/* ATA */
+		asmout("MOV EAX,FDC_MC_test4_cfide");
+		work->readsecs = EAX;
+		asmout("MOV EAX,FDC_MC_test6_cfide");
+		work->writesecs = EAX;
+		asmout("MOV EAX,FDC_MC_test5_fd");
+		work->formatsecs = EAX;
+		asmout("MOV EAX,FDC_loadFAT_cfide");
+		work->loadfat = EAX;
+		AL = CL;
+		AL &= 0x01;
+		AL <<= 4;
+		work->CFdev = AL;
+		AL = CL;
+		EAX &= 0x02;
+		EAX <<= 6;
+		EAX ^= 0x1f0;
+		work->CFport = EAX;
+	}
+	if (CH == 0x02) {
+		/* CF */
+		/* デバイスを探す */
+		asmout("MOV EAX,FDC_MC_test4_cfide");
+		work->readsecs = EAX;
+		asmout("MOV EAX,FDC_MC_test6_cfide");
+		work->writesecs = EAX;
+		asmout("MOV EAX,FDC_MC_test5_fd");
+		work->formatsecs = EAX;
+		asmout("MOV EAX,FDC_loadFAT_cfide");
+		work->loadfat = EAX;
+		work->CFport = 0xd000;
+		work->CFerrflg = 0;
+		if ((unsigned) CL >= 9) {
+			/* 強制パワーオフ */
+			/* CFしか使えるデバイスがない時にやる */
+			AL = 0x41; /* A:ユーザによるエラー */
+			AH = 0x07; /* とりあえずアクセス禁止 */
+			errorfile();
+		} else {
+			open_cf();
+			#if (!defined(CFPOWERAUTOOFF))
+				poweron();
+			#endif
+		}
+	}
 	(offset) cmd += 8;
 	goto nextcmd;
 }
-
 
 // O6B#で604、O7B#で302、O8B#で151。
 
@@ -470,7 +536,7 @@ void near FDC_MC_ReadStatus()
 	asmout("JMP DWORD PTR DS:[EBX]");
 }
 
-void near FDC_MC_SendCommand()
+void FDC_MC_SendCommand()
 //	コマンドofs
 //	ライトするバイト数
 //	busyチェックマスクバイト、コマンド
@@ -1040,9 +1106,6 @@ void FDC_Init()
 //	AL = 0x0c; // 全モーター停止、ドライブ0選択
 //	AL = 0x1c; // drv0のモーター回転、他は停止、ドライブ0選択
 	POP(EAX);
-	#if (defined(EXT_CFIDE))
-		AL = 0x0c;
-	#endif
 	EDX = fdc_control;
 	work->motor = AL;
 	OUT(DX, AL);
@@ -1101,6 +1164,23 @@ void FDC_Init()
 	work->cylinder[3] = 0xf0;
 	work->dosload_phase = EAX;
 
+	work->CFdev = AL;
+	work->CFerrflg = AL;
+	work->CFpower = AL;
+	work->CFdev2 = AL;
+
+	asmout("MOV EAX,FDC_MC_test4_fd");
+	work->readsecs = EAX;
+	asmout("MOV EAX,FDC_MC_test6_fd");
+	work->writesecs = EAX;
+	asmout("MOV EAX,FDC_MC_test5_fd");
+	work->formatsecs = EAX;
+	asmout("MOV EAX,FDC_loadFAT_fd");
+	work->loadfat = EAX;
+	work->CFIDE_name[0] = 0x4d494446;
+	work->CFIDE_name[4] = 0x30454741;
+	work->CFIDE_name[8] = 0x004e4942;
+
 	PUSH(FS);
 	PUSH((int) 0);
 	PUSH(EAX);
@@ -1116,14 +1196,42 @@ void FDC_Init()
 	POP(EAX);
 	POP(FS);
 
+	/* CardBusブリッジを探す */
+	/* とりあえずこれでバス番号31までは探している */
+	/* バス番号255まで探しても遅くないだろうけど、
+		そんなハードウェア構成はまず無いと思うので
+		とりあえずケチってみた */
+	ECX = 0;
+	EDI = 0x80000000;
+	do {
+		EDX = 0x0cf8;
+		EAX = EDI;
+		OUT(DX, EAX);
+		DL = 0xfc;
+		IN(EAX, DX);
+		if (EAX != 0xffffffff) {
+			DL = 0xf8;
+			LEA(EAX, [EDI + 0x08]);
+			OUT(DX, EAX);
+			DL = 0xfc;
+			IN(EAX, DX);
+			AL = 0; /* リビジョンクリア */
+			if (EAX == 0x06070000) {
+				/* 見付けた */
+				ECX = EDI;
+				break;
+			}
+		}
+		EDI += 0x00000800;
+	} while ((unsigned) EDI < 0x80200000);
+	DL = 0xf8;
+	EAX = 0;
+	OUT(DX, EAX);
+	work->cardbus = ECX;
+	close_all();
+
 	/* DOSやBIOSがいい加減で、FDCのステータスがおかしくなっている事がある */
 	/* それを回避するための処置 */
-
-	#if (defined(EXT_CFIDE))
-		work->CFIDE_name[0] = 0x4d494446;
-		work->CFIDE_name[4] = 0x30454741;
-		work->CFIDE_name[8] = 0x004e4942;
-	#endif
 
 //	EDX = 0x03f4; /* fdc_status */
 //	IN(AL, DX);
@@ -1135,12 +1243,11 @@ void FDC_Init()
 //			IN(AL, DX);
 //		} while ((signed) AL < 0);
 //	}
+
 	return;
 }
 
-#if (!defined(EXT_CFIDE))
-
-void FDC_MC_test4()
+void FDC_MC_test4_fd()
 // EDX:ロードする物理アドレス, ECX:シグナル番号
 // AH:side番号(0 or 1), AL:シリンダー番号
 // 1trackロード for DOS(64KB境界に注意しているので効率アップ)
@@ -1250,7 +1357,7 @@ void FDC_MC_test4()
 	return;
 }
 
-void FDC_MC_test5()
+void FDC_MC_test5_fd()
 // EDX:CHRNリストへの物理アドレス, ECX:シグナル番号
 // EDI:(bit00-07)N, (bit08-15)SC, (bit16-23)GPL, (bit24-31)D
 // AH:side番号(0 or 1), AL:シリンダー番号
@@ -1337,7 +1444,7 @@ void FDC_MC_test5()
 	return;
 }
 
-void FDC_MC_test6()
+void FDC_MC_test6_fd()
 // EAX:CHRN, ECX:転送サイズ, EDX:物理アドレス, EDI:シグナル番号
 // このバージョンではシークの必要があるときだけシークする
 // 64KB境界に差し掛かると誤動作する
@@ -1421,9 +1528,7 @@ void FDC_MC_test6()
 	return;
 }
 
-#else
-
-void FDC_MC_test4()
+void FDC_MC_test4_cfide()
 // EDX:ロードする物理アドレス, ECX:シグナル番号
 // read 1track(512x18) 
 // このバージョンではシークの必要があるときだけシークする
@@ -1455,6 +1560,7 @@ void FDC_MC_test4()
 	} while (!= 0);
 	POP(DS);
 
+skip:
 	/* ここいらに2msec-waitを */
 	int *cmd == DS:EBX, cmd_free == EBP;
 
@@ -1489,26 +1595,13 @@ err:
 	INT(0x03);
 }
 
-void FDC_MC_test5()
-// EDX:CHRNリストへの物理アドレス, ECX:シグナル番号
-// EDI:(bit00-07)N, (bit08-15)SC, (bit16-23)GPL, (bit24-31)D
-// AH:side番号(0 or 1), AL:シリンダー番号
-// 1 track format
-// このバージョンではシークの必要があるときだけシークする
-{
-	INT(0x03);
-}
-
-void FDC_MC_test6()
+void FDC_MC_test6_cfide()
 // ECX:転送サイズ, EDX:物理アドレス, EDI:シグナル番号
 {
 	FDC_WORK *work == DS:0;
 	unsigned int tapi_sel == 12 * 8;
 
-
 	PUSHAD();
-	if (work->CFerrflg != 0)
-		goto skip;
 	EBX = EDX;
 	ESI = EDX;
 	EBX -= TRACK0_ADDR0;
@@ -1532,7 +1625,6 @@ void FDC_MC_test6()
 	} while ((unsigned) > 0);
 	POP(DS);
 
-skip:
 	/* ここいらに2msec-waitを */
 	int *cmd == DS:EBX, cmd_free == EBP;
 
@@ -1566,8 +1658,6 @@ skip:
 err:
 	INT(0x03);
 }
-
-#endif
 
 void FDC_dosload()
 // EAX:ロードアドレス(必ず4バイトアライン)
@@ -1622,7 +1712,7 @@ void FDC_dosload()
 				ECX = work->dosload_sigtmp;
 				ADC(AH, 0);
 				EDX += TRACK0_ADDR0;
-				FDC_MC_test4();
+				CALL(work->readsecs);
 				goto pass99;
 pass02:
 				// FAT番号からトラック番号を求める
@@ -1687,6 +1777,9 @@ pass02:
 
 pass98:
 	work->dosload_phase = 0;
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 	MOV(EAX, SS);
 	PUSH(FS);
 	PUSH((int) 0); // eoc
@@ -1816,7 +1909,7 @@ dos:
 		POP(DS);
 		ECX = work->dosload_sigtmp;
 		EDX = 0x100000;
-		FDC_MC_test5();
+		CALL(work->formatsecs);
 		return;
 pass00:
 		EAX = /* track */ work->dosload_FAT;
@@ -1901,7 +1994,7 @@ pass00:
 	ECX = 512 * 17;
 	EDX = 0x100200;
 	EDI = work->dosload_sigtmp;
-	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+	CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 	return;
 pass01:
 	asmout("MOV EAX,OFFSET #pass02");
@@ -1910,7 +2003,7 @@ pass01:
 	ECX = 512 * 15;
 	EDX = 0x102400;
 	EDI = work->dosload_sigtmp;
-	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+	CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 	return;
 pass02:
 
@@ -1921,6 +2014,9 @@ pass02:
 		[ECX - 4 + work->track] = EAX;
 		ECX -= 4;
 	} while (!= 0);
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 }
 
 void near send_sigfin()
@@ -2021,7 +2117,7 @@ format4K:
 		POP(DS);
 		ECX = work->dosload_sigtmp;
 		EDX = 0x100400;
-		FDC_MC_test5();
+		CALL(work->formatsecs);
 		goto pass99;
 pass90:
 		EAX = /* track */ work->dosload_FAT;
@@ -2039,7 +2135,7 @@ pass90:
 		ECX += work->dosload_size0;
 	EDX = 0x101000;
 	EDI = work->dosload_sigtmp;
-	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+	CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 	goto pass99;
 pass91:
 	if ((signed) work->dosload_size0 > 0) {
@@ -2053,7 +2149,7 @@ pass91:
 			ECX += work->dosload_size0;
 		EDX = 0x104000;
 		EDI = work->dosload_sigtmp;
-		FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+		CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 		goto pass99;
 	}
 pass92:
@@ -2068,7 +2164,7 @@ pass92:
 			ECX += work->dosload_size0;
 		EDX = 0x107000;
 		EDI = work->dosload_sigtmp;
-		FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+		CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 		goto pass99;
 	}
 pass93:
@@ -2083,14 +2179,14 @@ pass93:
 			ECX += work->dosload_size0;
 		EDX = 0x10a000;
 		EDI = work->dosload_sigtmp;
-		FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+		CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 		goto pass99;
 	}
 	goto pass04;
 }
 #endif
 
-void FDC_loadFAT()
+void FDC_loadFAT_fd()
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
 {
@@ -2113,123 +2209,167 @@ void FDC_loadFAT()
 	//		ECX -= 4;
 	//	} while (!= 0);
 
-	#if (defined(EXT_CFIDE))
-		/* ATAデバイスからディスクイメージを読む */
-		work->CFerrflg = 1;
-		PUSH(work->CFIDE_name[8]);
-		PUSH(work->CFIDE_name[4]);
-		PUSH(work->CFIDE_name[0]); /* +36 */
-		PUSH(DS);
-		PUSH(syswork_sel);
-		POP(DS);
-		PUSHAD();
-		AL = [DS:0x0018]; /* 0-3 */
-		EDX = (unsigned short) [DS:0x001a];
-		DS = [SS:ESP + 32]; /* work */
-		CL = AL;
-		CL &= 0x01;
-		CL <<= 4;
-		if (EDX == 0) {
-			DL = AL;
-			EDX &= 0x02;
-			EDX <<= 6;
-			EDX ^= 0x1f0;
-		}
-		work->CFport = EDX;
-		work->CFdev  = CL;
-		CFIDE_select();
-		if (CF != 0)
-			goto err;
-		PUSH(1 * 8);
-		POP(DS);
-		EBX = 0;
-		ESI = 0x100000;
-		CFIDE_ataread();
-		if (CF != 0)
-			goto err;
-		BX = [DS:ESI + 0x1be + 10];
-		EBX <<= 16;
-		BX = [DS:ESI + 0x1be +  8];
-		CFIDE_ataread(); /* 第一パーティションのブートセクタを読み込み */
-		if (CF != 0)
-			goto err;
-		if ((unsigned) (char) [DS:ESI + 0x15] != 0xf8)
-			goto err; /* FAT16のみ */
-		EAX = [DS:ESI + 0x10];
-		EAX &= 0x00ffffff;
-		if (EAX != 0x00020002)
-			goto err; /* FAT数 == 2, ディレクトリエントリ0x200 のみ */
-		EAX = (unsigned short) [DS:ESI + 0x0e];
-		EBX += EAX; /* FAT先頭アドレス */
-		EAX = (unsigned short) [DS:ESI + 0x16]; /* FAT長 */
-		ESI = 0x100200;
-		LEA(EBP, [EBX + EAX * 2]);
-		do {
-			CFIDE_ataread();
-			if (CF != 0)
-				goto err;
-			EBX++;
-			ESI += 512;
-			EAX--;
-		} while (!= 0);
-		ESI = 0x120200; /* ディレクトリエントリ先頭 */
-		EBX = EBP;
-		EAX = 0x200 * 32 / 512; /* 16KB */
-		do {
-			CFIDE_ataread();
-			if (CF != 0)
-				goto err;
-			EBX++;
-			ESI += 512;
-			EAX--;
-		} while (!= 0);
-		/* 今のEBXの位置がクラスタ2 */
-		/* ルートディレクトリを検索して、"FDIMAGE0.BIN"を探す。 */
-		ESI = 0x120200;
-		for (;;) {
-			if (ESI >= 0x124200)
-				goto err;
-			EAX = [DS:ESI];
-			if (AL == 0x00)
-				goto err;
-			if (EAX == [SS:ESP + 36]) {
-				EAX = [DS:ESI + 4];
-				if (EAX == [SS:ESP + 40]) {
-					EAX = [DS:ESI + 8];
-					EAX &= 0x00ffffff;
-					if (EAX == [SS:ESP + 44])
-						break;
-				}
-			}
-			ESI += 32;
-		}
-		if ((unsigned) (int) [DS:ESI + 28] < 1440 * 1024)
-			goto err;
-		PUSH(EDX);
-		EAX = 2880; /* 2880セクタ */
-		EDX = 0;
-		EDI = (unsigned char) [DS:0x100000 + 0x0d];
-		DIV(EDI);
-		TEST(EDX, EDX);
-		POP(EDX);
-		EDI = (unsigned short) [DS:ESI + 26]; /* 先頭クラスタ */
-		if (!= 0)
-			goto err; /* EAXにクラスタ数 */
-		EAX--;
-		do {
-			EDI++;
-			if (DI != [DS:0x100200 + EDI * 2 - 2])
-				goto err;
-			EAX--;
-		} while (!= 0);
-		EDI = (unsigned short) [DS:ESI + 26]; /* 先頭クラスタ */
-		EAX = (unsigned char) [DS:0x100000 + 0x0d];
-		EDI -= 2;
-		IMUL(EAX, EDI);
-		EBX += EAX;
+	ready_track01();
+	goto send_sigfin;
+}
 
-		DS = [SS:ESP + 32]; /* work */
-		work->CFbaseLBA = EBX;
+void FDC_loadFAT_cfide()
+// ECX:作業中のシグナル
+// EDX:完了のシグナル
+{
+	unsigned int syswork_sel   ==  3 * 8;
+	FDC_WORK *work == DS:0;
+
+	if (work->dosload_phase != 0) {
+		INT(0x03);
+	}
+
+	// 依頼された値をworkに保存しておく
+	work->dosload_sigtmp = ECX;
+	work->dosload_sigfin = EDX;
+
+	//	EAX = 0;
+	//	ECX = 20;
+	//	do {
+	//	//	work->track[ECX - 4] = EAX;
+	//		[ECX - 4 + work->track] = EAX;
+	//		ECX -= 4;
+	//	} while (!= 0);
+
+	/* ATAデバイスからディスクイメージを読む */
+	PUSH(work->CFIDE_name[8]);
+	PUSH(work->CFIDE_name[4]);
+	PUSH(work->CFIDE_name[0]); /* +36 */
+	PUSH(DS);
+	PUSHAD();
+	EDX = work->CFport;
+	CL = work->CFdev;
+	work->CFerrflg &= 0xfd; /* ~2 */
+	CFIDE_select();
+	CH = 0x44; /* D */
+	if (CF != 0)
+		goto err;
+	PUSH(1 * 8);
+	POP(DS);
+	EBX = 0;
+	ESI = 0x100000;
+	CFIDE_ataread();
+	CH = 0x45; /* E */
+	if (CF != 0)
+		goto err;
+	BX = [DS:ESI + 0x1be + 10];
+	EBX <<= 16;
+	BX = [DS:ESI + 0x1be +  8];
+	CFIDE_ataread(); /* 第一パーティションのブートセクタを読み込み */
+	CH = 0x46; /* F */
+	if (CF != 0)
+		goto err;
+//	if ((unsigned) (char) [DS:ESI + 0x15] != 0xf8)
+//		goto err; /* FAT16のみ */
+	CH = 0x31;
+	if ((unsigned) (char) [DS:ESI + 0x10] != 0x02)
+		goto err; /* FAT数 == 2 */
+	CH = 0x32;
+	AL = [DS:ESI + 0x12];
+	if ((unsigned) AL < 0x02)
+		goto err; /* ディレクトリエントリ0x200未満 */
+	CH = 0x33;
+	if ((unsigned) AL > 0x40)
+		goto err; /* ディレクトリエントリ0x40ffより大きい */
+	CH = 0x36;
+	if ((unsigned) (short) [DS:ESI + 0x36] != 0x4146)
+		goto err; /* FAT16じゃない */
+	if ((unsigned) (int) [DS:ESI + 0x38] != 0x20363154)
+		goto err; /* FAT16じゃない */
+	if ((unsigned) (short) [DS:ESI + 0x3c] != 0x2020)
+		goto err; /* FAT16じゃない */
+//	EAX = [DS:ESI + 0x10];
+//	EAX &= 0x00ffffff;
+//	if (EAX != 0x00020002)
+//		goto err; /* FAT数 == 2, ディレクトリエントリ0x200 のみ */
+	EAX = (unsigned short) [DS:ESI + 0x0e];
+	EBX += EAX; /* FAT先頭アドレス */
+	EAX = (unsigned short) [DS:ESI + 0x16]; /* FAT長 */
+	EDI = [DS:ESI + 0x10];
+	EDI >>= 8;
+	ESI = 0x100200;
+	LEA(EBP, [EBX + EAX * 2]);
+	do {
+		CFIDE_ataread();
+		CH = 0x47; /* F */
+		if (CF != 0)
+			goto err;
+		EBX++;
+		ESI += 512;
+		EAX--;
+	} while (!= 0);
+	ESI = 0x120200; /* ディレクトリエントリ先頭 */
+	EBX = EBP;
+	EDI &= 0xffff;
+	EDI += 15;
+	EDI /= 16;
+	do {
+		CFIDE_ataread();
+		CH = 0x48; /* F */
+		if (CF != 0)
+			goto err;
+		EBX++;
+		ESI += 512;
+		EDI--;
+	} while (!= 0);
+	/* 今のEBXの位置がクラスタ2 */
+	/* ルートディレクトリを検索して、"FDIMAGE0.BIN"を探す。 */
+	ESI = 0x120200;
+	for (;;) {
+		CH = 0x34;
+		if (ESI >= 0x124200)
+			goto err;
+		EAX = [DS:ESI];
+		if (AL == 0x00)
+			goto err;
+		if (EAX == [SS:ESP + 36]) {
+			EAX = [DS:ESI + 4];
+			if (EAX == [SS:ESP + 40]) {
+				EAX = [DS:ESI + 8];
+				EAX &= 0x00ffffff;
+				if (EAX == [SS:ESP + 44])
+					break;
+			}
+		}
+		ESI += 32;
+	}
+	CH = 0x35;
+	if ((unsigned) (int) [DS:ESI + 28] < 1440 * 1024)
+		goto err;
+	PUSH(EDX);
+	EAX = 2880; /* 2880セクタ */
+	EDX = 0;
+	EDI = (unsigned char) [DS:0x100000 + 0x0d];
+	DIV(EDI);
+	TEST(EDX, EDX);
+	POP(EDX);
+	EDI = (unsigned short) [DS:ESI + 26]; /* 先頭クラスタ */
+//	CH = 0x36;
+//	if (!= 0)
+//		goto err; /* EAXにクラスタ数 */
+//	EAX--;
+	if (== 0)
+		EAX--;
+	do {
+		EDI++;
+		CH = 0x37;
+		if (DI != [DS:0x100200 + EDI * 2 - 2])
+			goto err;
+		EAX--;
+	} while (!= 0);
+	EDI = (unsigned short) [DS:ESI + 26]; /* 先頭クラスタ */
+	EAX = (unsigned char) [DS:0x100000 + 0x0d];
+	EDI -= 2;
+	IMUL(EAX, EDI);
+	EBX += EAX;
+
+	DS = [SS:ESP + 32]; /* work */
+	work->CFbaseLBA = EBX;
 
 #if 0
 		EAX = 2880; /* 2880セクタ */
@@ -2244,9 +2384,9 @@ void FDC_loadFAT()
 		} while (!= 0);
 #endif
 
-		POPAD();
-	//	POP(DS);
-		ESP += 12 + 4;
+	POPAD();
+//	POP(DS);
+	ESP += 12 + 4;
 
 #if 0
 		PUSHAD();
@@ -2260,22 +2400,20 @@ void FDC_loadFAT()
 		}
 		POPAD();
 #endif
-		work->CFerrflg = 0;
-	#endif
 	ready_track01();
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 	goto send_sigfin;
 
-	#if (defined(EXT_CFIDE))
 err:
-		PUSH(1 * 8);
-		POP(DS);
-		(char) [DS:ROOT_ENTRY0] = 0x00;
-		POPAD();
-		POP(DS);
-		ESP += 12;
-		work->track[0] |= 0x03;
-		goto send_sigfin;
-	#endif
+	AL = CH;
+	AH = 0x02;
+	errorfile();
+	POPAD();
+	POP(DS);
+	ESP += 12;
+	goto send_sigfin;
 }
 
 void FDC_format2()
@@ -2339,7 +2477,7 @@ void FDC_format2()
 		POP(DS);
 		ECX = work->dosload_sigtmp;
 		EDX = 0x100000;
-		FDC_MC_test5();
+		CALL(work->formatsecs);
 		return;
 pass00:
 		EAX = /* track */ work->dosload_FAT;
@@ -2428,7 +2566,7 @@ void FDC_writeIPL2()
 	EDX = 0x100000;
 	EDI = work->dosload_sigtmp;
 	work->dosload_size1 = 0x02010001; /* CHRN */
-	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+	CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 	return;
 
 pass00:
@@ -2469,7 +2607,7 @@ pass00:
 		work->dosload_addr += ECX;
 		work->dosload_size0 -= ECX;
 		EDI = work->dosload_sigtmp;
-		FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+		CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 		return;
 	}
 
@@ -2495,356 +2633,6 @@ pass00:
 	POP(FS);
 	return;
 }
-
-#if 0
-void near putb()
-{
-	RCL(BL, 1);
-	BH--;
-	if (== 0) {
-		[DS:ESI] = BL;
-		ESI++;
-		BH = 8;
-	}
-	return;
-}
-
-void near FDC_writeIPL3()
-// ECX:作業中のシグナル
-// EDX:完了のシグナル
-{
-	unsigned int                         all_sel       ==  1 * 8;
-	unsigned int init_sel     ==  2 * 8, syswork_sel   ==  3 * 8;
-	unsigned int tapi_sel == 12 * 8;
-
-
-	FDC_WORK *work == DS:0;
-
-	// size0 : 未転送バイト数
-	// size1 : sub-phase
-
-INT(0x03);
-
-	if (work->dosload_phase != 0) {
-		INT(0x03);
-	}
-
-//	unsigned int track == work->dosload_FAT;
-
-	asmout("MOV EAX,#subphase");
-
-	// 依頼された値をworkに保存しておく
-	work->dosload_size1 = EAX;
-	work->dosload_sigtmp = ECX;
-	work->dosload_sigfin = EDX;
-
-	/* [FS:EBX +  4] : boot-sector-code size */
-	/* [FS:EBX +  8] : boot-sector-code addr */
-	/* [FS:EBX + 12] : osask.exe size(前に4Kうしろに18バイトのアクセス可能領域が必要) */
-	/* [FS:EBX + 16] : osask.exe addr */
-
-//	EAX = syswork_sel;
-	ECX = all_sel;
-	PUSH(DS);
-//	PUSH(ES);
-//	ES = AX;
-	DS = CX;
-	PUSH(ESI);
-	EDX = [FS:EBX +  8];
-	ESI = 0x100000;
-	ECX = 512 / 4;
-	do {
-		EAX = [DS:EDX];
-		EDX += 4;
-		[DS:ESI] = EAX;
-		ESI += 4;
-		ECX--;
-	} while (!= 0);
-	EDX = [FS:EBX + 16];
-	ESI = 0x101000;
-	EDX += 512; // ヘッダを読み飛ばす
-	PUSH(EDX);
-	PUSH(EBP);
-	EBP = [FS:EBX + 12];
-	EBP -= 512;
-	PUSH(EBX);
-	[DS:ESI] = EBP;
-	ESI += 4;
-	EBP += EDX;
-	BH = 8;
-	PUSH(EDI);
-	PUSH(EBP); /* エンドアドレス */
-	do {
-		/* 一致を探す */
-		/* 最大一致長はECXに入る */
-		/* 一致位置はEBPに入る */
-
-		/* 一つ先も検索しなければいけない */
-		/* 遠すぎたら駄目 */
-
-		PUSH(ESI);
-		PUSH(EAX);
-		PUSH((int) 0xffffffff);
-searchdouble:
-		AL = [DS:EDX];
-		ECX = 0;
-		EDI = 0;
-		ESI = [SS:ESP + 28] /* スタートアドレス */;
-		ESI -= EDX;
-		if (!= 0) {
-			if ((signed) ESI < 0xffffc000)
-				ESI = 0xffffc000;
-			do {
-				EDI--; /* EDI == distance */
-				if (AL == [DS:EDX + EDI]) {
-					/* 第一バイトが一致 */
-					PUSH(ESI);
-					ESI = [SS:ESP + 16]; /* エンドアドレス */
-					PUSH(EDX);
-					/* ECX == maxlen */
-					EDX += ECX;
-					do {
-						AH = [DS:EDX];
-						if (AH != [DS:EDX + EDI])
-							goto skip2;
-						EDX--;
-					} while ((unsigned) EDX > [SS:ESP]);
-					LEA(EDX, [EDX + ECX + 1]);
-					do {
-						AH = [DS:EDX];
-						if (AH != [DS:EDX + EDI])
-							break;
-						EDX++;
-					} while ((unsigned) EDX < ESI);
-skip2:
-					ESI = EDX;
-					POP(EDX);
-					ESI -= EDX;
-					if ((unsigned) ECX < ESI) {
-						if ((unsigned) ESI < 2)
-							goto skip;
-						if (== /* ESI == 2 */) {
-							if ((signed) EDI < 0xffffff00)
-								goto skip;
-						} else if (ESI == 3) {
-							if ((signed) EDI < 0xffff0000)
-								goto skip;
-						}
-						ECX = ESI;
-						EBP = EDI;
-					}
-		skip:
-					POP(ESI);
-				}
-			} while ((signed) EDI > ESI);
-		}
-		if ((unsigned) (int) [SS:ESP] == 0xffffffff) {
-			if ((unsigned) ECX >= 2) {
-				[SS:ESP    ] = ECX;
-				[SS:ESP + 4] = EBP;
-				EDX++;
-				goto searchdouble;
-			}
-			POP(ECX);
-			POP(EBP);
-			POP(ESI);
-			goto nocompressed;
-		}
-		EDX--;
-		CMP(ECX, [SS:ESP]);
-		POP(ECX);
-		POP(EBP);
-		POP(ESI);
-		AL = [DS:EDX];
-		if ((unsigned) >)
-			goto nocompressed;
-
-	/* l2d4 */
-
-		if ((unsigned) ECX < 2)
-			goto nocompressed;
-	//	if (== /* ECX == 2 */) {
-	//		if ((signed) EBP < 0xffffff00)
-	//			goto nocompressed;
-	//	} else if (ECX == 3) {
-	//		if ((signed) EBP < 0xffff0000)
-	//			goto nocompressed;
-	//	}
-	//	/* ECX == 4 && (signed) EBP < 0xff000000 */
-		EDX += ECX;
-		if (ECX <= 4) {
-			ECX--;
-			EDI = 3; /* 3bit */
-			ECX <<= 32 - 3;
-		} else if (ECX <= 19) {
-			ECX -= 4;
-			EDI = 7; /* 7bit */
-			ECX <<= 32 - 7;
-		} else if (ECX <= 274) {
-			ECX -= 19;
-			EDI = 15; /* 15bit */
-			ECX <<= 32 - 15;
-		} else if (ECX <= 65535) {
-			EDI = 31; /* 31bit */
-			ECX <<= 32 - 31;
-		} else {
-			INT(0x03);
-		}
-		do {
-			ECX <<= 1;
-			putb();
-			EDI--;
-		} while (!= 0);
-		EDI++; /* EDI = 1 */
-		if ((signed) EBP >= 0xfffffff0) {
-			EBP <<= 28;
-			goto putdistance;
-		}
-		EDI++; /* EDI = 2 */
-		if ((signed) EBP >= 0xffffff00) {
-			EBP <<= 24;
-			goto putdistance;
-		}
-		EDI++; /* EDI = 3 */
-		if ((signed) EBP >= 0xfffff000) {
-			EBP <<= 20;
-			goto putdistance;
-		}
-		EDI++; /* EDI = 4 */
-	//	if ((signed) EBP >= 0xffffc000) {
-			EBP <<= 16;
-	//		goto putdistance;
-	//	} else {
-	//		INT(0x03);
-	//	}
-putdistance:
-		for (;;) {
-			EBP <<= 1;
-			putb();
-			EBP <<= 1;
-			putb();
-			EBP <<= 1;
-			putb();
-			EBP <<= 1;
-			putb();
-			STC();
-			EDI--;
-			if (== 0)
-				break;
-			putb();
-		}
-		CLC();
-		putb();
-		goto next;
-
-nocompressed:
-		EDX++;
-		STC();
-		putb();
-		ECX = 8;
-		do {
-			AL <<= 1;
-			putb();
-			ECX--;
-		} while (!= 0);
-next:
-	} while ((unsigned) EDX < [SS:ESP]);
-	POP(EAX); /* dummy */
-	if (BH != 8) {
-		CL = BH;
-		SHL(BL, CL);
-		[DS:ESI] = BL;
-		ESI++;
-	}
-	POP(EDI);
-	POP(EBX);
-	ESI -= 0x101000 - 1023;
-	POP(EBP);
-	POP(EAX);
-	ESI &= 0xfffffc00; /* 1KB単位に補正 */
-	EAX = ESI;
-	(unsigned int) ESI /= 256;
-	ESI += 18 * 4;
-	(short) [DS:0x100020] = SI;
-	POP(ESI);
-//	POP(ES);
-	POP(DS);
-
-	work->dosload_size0 = EAX;
-
-	// IPL
-	asmout("MOV EAX,OFFSET #pass00");
-	work->dosload_phase = EAX;
-	EAX = 0x02010000; // CHRN(NRHC)
-	ECX = 512;
-	EDX = 0x100000;
-	EDI = work->dosload_sigtmp;
-	FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
-	return;
-
-pass00:
-//	PUSH(DS);
-//	EAX = all_sel;
-//	DS = AX;
-//	AL = [DS:0x1001fc];
-//	POP(DS);
-//	TEST(AL, 1);
-//	if (!= 0)
-//		goto format4K;
-
-	if ((signed) work->dosload_size0 > 0) {
-		EDI = work->dosload_size1;
-		EAX = (int) [CS:EDI]; // CHRN(NRHC)
-		ECX = (int) [CS:EDI + 12];
-		EDX = (int) [CS:EDI + 4];
-		EDI += 8;
-		ECX -= EDX;
-		work->dosload_size1 = EDI;
-		work->dosload_size0 -= ECX;
-		if ((unsigned) < 0)
-			ECX += work->dosload_size0;
-		EDI = work->dosload_sigtmp;
-		FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
-		return;
-	}
-
-	EAX = 0;
-	ECX = 20;
-	do {
-	//	work->track[ECX - 4] = EAX;
-		[ECX - 4 + work->track] = EAX;
-		ECX -= 4;
-	} while (!= 0);
-
-	work->dosload_phase = 0;
-	MOV(EAX, SS);
-	PUSH(FS);
-	PUSH((int) 0); // eoc
-	PUSH(work->dosload_sigfin);
-	PUSH(0x1241);
-	PUSH(0x0114 /* コマンドシグナル直接 */);
-	FS = AX;
-	EBX = ESP;
-	DB(0x9a); DD(0); DW((short) tapi_sel);
-	ESP += 4 * 4;
-	POP(FS);
-	return;
-
-	ALIGN(4);
-subphase:
-	// 72KBまで対応
-	DD(0x02010001); DD(0x101000);
-	DD(0x02010101); DD(0x103400);
-	DD(0x02010002); DD(0x105800);
-	DD(0x02010102); DD(0x107c00);
-	DD(0x02010003); DD(0x10a000);
-	DD(0x02010103); DD(0x10c400);
-	DD(0x02010004); DD(0x10e800);
-	DD(0x020d0004); DD(0x110000);
-	DD(0x02010104); DD(0x110c00);
-	DD(0xffffffff); DD(0x113000);
-}
-#endif
 
 void near FDC_doswrite()
 // EAX:ロードアドレス(必ず4バイトアライン)
@@ -2995,6 +2783,9 @@ pass02:
 	}
 
 	work->dosload_phase = 0;
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 }
 
 void near check_WBF()
@@ -3030,7 +2821,7 @@ void near check_WBF()
 	return;
 }
 
-void near FDC_deletefile()
+void FDC_deletefile()
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
 // GS:ESI ファイル名(11bytes)
@@ -3058,10 +2849,13 @@ void near FDC_deletefile()
 	EDI /= SECTOR_BYTES;
 	BTS(work->WBFS[0], EDI);
 	check_WBF();
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 	goto send_sigfin;
 }
 
-void near FDC_createfile()
+void FDC_createfile()
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
 // GS:ESI ファイル名(11bytes)
@@ -3107,6 +2901,9 @@ void near FDC_createfile()
 	} while ((unsigned) EDI < ROOT_ENTRY1);
 	POP(ES);
 	// 空きが見つからなかったので何もしないで帰る
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 	goto send_sigfin;
 //	return;
 //	INT(0x03);
@@ -3131,6 +2928,9 @@ find:
 	EDI /= SECTOR_BYTES;
 	BTS(work->WBFS[0], EDI);
 	check_WBF();
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 	goto send_sigfin;
 }
 
@@ -3151,7 +2951,7 @@ void ready_track01()
 		ECX = work->dosload_sigtmp;
 		EDX = TRACK0_ADDR0;
 pass98:
-		FDC_MC_test4();
+		CALL(work->readsecs);
 		return;
 pass00:
 		(char) work->track[0] |= 0x01;
@@ -3211,7 +3011,7 @@ find:
 	return;
 }
 
-void near FDC_renamefile()
+void FDC_renamefile()
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
 // GS:ESI    旧ファイル名(11bytes)
@@ -3250,6 +3050,9 @@ void near FDC_renamefile()
 	EDI /= SECTOR_BYTES;
 	BTS(work->WBFS[0], EDI);
 	check_WBF();
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 	goto send_sigfin;
 }
 
@@ -3293,7 +3096,7 @@ void near FDC_storeFAT()
 	return;
 }
 
-void near FDC_resizefile()
+void FDC_resizefile()
 // EAX:新サイズ
 // ECX:作業中のシグナル
 // EDX:完了のシグナル
@@ -3445,6 +3248,9 @@ fin:
 
 	work->WBFS[0] |= FAT01_WBFS_BITS;
 	check_WBF();
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 
 	MOV(EAX, SS);
 	work->dosload_phase = 0;
@@ -3469,7 +3275,7 @@ over0:
 	goto fin;
 }
 
-void near FDC_writebackcache()
+void FDC_writebackcache()
 {
 	FDC_WORK *work == DS:0;
 
@@ -3509,7 +3315,7 @@ void near FDC_writebackcache()
 			EAX |= ECX;
 			EDX += TRACK0_ADDR0;
 			ECX = SECTOR_BYTES;
-			FDC_MC_test6(); // トラック、64KB境界をまたがないことが前提
+			CALL(work->writesecs); // トラック、64KB境界をまたがないことが前提
 			return;
 pass00:
 			EBX = work->dostmp[0];
@@ -3518,6 +3324,9 @@ pass00:
 	} while ((unsigned) EBX < TOTAL_SECTORS);
 
 	(char) work->WBF[0] = 0;
+	#if (defined(CFPOWERAUTOOFF))
+		poweroff();
+	#endif
 	goto send_sigfin;
 }
 
@@ -3542,12 +3351,12 @@ void near save_dosname2()
 	return;
 }
 
-#if (defined(EXT_CFIDE))
-	/* 手抜き満載 */
+/* 手抜き満載 */
 
 void CFIDE_select()
 {
 	unsigned int                         all_sel       ==  1 * 8;
+	FDC_WORK *work == DS:0;
 
 	if ((unsigned) EDX >= 0xc000)
 		goto pccard;
@@ -3581,9 +3390,17 @@ ready:
 	return;
 
 pccard:
+	#if (defined(CFPOWERAUTOOFF))
+		poweron();
+	#endif
 	PUSH(DS);
 	PUSH(EDX);
 	PUSH(EAX);
+	MOV(EAX, CS);
+	EAX += 8;
+	DS = AX;
+	if (work->CFerrflg != 0)
+		goto skip;
 	PUSH(all_sel); /* all_sel */
 	POP(DS);
 	EDX *= 16;
@@ -3592,6 +3409,7 @@ pccard:
 		TEST(AL, 0x88);
 	} while (!= 0);
 	[DS:EDX + 0x06] = CL; /* drv/hed */
+skip:
 	POP(EAX);
 	POP(EDX);
 	POP(DS);
@@ -3604,6 +3422,7 @@ void CFIDE_ataread()
 /* 512B固定, EBXにLBA, 転送先はDS:ESI */
 /* DX : 0x170か0x1f0, CLのbit4がdev */
 {
+	FDC_WORK *work == ES:0;
 	unsigned int                         all_sel       ==  1 * 8;
 
 	if ((unsigned) EDX >= 0xc000)
@@ -3688,9 +3507,17 @@ err:
 	return;
 
 pccard:
+	#if (defined(CFPOWERAUTOOFF))
+		poweron();
+	#endif
 	PUSH(ES);
 	PUSH(EDX);
 	PUSH(EAX);
+	MOV(EAX, CS);
+	EAX += 8;
+	ES = AX;
+	if (work->CFerrflg != 0)
+		goto skip;
 	PUSH(all_sel);
 	POP(ES);
 	EDX *= 16;
@@ -3748,6 +3575,7 @@ pccard:
 
 err_cf:
 	AL = (char) [ES:EDX + 0x07]; /* status */
+skip:
 	POP(EAX);
 	POP(EDX);
 	POP(ES);
@@ -3815,6 +3643,7 @@ void CFIDE_atawrite()
 /* 512B固定, EBXにLBA, 転送元はDS:ESI */
 /* DX : 0x170か0x1f0, CLのbit4がdev */
 {
+	FDC_WORK *work == ES:0;
 	unsigned int                         all_sel       ==  1 * 8;
 
 	if ((unsigned) EDX >= 0xc000)
@@ -3899,9 +3728,17 @@ err:
 	return;
 
 pccard:
+	#if (defined(CFPOWERAUTOOFF))
+		poweron();
+	#endif
 	PUSH(ES);
 	PUSH(EDX);
 	PUSH(EAX);
+	MOV(EAX, CS);
+	EAX += 8;
+	ES = AX;
+	if (work->CFerrflg != 0)
+		goto skip;
 	PUSH(all_sel);
 	POP(ES);
 	EDX *= 16;
@@ -3959,6 +3796,7 @@ pccard:
 err_cf:
 	AL = (char) [ES:EDX + 0x0e]; /* alternate status */
 	AL = (char) [ES:EDX + 0x07]; /* status */
+skip:
 	POP(EAX);
 	POP(EDX);
 	POP(ES);
@@ -3966,4 +3804,588 @@ err_cf:
 	return;
 }
 
+void PCIC_writereg()
+/* EDX:0x3e0, AL:reg-no, AH:data, CL:socket */
+/* broken:AL */
+{
+	AL |= CL;
+	OUT(DX, AL);
+	EDX++;
+	AL = AH;
+	OUT(DX, AL);
+	EDX--;
+	return;
+}
+
+void poweron()
+{
+	FDC_WORK *work == DS:0;
+	unsigned int all_sel == 1 * 8;
+	PUSH(DS);
+	PUSH(EDX);
+	PUSH(EAX);
+	MOV(EAX, CS);
+	EAX += 8;
+	DS = AX;
+	if (work->CFpower == 0) {
+		PUSH(ES);
+		PUSH(all_sel);
+		POP(ES);
+		TEST(work->CFerrflg, 0x04);
+		if (!= 0)
+			goto err;
+		if (work->cardbus != 0) {
+			/* PCIデバイス */
+			EDX = work->CFport;
+			EDX *= 16;
+			EDX += 4096;
+			EAX = [ES:EDX + 8];
+		//	EAX &= 0x20000ab6;
+			EAX &= 0x200008b6;
+			if (EAX != 0x20000810) { /* カードがないか、3.3Vをサポートしない */
+				EAX = [ES:EDX + 8];
+				EAX &= 0x100004b6;
+				if (EAX != 0x10000410) { /* カードがないか、5.0Vをサポートしない */
+	err:
+					/* カードがないとか、そのたぐい */
+					AL = 0x43; /* C:カードがない */
+					AH = 0x01; /* とりあえず書き込めなくする */
+					errorfile();
+				} else {
+					(int) [ES:EDX + 16] = 0x20; /* Vcc=5.0V */
+					goto poweron_skip;
+				}
+			} else {
+				(int) [ES:EDX + 16] = 0x30; /* Vcc=3.3V */
+poweron_skip:
+				AL = (char) [ES:EDX + 0x802];
+				AL &= 0xdf;
+				AL |= 0xd0; /* d0にすべき？(旧c0) */
+				if (AL != [ES:EDX + 0x802])
+					(char) [ES:EDX + 0x802] = AL; /* Power and RESETDEV Control : power on */
+				/* 電源投入完了を待つ */
+				do {
+					EAX = [ES:EDX + 8];
+					TEST(AL, 0x08);
+				} while (== 0);
+
+				/* モードのセット */
+				EDX -= 4096;
+				(char) [ES:EDX + 0x1806] = 0x20; /* Address Window Enable : all off */
+				(char) [ES:EDX + 0x1815] = 0x7f; /* Card Memory Offset Address High : 0x7f(REG) */
+				(char) [ES:EDX + 0x1806] = 0x21; /* Address Window Enable : only mem0 */
+				(char) [ES:EDX + 0x0200] = 0x00; /* メモリマップトモード */
+				(char) [ES:EDX + 0x0206] = 0x00; /* デバイス番号は0 */
+				(char) [ES:EDX + 0x1806] = 0x20; /* Address Window Enable : all off */
+				(char) [ES:EDX + 0x1815] = 0x3f; /* Card Memory Offset Address High : 0x3f(MEM) */
+				(char) [ES:EDX + 0x1806] = 0x21; /* Address Window Enable : only mem0 */
+				work->CFerrflg &= 0xfe /* ~1 */;
+				work->CFpower = 1;
+			}
+		} else {
+			/* 16bit-PCIC */
+			PUSH(ESI);
+			PUSH(ECX);
+			EDX = 0x03e0;
+			CL = work->CFdev2; /* CFdev2でレジスタ番号を決定 */
+			CL <<= 6;
+			AL = 0x01;
+			AL |= CL;
+			OUT(DX, AL);
+			EDX++;
+			IN(AL, DX);
+			AL &= 0x0c;
+			EDX--;
+			if (AL != 0x0c) {
+				/* カードがないよ */
+				AL = 0x43; /* C:カードがない */
+				AH = 0x01; /* とりあえず書き込めなくする */
+				errorfile();
+			} else {
+				AL = 0x02;
+				AL |= CL;
+				OUT(DX, AL);
+				EDX++;
+				IN(AL, DX);
+				if (AL != 0xd0) { /* d0じゃだめなのか？d5が正解なのか？ */
+					AL = 0xd0;
+					OUT(DX, AL);
+				}
+				EDX--;
+				AL = 0x01;
+				AL |= CL;
+				OUT(DX, AL);
+				EDX++;
+				/* 電源投入完了を待つ */
+				do {
+					IN(AL, DX);
+					TEST(AL, 0x40);
+				} while (== 0);
+				EDX--;
+
+				/* モードのセット */
+				asmout("MOV ESI,PCIC_writereg");
+				EAX = 0x2006; CALL(ESI); /* Address Window Enable : all off */
+				EAX = 0x7f15; CALL(ESI); /* Card Memory Offset Address High : fff30000, REG */
+				EAX = 0x2106; CALL(ESI); /* Address Window Enable : only mem0 */
+				(char) [ES:0x000d0200] = 0x00; /* メモリマップトモード */
+				(char) [ES:0x000d0206] = 0x00; /* デバイス番号は0 */
+				EAX = 0x2006; CALL(ESI); /* Address Window Enable : all off */
+				EAX = 0x3f15; CALL(ESI); /* Card Memory Offset Address High : fff30000, MEM */
+				EAX = 0x2106; CALL(ESI); /* Address Window Enable : only mem0 */
+
+#if 0
+				AL = CL;
+				AL |= 0x06; /* Address Window Enable */
+				OUT(DX, AL);
+				EDX++;
+				AL = 0x20; /* all off */
+				OUT(DX, AL);
+				EDX--;
+				AL = CL;
+				AL |= 0x15; /* Card Memory Offset Address High */
+				OUT(DX, AL);
+				EDX++;
+				AL = 0x7f; /* fff30000, REG */
+				OUT(DX, AL);
+				EDX--;
+				AL = CL;
+				AL |= 0x06; /* Address Window Enable */
+				OUT(DX, AL);
+				EDX++;
+				AL = 0x21; /* only mem0 */
+				OUT(DX, AL);
+				EDX--;
+				(char) [ES:0x000d0200] = 0x00; /* メモリマップトモード */
+				(char) [ES:0x000d0206] = 0x00; /* デバイス番号は0 */
+				AL = CL;
+				AL |= 0x06; /* Address Window Enable */
+				OUT(DX, AL);
+				EDX++;
+				AL = 0x20; /* all off */
+				OUT(DX, AL);
+				EDX--;
+				AL = CL;
+				AL |= 0x15; /* Card Memory Offset Address High */
+				OUT(DX, AL);
+				EDX++;
+				AL = 0x3f; /* fff30000, MEM */
+				OUT(DX, AL);
+				EDX--;
+				AL = CL;
+				AL |= 0x06; /* Address Window Enable */
+				OUT(DX, AL);
+				EDX++;
+				AL = 0x21; /* only mem0 */
+				OUT(DX, AL);
+				EDX--;
 #endif
+				work->CFerrflg &= 0xfe /* ~1 */;
+				work->CFpower = 1;
+			}
+			POP(ECX);
+			POP(ESI);
+		}
+		POP(ES);
+	}
+	POP(EAX);
+	POP(EDX);
+	POP(DS);
+	return;
+}
+
+void poweroff()
+{
+	FDC_WORK *work == DS:0;
+	unsigned int all_sel == 1 * 8;
+	if (work->CFpower != 0) {
+		PUSH(EDX);
+		PUSH(EAX);
+		if (work->cardbus != 0) {
+			/* PCIデバイス */
+			EDX = work->CFport;
+			PUSH(ES);
+			PUSH(all_sel);
+			POP(ES);
+			EDX *= 16;
+			EDX += 4096;
+			AL = (char) [ES:EDX + 0x802];
+			AL &= 0x4f; /* 4fにすべき？(旧5f) */
+			AL |= 0x40;
+			if (AL != [ES:EDX + 0x802])
+				(char) [ES:EDX + 0x802] = AL; /* Power and RESETDEV Control : power on */
+			EAX = 0;
+			(int) [ES:EDX + 16] = EAX; /* Vcc=off */
+			/* 電源切断完了を待つ */
+			do {
+				EAX = [ES:EDX + 8];
+				TEST(AL, 0x08);
+			} while (!= 0);
+			POP(ES);
+		} else {
+			/* 16bit-PCIC */
+			EDX = 0x03e0;
+			AH = work->CFdev2; /* CFdev2でレジスタ番号を決定 */
+			AH <<= 6;
+			AL = AH;
+			AL |= 0x02;
+			OUT(DX, AL);
+			EDX++;
+			IN(AL, DX);
+			if (AL != 0x40) {
+				AL = 0x40;
+				OUT(DX, AL);
+			}
+			EDX--;
+			AL = AH;
+			AL |= 0x01;
+			OUT(DX, AL);
+			EDX++;
+			/* 電源切断完了を待つ */
+			do {
+				IN(AL, DX);
+				TEST(AL, 0x40);
+			} while (!= 0);
+		}
+		work->CFpower = 0;
+		POP(EAX);
+		POP(EDX);
+	}
+	return;
+}
+
+void set_cardbus_base()
+{
+	/* コントロールベース */
+	EDX = 0x0cf8;
+	LEA(EAX, [EDI + 0x10]);
+	OUT(DX, EAX);
+	DL = 0xfc;
+	IN(EAX, DX);
+	EAX = 0x000d1000;
+	OUT(DX, EAX);
+	EDI |= 0x1c;
+	do {
+		DL = 0xf8;
+		EAX = EDI;
+		OUT(DX, EAX);
+		DL = 0xfc;
+		EAX = 0;
+		EAX--;
+		OUT(DX, EAX);
+		DL = 0xf8;
+		LEA(EAX, [EDI + 0x04]);
+		OUT(DX, EAX);
+		DL = 0xfc;
+		EAX = 0;
+		OUT(DX, EAX);
+		EDI += 0x08;
+		EAX = EDI;
+	} while ((unsigned) AL < 0x3c);
+	EDI &= 0xffffff80;
+	DL = 0xf8;
+	LEA(EAX, [EDI + 0x04]);
+	OUT(DX, EAX);
+	DL = 0xfc;
+	IN(EAX, DX);
+	EAX &= 0xfffe; /* I/O off */
+	EAX |= 0x02; /* mem on */
+	OUT(DX, EAX);
+	DL = 0xf8;
+	EAX = 0;
+	OUT(DX, EAX);
+	return;
+}
+
+void close_cardbus()
+{
+	/* コマンド＆ステータス */
+	DL = 0xf8;
+	LEA(EAX, [EDI + 0x04]);
+	OUT(DX, EAX);
+	DL = 0xfc;
+	IN(EAX, DX);
+	EAX &= 0xfffc; /* mem & I/O off */
+	OUT(DX, EAX);
+	set_cardbus_base();
+	PUSH(DS);
+	PUSH(1 * 8);
+	POP(DS);
+	EDX = 0x000d1000;
+	EAX = 0;
+	(int) [DS:EDX +  4] = EAX; /* all IRQ mask */
+	(int) [DS:EDX + 16] = EAX; /* Vcc=off */
+	/* 電源切断完了を待つ */
+	do {
+		EAX = [DS:EDX + 8];
+		TEST(AL, 0x08);
+	} while (!= 0);
+	POP(DS);
+	EDX = 0x0cf8;
+	LEA(EAX, [EDI + 0x04]);
+	OUT(DX, EAX);
+	DL = 0xfc;
+	IN(EAX, DX);
+	EAX &= 0xfffc; /* mem & I/O off */
+	OUT(DX, EAX);
+	return;
+}
+
+void close_all()
+{
+	FDC_WORK *work == DS:0;
+	PUSHAD();
+	EDI = work->cardbus;
+	if (EDI != 0) {
+		/* cardbusあり */
+		EDX = 0x0cf8;
+		close_cardbus();
+		DL = 0xf8;
+		LEA(EAX, [EDI + 0x0c]);
+		OUT(DX, EAX);
+		DL = 0xfc;
+		IN(EAX, DX);
+		TEST(EAX, 0x00800000);
+		if (!= 0) {
+			EDI += 0x0100;
+			do {
+				DL = 0xf8;
+				EAX = EDI;
+				OUT(DX, EAX);
+				DL = 0xfc;
+				IN(EAX, DX);
+				if (EAX != 0xffffffff)
+					close_cardbus();
+				EDI += 0x0100;
+				TEST(EDI, 0x0700);
+			} while (!= 0);
+		}
+		DL = 0xf8;
+		EAX = 0;
+		OUT(DX, EAX);
+		POPAD();
+		return;
+	}
+	/* cardbusなし */
+	EDX = 0x03e0;
+	CL = 0x00;
+	asmout("MOV ESI,PCIC_writereg");
+	do {
+		AL = CL;
+		OUT(DX, AL); /* Identification and Revision */
+		EDX++;
+		IN(AL, DX);
+		EDX--;
+		if (AL == 0x82)
+			goto pass00; /* i82365sl A step */
+		if (AL == 0x83)
+			goto pass00; /* i82365sl B step */
+		if (AL == 0x84)
+			goto pass00; /* VLSI 82C146 or i82365sl DF (1slotしかなければ82C146) */
+		if (AL == 0x88)
+			goto pass00; /* IBM clone type0 */
+		if (AL == 0x89)
+			goto pass00; /* IBM clone type1 */
+		if (AL == 0x8a)
+			goto pass00; /* IBM clone type2 */
+		if (AL == 0x8b)
+			goto pass00; /* i82365sl type unknown */
+		if (AL == 0x8c)
+			goto pass00; /* i82365sl type unknown */
+		goto pcic_notfonund;
+pass00:
+		EAX = 0x4003; CALL(ESI); /* Interrupt and General Control : mem-card */
+		EAX = 0x2006; CALL(ESI); /* Address Window Enable : all off */
+		EAX = 0x4002; CALL(ESI); /* Power and RESETDEV Control : off */
+		AL = 0x01;
+		AL |= CL;
+		OUT(DX, AL);
+		EDX++;
+		/* 電源切断完了を待つ */
+		do {
+			IN(AL, DX);
+			TEST(AL, 0x40);
+		} while (!= 0);
+
+#if 0
+		AL = 0x03;
+		AL |= CL;
+		OUT(DX, AL); /* Interrupt and General Control */
+		EDX++;
+		AL = 0x40; /* mem-card */
+		OUT(DX, AL);
+		EDX--;
+		AL = 0x06;
+		AL |= CL;
+		OUT(DX, AL); /* Address Window Enable */
+		EDX++;
+		AL = 0x20; /* all off */
+		OUT(DX, AL);
+		EDX--;
+		AL = 0x02;
+		AL |= CL;
+		OUT(DX, AL); /* Power and RESETDEV Control */
+		EDX++;
+		AL = 0x40; /* off */
+		OUT(DX, AL);
+		EDX--;
+#endif
+
+pcic_notfonund:
+		CL += 0x40;
+	} while ((signed) > 0);
+	POPAD();
+	return;
+}
+
+void open_cf()
+/* CLにスロット番号 */
+{
+	FDC_WORK *work == DS:0;
+	unsigned int all_sel == 1 * 8;
+	PUSHAD();
+	EDI = work->cardbus;
+	if (EDI != 0) {
+		/* cardbus */
+		ECX &= 0x07;
+		work->CFdev2 = CL;
+		ECX *= 256;
+		EDI += ECX;
+		set_cardbus_base();
+
+		PUSH(DS);
+		PUSH(all_sel);
+		POP(DS);
+		EDX = 0x000d1000;
+		(int) [DS:EDX + 0x04] = 0; /* all IRQ mask */
+		EDX = 0x000d1800;
+		(char) [DS:EDX + 0x03] = 0x40; /* Interrupt and General Control : mem-card */
+		(char) [DS:EDX + 0x06] = 0x20; /* Address Window Enable : all off */
+		(char) [DS:EDX + 0x10] = 0xd0; /* System Memory Address Mapping Start Low : d0 */
+		(char) [DS:EDX + 0x11] = 0xc0; /* System Memory Address Mapping Start High : 0 */
+		(char) [DS:EDX + 0x12] = 0xd0; /* System Memory Address Mapping Stop Low */
+		(char) [DS:EDX + 0x13] = 0x00; /* System Memory Address Mapping Stop High : 0 */
+		(char) [DS:EDX + 0x14] = 0x30; /* Card Memory Offset Address Low : -BH */
+		(char) [DS:EDX + 0x15] = 0x3f; /* Card Memory Offset Address High : 0x3f(MEM) */
+		(char) [DS:EDX + 0x40] = 0x00; /* Address Window A24-31 : 00 */
+		(char) [DS:EDX + 0x06] = 0x21; /* Address Window Enable : only mem0 */
+		POP(DS);
+		POPAD();
+		return;
+	}
+	/* 16bit-PCIC */
+	CL &= 0x03;
+	work->CFdev2 = CL;
+	CL <<= 6;
+	EDX = 0x03e0;
+	asmout("MOV ESI,PCIC_writereg");
+	/* 面倒なのでチェックは省略 */
+	EAX = 0x4003; CALL(ESI); /* Interrupt and General Control : mem-card */
+	EAX = 0x2006; CALL(ESI); /* Address Window Enable : all off */
+	EAX = 0xd010; CALL(ESI); /* System Memory Address Mapping Start Low : 000d0000 */
+	EAX = 0xc011; CALL(ESI); /* System Memory Address Mapping Start High : 000d0000 */
+	EAX = 0xd012; CALL(ESI); /* System Memory Address Mapping Stop Low : 000d0fff */
+	EAX = 0x0013; CALL(ESI); /* System Memory Address Mapping Stop High : 000d0fff */
+	EAX = 0x3014; CALL(ESI); /* Card Memory Offset Address Low : fff30000 */
+	EAX = 0x3f15; CALL(ESI); /* Card Memory Offset Address High : fff30000, MEM */
+	EAX = 0x2106; CALL(ESI); /* Address Window Enable : only mem0 */
+
+#if 0
+	AL = 0x03;
+	AL |= CL;
+	OUT(DX, AL); /* Interrupt and General Control */
+	EDX++;
+	AL = 0x40; /* mem-card */
+	OUT(DX, AL);
+	EDX--;
+	AL = 0x06;
+	AL |= CL;
+	OUT(DX, AL); /* Address Window Enable */
+	EDX++;
+	AL = 0x20; /* all off */
+	OUT(DX, AL);
+	EDX--;
+	AL = 0x10;
+	AL |= CL;
+	OUT(DX, AL); /* System Memory Address Mapping Start Low */
+	EDX++;
+	AL = 0xd0; /* 000d0000 */
+	OUT(DX, AL);
+	EDX--;
+	AL = 0x11;
+	AL |= CL;
+	OUT(DX, AL); /* System Memory Address Mapping Start High */
+	EDX++;
+	AL = 0xc0; /* 000d0000 */
+	OUT(DX, AL);
+	EDX--;
+	AL = 0x12;
+	AL |= CL;
+	OUT(DX, AL); /* System Memory Address Mapping Stop Low */
+	EDX++;
+	AL = 0xd0; /* 000d0fff */
+	OUT(DX, AL);
+	EDX--;
+	AL = 0x13;
+	AL |= CL;
+	OUT(DX, AL); /* System Memory Address Mapping Stop High */
+	EDX++;
+	AL = 0x00; /* 000d0fff */
+	OUT(DX, AL);
+	EDX--;
+	AL = 0x14;
+	AL |= CL;
+	OUT(DX, AL); /* Card Memory Offset Address Low */
+	EDX++;
+	AL = 0x30; /* fff30000 */
+	OUT(DX, AL);
+	EDX--;
+	AL = 0x15;
+	AL |= CL;
+	OUT(DX, AL); /* Card Memory Offset Address High */
+	EDX++;
+	AL = 0x3f; /* fff30000, MEM */
+	OUT(DX, AL);
+	EDX--;
+	AL = 0x06;
+	AL |= CL;
+	OUT(DX, AL); /* Address Window Enable */
+	EDX++;
+	AL = 0x21; /* only mem0 */
+	OUT(DX, AL);
+	EDX--;
+#endif
+
+	POPAD();
+	return;
+}
+
+void errorfile()
+{
+	FDC_WORK *work == DS:0;
+	PUSH(DS);
+	PUSHAD();
+	MOV(ECX, CS);
+	ECX += 8;
+	DS = CX;
+	if (work->CFerrflg == 0) {
+		work->track[0] |= 0x03;
+		work->CFerrflg |= AH;
+		PUSH(1 * 8);
+		POP(DS);
+		ESI = 0x100000;
+		ECX = 0;
+		do {
+			[DS:ESI] = ECX;
+			ESI += 4;
+		} while ((unsigned) ESI < ROOT_ENTRY1);
+		ESI = ROOT_ENTRY0;
+		(int) [DS:ESI + 0] = 0x4f525245;
+		(int) [DS:ESI + 4] = 0x20205f52;
+		(int) [DS:ESI + 8] = 0x00202020;
+		[DS:ESI + 6] = AL;
+	}
+	POPAD();
+	POP(DS);
+	return;
+}

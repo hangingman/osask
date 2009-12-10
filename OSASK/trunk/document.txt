@@ -1,25 +1,21 @@
-"src38"の使い方の説明                      2003/06/27 川合秀実
+"src39"の使い方の説明                      2003/07/30 川合秀実
 
 １．これは何か？
 
-  "src38"は、OSASK ver.3.8の「OSASK.EXE」を生成するのに必要なモジュールのソース
+  "src39"は、OSASK ver.3.9の「OSASK.EXE」を生成するのに必要なモジュールのソース
 プログラムのセットです。ただし、以前のバージョンのものをそのまま利用しているも
 のついては、このアーカイブに含まれていません。OSASK.EXEを生成するのに必要なモジ
 ュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.NAS     : ver.2.4
+    BASE.NAS     : ver.2.5
     INIT.ASK     : ver.3.2
-    PIONEER0.ASK : ver.3.1
-    VGADRV0.ASK  : ver.1.9
-    FDCDRV0.BIN  : ver.2.1
-    WINMAN0.C    : ver.3.1
-    BMP2BETA.NAS : ver.0.1
-    POKON0.C     : ver.3.8
+    POKON0.C     : ver.3.9
     PCAT/
-      VESA8.ASK    : ver.0.1
-      VESA16.ASK   : ver.0.2
+      FDCDRV0.BIN  : ver.2.2
+    TOWNS/
+      FDCDRV0.BIN  : ver.2.2
 
   (以前のバージョンのものを利用するもの)
 
@@ -29,13 +25,19 @@
     PAPI0.ASK    : ver.0.6
     TIMERDRV.ASK : type-A ver.1.1
     DECODE0.ASK  : ver.1.0
-    IBMANK0.TXT  : ver.0.4
+    PIONEER0.ASK : ver.3.1
+    VGADRV0.ASK  : ver.1.9
+    WINMAN0.C    : ver.3.1
+    BMP2BETA.NAS : ver.0.1
+    KJPEGLS2.C   : ver.0.0
     SYSGG00.LIB  : ver.0.8
     BETACLIP.NAS : ver.0.0
-    KJPEGLS2.C   : ver.0.0
+    IBMANK0.TXT  : ver.0.4
     PCAT/
       OSALINK1.OPT : ver.0.1
       VGADRV0.ASK  : ver.1.7
+      VESA8.ASK    : ver.0.1
+      VESA16.ASK   : ver.0.2
       VESA32.ASK   : ver.0.1
     TOWNS/
       OSALINK1.OPT : ver.0.0
@@ -43,12 +45,7 @@
     NEC98/
       OSALINK1.OPT : ver.0.0
       KEYMOS0.BIN  : ver.0.4
-
-
-
-
-
-
+      FDCDRV0.BIN  : ver.2.1
 
   このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
 るだけです。
@@ -117,8 +114,8 @@ doc_link.txtでの説明を参照してください。
   Bochs 1.3対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に、
 base.nasを以下の指示にしたがって書き換える必要があります。
 
-・117～118行目のセミコロンだけを削除する。
-・238行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
+・119～120行目のセミコロンだけを削除する。
+・240行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
 
   Bochs 1.2.1対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指定
 した上に、base.nasをBochs 1.3と同様に書き換えてください。
@@ -162,31 +159,3 @@ base.nasを以下の指示にしたがって書き換える必要があります。
     OSASKのページ             http://www.imasy.org/~kawai/osask/
     OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
     川合秀実のページ          http://www.imasy.org/~kawai/
-
-７．おまけ
-
-  このソースには、OSASKFDI.EXEを作ることなく、HDD/CF起動を可能にするコードが、
-こっそりと含まれています。極めて危険ですし、動作可能な条件はかなり制限されるの
-で、物好きな方がエミュレータなどで遊んでみるという程度の利用のみ、おすすめしま
-す。なおこの改造が可能なのはAT版のみです。
-
-  まず、適当な1440KBのディスクイメージを用意します。osat34iに付いてくるやつとか
-で十分です。これを一切の圧縮をかけないままにして、FDIMAGE0.BINと改名しておきま
-す。次に4台のうちのATAハードディスクのどれかを選び、その第一パーティションにFA
-T16の区画を作ります。サイズはいくつでもかまいません。そのハードディスク番号(0～
-3)を、base.nasのCFportと書かれた部分のところに書いておきます。そして、先ほどの
-FDIMAGE0.BINをさきほどのFAT16の区画のルートディレクトリにコピーします(この時ク
-ラスタが連続するようにしてください、コピー前にデフラグをかけておくなどして)。最
-後に、fdcdrv0.askの最初にあるEXT_CFIDEの#defineを有効にしてやればOKです。
-
-  これで作ったOSASK.EXEは、起動直後にCFportで指定されたハードディスクの最初の区
-画がFAT16であることを確かめて、そしてそのルートディレクトリからFDIMAGE0.BINを探
-し出し、ディスクイメージとしてロードします。書き戻しはできませんのでやらないで
-ください。全体的に非常に粗削りで、動作保障は全くできません。・・・なお、FDIMAGE
-0.BINのアクセスまでの間に何らかの障害があった場合は、「File Not Found!」になり
-ます。
-
-  なおもし3GHz以上の実マシンで実行するというなら、fdcdrv0.ask内の関数CFIDE_wait
-400ns()の「EAX = 1200;」の部分を直すといいと思います。1600にしておけば4GHzまで
-OKです(手抜きなのでソフトウェアwaitになっているんです)。まともになる頃には直し
-ます。

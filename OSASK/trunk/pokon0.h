@@ -163,6 +163,7 @@ enum {
 #define	JOB_SEARCH_FP					0x0048
 #define JOB_CHANGE_DRIVE				0x004c
 #define JOB_LOAD_AND_EXEC_PSF			0x0050
+#define JOB_CHANGE_DEVICE				0x0054
 
 /* structs */
 struct FILELIST {
@@ -330,6 +331,9 @@ int poko_defkeybind(const char *cmdlin);
 int poko_defspkeybind(const char *cmdlin);
 int poko_setwindef(const char *cmdlin);
 int poko_run(const char *cmdlin);
+int poko_drvfd(const char *cmdlin);
+int poko_drvata(const char *cmdlin);
+int poko_drvcf(const char *cmdlin);
 
 /* */
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);

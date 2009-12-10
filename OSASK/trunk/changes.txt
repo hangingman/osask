@@ -1,6 +1,13 @@
 ●主な変更点 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
-Version 3.7(2002/7)
+Version 3.9(2002/8)
+[OSASK 6313][OSASK 6314][OSASK 6318]
+・CF（コンパクトフラッシュ）内のディスクイメージにアクセスできるように
+なりました(PC-AT版, TOWNS版)。
+・ATAハードディスク内のディスクイメージにアクセスできるように
+なりました(PC-AT版)。
+
+Version 3.8(2002/7)
 [OSASK 6293]
 ・pokon がマウス対応になりました。
 ・pokon コンソールのコマンドが追加されました。

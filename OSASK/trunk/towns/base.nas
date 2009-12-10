@@ -1,4 +1,4 @@
-;	"boot.nas" ver.2.4
+;	"boot.nas" ver.2.5
 ;	OSASK/TONWS用のブートプログラム
 ;	Copyright(C) 2003 H.Kawai (川合秀実)
 
@@ -106,6 +106,8 @@ Entry:
 ;	MOV		ECX,640*1024 ; for NEC98
 	SUB		ECX,EAX
 	MOV		DWORD [bootmalloc_fre1],ECX
+	MOV		AX,[CS:0x0002]
+	MOV		[CFport],AX
 
 ;mov dx,03d4h
 ;mov ax,3213h
@@ -183,7 +185,7 @@ VGA_mode		DW	12h	; +0x10
 				DW	0
 to_winman0		DD	0 ; +0x14
 
-VGA_PCI_base	DD	0
+CFport			DD	0	; +0x18
 eflags			DD	0
 
 		;	align	16

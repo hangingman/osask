@@ -1,4 +1,4 @@
-/* "init.ask" ver.3.2 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
+/* "init.ask" ver.3.3 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -1556,10 +1556,49 @@ void far Init()
 	POP(EAX);
 	POP(EBX);
 
+	ECX = [GS:0x0018]; /* CFport */
+
 	PUSH((int) 0x0024); // msgboxリードセレクタ
 	(offset) msg = 0;
 	msgdw = 0;
 	POP(GS);
+
+	if (ECX != 0) {
+		PUSH(EBX); /* EBX == 0 */
+		PUSH(ECX);
+		PUSH(0x0194 /* change device */);
+		PUSH(0x0108 /* FDC_diskchange */);
+		EBX = ESP;
+		CALLFAR0(fdcdrive_sel);
+		POP(EAX);
+		POP(EAX);
+		POP(EAX);
+	//	POP(EAX); /* EAX = 0 */
+		#if (defined(PCAT))
+			PUSH((int) 0x000c /* FDD motor off */);
+			PUSH((int) 0x0124 /* FDC motorcontrol */);
+			EBX = ESP;
+			CALLFAR0(fdcdrive_sel);
+			POP(EBX);
+			POP(EBX);
+		#elif (defined(TOWNS))
+	//		PUSH((int) 0x0300 /* 全モーター停止、ドライブ選択なし */);
+	//		PUSH((int) 0x0124 /* FDC motorcontrol */);
+	//		EBX = ESP;
+	//		CALLFAR0(fdcdrive_sel);
+	//		POP(EBX);
+	//		POP(EBX);
+		#elif (defined(NEC98))
+	//		PUSH((int) 0x0301 /* 全モーター停止、ドライブ0選択 */);
+	//		PUSH((int) 0x0124 /* FDC motorcontrol */);
+	//		EBX = ESP;
+	//		CALLFAR0(fdcdrive_sel);
+	//		POP(EBX);
+	//		POP(EBX);
+		#endif
+		POP(EAX); /* EAX = 0 */
+		EBX = 0;
+	}
 
 	#if (defined(PCAT))
 		/* ローディング開始 */
@@ -7947,8 +7986,8 @@ cmd009c:
 	PUSH(FS);
 	PUSH((offset) cmd);
 	PUSH((int) 0);
-	PUSH((int) cmd[4]);
-	PUSH((int) 0x0190 /* change drive */);
+	PUSH((int) cmd[8]);
+	PUSH((int) cmd[4] /* change drive */);
 	EBX = ESP;
 	PUSH(SS);
 	POP(FS);
@@ -7956,7 +7995,7 @@ cmd009c:
 	ESP += 12;
 	POP((offset) cmd);
 	POP(FS);
-	(offset) cmd += 8;
+	(offset) cmd += 12;
 	goto nextcmd;
 
 	#if (defined(TOWNS) && defined(CLGD543X))
