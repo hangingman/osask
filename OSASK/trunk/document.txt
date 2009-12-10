@@ -1,31 +1,29 @@
-"sb14"の使い方の説明                      2001/06/24 川合秀実
+"sb15"の使い方の説明                      2001/08/01 川合秀実
 
 １．これは何か？
 
-  "sb14"は、OSASK ver.1.4の「OSASK14.EXE」を生成するのに必要なモジュールのソー
+  "sb15"は、OSASK ver.1.5の「OSASK15.EXE」を生成するのに必要なモジュールのソー
 スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
-そのまま利用しているものついては、このアーカイブに含まれていません。OSASK14.EXE
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK15.EXE
 を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.EXE     : ver.1.40
-    OSALINK0.OPT : ver.1.40
-    PIONEER0.BIN : ver.1.2
-    WINMAN0.BIN  : ver.1.0
-    POKON0.BIN   : ver.1.3
-    PAPI0.BIN    : ver.0.1
+    BASE.EXE     : ver.1.50
+    OSALINK0.OPT : ver.1.50
+    PIONEER0.BIN : ver.1.3
+    WINMAN0.BIN  : ver.1.1
+    POKON0.BIN   : ver.1.4
+    TAPI0.BIN    : ver.0.2
     PCAT/
-      FDCDRV0.BIN  : ver.1.1
-      VGADRV0.BIN  : ver.0.7
-    TOWNS/
-      VGADRV0.BIN  : ver.0.7
+      FDCDRV0.BIN  : ver.1.2
 
   (以前のバージョンのものを利用するもの)
 
     SYSGG00.LIB  : ver.0.4
-    TAPI0.BIN    : ver.0.1
+    PAPI0.BIN    : ver.0.1
     ANKFONT0.BIN : ver.0.0
+    VGADRV0.BIN  : ver.0.7
     TIMERDRV.BIN : type-A ver.0.9
     KEYMOS0.BIN  : ver.0.3
     DECODE0.BIN  : ver.0.9
@@ -40,17 +38,17 @@
 
 ・ASKA version 1.0 beta 15b
 ・masmcnv2
-・exe2bin1
+・exe2bin2
 ・MASM version 6.14.8444
 ・Microsoft (R) Segmented Executable Linker  Version 5.60.339 Dec  5 1994
 ・lcc-win32 (LCC.EXEのタイムスタンプ2000/09/10、サイズ438,304バイト)
 ・Microsoft (R) Incremental Linker Version 5.12.8078
-・gg00lib3
-・stdlib1
+・gg00lib4
+・stdlib3
 ・osalnk0p
 
 これらの入手先・使い方の説明は、大半がOSASKの開発者向けページにあり、その他のも
-のについては、masmcnv2、exe2bin1に付属のドキュメントを参照してください。
+のについては、masmcnv2、exe2bin2に付属のドキュメントを参照してください。
 
   BASE.EXEの生成は、MAKEBASE.BATで行いました。MAKEBASE.BATを読んでアセンブル手
 順を把握してください。TOWNS版を生成する時は、少し書き換える必要があります。
@@ -59,17 +57,19 @@
 アセンブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成
 のみに必要な専用ライブラリです。
 
-  拡張子が.ASKのものは、lcc-win32→ASKA→masmcnv2→exe2bin1で.BINファイルにしま
-す。exe2bin1のオプション指定では、-sでも-tでもなく、-nを指定します。lcc-win32は
+  拡張子が.ASKのものは、lcc-win32→ASKA→masmcnv2→exe2bin2で.BINファイルにしま
+す。exe2bin2のオプション指定では、-sでも-tでもなく、-nを指定します。lcc-win32は
 プリプロセッサとして使います。オプション-EPを付けてください。ただし、AT互換機版
 を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を生成す
 る時は、LCCに「-DTOWNS」オプションをつけてください。
 
-  拡張子が.Cのものは、exe2bin1で説明されている方法で生成できます。ただし、AT互
+  拡張子が.Cのものは、exe2bin2で説明されている方法で生成できます。ただし、AT互
 換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を
 生成する時は、LCCに「-DTOWNS」オプションをつけてください。ライブラリーにSYSGG00
 を使う必要があることにも注意してください。指定すべきスタックサイズは、各ソース
-中の最初の方に明記してあります。
+中の最初の方に明記してあります。また、exe2bin2では「-d」オプションを指定しない
+と付属の.BINと同じバイナリーは得られません(指定しなくても、動作には違いはありま
+せん)。
 
   OSALINK0.OPTに書かれている全てのファイルが用意できたら、osalnk0pでそれらをま
 とめて、OSASK.EXEを生成できます。osalnk0pの使い方は、osalnk0p内のアーカイブを参

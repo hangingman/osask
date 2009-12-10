@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.2
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.3
     copyright(C) 2001 H.Kawai (川合秀実) */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -104,8 +104,8 @@ INT(0x03); /* コマンドエラーは許さない */
 
 	ALIGN(4);
 cmd_jumptable:
-	asmout("DD OFFSET cmd000,  OFFSET cmd004,  OFFSET cmd008,  OFFSET #cmderr");
-	asmout("DD OFFSET cmd010,  OFFSET #cmderr, OFFSET cmd018,  OFFSET #cmderr");
+	asmout("DD OFFSET cmd000,  OFFSET cmd004,  OFFSET cmd008,  OFFSET cmd00c ");
+	asmout("DD OFFSET cmd010,  OFFSET #cmderr, OFFSET cmd018,  OFFSET cmd01c ");
 	asmout("DD OFFSET cmd020,  OFFSET cmd024,  OFFSET cmd028,  OFFSET cmd02c ");
 	asmout("DD OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr, OFFSET cmd03c ");
 	asmout("DD OFFSET cmd040,  OFFSET cmd044,  OFFSET cmd048,  OFFSET #cmderr");
@@ -224,7 +224,10 @@ void far cmd000()
 	return;
 }
 
-void near cmd004()
+void near cmd0004_getbECX();
+void near cmd0004_decode();
+
+void far cmd004()
 /* pioneer0ライブラリ初期化コマンド */
 {
 	WORK *work == SS:EBP;
@@ -233,7 +236,11 @@ void near cmd004()
 	/* work初期化(256bytes)
 	   optionフィールドをもつ(malloc領域などのため)
 	   malloc領域などの設定は、別のコマンドであとからやる。 */
-	(offset) work = cmd[4] /* opt */;
+	EAX = cmd[4] /* opt */;
+	TEST(AL, 0x03);
+	if (!= 0)
+		goto special;
+	XCHG(EAX, (offset) work);
 	(offset) cmd += 8;
 	(int) work->signature[0] = 0x6e6f6970 ; /* pion */
 	(int) work->signature[4] = 0x30726565 ; /* eer0 */
@@ -270,6 +277,40 @@ void near cmd004()
 	DB(0x9a); DD(0); DW(0x0017); /* shell-call */
 	ESP += 24;
 	asmout("JMP nextcmd");
+
+special2:
+	EAX = *cmd /* opt */;
+	TEST(AL, 0x03);
+	asmout("JE nextcmd");
+	(offset) cmd -= 4;
+
+special:
+	(offset) cmd += 4;
+	if (EAX == 0xffffff81) {
+		/* opt == 0xffffff81 : l2d3圧縮データー展開 */
+		/* cmd, opt(subcmd), bytes, source(64bit), subcmd, ... */
+		/* 展開先はES:EDI */
+		POP(EDI);
+		PUSH(DS);
+		PUSH(ESI);
+		PUSH(EBP);
+		EBP = cmd[4];
+		LDS(ESI, [DS:ESI + 8]);
+		cmd0004_decode();
+		POP(EBP);
+		POP(ESI);
+		POP(DS);
+		PUSH(EDI);
+		(offset) cmd += 16;
+		goto special2;
+	}
+	if (EAX == 0xffffffff) {
+		/* 特別終了 */
+		POPAD();
+		return;
+	}
+	INT(0x03);
+
 	ALIGN(4);
 cmd0004_cmd:
 	asmout("DD 0200H, OFFSET pioneer_softint, 010000C7H, 0201H"); /* softint_vector */
@@ -279,6 +320,90 @@ asmout("cmd004_cmd2:");
 	asmout("DD 0310H, 01C0H"); /* 現在時刻設定 */
 	asmout("DD 0318H, 01C0H, 0140H, 1, 0080H"); /* メッセージ設定 */
 	DD(0x0000);
+}
+
+void near cmd0004_getbECX()
+{
+	char *src == DS:ESI;
+
+	do {
+		BL--;
+		if ((signed) < 0) {
+			BL = 7;
+			BH = *src;
+			(offset) src++;
+		}
+		BH <<= 1;
+		RCL(EAX, 1);
+		ECX--;
+	} while (!= 0);
+	TEST(EAX, EAX);
+	return;
+}
+
+void near cmd0004_decode()
+{
+	char *dst == ES:EDI;
+
+	EBX = 0;
+	ECX = 0;
+	for (;;) {
+		EAX = 0;
+		ECX++;
+		cmd0004_getbECX(); /* 1bit入力 */
+		if (!= 0) { /* EAX == 1 */
+			CL = 8;
+			cmd0004_getbECX(); /* 8bit入力 */
+			ECX++;
+			goto putc;
+		}
+		CL = 2;
+		cmd0004_getbECX(); /* 2bit入力 */
+	//	CL = 1;
+		if (== 0) {
+			CL = 4;
+			cmd0004_getbECX(); /* 4bit入力 */
+			CL = 4 - 1;
+			if (== 0) {
+				CL = 8;
+				cmd0004_getbECX(); /* 8bit入力 */
+				CL = 19 - 1;
+				if (== 0) {
+					CL = 16;
+					cmd0004_getbECX(); /* 16bit入力 */
+					if ((unsigned) EAX <= 127) {
+						XCHG(EAX, ECX);
+						EAX++; /* 最初のbitは1に決まっているから */
+						cmd0004_getbECX(); /* nbit入力 */
+					}
+				}
+			}
+		}
+		/* distanceはmaxで30bit(1GB) */
+		EAX += ECX;
+		PUSH(EAX);
+		EAX = 0;
+		EAX--;
+		do {
+			CL = 4;
+			cmd0004_getbECX(); /* 6bit入力 */
+			(signed int) EAX >>= 1;
+		} while (CF == 1);
+		POP(ECX);
+		XCHG(EAX, EDX);
+		do {
+			AL = dst[EDX];
+putc:
+			*dst = AL;
+			(offset) dst++;
+			EBP--;
+			if (== 0)
+				goto fin;
+			ECX--;
+		} while (!= 0);
+	}
+fin:
+	return;
 }
 
 void near cmd008()
@@ -309,6 +434,25 @@ void near cmd008()
 	PUSH((int) 0x0040); /* タスク終了 */
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	INT(0x03);
+}
+
+void near cmd00c()
+/* JMP */
+{
+	int *cmd == DS:ESI;
+	EAX = cmd[4]; /* opt */
+	if (EAX == 0) {
+		/* 相対ジャンプ */
+		(offset) cmd += cmd[8];
+		asmout("JMP nextcmd");
+
+	}
+	if (EAX == 1) {
+		/* 絶対ジャンプ */
+		(offset) cmd = cmd[8];
+		asmout("JMP nextcmd");
+	}
 	INT(0x03);
 }
 
@@ -436,6 +580,14 @@ void near cmd018()
 			ESP += 12;
 		}
 	}
+	asmout("JMP nextcmd");
+}
+
+void near cmd01c()
+/* NOP */
+{
+	int *cmd == DS:ESI;
+	(offset) cmd += 4;
 	asmout("JMP nextcmd");
 }
 
@@ -1283,14 +1435,30 @@ void near cmd0a0()
 /* ファイルハンドル初期化 */
 {
 	int *cmd == DS:ESI;
+	EAX = cmd[ 4];
 	PUSH((int) 0);
+	if ((unsigned) EAX < 0xe0) {
+		PUSH(cmd[ 8] /* slot */);
+		PUSH(EAX /* opt */);
+		PUSH((int) 0x0700);
+		(offset) cmd += 12;
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		ESP += 16;
+		asmout("JMP nextcmd");
+	}
+	/* サブコマンド付き */
+	/* cmd[12]はサブコマンド総バイト数 */
+	PUSH(cmd[20] /* sel */);
+	PUSH(cmd[16] /* ofs */);
+	PUSH(cmd[12] /* bytes */);
 	PUSH(cmd[ 8] /* slot */);
-	PUSH(cmd[ 4] /* opt */);
+	PUSH((int) EAX);
 	PUSH((int) 0x0700);
-	(offset) cmd += 12;
+	(offset) cmd += 24;
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // shell-call
-	ESP += 16;
+	ESP += 28;
 	asmout("JMP nextcmd");
 }
 
@@ -1415,16 +1583,17 @@ void near cmd0c0()
 {
 	int *cmd == DS:ESI;
 	PUSH((int) 0);
-	PUSH(cmd[20] /* ofs & attr */);
+	PUSH(cmd[24] /* ofs & attr */);
+	PUSH(cmd[20] /* sel */);
 	PUSH(cmd[16] /* addr */);
 	PUSH(cmd[12] /* size */);
 	PUSH(cmd[ 8] /* slot */);
 	PUSH(cmd[ 4] /* opt */);
 	PUSH((int) 0x0720);
-	(offset) cmd += 24;
+	(offset) cmd += 28;
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // shell-call
-	ESP += 28;
+	ESP += 32;
 	asmout("JMP nextcmd");
 }
 
@@ -1433,11 +1602,12 @@ void near cmd0c4()
 {
 	int *cmd == DS:ESI;
 //	PUSH((int) 0);
+//	PUSH(cmd[16] /* sel */);
 //	PUSH(cmd[12] /* addr */);
 //	PUSH(cmd[ 8] /* size */);
 //	PUSH(cmd[ 4] /* opt */);
 //	PUSH((int) 0x0720);
-	(offset) cmd += 16;
+	(offset) cmd += 20;
 //	EBX = ESP;
 //	DB(0x9a); DD(0); DW(0x0017); // shell-call
 //	ESP += 28;
@@ -1447,19 +1617,19 @@ void near cmd0c4()
 void near cmd0c8()
 /* tag read */
 /* cmd, opt, slot, bufsize, bufptr(near) */
-/* opt == 0xffffff01 : module type code(8bytes) */
+/* opt == 0xffffff02 : module type code(8bytes) */
 /* opt == 0xffffff03 : module size(16bytes) */
 /* directoryに対してモジュールサイズを要求することはできない */
 {
 	int *cmd == DS:ESI;
 	PUSH((int) 0);
-	PUSH(DS /* bufptr(sel) */);
+	PUSH(cmd[20] /* bufptr(sel) */);
 	PUSH(cmd[16] /* bufptr(ofs) */);
 	PUSH(cmd[12] /* bufsize */);
 	PUSH(cmd[ 8] /* slot */);
 	PUSH(cmd[ 4] /* opt */);
 	PUSH((int) 0x0728);
-	(offset) cmd += 20;
+	(offset) cmd += 24;
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // shell-call
 	ESP += 28;

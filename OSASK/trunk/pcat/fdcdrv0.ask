@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.1.1 copyright(C) 2001 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.1.2 copyright(C) 2001 H.Kawai(川合秀実)
 
 segment FDC_Mdl(USE32, PARA);
 
@@ -2148,90 +2148,173 @@ void near FDC_writeIPL3()
 	EBP += EDX;
 	BH = 8;
 	PUSH(EDI);
+	PUSH(EBP); /* エンドアドレス */
 	do {
-		AL = [DS:EDX];
 		/* 一致を探す */
 		/* 最大一致長はECXに入る */
-		/* 一致位置はEDIに入る */
-		PUSH(EBP);
+		/* 一致位置はEBPに入る */
+
+		/* 一つ先も検索しなければいけない */
+		/* 遠すぎたら駄目 */
+
 		PUSH(ESI);
-		EBP = 0;
+		PUSH(EAX);
+		PUSH((int) 0xffffffff);
+searchdouble:
+		AL = [DS:EDX];
 		ECX = 0;
-		do {
-			EBP--;
-			if (AL == [DS:EDX + EBP * 1]) {
-				LEA(ESI, [EDX + EBP]);
-				if ((unsigned) ESI < [SS:ESP + 20])
-					break;
-				ESI = 1;
-				PUSH(EDX);
-				EDX++;
-				do {
-					AH = [DS:EDX];
-					if (AH != [DS:EDX + EBP * 1])
-						break;
+		EDI = 0;
+		ESI = [SS:ESP + 28] /* スタートアドレス */;
+		ESI -= EDX;
+		if (!= 0) {
+			if ((signed) ESI < 0xffffc000)
+				ESI = 0xffffc000;
+			do {
+				EDI--;
+				if (AL == [DS:EDX + EDI]) {
+					PUSH(ESI);
+					ESI = [SS:ESP + 16]; /* エンドアドレス */
+					PUSH(EDX);
 					EDX++;
-					ESI++;
-				} while ((unsigned) ESI < 18);
-				POP(EDX);
-				if (ECX < ESI) {
-					ECX = ESI;
-					EDI = EBP;
+					do {
+						AH = [DS:EDX];
+						if (AH != [DS:EDX + EDI])
+							break;
+						EDX++;
+					} while ((unsigned) EDX < ESI);
+					ESI = EDX;
+					POP(EDX);
+					ESI -= EDX;
+					if ((unsigned) ECX < ESI) {
+						if ((unsigned) ESI < 2)
+							goto skip;
+						if (== /* ESI == 2 */) {
+							if ((signed) EDI < 0xffffff00)
+								goto skip;
+						} else if (ESI == 3) {
+							if ((signed) EDI < 0xffff0000)
+								goto skip;
+						}
+						ECX = ESI;
+						EBP = EDI;
+					}
+		skip:
+					POP(ESI);
 				}
-			}
-		} while ((signed) EBP > 0xfffff000);
-		POP(ESI);
-		POP(EBP);
-		if (CL < 2)
-			goto nocompressed;
-		if (CL <= 5) {
-			if ((signed) EDI >= 0xffffff00) {
-				EDX += ECX;
-				CL -= 2;
-				CLC();
-				putb();
-				CLC();
-				putb();
-				CL <<= 7;
-				putb();
-				CL <<= 1;
-				putb();
-				EAX = EDI;
-				goto putc;
-			}
+			} while ((signed) EDI > ESI);
 		}
-		if (CL >= 3) {
-			EDX += ECX;
-			CL -= 3;
-			CLC();
+		if ((unsigned) (int) [SS:ESP] == 0xffffffff) {
+			if ((unsigned) ECX >= 2) {
+				[SS:ESP    ] = ECX;
+				[SS:ESP + 4] = EBP;
+				EDX++;
+				goto searchdouble;
+			}
+			POP(ECX);
+			POP(EBP);
+			POP(ESI);
+			goto nocompressed;
+		}
+		EDX--;
+		CMP(ECX, [SS:ESP]);
+		POP(ECX);
+		POP(EBP);
+		POP(ESI);
+		AL = [DS:EDX];
+		if ((unsigned) >)
+			goto nocompressed;
+
+	/* l2d4 */
+
+		if ((unsigned) ECX < 2)
+			goto nocompressed;
+	//	if (== /* ECX == 2 */) {
+	//		if ((signed) EBP < 0xffffff00)
+	//			goto nocompressed;
+	//	} else if (ECX == 3) {
+	//		if ((signed) EBP < 0xffff0000)
+	//			goto nocompressed;
+	//	}
+	//	/* ECX == 4 && (signed) EBP < 0xff000000 */
+		EDX += ECX;
+		if (ECX <= 4) {
+			ECX--;
+			EDI = 3; /* 3bit */
+			ECX <<= 32 - 3;
+		} else if (ECX <= 19) {
+			ECX -= 4;
+			EDI = 7; /* 7bit */
+			ECX <<= 32 - 7;
+		} else if (ECX <= 274) {
+			ECX -= 19;
+			EDI = 15; /* 15bit */
+			ECX <<= 32 - 15;
+		} else if (ECX <= 65535) {
+			EDI = 31; /* 31bit */
+			ECX <<= 32 - 31;
+		} else {
+			INT(0x03);
+		}
+		do {
+			ECX <<= 1;
+			putb();
+			EDI--;
+		} while (!= 0);
+		EDI++; /* EDI = 1 */
+		if ((signed) EBP >= 0xfffffff0) {
+			EBP <<= 28;
+			goto putdistance;
+		}
+		EDI++; /* EDI = 2 */
+		if ((signed) EBP >= 0xffffff00) {
+			EBP <<= 24;
+			goto putdistance;
+		}
+		EDI++; /* EDI = 3 */
+		if ((signed) EBP >= 0xfffff000) {
+			EBP <<= 20;
+			goto putdistance;
+		}
+		EDI++; /* EDI = 4 */
+	//	if ((signed) EBP >= 0xffffc000) {
+			EBP <<= 16;
+	//		goto putdistance;
+	//	} else {
+	//		INT(0x03);
+	//	}
+putdistance:
+		for (;;) {
+			EBP <<= 1;
+			putb();
+			EBP <<= 1;
+			putb();
+			EBP <<= 1;
+			putb();
+			EBP <<= 1;
 			putb();
 			STC();
+			EDI--;
+			if (== 0)
+				break;
 			putb();
-			ECX <<= 12;
-			EDI &= 0x0fff;
-			AL = 16;
-			ECX |= EDI;
-			do {
-				CX <<= 1;
-				putb();
-				AL--;
-			} while (!= 0);
-			goto next;
 		}
-	
+		CLC();
+		putb();
+		goto next;
+
 nocompressed:
 		EDX++;
 		STC();
 		putb();
-putc:
-		CL = 8;
+		ECX = 8;
 		do {
 			AL <<= 1;
 			putb();
-			CL--;
+			ECX--;
 		} while (!= 0);
 next:
-	} while ((unsigned) EDX < EBP);
+	} while ((unsigned) EDX < [SS:ESP]);
+	POP(EAX); /* dummy */
 	if (BH != 8) {
 		CL = BH;
 		SHL(BL, CL);

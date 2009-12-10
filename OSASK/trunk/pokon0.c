@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.1.3
+/* "pokon0.c":アプリケーションラウンチャー  ver.1.4
      copyright(C) 2001 川合秀実, 小柳雅明
-    exe2bin1 pokon0 -s 40k */
+    exe2bin2 pokon0 -s 64k -d */
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -8,15 +8,19 @@
    仕様もかなり流動的 */
 #include <stdlib.h>
 
-#define	AUTO_MALLOC		0
-#define	NULL			0
-#define	SYSTEM_TIMER	0x01c0
-#define LIST_HEIGHT		8
-#define ext_EXE			('E' | ('X' << 8) | ('E' << 16))
-#define ext_BIN			('B' | ('I' << 8) | ('N' << 16))
-#define	CONSOLESIZEX	40
-#define	CONSOLESIZEY	15
-#define	MAX_BANK		56
+#define	AUTO_MALLOC			0
+#define	NULL				0
+#define	SYSTEM_TIMER		0x01c0
+#define LIST_HEIGHT			8
+#define ext_EXE				('E' | ('X' << 8) | ('E' << 16))
+#define ext_BIN				('B' | ('I' << 8) | ('N' << 16))
+#define	CONSOLESIZEX		40
+#define	CONSOLESIZEY		15
+#define	MAX_BANK			56
+#define	MAX_FILEBUF			64
+#define	MAX_SELECTOR		 5
+#define	MAX_SELECTORWAIT	64
+#define	MAX_VMREF			64
 
 struct FILELIST {
 	char name[11];
@@ -31,14 +35,36 @@ struct STR_BANK { /* 88bytes */
 	} Llv[8];
 };
 
-unsigned int counter = 0;
+struct FILEBUF {
+	int dirslot, linkcount, size, paddr;
+};
+
+struct VIRTUAL_MODULE_REFERENCE {
+	int task, module_paddr;
+} *vmref;
+
+struct FILESELWIN { /* 1つあたり、5.6KB必要 */
+	struct LIB_WINDOW *window; /* (128B) */
+	struct LIB_TEXTBOX *wintitle, *subtitle, *selector; /* (144B, 224B, 1088B) */
+	struct FILELIST list[256] /* 4KB */, *lp;
+	int ext, cur, winslot, sigbase;
+	int task, mdlslot, num, siglen, sig[16];
+};
+
+struct SELECTORWAIT {
+	int task, slot, bytes, ofs, sel;
+};
+
 struct STR_BANK *banklist;
 struct SGG_FILELIST *file;
-struct FILELIST *list, *lp;
-struct LIB_TEXTBOX *selector, *console_txt;
+struct LIB_TEXTBOX *console_txt;
 struct LIB_WINDOW *console_win = NULL;
+struct FILEBUF *filebuf;
 static unsigned char *consolebuf = NULL;
-static int console_curx, console_cury, console_col, defaultIL = 2;
+static int console_curx, console_cury, console_col, defaultIL = 2, fmode = 0;
+struct FILESELWIN *selwin;
+struct SELECTORWAIT *selwait;
+int selwaitcount = 0, selwincount = 1;
 void consoleout(char *s);
 void open_console();
 
@@ -115,13 +141,47 @@ void sgg_format2(const int sub_cmd, const int bsc_size, const int bsc_addr,
 	return;
 }
 
-void putselector0(const int pos, const char *str)
+void sgg_directwrite(const int opt, const int bytes, const int reserve,
+	const int src_ofs, const int src_sel, const int dest_ofs, const int dest_sel)
 {
-	lib_putstring_ASCII(0x0000, 0, pos, selector, 0, 0, str);
+	static struct {
+		int cmd, opt, bytes, reserve;
+		int src_ofs, src_sel, dest_ofs, dest_sel;
+		int eoc;
+	} command = { 0x0078, 0, 0, 0, 0, 0, 0, 0, 0x0000 };
+
+	command.opt = opt;
+	command.bytes = bytes;
+	command.reserve = reserve;
+	command.src_ofs = src_ofs;
+	command.src_sel = src_sel;
+	command.dest_ofs = dest_ofs;
+	command.dest_sel = dest_sel;
+
+	sgg_execcmd(&command);
 	return;
 }
 
-void put_file(const char *name, const int pos, const int col)
+const int sgg_createvirtualmodule(const int size, const int addr)
+{
+	static struct {
+		int cmd, opt, size, addr, addr64l, addr64h, eoc;
+	} command = { 0x0070, 0, 0, 0, 0, 0, 0x0000 };
+
+	command.size = size;
+	command.addr64l = addr;
+
+	sgg_execcmd(&command);
+	return command.addr;
+}
+
+void putselector0(struct FILESELWIN *win, const int pos, const char *str)
+{
+	lib_putstring_ASCII(0x0000, 0, pos, win->selector, 0, 0, str);
+	return;
+}
+
+void put_file(struct FILESELWIN *win, const char *name, const int pos, const int col)
 {
 	static char charbuf16[17] = "          .     ";
 	if (*name) {
@@ -138,20 +198,20 @@ void put_file(const char *name, const int pos, const int col)
 		charbuf16[12] = name[ 9];
 		charbuf16[13] = name[10];
 		if (col)
-			lib_putstring_ASCII(0x0001, 0, pos, selector, 15,  2, charbuf16);
+			lib_putstring_ASCII(0x0001, 0, pos, win->selector, 15,  2, charbuf16);
 		else
-			lib_putstring_ASCII(0x0001, 0, pos, selector,  0, 15, charbuf16);
+			lib_putstring_ASCII(0x0001, 0, pos, win->selector,  0, 15, charbuf16);
 	} else
 	//	lib_putstring_ASCII(0x0000, 0, pos, selector, 0, 0, "                ");
-		putselector0(pos, "                ");
+		putselector0(win, pos, "                ");
 	return;
 }
 
-const int list_set(const int ext)
+void list_set(struct FILESELWIN *win)
 {
-	int i;
+	int i, ext = win->ext;
 	struct SGG_FILELIST *fp;
-	struct FILELIST *wp1, *wp2, tmp;
+	struct FILELIST *lp, *list = win->list, *wp1, *wp2, tmp;
 
 	// システムにファイルのリストを要求
 	sgg_getfilelist(256, file, 0, 0);
@@ -165,7 +225,8 @@ const int list_set(const int ext)
 	lp = list;
 
 	while (fp->name[0]) {
-		if ((fp->name[8] | (fp->name[9] << 8) | (fp->name[10] << 16)) == ext) {
+		if ((fp->type & 0x18) == 0 
+			&& ((fp->name[8] | (fp->name[9] << 8) | (fp->name[10] << 16)) == ext || ext == -1)) {
 			for (i = 0; i < 11; i++)
 				lp->name[i] = fp->name[i];
 			lp->ptr = fp;
@@ -195,76 +256,135 @@ const int list_set(const int ext)
 		}
 	}
 	//
-	lp = list;
+	win->lp = lp = list;
 	for (i = 0; i < LIST_HEIGHT; i++)
- 		put_file(lp[i].name, i, 0);
+ 		put_file(win, lp[i].name, i, 0);
 
 	if (list[0].name[0] == '\0') {
 		// 選択可能なファイルが１つもない
-		lib_putstring_ASCII(0x0000, 0, LIST_HEIGHT / 2 - 1, selector, 1, 0, "File not found! ");
-		return -1;
+		lib_putstring_ASCII(0x0000, 0, LIST_HEIGHT / 2 - 1, win->selector, 1, 0, "File not found! ");
+		win->cur = -1;
+		return;
 	}
- 	put_file(lp[0].name, 0, 1);
-	return 0;
+ 	put_file(win, lp[0].name, 0, 1);
+	win->cur = 0;
+	return;
 }
 
 int *sb0, *sbp, notasksignal = 0;
 char sleep = 0, cursorflag = 0, cursoractive = 0;
 
-
-void wait99sub()
+const int wait99sub()
+/* 画面更新を伴わないシグナルはここで全て処理してしまう */
 {
-	if (*sbp == 0) {
-		sleep = 1;
-		lib_waitsignal(0x0001, 0, 0);
-	} else if (*sbp == 1) {
-		lib_waitsignal(0x0000, *(sbp + 1), 0);
-		sbp = sb0;
-	} else if (*sbp == 0x0080) {
-		// タスク終了
-		int i;
-		for (i = 0; banklist[i].tss != sbp[1]; i++);
-	//	sgg_freememory(0x0220 /* "empty00" */ + i * 16);
-		sgg_freememory2(banklist[i].size, banklist[i].addr);
-		banklist[i].size = banklist[i].tss = 0;
-		lib_waitsignal(0x0000, 2, 0);
-		sbp += 2;
+	for (;;) {
+		int sig = *sbp;
+		if (sig == 0) {
+			sleep = 1;
+			lib_waitsignal(0x0001, 0, 0);
+			return 0; /* 目覚めたら一度0を返す */
+		} else if (sig == 1) {
+			lib_waitsignal(0x0000, *(sbp + 1), 0);
+			sbp = sb0;
+		} else if (sig == 0x0080) {
+			// タスク終了
+			int i, j, tss;
+			tss = sbp[1];
+			lib_waitsignal(0x0000, 2, 0);
+			sbp += 2;
+			for (i = 0; banklist[i].tss != tss; i++);
+			banklist[i].size = banklist[i].tss = 0;
+
+			/* タスクtssへ通知しようと思っていたダイアログを全てクローズ */
+			for (j = 1; j < MAX_SELECTOR; j++) {
+				if (selwin[j].task == tss && selwin[j].window != NULL) {
+					selwin[j].task = -1;
+					lib_closewindow(0, selwin[j].window);
+				}
+			}
+			/* 本来は、タスクを終了する前に、pokon0に通知があってしかるべき */
+			/* そうでないと、終了したのにシグナルを送ってしまうという事が起こりうる */
+
+			j = banklist[i].addr;
+			for (i = 0; filebuf[i].paddr != j; i++);
+			if (--filebuf[i].linkcount == 0) {
+				sgg_freememory2(filebuf[i].size, j);
+				filebuf[i].dirslot = -1;
+			}
+			for (i = 0; i < MAX_VMREF; i++) {
+				if (tss != vmref[i].task)
+					continue;
+				j = vmref[i].module_paddr;
+				vmref[i].task = 0;
+				for (i = 0; filebuf[i].paddr != j; i++);
+				if (--filebuf[i].linkcount == 0) {
+					sgg_freememory2(filebuf[i].size, j);
+					filebuf[i].dirslot = -1;
+				}
+			}
 #if 0
 check_notask:
-		if (notasksignal) {
-			int j = 0;
-			for (i = 0; i < MAX_BANK; i++)
-				j |= banklist[i].tss;
-			if (j == 0) {
-				static struct {
-					int cmd, opt;
-					int data[2];
-					int eoc;
-				} command = { 0x0020, 0x80000000 + 2, { 0x1240 + 1, 0xffffff02 }, 0x0000 };
-				notasksignal = 0;
-				sgg_execcmd(&command);
+			if (notasksignal) {
+				int j = 0;
+				for (i = 0; i < MAX_BANK; i++)
+					j |= banklist[i].tss;
+				if (j == 0) {
+					static struct {
+						int cmd, opt;
+						int data[2];
+						int eoc;
+					} command = { 0x0020, 0x80000000 + 2, { 0x1240 + 1, 0xffffff02 }, 0x0000 };
+					notasksignal = 0;
+					sgg_execcmd(&command);
+				}
 			}
-		}
-	} else if (*sbp == 0x0081) {
-		/* カーネルからの要請。アプリケーションが全て終了したらシグナルを発する */
-		notasksignal = 1;
-		lib_waitsignal(0x0000, 1, 0);
-		sbp++;
-		goto check_notask;
+		} else if (sig == 0x0081) {
+			/* カーネルからの要請。アプリケーションが全て終了したらシグナルを発する */
+			notasksignal = 1;
+			lib_waitsignal(0x0000, 1, 0);
+			sbp++;
+			goto check_notask;
 #endif
-	} else {
-		lib_waitsignal(0x0000, 1, 0);
-		sbp++;
+		} else if (sig == 0x0084) {
+			/* ダイアログ要求シグナル */
+			/* とりあえずバッファに入れておく */
+			int i;
+			for (i = 0; selwait[i].task; i++); /* 行き過ぎる事は考えてない */
+			selwaitcount++;
+			selwait[i].task    = sbp[1];
+			selwait[i].slot    = sbp[2];
+			selwait[i].bytes   = sbp[3];
+			selwait[i].ofs     = sbp[4];
+			selwait[i].sel     = sbp[5];
+			lib_waitsignal(0x0000, 6, 0);
+			sbp += 6;
+			return 0; /* 一度0を返す */
+		} else if (sig >= 0x27f && (sig & 0x7f) == 0x7f) {
+			/* closed window */
+			int i = ((sig - 0x27f) >> 7) + 1;
+			free(selwin[i].window);
+			free(selwin[i].wintitle);
+			free(selwin[i].subtitle);
+			free(selwin[i].selector);
+			selwin[i].window = NULL;
+			selwincount--;
+			sig = 0;
+			goto skip0;
+		} else {
+skip0:
+			lib_waitsignal(0x0000, 1, 0);
+			sbp++;
+			return sig;
+		}
 	}
-	return;
 }
 
 void wait99()
 {
-	while (*sbp != 99)
-		wait99sub();
-	lib_waitsignal(0x0000, 1, 0); // 99の分を処理
-	sbp++;
+	int sig;
+	do {
+		sig = wait99sub();
+	} while (sig != 99);
 	return;
 }
 
@@ -316,13 +436,49 @@ void poko_debug(const char *cmdlin);
 
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);
 
+void openselwin(struct FILESELWIN *win, const char *title, const char *subtitle)
+{
+	static struct {
+		int code;
+		unsigned char opt, signum;
+	} table[] = {
+		{ 0x00ae /* cursor-up, down */,    1,  4 },
+		{ 0x00a0 /* Enter */,              0,  6 },
+		{ 0x00a8 /* page-up, down */,      1, 10 },
+		{ 0x00ac /* cursor-left, right */, 1, 10 },
+		{ 0x00a6 /* Home, End */,          1, 12 },
+		{ 0x00a4 /* Insert */,             0, 14 },
+		{ 0,                               0,  0 }
+	};
+	int i;
+
+	win->window = lib_openwindow1(AUTO_MALLOC, win->winslot, 160, 40 + LIST_HEIGHT * 16, 0x28, win->sigbase + 120 /* +6 */);
+	win->wintitle = lib_opentextbox(0x1000, AUTO_MALLOC,  0, 10, 1,  0,  0, win->window, 0x00c0, 0);
+	win->subtitle = lib_opentextbox(0x0000, AUTO_MALLOC,  0, 20, 1,  0,  0, win->window, 0x00c0, 0);
+	win->selector = lib_opentextbox(0x0001, AUTO_MALLOC, 15, 16, 8, 16, 32, win->window, 0x00c0, 0);
+	lib_putstring_ASCII(0x0000, 0, 0, win->wintitle, 0, 0, title);
+	lib_putstring_ASCII(0x0000, 0, 0, win->subtitle, 0, 0, subtitle);
+
+	for (i = 0; table[i].code; i++)
+		lib_definesignal1p0(table[i].opt, 0x0100, table[i].code, win->window, win->sigbase + table[i].signum);
+	lib_definesignal0p0(0, 0, 0, 0);
+	return;
+}
+
+const int fileselect(int i, struct FILESELWIN *win, int fileid);
+
+static struct {
+	int cmd, opt;
+	int data[3];
+	int eoc;
+} send_command = { 0x0020, 0x80000000 + 3, { 0, 0x7f000001, 0 }, 0x0000 };
+
 void main()
 {
-	struct LIB_WINDOW *window;
-	struct LIB_TEXTBOX *wintitle, *mode;
+	struct FILESELWIN *win;
+
+	int i, sig, bank;
 	char charbuf16[17];
-	int cur, i, sig, bank, fmode = 0, ext;
-	struct SGG_FILELIST *fp;
 
 	lib_init(AUTO_MALLOC);
 	sgg_init(AUTO_MALLOC);
@@ -330,423 +486,364 @@ void main()
 	sbp = sb0 = lib_opensignalbox(256, AUTO_MALLOC, 0, 1);
 
 	file = (struct SGG_FILELIST *) malloc(256 * sizeof (struct SGG_FILELIST));
-	list = (struct FILELIST *) malloc(256 * sizeof (struct FILELIST));
-	banklist = malloc(MAX_BANK * sizeof (struct STR_BANK));
+//	list = (struct FILELIST *) malloc(256 * sizeof (struct FILELIST));
+	banklist = (struct STR_BANK *) malloc(MAX_BANK * sizeof (struct STR_BANK));
+	filebuf = (struct FILEBUF *) malloc(MAX_FILEBUF * sizeof (struct FILEBUF));
+	selwin = (struct FILESELWIN *) malloc(MAX_SELECTOR * sizeof (struct FILESELWIN));
+	selwait = (struct SELECTORWAIT *) malloc(MAX_SELECTORWAIT * sizeof (struct SELECTORWAIT));
+	vmref = (struct VIRTUAL_MODULE_REFERENCE *) malloc(MAX_VMREF * sizeof (struct VIRTUAL_MODULE_REFERENCE));
 
-	window = lib_openwindow(AUTO_MALLOC, 0x0200, 160, 40 + LIST_HEIGHT * 16);
-	wintitle = lib_opentextbox(0x1000, AUTO_MALLOC,  0,  7, 1,  0,  0, window, 0x00c0, 0);
-	mode     = lib_opentextbox(0x0000, AUTO_MALLOC,  0, 20, 1,  0,  0, window, 0x00c0, 0); // 256bytes
-	selector = lib_opentextbox(0x0001, AUTO_MALLOC, 15, 16, 8, 16, 32, window, 0x00c0, 0); // 1.1KB
+	win = selwin;
+	win[0].winslot = 0x0200;
+	win[0].sigbase = 0;
+	for (i = 1; i < MAX_SELECTOR; i++) {
+		win[i].winslot = 0x0220 + (i - 1) * 16;
+		win[i].sigbase = 512 + 128 * (i - 1);
+		win[i].window = NULL;
+	}
 
-	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon13");
+	for (i = 0; i < MAX_SELECTORWAIT; i++)
+		selwait[i].task = 0;
+
+	for (i = 0; i < MAX_VMREF; i++)
+		vmref[i].task = 0;
+
+	openselwin(&selwin[0], "pokon14", "< Run Application > ");
+
 	lib_opentimer(SYSTEM_TIMER);
 	lib_definesignal1p0(0, 0x0010 /* timer */, SYSTEM_TIMER, 0, 287);
 
-	/* キー操作を登録 */
+	/* キー操作を追加登録 */
 	{
 		static struct {
 			int code;
-			char opt, signum;
+			unsigned char opt, signum;
 		} table[] = {
-			{ 0x00ae /* cursor-up, down */,    1,  4 },
-			{ 0x00a0 /* Enter */,              0,  6 },
-			{ 'F' | 0x00701000,                0,  7 },
-			{ 'R' | 0x00701000,                0,  8 },
-			{ 'S' | 0x00701000,                0,  9 },
-			{ 0x00a8 /* page-up, down */,      1, 10 },
-			{ 0x00ac /* cursor-left, right */, 1, 10 },
-			{ 0x00a6 /* Home, End */,          1, 12 },
-			{ 0x00a4 /* Insert */,             0, 14 },
-			{ 'C' | 0x00701000,                0, 15 },
-			{ 'M' | 0x00701000,                0, 16 },
-			{ 0,                               0,  0 }
+			{ 'F' | 0x00701000, 0, 0xc0 },
+			{ 'R' | 0x00701000, 0, 0xc1 },
+			{ 'S' | 0x00701000, 0, 0xc2 },
+			{ 'C' | 0x00701000, 0, 0xc3 },
+			{ 'M' | 0x00701000, 0, 0xc4 },
+			{ 0,                0, 0    }
 		};
 		for (i = 0; table[i].code; i++)
-			lib_definesignal1p0(table[i].opt, 0x0100, table[i].code, window, table[i].signum);
+			lib_definesignal1p0(table[i].opt, 0x0100, table[i].code, selwin[0].window, table[i].signum);
 		lib_definesignal0p0(0, 0, 0, 0);
 	}
-
-	lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Run Application > ");
-	wait99(); /* finish signalが来るまで待つ */
-	cur = list_set(ext = ext_BIN);
 
 	for (i = 0; i < MAX_BANK; i++)
 		banklist[i].size = banklist[i].tss = 0;
 
+	for (i = 0; i < MAX_FILEBUF; i++) {
+		filebuf[i].dirslot = -1;
+		filebuf[i].linkcount = 0;
+	}
+
+	wait99(); /* finish signalが来るまで待つ */
+	selwin[0].ext = ext_BIN;
+	list_set(&selwin[0]);
+
 	for (;;) {
 		do {
-			sig = *sbp;
-			wait99sub();
+			sig = 0;
+			if (selwaitcount == 0 || selwincount == MAX_SELECTOR || fmode != 0)
+				sig = wait99sub();
+			while (selwaitcount != 0 && selwincount < MAX_SELECTOR && fmode == 0) {
+				int subcmd[256], j;
+				static char t[24] = "< for ########     >";
+				for (bank = 0; selwait[bank].task == 0; bank++);
+				for (i = 1; selwin[i].window; i++);
+				selwaitcount--;
+				selwincount++;
+				/* task, slot, num, siglen, sig[16]を取得 */
+				selwin[i].task = selwait[bank].task;
+				selwin[i].mdlslot = selwait[bank].slot;
+				sgg_debug00(0, selwait[bank].bytes, 0,
+					selwait[bank].ofs, selwait[bank].sel | (selwin[i].task << 8) + 0xf80000, (const int) subcmd, 0x000c);
+				selwait[bank].task = 0;
+				selwin[i].num = subcmd[1];
+				selwin[i].siglen = subcmd[3];
+				selwin[i].sig[0] = subcmd[4];
+				selwin[i].sig[1] = subcmd[5];
+				for (bank = 0; banklist[bank].size == 0 || banklist[bank].tss != selwin[i].task; bank++);
+				for (j = 0; j < 8; j++)
+					t[j + 6] = banklist[bank].name[j];
+				openselwin(&selwin[i], "(open)", t);
+				selwin[i].ext = -1;
+				list_set(&selwin[i]);
+			}
 		} while (sig == 0);
-  
-		switch (sig) {
 
-		case 4 /* cursor-up */:
-			if (cur < 0 /* ファイルが１つもない */)
-				break;
-			if (cur > 0) {
- 				put_file(lp[cur].name, cur, 0);
+		if (sig < 128) {
+			i = 0;
+			goto winselsig;
+		}
+		if (sig < 256)
+			goto specialsig;
+		if (sig < 512)
+			goto consolesig;
+		i = ((sig - 512) >> 7) + 1;
+		sig &= 0x7f;
+winselsig:
+		win = &selwin[i];
+		if (win->window) {
+			int cur = win->cur;
+			struct FILELIST *lp = win->lp, *list = win->list;
+			switch (sig) {
+
+			case 4 /* cursor-up */:
+				if (cur < 0 /* ファイルが１つもない */)
+					break;
+				if (cur > 0) {
+ 				put_file(win, lp[cur].name, cur, 0);
 				cur--;
- 				put_file(lp[cur].name, cur, 1);
-			} else if (lp > list) {
+ 				put_file(win, lp[cur].name, cur, 1);
+			} else if (lp > win->list) {
 				lp--;
 listup:
 				for (i = 0; i < LIST_HEIGHT; i++) {
 					if (i != cur)
-						put_file(lp[i].name, i, 0);
+						put_file(win, lp[i].name, i, 0);
 					else
-						put_file(lp[cur].name, cur, 1);
+						put_file(win, lp[cur].name, cur, 1);
 				}
 			}
 			break;
 
-		case 5 /* cursor-down */:
-		//	if (cur < 0 /* ファイルが１つもない */)
-		//		break;
-		//	ファイルがない場合、cur == -1 && lp[0].name[0] == '\0'
-		//	なので、以下のifが成立しない。
-			if (lp[cur + 1].name[0]) {
-				if (cur < LIST_HEIGHT - 1) {
- 					put_file(lp[cur].name, cur, 0);
-					cur++;
- 					put_file(lp[cur].name, cur, 1);
-				} else {
-					lp++;
-					goto listup;
-				}
-			}
-			break;
-
-		case 6 /* Enter */:
-			if (cur < 0 /* ファイルが1つもない */)
-				break;
-			if (ext == ext_BIN) {
-				// .BINファイルモード
-				for (bank = 0; bank < MAX_BANK; bank++) {
-					if (banklist[bank].size == 0)
-						goto find_freebank;
-				}
-				break;
-find_freebank:
-				sgg_loadfile2(lp[cur].ptr->id /* file id */,
-					99 /* finish signal */
-				);
-				wait99(); // finish signalが来るまで待つ
-				banklist[bank].size = sbp[0];
-				banklist[bank].addr = sbp[1];
-				sbp += 2;
-				lib_waitsignal(0x0000, 2, 0);
-				if (banklist[bank].size == 0)
-					break; /* switch文から抜ける */
-				for (i = 0; i < 11; i++)
-					banklist[bank].name[i] = lp[cur].name[i];
-				banklist[bank].name[11] = '\0';
-
-				sgg_createtask2(banklist[bank].size, banklist[bank].addr, 99 /* finish signal */);
-				wait99(); // finish signalが来るまで待つ
-
-				banklist[bank].tss = i = *sbp++;
-				lib_waitsignal(0x0000, 1, 0);
-
-				// 適正なGUIGUI00ファイルでない場合、タスクは生成されず、iは0。
-				if (i) {
-					sgg_settasklocallevel(i,
-						0 * 32 /* local level 1 (スリープレベル) */,
-						27 * 64 + 0x0100 /* global level 27 (スリープ) */,
-						-1 /* Inner level */
-					);
-					banklist[bank].Llv[0].global = 27;
-					banklist[bank].Llv[0].inner  = -1;
-					sgg_settasklocallevel(i,
-						1 * 32 /* local level 1 (起動・システム処理レベル) */,
-						12 * 64 + 0x0100 /* global level 12 (一般アプリケーション) */,
-						defaultIL /* Inner level */
-					);
-					banklist[bank].Llv[1].global = 12;
-					banklist[bank].Llv[1].inner  = defaultIL;
-					sgg_settasklocallevel(i,
-						2 * 32 /* local level 2 (通常処理レベル) */,
-						12 * 64 + 0x0100 /* global level 12 (一般アプリケーション) */,
-						defaultIL /* Inner level */
-					);
-					banklist[bank].Llv[2].global = 12;
-					banklist[bank].Llv[2].inner  = defaultIL;
-					sgg_runtask(i, 1 * 32);
-				} else {
-					// ロードした領域を解放
-					sgg_freememory2(banklist[bank].size, banklist[bank].addr);
-					banklist[bank].size = 0;
-				}
-			} else {
-				// .EXEファイルモード
-				int exe_size, exe_addr, bsc_size, bsc_addr;
-
-				sgg_loadfile2(lp[cur].ptr->id /* file id */,
-					99 /* finish signal */
-				);
-				wait99(); // finish signalが来るまで待つ
-				exe_size = sbp[0];
-				exe_addr = sbp[1];
-				sbp += 2;
-				lib_waitsignal(0x0000, 2, 0);
-				if (exe_size == 0)
-					break; /* switch文から抜ける */
-
-				i = ('K' | ('B' << 8) | ('S' << 16) | ('1' << 24)); /* 1,440KB 非圧縮用 */
-				if (fmode)
-				//	i = ('K' | ('B' << 8) | ('S' << 16) | ('0' << 24)); /* 1,760KB 非圧縮用 */
-					i = ('K' | ('B' << 8) | ('S' << 16) | ('2' << 24)); /* 1,440KB 圧縮用 */
-
-				for (fp = file + 1; fp->name[0]; fp++) {
-					if ((fp->name[0] | (fp->name[1] << 8) | (fp->name[2] << 16) | (fp->name[3] << 24))
-						== ('O' | ('S' << 8) | ('A' << 16) | ('S' << 24)) &&
-					    (fp->name[4] | (fp->name[5] << 8) | (fp->name[6] << 16) | (fp->name[7] << 24))
-						== i &&
-					    (fp->name[8] | (fp->name[9] << 8) | (fp->name[10] << 16))
-						== ('B' | ('I' << 8) | ('N' << 16))) {
-						i = fp->id;
-						break;
+			case 5 /* cursor-down */:
+			//	if (cur < 0 /* ファイルが１つもない */)
+			//		break;
+			//	ファイルがない場合、cur == -1 && lp[0].name[0] == '\0'
+			//	なので、以下のifが成立しない。
+				if (lp[cur + 1].name[0]) {
+					if (cur < LIST_HEIGHT - 1) {
+ 						put_file(win, lp[cur].name, cur, 0);
+						cur++;
+	 					put_file(win, lp[cur].name, cur, 1);
+					} else {
+						lp++;
+						goto listup;
 					}
 				}
-				if (fp->name[0] == 0)
-					break; /* "OSASKBS0.BIN"～"OSASKBS2.BIN"が見つからなかった */
-
-				sgg_loadfile2(i /* file id */, 99 /* finish signal */);
-				wait99(); // finish signalが来るまで待つ
-				bsc_size = sbp[0];
-				bsc_addr = sbp[1];
-				sbp += 2;
-				lib_waitsignal(0x0000, 2, 0);
-				if (bsc_size == 0)
-					break; /* switch文から抜ける */
-
-				for (i = 0; i < LIST_HEIGHT; i++)
-				//	lib_putstring_ASCII(0x0000, 0, i, selector, 0, 0, "                ");
-					putselector0(i, "                ");
-			//	lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "    Loaded.     ");
-			//	lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, " Change disks.  ");
-			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, " Hit Enter key. ");
-				putselector0(1, "    Loaded.     ");
-				putselector0(3, " Change disks.  ");
-				putselector0(5, " Hit Enter key. ");
-
-				// 6, 7, 8, 9を待つ
-				while (*sbp != 6 && *sbp != 7 && *sbp != 8 && *sbp != 9)
-					wait99sub();
-				sig = *sbp++;
-				lib_waitsignal(0x0000, 1, 0);
-
-				if (sig == 7)
-					goto signal_7;
-				if (sig == 8)
-					goto signal_8;
-
-			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
-				putselector0(5, "  Please wait.  ");
-				if (sig == 6) {
-				//	lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "  Formating...  ");
-				//	lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, "                ");
-				//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
-					putselector0(1, "  Formating...  ");
-					putselector0(3, "                ");
-					i = 0x0124; /* 1,440KBフォーマット */
-				//	if (fmode)
-				//		i = 0x0118; /* 1,760KBフォーマットと1,440KBフォーマットの混在 */
-					sgg_format(i, 99 /* finish signal */); // format
-					wait99(); // finish signalが来るまで待つ
-				}
-			//	lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, " Writing        ");
-			//	lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, "   system image.");
-			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Please wait.  ");
-				putselector0(1, " Writing        ");
-				putselector0(3, "   system image.");
-				i = 0x0128; /* 1,440KBフォーマット用 非圧縮 */
-				if (fmode)
-				//	i = 0x011c; /* 1,760KBフォーマット用 非圧縮 */
-					i = 0x0138; /* 1,440KBフォーマット用 圧縮 */
-				sgg_format2(i, bsc_size, bsc_addr, exe_size, exe_addr,
-					99 /* finish signal */); // store system image
-				wait99(); // finish signalが来るまで待つ
-
-				// ロードした領域を解放
-				sgg_freememory2(exe_size, exe_addr);
-				sgg_freememory2(bsc_size, bsc_addr);
-
-			//	lib_putstring_ASCII(0x0000, 0, 1, selector, 0, 0, "   Completed.   ");
-			//	lib_putstring_ASCII(0x0000, 0, 3, selector, 0, 0, " Change disks.  ");
-			//	lib_putstring_ASCII(0x0000, 0, 5, selector, 0, 0, "  Hit 'R' key.  ");
-				putselector0(1, "   Completed.   ");
-				putselector0(3, " Change disks.  ");
-				putselector0(5, "  Hit 'R' key.  ");
-
-				// 7, 8を待つ
-				while (*sbp != 7 && *sbp != 8)
-					wait99sub();
-				sig = *sbp++;
-				lib_waitsignal(0x0000, 1, 0);
-
-				sgg_format(0x0114, 99 /* finish signal */); // flush diskcache
-				wait99(); // finish signalが来るまで待つ
-
-				if (sig == 7)
-					goto signal_7;
-			//	if (sig == 8)
-					goto signal_8;
-			}
-			break;
-
-		case 7 /* to format-mode */:
-		signal_7:
-			lib_putstring_ASCII(0x0000, 0, 0, mode, fmode * 9, 0, "< Load Systemimage >");
-			cur = list_set(ext = ext_EXE);
-			break;
-
-		case 8 /* to run-mode */:
-		signal_8:
-			lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Run Application > ");
-			cur = list_set(ext = ext_BIN);
-			break;
-
-		case 9 /* change format-mode */:
-			if (ext == ext_EXE) {
-				fmode ^= 0x01;
-				lib_putstring_ASCII(0x0000, 0, 0, mode, fmode * 9, 0, "< Load Systemimage >");
-			}
-			break;
-
-		case 10 /* page-up */:
-			if (cur < 0 /* ファイルが１つもない */)
 				break;
-			if (lp >= list + LIST_HEIGHT)
-				lp -= LIST_HEIGHT;
-			else {
+
+			case 6 /* Enter */:
+				if (cur < 0 /* ファイルが1つもない */)
+					break;
+				/* i : ウィンドウ番号 */
+				/* win : &selwin[i] */
+				sig = fileselect(i, win, lp[cur].ptr->id);
+				if (sig == 0xc0)
+					goto signal_c0;
+				if (sig == 0xc1)
+					goto signal_c1;
+				break;
+
+			case 10 /* page-up */:
+				if (cur < 0 /* ファイルが１つもない */)
+					break;
+				if (lp >= list + LIST_HEIGHT)
+					lp -= LIST_HEIGHT;
+				else {
+					lp = list;
+					cur = 0;
+				}
+				goto listup;
+
+			case 11 /* page-down */:
+				if (cur < 0 /* ファイルが１つもない */)
+					break;
+				for (i = 1; lp[i].name[0] != '\0' && i < LIST_HEIGHT * 2; i++);
+				if (i < LIST_HEIGHT) {
+					// 全体が1画面分に満たなかった
+					cur = i - 1;
+					goto listup;
+				} else if (i < LIST_HEIGHT * 2) {
+					// 残りが1画面分に満たなかった
+					lp += i - LIST_HEIGHT;
+					cur = LIST_HEIGHT - 1;
+					goto listup;
+				}
+				lp += LIST_HEIGHT;
+				goto listup;
+
+			case 12 /* Home */:
+				if (cur < 0 /* ファイルが１つもない */)
+					break;
 				lp = list;
 				cur = 0;
-			}
-			goto listup;
-
-		case 11 /* page-down */:
-			if (cur < 0 /* ファイルが１つもない */)
-				break;
-			for (i = 1; lp[i].name[0] != '\0' && i < LIST_HEIGHT * 2; i++);
-			if (i < LIST_HEIGHT) {
-				// 全体が1画面分に満たなかった
-				cur = i - 1;
 				goto listup;
-			} else if (i < LIST_HEIGHT * 2) {
-				// 残りが1画面分に満たなかった
-				lp += i - LIST_HEIGHT;
-				cur = LIST_HEIGHT - 1;
+
+			case 13 /* End */:
+				if (cur < 0 /* ファイルが１つもない */)
+					break;
+				lp = list;
+				for (i = 0; lp[i].name[0]; i++);
+				if (i < LIST_HEIGHT) {
+					// ファイル数が1画面分に満たなかった
+					cur = i - 1;
+				} else {
+					lp += i - LIST_HEIGHT;
+					cur = LIST_HEIGHT - 1;
+				}
 				goto listup;
-			}
-			lp += LIST_HEIGHT;
-			goto listup;
 
-		case 12 /* Home */:
-			if (cur < 0 /* ファイルが１つもない */)
+			case 14 /* Insert */:
+				sgg_format(0x0114, 99 /* finish signal */); // invalid diskcache
+				wait99(); // finish signalが来るまで待つ
+				for (i = 0; i < MAX_FILEBUF; i++)
+					filebuf[i].dirslot = -1;
+				/* 全てのファイルセレクタを更新 */
+				for (i = 0; i < MAX_SELECTOR; i++) {
+					if (selwin[i].window)
+						list_set(&selwin[i]);
+				}
+				cur = win->cur;
+				lp = win->lp;
 				break;
-			lp = list;
-			cur = 0;
-			goto listup;
 
-		case 13 /* End */:
-			if (cur < 0 /* ファイルが１つもない */)
+			case 126 /* close window */:
+				if (i == 0)
+					break;
+				/* キャンセルを通知して、閉じる */
+				/* 待機しているものがあれば、応じる(応じるのは127を受け取ってからにする) */
+				send_command.data[0] = win->task | 0x0242;
+				send_command.data[2] = win->sig[1] + 1 /* cancel */;
+				sgg_execcmd(&send_command);
+				win->task = -1;
+				lib_closewindow(0, win->window);
 				break;
-			lp = list;
-			for (i = 0; lp[i].name[0]; i++);
-			if (i < LIST_HEIGHT) {
-				// ファイル数が1画面分に満たなかった
-				cur = i - 1;
-			} else {
-				lp += i - LIST_HEIGHT;
-				cur = LIST_HEIGHT - 1;
-			}
-			goto listup;
 
-		case 14 /* Insert */:
-			sgg_format(0x0114, 99 /* finish signal */); // flush diskcache
-			wait99(); // finish signalが来るまで待つ
-			cur = list_set(ext);
+		//	case 127 /* closed window */:
+		//		free(win->window);
+		//		win->window = NULL;
+		//		selwincount--;
+		//		break;
+			}
+			win->cur = cur;
+			win->lp = lp;
+		}
+		continue;
+
+specialsig:
+		switch (sig) {
+		case 0xc0 /* to format-mode */:
+		signal_c0:
+			sig = 0;
+			for (i = 1; i < MAX_SELECTOR; i++)
+				sig |= (int) selwin[i].window;
+			if (sig)
+				break;
+			selwin[0].ext = ext_EXE;
+			list_set(&selwin[0]);
+			fmode = 1;
+			goto signal_c2;
+		//	lib_putstring_ASCII(0x0000, 0, 0, selwin[0].subtitle, (fmode - 1) * 9, 0, "< Load Systemimage >");
+		//	break;
+
+	/* フォーマットモードに入るには、他のファイルセレクタが全て閉じられていなければいけない */
+	/* また、フォーマットモードに入っている間は、ファイルセレクタが開かない */
+
+		case 0xc1 /* to run-mode */:
+		signal_c1:
+			selwin[0].ext = ext_BIN;
+			lib_putstring_ASCII(0x0000, 0, 0, selwin[0].subtitle,     0, 0, "< Run Application > ");
+			list_set(&selwin[0]);
+			fmode = 0;
+			/* 待機している要求があれば、ウィンドウを開く */
 			break;
 
-		case 15 /* open console */:
+		case 0xc2 /* change format-mode */:
+			if (fmode) {
+				fmode = 3 - fmode;
+		signal_c2:
+				lib_putstring_ASCII(0x0000, 0, 0, selwin[0].subtitle, (fmode - 1) * 9, 0, "< Load Systemimage >");
+			}
+			break;
+
+		case 0xc3 /* open console */:
 			if (console_win == NULL)
 				open_console();
 			break;
 
-		case 16 /* open monitor */:
+		case 0xc4 /* open monitor */:
 			break;
 
-		// console関係
+//		case 99:
+//			lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Error 99        > ");
+//			break;
+		}
+		continue;
 
-		case 256 + 0 /* VRAMアクセス許可 */:
-			break;
-
-		case 256 + 1 /* VRAMアクセス禁止 */:
-			lib_controlwindow(0x0100, console_win);
-			break;
-
-		case 256 + 2:
-		case 256 + 3:
-			/* 再描画 */
-			lib_controlwindow(0x0203, console_win);
-			break;
-
-		case 256 + 5 /* change console title color */:
-			if (*sbp++ & 0x02) {
-				if (!cursoractive) {
+consolesig:
+		if (256 + ' ' <= sig && sig <= 256 + 0x7f) {
+			/* consoleへの1文字入力 */
+			if (console_win != NULL) {
+				if (console_curx < CONSOLESIZEX - 1) {
+					static char c[2] = { 0, 0 };
+					c[0] = sig - 256;
+					consoleout(c);
+				}
+				if (cursoractive) {
 					lib_settimer(0x0001, SYSTEM_TIMER);
-					cursoractive = 1;
 					cursorflag = ~0;
 					putcursor();
 					lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
 				}
-			} else {
-				if (cursoractive) {
-					cursoractive = 0;
-					cursorflag = 0;
-					putcursor();
-					lib_settimer(0x0001, SYSTEM_TIMER);
-				}
 			}
-			lib_waitsignal(0x0000, 1, 0);
-			break;
+		} else {
+			switch (sig) {
+			case 256 + 0 /* VRAMアクセス許可 */:
+				break;
 
-		case 256 + 6 /* close console window */:
-			lib_closewindow(0, console_win);
-			console_win = NULL;
-			if (cursoractive) {
-				cursoractive = 0;
-				lib_settimer(0x0001, SYSTEM_TIMER);
-			}
-			break;
+			case 256 + 1 /* VRAMアクセス禁止 */:
+				lib_controlwindow(0x0100, console_win);
+				break;
 
-		case 287 /* cursor blink */:
-			if (sleep == 1 && cursoractive != 0) {
-				cursorflag =~ cursorflag;
-				putcursor();
-				lib_settimertime(0x0012, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
-			}
-			break;
+			case 256 + 2:
+			case 256 + 3:
+				/* 再描画 */
+				lib_controlwindow(0x0203, console_win);
+				break;
 
-		default:
-			if (256 + ' ' <= sig && sig <= 256 + 0x7f) {
-				/* consoleへの1文字入力 */
-				if (console_win != NULL) {
-					if (console_curx < CONSOLESIZEX - 1) {
-						static char c[2] = { 0, 0 };
-						c[0] = sig - 256;
-						consoleout(c);
-					}
-					if (cursoractive) {
+			case 256 + 5 /* change console title color */:
+				if (*sbp++ & 0x02) {
+					if (!cursoractive) {
 						lib_settimer(0x0001, SYSTEM_TIMER);
+						cursoractive = 1;
 						cursorflag = ~0;
 						putcursor();
 						lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
 					}
+				} else {
+					if (cursoractive) {
+						cursoractive = 0;
+						cursorflag = 0;
+						putcursor();
+						lib_settimer(0x0001, SYSTEM_TIMER);
+					}
 				}
-			} else if (sig == 256 + 0xa0) {
-				/* consoleへのEnter入力 */
+				lib_waitsignal(0x0000, 1, 0);
+				break;
+
+			case 256 + 6 /* close console window */:
+				lib_closewindow(0, console_win);
+				console_win = NULL;
+				if (cursoractive) {
+					cursoractive = 0;
+					lib_settimer(0x0001, SYSTEM_TIMER);
+				}
+				break;
+
+			case 287 /* cursor blink */:
+				if (sleep == 1 && cursoractive != 0) {
+					cursorflag =~ cursorflag;
+					putcursor();
+					lib_settimertime(0x0012, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+				}
+				break;
+
+			case 256 + 0xa0 /* consoleへのEnter入力 */:
 				if (console_win != NULL) {
 					const char *p = consolebuf + console_cury * (CONSOLESIZEX + 2) + 5;
 					if (cursorflag != 0 && cursoractive != 0) {
@@ -790,8 +887,9 @@ find_freebank:
 						lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
 					}
 				}
-			} else if (sig == 256 + 0xa1) {
-				/* consoleへのBackSpace入力 */
+				break;
+
+			case 256 + 0xa1 /* consoleへのBackSpace入力 */:
 				if (console_win != NULL) {
 					if (cursorflag != 0 && cursoractive != 0) {
 						cursorflag = 0;
@@ -809,15 +907,251 @@ find_freebank:
 						lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
 					}
 				}
+				break;
 			}
-		//	break;
-
-//		case 99:
-//			lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Error 99        > ");
-//			break;
 		}
 	}
 }
+
+const int fileselect(int i, struct FILESELWIN *win, int fileid)
+{
+	int sig;
+	if (i) { /* not pokon */
+		/* ファイルをロードして、仮想モジュールを生成し、
+			スロットを設定し、シグナルを発する */
+		/* 最後に、ウィンドウを閉じる */
+		int j, tss;
+
+		if (win->task == -1)
+			return 0;
+
+		tss = win->task;
+		win->task = -1;
+		lib_closewindow(0, win->window);
+
+		for (i = 0; i < MAX_FILEBUF; i++) {
+			if (filebuf[i].dirslot != fileid)
+				continue;
+			filebuf[i].linkcount++;
+			goto filebuf_hit1;
+		}
+		for (i = 0; i < MAX_FILEBUF; i++) {
+			if (filebuf[i].linkcount)
+				continue;
+			goto find_freefilebuf1;
+		}
+		return 0;
+find_freefilebuf1:
+		sgg_loadfile2(fileid /* file id */,
+			99 /* finish signal */
+		);
+		wait99(); // finish signalが来るまで待つ
+		filebuf[i].size = sbp[0];
+		filebuf[i].paddr = sbp[1];
+		sbp += 2;
+		lib_waitsignal(0x0000, 2, 0);
+		if (filebuf[i].size == 0)
+			return 0;
+		filebuf[i].dirslot = fileid;
+		filebuf[i].linkcount = 1;
+filebuf_hit1:
+		for (j = 0; vmref[j].task != 0; j++);
+		vmref[j].task = tss;
+		vmref[j].module_paddr = filebuf[i].paddr;
+		i = sgg_createvirtualmodule(filebuf[i].size, filebuf[i].paddr);
+		sig = (0x003c /* slot_sel */ | tss << 8) + 0xf80000;
+		sgg_directwrite(0, 4, 0, win->mdlslot, sig, (int) &i, 0x000c);
+		send_command.data[0] = tss | 0x0242;
+		send_command.data[2] = win->sig[1];
+		sgg_execcmd(&send_command);
+	//	win->task = -1;
+	//	lib_closewindow(0, win->window);
+		return 0;
+	}
+	/* pokon */
+	if (win->ext == ext_BIN) {
+		// .BINファイルモード
+		int bank;
+		char *s;
+		for (bank = 0; bank < MAX_BANK; bank++) {
+			if (banklist[bank].size == 0)
+				goto find_freebank;
+		}
+		return 0;
+find_freebank:
+		for (i = 0; i < MAX_FILEBUF; i++) {
+			if (filebuf[i].dirslot != fileid)
+				continue;
+			banklist[bank].size = filebuf[i].size;
+			banklist[bank].addr = filebuf[i].paddr;
+			filebuf[i].linkcount++;
+			goto filebuf_hit;
+		}
+		for (i = 0; i < MAX_FILEBUF; i++) {
+			if (filebuf[i].linkcount)
+				continue;
+			goto find_freefilebuf;
+		}
+		return 0;
+find_freefilebuf:
+		sgg_loadfile2(fileid /* file id */,
+			99 /* finish signal */
+		);
+		wait99(); // finish signalが来るまで待つ
+		banklist[bank].size = sbp[0];
+		banklist[bank].addr = sbp[1];
+		sbp += 2;
+		lib_waitsignal(0x0000, 2, 0);
+		if (banklist[bank].size == 0)
+			return 0;
+		filebuf[i].size = banklist[bank].size;
+		filebuf[i].paddr = banklist[bank].addr;
+		filebuf[i].dirslot = fileid;
+		filebuf[i].linkcount = 1;
+filebuf_hit:
+		s = (win->lp)[win->cur].name;
+		for (i = 0; i < 11; i++)
+			banklist[bank].name[i] = s[i];
+		banklist[bank].name[11] = '\0';
+
+		sgg_createtask2(banklist[bank].size, banklist[bank].addr, 99 /* finish signal */);
+		wait99(); // finish signalが来るまで待つ
+
+		banklist[bank].tss = i = *sbp++;
+		lib_waitsignal(0x0000, 1, 0);
+
+		// 適正なGUIGUI00ファイルでない場合、タスクは生成されず、iは0。
+		if (i) {
+			sgg_settasklocallevel(i,
+				0 * 32 /* local level 1 (スリープレベル) */,
+				27 * 64 + 0x0100 /* global level 27 (スリープ) */,
+				-1 /* Inner level */
+			);
+			banklist[bank].Llv[0].global = 27;
+			banklist[bank].Llv[0].inner  = -1;
+			sgg_settasklocallevel(i,
+				1 * 32 /* local level 1 (起動・システム処理レベル) */,
+				12 * 64 + 0x0100 /* global level 12 (一般アプリケーション) */,
+				defaultIL /* Inner level */
+			);
+			banklist[bank].Llv[1].global = 12;
+			banklist[bank].Llv[1].inner  = defaultIL;
+			sgg_settasklocallevel(i,
+				2 * 32 /* local level 2 (通常処理レベル) */,
+				12 * 64 + 0x0100 /* global level 12 (一般アプリケーション) */,
+				defaultIL /* Inner level */
+			);
+			banklist[bank].Llv[2].global = 12;
+			banklist[bank].Llv[2].inner  = defaultIL;
+			sgg_runtask(i, 1 * 32);
+		} else {
+			// ロードした領域を解放
+			banklist[bank].size = 0;
+			sig = banklist[bank].addr;
+			for (i = 0; filebuf[i].paddr != sig; i++);
+			if (--filebuf[i].linkcount == 0) {
+				sgg_freememory2(filebuf[i].size, filebuf[i].paddr);
+				filebuf[i].dirslot = -1;
+			}
+		}
+	} else {
+		// .EXEファイルモード
+		int exe_size, exe_addr, bsc_size, bsc_addr;
+		struct SGG_FILELIST *fp;
+
+		sgg_loadfile2(fileid /* file id */,
+			99 /* finish signal */
+		);
+		wait99(); // finish signalが来るまで待つ
+		exe_size = sbp[0];
+		exe_addr = sbp[1];
+		sbp += 2;
+		lib_waitsignal(0x0000, 2, 0);
+		if (exe_size == 0)
+			return 0;
+
+		i = ('K' | ('B' << 8) | ('S' << 16) | ('1' << 24)); /* 1,440KB 非圧縮用 */
+		if (fmode == 2)
+		//	i = ('K' | ('B' << 8) | ('S' << 16) | ('0' << 24)); /* 1,760KB 非圧縮用 */
+			i = ('K' | ('B' << 8) | ('S' << 16) | ('3' << 24)); /* 1,440KB 圧縮用 */
+
+		for (fp = file + 1; fp->name[0]; fp++) {
+			if ((fp->name[0] | (fp->name[1] << 8) | (fp->name[2] << 16) | (fp->name[3] << 24))
+				== ('O' | ('S' << 8) | ('A' << 16) | ('S' << 24)) &&
+			    (fp->name[4] | (fp->name[5] << 8) | (fp->name[6] << 16) | (fp->name[7] << 24))
+				== i &&
+			    (fp->name[8] | (fp->name[9] << 8) | (fp->name[10] << 16))
+				== ('B' | ('I' << 8) | ('N' << 16))) {
+				i = fp->id;
+				break;
+			}
+		}
+		if (fp->name[0] == 0)
+			return 0; /* "OSASKBS0.BIN"～"OSASKBS3.BIN"が見つからなかった */
+
+		sgg_loadfile2(i /* file id */, 99 /* finish signal */);
+		wait99(); // finish signalが来るまで待つ
+		bsc_size = sbp[0];
+		bsc_addr = sbp[1];
+		sbp += 2;
+		lib_waitsignal(0x0000, 2, 0);
+		if (bsc_size == 0)
+			return 0;
+
+		for (i = 0; i < LIST_HEIGHT; i++)
+			putselector0(win, i, "                ");
+		putselector0(win, 1, "    Loaded.     ");
+		putselector0(win, 3, " Change disks.  ");
+		putselector0(win, 5, " Hit Enter key. ");
+
+		// Enter, 'F', 'R', 'S'を待つ
+		do {
+			sig = wait99sub();
+		} while (sig != 6 && sig != 0xc0 && sig != 0xc1 && sig != 0xc2);
+
+		if (sig == 0xc0 || sig == 0xc1)
+			return sig;
+
+		putselector0(win, 5, "  Please wait.  ");
+		if (sig == 6) {
+			putselector0(win, 1, "  Formating...  ");
+			putselector0(win, 3, "                ");
+			i = 0x0124; /* 1,440KBフォーマット */
+		//	if (fmode)
+		//		i = 0x0118; /* 1,760KBフォーマットと1,440KBフォーマットの混在 */
+			sgg_format(i, 99 /* finish signal */); // format
+			wait99(); // finish signalが来るまで待つ
+		}
+		putselector0(win, 1, " Writing        ");
+		putselector0(win, 3, "   system image.");
+		i = 0x0128; /* 1,440KBフォーマット用 非圧縮 */
+		if (fmode == 2)
+		//	i = 0x011c; /* 1,760KBフォーマット用 非圧縮 */
+			i = 0x0138; /* 1,440KBフォーマット用 圧縮 */
+		sgg_format2(i, bsc_size, bsc_addr, exe_size, exe_addr,
+			99 /* finish signal */); // store system image
+		wait99(); // finish signalが来るまで待つ
+
+		// ロードした領域を解放
+		sgg_freememory2(exe_size, exe_addr);
+		sgg_freememory2(bsc_size, bsc_addr);
+
+		putselector0(win, 1, "   Completed.   ");
+		putselector0(win, 3, " Change disks.  ");
+		putselector0(win, 5, "  Hit 'R' key.  ");
+
+		// 'F', 'R'を待つ
+		do {
+			sig = wait99sub();
+		} while (sig != 0xc0 && sig != 0xc1);
+
+		sgg_format(0x0114, 99 /* finish signal */); // flush diskcache
+		wait99(); // finish signalが来るまで待つ
+
+	}
+	return sig;
+}
+
 
 void open_monitor()
 /*	モニターをオープンする */
@@ -876,7 +1210,7 @@ void open_console()
 	console_win = lib_openwindow1(AUTO_MALLOC, 0x0210, CONSOLESIZEX * 8, CONSOLESIZEY * 16, 0x0d, 256);
 	console_tit = lib_opentextbox(0x1000, AUTO_MALLOC,  0, 16,  1,  0,  0, console_win, 0x00c0, 0);
 	console_txt = lib_opentextbox(0x0001, AUTO_MALLOC,  0, CONSOLESIZEX, CONSOLESIZEY,  0,  0, console_win, 0x00c0, 0); // 5KB
-	lib_putstring_ASCII(0x0000, 0, 0, console_tit, 0, 0, "pokon13 console");
+	lib_putstring_ASCII(0x0000, 0, 0, console_tit, 0, 0, "pokon14 console");
 	if (consolebuf == NULL)
 		consolebuf = (char *) malloc((CONSOLESIZEX + 2) * (CONSOLESIZEY + 1));
 	bp = consolebuf;
@@ -1079,7 +1413,7 @@ void poko_tasklist(const char *cmdlin)
 		if (banklist[i].size == 0)
 			continue;
 		itoa10(banklist[i].tss >> 12, str);
-		msg[0] = str [8]; /* 100の位 */
+		msg[0] = str[ 8]; /* 100の位 */
 		msg[1] = str[ 9]; /*  10の位 */
 		msg[2] = str[10]; /*   1の位 */
 		for (j = 0; j < 8; j++)
@@ -1095,7 +1429,7 @@ void poko_sendsignalU(const char *cmdlin)
 		int cmd, opt;
 		int data[3];
 		int eoc;
-	} command = { 0x0020, 0x80000000 + 3, { 0x3240 + 2, 0x7f000001, 0 }, 0x0000 };
+	} command = { 0x0020, 0x80000000 + 3, { 0, 0x7f000001, 0 }, 0x0000 };
 
 	cmdlin += 11 /* "sendsignalU" */;
 	while (*cmdlin == ' ')

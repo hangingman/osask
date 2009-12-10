@@ -31,7 +31,7 @@ void lib_putstring_ASCII(const int opt, const int x_pos, const int y_pos,
 	struct LIB_TEXTBOX *textbox, const int color, const int backcolor, const char *str);
 void lib_waitsignaltime(const int opt, const int signaldw, const int nest,
 	const unsigned int time0, const unsigned int time1, const unsigned int time2);
-int *lib_opensignalbox(const int bytes, int *signalbox, const int eom, const int rewind);
+int *lib_opensignalbox(const int bytes, int *signalbox, const int eos, const int rewind);
 void lib_definesignal0p0(const int opt, const int default_assign0,
 	const int default_assign1, const int default_assign2);
 void lib_definesignal1p0(const int opt, const int default_assign0,
@@ -56,5 +56,13 @@ void lib_makecharset(const int opt, const int charset, const int fontset,
 void lib_drawline(const int opt, struct LIB_WINDOW *window, const int color,
 	const int x0, const int y0, const int x1, const int y1);
 void lib_closetextbox(const int opt, const struct LIB_TEXTBOX *textbox);
+const int lib_readCSb(const int offset);
+const int lib_readCSd(const int offset);
+void lib_mapmodule(const int opt, const int slot, const int attr, const int size, void *addr, const int ofs);
+void lib_unmapmodule(const int opt, const int size, void *addr);
+void lib_steppath(const int opt, const int slot, const char *name);
+void lib_initmodulehandle(const int opt, const int slot);
+const int lib_readmodulesize(const int slot);
+void lib_initmodulehandle1(const int slot, const int num, const int sig);
 
 #endif

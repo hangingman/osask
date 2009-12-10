@@ -1,6 +1,6 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.0
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.1
 		copyright(C) 2001 川合秀実
-	exe2bin1 winman0 -s 96k	*/
+	exe2bin2 winman0 -s 96k	-d */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 

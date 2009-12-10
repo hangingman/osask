@@ -74,10 +74,10 @@ FORCE:
 	$(LINK32) $(LINK32_FLAGS) /LIBPATH:$(LIBPATH) $*.obj $(LIBS)
 
 pokon0.bin : pokon0.exe Makefile
-	$(EXE2BIN) $< $@ -s 40k
+	$(EXE2BIN) $< $@ -s 64k -d
 
 winman0.bin : winman0.exe Makefile
-	$(EXE2BIN) $< $@ -s 96k
+	$(EXE2BIN) $< $@ -s 96k -d
 
 clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i clean
