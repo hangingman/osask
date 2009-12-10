@@ -1,0 +1,166 @@
+"src46"の使い方の説明                      2004/08/10 川合秀実
+
+１．これは何か？
+
+  "src46"は、OSASK ver.4.6の「OSASK.EXE」を生成するのに必要なモジュールのソース
+プログラムのセットです。ただし、以前のバージョンのものをそのまま利用しているも
+のついては、このアーカイブに含まれていません。OSASK.EXEを生成するのに必要なモジ
+ュールのバージョンを書いておきます。
+
+  (このアーカイブ内に含まれているもの)
+
+    BASE.NAP     : ver.3.1
+    INIT.ASK     : ver.4.0
+    PIONEER0.ASK : ver.3.6
+    WINMAN0.C    : ver.3.8
+    POKON0.C     : ver.4.6
+    TOWNS/
+      OSALINK1.OPT : ver.0.2
+      VESA16.ASK   : ver.0.1
+      TOWNS15.ASK  : ver.0.0
+
+  (以前のバージョンのものを利用するもの)
+
+    OSASKINC.ASK : ver.0.2
+    BOOT32.ASK   : ver.0.3
+    TAPI0.ASK    : ver.0.4
+    PAPI0.ASK    : ver.0.6
+    DECODE0.ASK  : ver.1.0
+    IBMANK0.TXT  : ver.0.4
+    SYSGG00.LIB  : ver.0.9
+    BMP2BETA.NAS : ver.0.1
+    BETACLIP.NAS : ver.0.0
+    KJPEGLS2.C   : ver.0.0
+    PCAT/
+      OSALINK1.OPT : ver.0.1
+      TIMERDRV.ASK : type-A ver.1.3
+      VGADRV0.ASK  : ver.2.0
+      KEYMOS0.ASK  : ver.0.6
+      FDCDRV0.ASK  : ver.2.6
+      VESA8.ASK    : ver.0.4
+      VESA16.ASK   : ver.0.5
+      VESA32.ASK   : ver.0.4
+    TOWNS/
+      TIMERDRV.ASK : type-A ver.1.2
+      VGADRV0.ASK  : ver.1.9
+      KEYMOS0.ASK  : ver.0.5
+      FDCDRV0.ASK  : ver.2.4
+    NEC98/
+      OSALINK1.OPT : ver.0.0
+      TIMERDRV.ASK : type-A ver.1.1
+      VGADRV0.ASK  : ver.1.9
+      KEYMOS0.ASK  : ver.0.4
+      FDCDRV0.ASK  : ver.2.1
+
+  このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
+るだけです。
+
+２．コンパイル＆アセンブル方法
+
+  使用したアセンブラ、コンパイラ、コンバータ、ライブラリは以下の通りです。
+
+・tolset07 + いろいろ
+  (ASKA + GO + osalink1 + obj2bim3 + bim2bin4o + golibc + gg00libc)
+
+tolset07はOSASKの開発者向けページからダウンロードできます。
+
+  SYSGG00.LIBの生成は、MAKEFILEで行いました。MAKEFILEを読んでコンパイル・アセン
+ブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成のみに
+必要な専用ライブラリです。
+
+  拡張子が.ASKのものは、cpp0→ASKA→naskcnv0→NASKで.BINファイルにします。nask
+cnv0のオプション指定では、-lと-sを指定します。cpp0はプリプロセッサです。オプシ
+ョン-Pを付けてください。ただしAT互換機版を生成する時は、cpp0に「-DPCAT」オプシ
+ョンをつけてください。またTOWNS版を生成する時は、cpp0に「-DTOWNS」オプションを
+つけてください。またウィンドウデザインを指定するために「-DWIN9X」「-DTMENU」「
+-DCHO_OSASK」「-DNEWSTYLE」「-DWIN31」のいずれかも併せて指定します。以下は一例
+です。
+
+  ごめんなさい、さらに追記するべきものが増えました。TOWNS版を作るときは、「-DV
+MODE」と「-DCLGD543X」を書き加えたときに一般公開版になります。これらを省略すれ
+ば多少コンパクトにはなりますが、いくつかの機能が利用できなくなります。
+
+>cpp0 -I. -P -DPCAT -DWIN9X -o init.i init.ask
+>aska init.i init.3as
+>naskcnv0 -l -s init.3as init.nas
+>nask init.nas init.bin init.lst
+
+（このinitの部分を置き換えれば他のソースも同様にアセンブルできます）
+
+  拡張子が.Cのものは、cc1→gas2nask→naskでオブジェクトファイルにし、あとはtols
+et07内のdoc_link.txtで説明されている方法でリンクします。ただしAT互換機版を生成
+する時は、cc1に「-DPCAT」オプションをつけてください。またTOWNS版を生成する時は
+、cc1に「-DTOWNS」オプションをつけてください。98版は「-DNEC98」です。またここで
+もウィンドウデザインに関するオプションが必要です。ライブラリーにSYSGG00を使う必
+要があることにも注意してください。指定すべきスタックサイズ、mallocサイズは、各
+ソース中の最初の方に明記してあります。以下は一例です。
+
+>cc1 -Os -quiet -I. -DPCAT -DWIN9X -o winman0.s winman0.c
+>gas2nask -a winman0.s winman0.nas
+>nask winman0.nas winman0.obj winman0.lst
+>obj2bim3 @guigui00.rul stack:36k map:winman0.map out:winman0.bim winman0.obj
+>bim2bin malloc:4208k mmare:4096k in:winman0.bim out:winman0.bin
+
+  そしてさらに、たいていの場合は.BINファイルを.TEKファイル(tek0)に変換する必要
+があるでしょう。それはbim2binの"-osacmp -tek0"モードで行ないます。具体的な手順
+はtolset07内のdoc_link.txtでの説明を参照してください。
+
+  BASE.EXEの生成は、以下のように行います。
+
+>cpp0 -I. -P -DPCAT -DWIN9X -o base.nas base.nap
+>nask base.nas base.exe base.lst
+
+  OSALINK1.OPTに書かれている全てのファイルが用意できたら、osalink1でそれらをま
+とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset07内のdoc_nask.txtを
+参照してください。
+
+  またVMware対応バイナリを生成する場合は、-DPCATに加えて-DVMWAREを指定してくだ
+さい。
+
+  Bochs 1.3対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSを指定してくださ
+い。
+
+  Bochs 1.2.1対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指定
+してください。
+
+  qemu(CVS 040408版)対応バイナリを生成する場合は、-DPCATに加えて-DQEMUを指定し
+てください（timerdrvにしか影響しません）。
+
+３．説明＆注意点
+
+  これらのソースは、単にOSASKを改良するためだけではなく、他のOSのために利用した
+り、その他の目的に利用することを認めています。詳しい利用範囲はLICENSE.TXTを参照
+してください。
+
+  これらのソースの大半は、全く清書されていません。註釈がついているものもありま
+すが、意味の無い註釈だったり、バージョンアップの過程でコードが削除されたのに註
+釈だけ残ったものなどがあり、はっきりいってあてになりません。
+
+  このソースを公開することにしたのは、「バイナリだけよりはマシだろう」というひ
+どいセンスによるものです。読みにくくてほとんど役に立たないかもしれません。大変
+申し訳ないです。どなたかが著作者に代わって清書してくれるのは大歓迎です。
+
+  何か疑問に感じられることがあれば、OSASK-MLにメールでご連絡ください(OSASK伝言
+板でもかまいません)。すぐにはお返事できないかもしれませんが、できるだけお答えし
+ます。川合秀実にメールすることもできますが、基本的に個人メールでなければいけな
+い理由がなければ、OSASK-MLかOSASK伝言板の利用をお願いします。
+
+４．謝辞
+
+  このアーカイブは、各著作者がKL-01の適用に快く応じていただけたことで公開するこ
+とができました。この場を借りて、心からお礼申し上げます。
+
+５．著作権
+
+  著作権については、該当するOSASKの一般公開版に付属するCOPYRIGHT.TXTを参照して
+ください。このアーカイブないの全てのファイルに対してKL-01を適用します。
+
+６．リンク
+
+  このドキュメントに関係のあるいくつかのURLを挙げておきます。
+
+    OSASKの開発者向けページ   http://osask.jp/developers.html
+    小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
+    OSASKのページ             http://osask.jp/
+    OSASK伝言板               http://koya.marokun.net/osask/form/
+    川合秀実のページ          http://k.osask.jp/
