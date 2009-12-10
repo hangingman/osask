@@ -1,0 +1,27 @@
+MAKE = make
+
+ASM = ml
+ASM_FLAGS = /c /coff
+
+CC = lcc
+
+TARGET = guigui00.lib
+
+OBJS = execcmd.obj fwinman.obj fpokon.obj fdebug.obj \
+		execcmd0.obj execcmd1.obj
+
+INCPATH = h:/osask/pioneer0/lccinc
+
+ALL :
+	make $(TARGET)
+
+$(TARGET) : $(OBJS)
+	lcclib -OUT:sysgg00.lib @sysgg00.opt
+
+%.obj : %.c Makefile
+	$(CC) $< -I$(INCPATH) -O
+	obj2bim0 -fixobj $@ text_align:1 data_align:4 bss_align:4
+
+%.obj : %.asm Makefile
+	$(ASM) $(ASM_FLAGS) $<
+	obj2bim0 -fixobj $@ text_align:1 data_align:4 bss_align:4
