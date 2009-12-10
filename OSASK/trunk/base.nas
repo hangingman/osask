@@ -1,4 +1,4 @@
-;	"base.nas" ver.2.7
+;	"base.nas" ver.2.8
 ;	OSASK用のブートプログラム
 ;	Copyright(C) 2003 H.Kawai (川合秀実)
 
@@ -338,6 +338,7 @@ bmodule_paddr		DD	0
 bmodule_laddr		DD	0
 DiskCacheLength		DD	0
 gdt0				DD	(4096 - 384 - 1)*0x10000, 0x100180
+mscount				DD	0, 0
 
 SysWorkSiz	EQU		$ - SysWorkBgn
 

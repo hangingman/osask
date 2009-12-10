@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.3
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.4
 		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
     stack:8k malloc:4208k file:4096k */
 
@@ -54,6 +54,11 @@
 		#define TIMEY				 -20
 		#define TIMEC				   0
 		#define TIMEBC				   8
+		#define ERRMSGX				  80
+		#define ERRMSGY				 -20
+		#define ERRMSGC				   0
+		#define ERRMSGBC			   8
+		#define ERRMSGCC			   8
 	#endif
 #elif (defined(TMENU))
 	#define	BACKCOLOR			   6
@@ -64,6 +69,11 @@
 		#define TIMEY				   2
 		#define TIMEC				   0
 		#define TIMEBC				   7
+		#define ERRMSGX				 104
+		#define ERRMSGY				 -20
+		#define ERRMSGC				   0
+		#define ERRMSGBC			   7
+		#define ERRMSGCC			   7
 	#endif
 #elif (defined(CHO_OSASK))
 	#define	BACKCOLOR			   6
@@ -74,6 +84,11 @@
 		#define TIMEY				 -16
 		#define TIMEC				  15
 		#define TIMEBC				   7
+		#define ERRMSGX				   8
+		#define ERRMSGY				 -16
+		#define ERRMSGC				   0
+		#define ERRMSGBC			   7
+		#define ERRMSGCC			   7
 	#endif
 #elif (defined(NEWSTYLE))
 	#define	BACKCOLOR			   6
@@ -105,6 +120,7 @@
 
 #define WINFLG_MUSTREDRAW		0x80000000	/* bit31 */
 #define WINFLG_OVERRIDEDISABLED	0x01000000	/* bit24 */
+#define WINFLG_NOWINDOW			0x00000400	/* bit10 */
 #define	WINFLG_WAITREDRAW		0x00000200	/* bit 9 */
 #define	WINFLG_WAITDISABLE		0x00000100	/* bit 8 */
 
@@ -169,7 +185,7 @@ static struct STR_JOB {
 unsigned char *wallpaper, wallpaper_exist;
 struct WM0_WINDOW *window, *top = NULL, *unuse = NULL, *iactive = NULL, *pokon0 = NULL;
 int x2 = 0, y2, mx = 0x80000000, my = 1, mbutton = 0, mxx = 1;
-int fromboot = 0;
+int fromboot = 0, winmanerr_time = 0;
 struct {
 	int x, y;
 } windef[MAXWINDEF];
@@ -250,6 +266,8 @@ void sgg_wm0_definesignal3sub3(int rawcode, const int shiftmap);
 // void sgg_wm0_definesignal3com();
 
 void write_time();
+void winmanerr(const unsigned char *s);
+void winmanerr_clr();
 
 /* キー操作：
       F9:一番下のウィンドウへ
@@ -2500,6 +2518,17 @@ void job_openwin0(struct WM0_WINDOW *win)
 			windef[i].y = windef[i + 1].y;
 		}
 		windef[MAXWINDEF - 1].x = 0x10000000;
+		if (win->x0 < 0 || win->x0 > x2 || win->y0 < RESERVELINE0 || win->y0 + ysize + RESERVELINE1 > y2) {
+			win->up = win->down = win; /* 孤立 */
+			sgg_wm0s_close(&win->sgg);
+			win->job_flag0 = WINFLG_NOWINDOW;
+			win->condition = 0;
+			job.now = 0;
+			#if (defined(TIMEX))
+				winmanerr("window too large.");
+			#endif
+			return;
+		}
 	}
 
 	// 各種パラメーターの初期化
@@ -2552,22 +2581,16 @@ void redirect_input(struct WM0_WINDOW *win)
 	sgg_wm0_definesignal3(0, 0x0100, 0x00701087 /* F7 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0248); /* load wallpaper */
 
-	#if (defined(PCAT))
+	#if (defined(PCAT) | defined(TOWNS))
 		sgg_wm0_definesignal3(3, 0x0100, 0x00701081 /* F1 */,
 			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
-		sgg_wm0_definesignal3(0, 0x0100, 0x00701086 /* F6 */,
+		sgg_wm0_definesignal3(0, 0x0100, 0x10701087 /* Shift+F7 */,
 			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0244); /* CAPTURE */
-	#elif (defined(TOWNS))
-		sgg_wm0_definesignal3(2, 0x0100, 0x00701081 /* F1 */,
-			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
-		sgg_wm0_definesignal3(0, 0x0100, 0x00701086 /* F6 */,
-			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0244); /* CAPTURE */
-		#if (defined(CLGD543X))
-			sgg_wm0_definesignal3(0, 0x0100, 0x0070108d /* PF13 */,
-				0x3240 /* winman0 signalbox */, 0x7f000001, 0x0220);
-		#endif
 	#endif
-
+	#if (defined(TOWNS) & defined(CLGD543X))
+		sgg_wm0_definesignal3(0, 0x0100, 0x0070108d /* PF13 */,
+			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0220);
+	#endif
 	#if (defined(NEC98))
 		sgg_wm0_definesignal3(1, 0x0100, 0x20701089 /* Ctrl+F9～F10 */,
 			0x3240 /* winman0 signalbox */, 0x7f000001, 0x0202);
@@ -2839,6 +2862,11 @@ void job_closewin0(struct WM0_WINDOW *win0)
 			if (mws->flags & 0x88880000)
 				mws_sensitivecount--;
 		}
+	}
+
+	if (win0->job_flag0 & WINFLG_NOWINDOW) {
+		pjob->now = 0;
+		return;
 	}
 
 	pjob->count = 0;
@@ -4439,6 +4467,48 @@ void write_time()
 		msg[5] = y2 + TIMEY;
 	#endif
 	lib_execcmd(msg);
+	if (winmanerr_time > 0) {
+		if (--winmanerr_time == 0)
+			winmanerr_clr();
+	}
+	return;
+}
+
+void winmanerr(const unsigned char *s)
+{
+	int msg[50], len;
+	winmanerr_time = 10 * 2; /* 10sec */
+	winmanerr_clr();
+	msg[0] = 0x0048;
+	msg[1] = 0x0001;
+	msg[2] = -1;
+	msg[3] = 0x00c0;
+	msg[4] = ERRMSGX;
+	msg[5] = ERRMSGY;
+	msg[6] = ERRMSGC;
+	msg[7] = ERRMSGBC;
+	len = 0;
+	while ((msg[9 + len] = s[len]) != 0)
+		len++;
+	msg[8] = len;
+	if (ERRMSGX < 0)
+		msg[4] += x2; 
+	if (ERRMSGY < 0)
+		msg[5] += y2; 
+	lib_execcmd(msg);
+	return;
+}
+
+void winmanerr_clr()
+{
+	int x0, y0;
+	x0 = ERRMSGX;
+	y0 = ERRMSGY;
+	if (ERRMSGX < 0)
+		x0 += x2; 
+	if (ERRMSGY < 0)
+		y0 += y2; 
+	lib_drawline(0x0020, (void *) -1, ERRMSGCC, x0, y0, x0 + (8 * 40 - 1), y0 + 15);
 	return;
 }
 

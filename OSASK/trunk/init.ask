@@ -1,4 +1,4 @@
-/* "init.ask" ver.3.5 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
+/* "init.ask" ver.3.6 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -363,7 +363,7 @@ void far Init()
 	PUSH(0x0100 /* init cmd */);
 	EBX = ESP;
 	CALLFAR0(SEL_PAPI);
-	ESP += 20 - 4;
+	ESP += 20 - 4; /* eocが残っている */
 
 	#if (defined(PCAT))
 		EAX = 0x1007 /* present, R/W, user, override */;
@@ -402,7 +402,7 @@ void far Init()
 
 		EBX = ESP;
 		CALLFAR0(SEL_PAPI);
-		ESP += 40;
+		ESP += 36; /* eocが残っている */
 	#elif (defined(TOWNS))
 		EBX = 0x80100000;
 		IN(AX, 0x0030); /* CPU識別レジスタ */
@@ -456,7 +456,7 @@ void far Init()
 		EBX = ESP;
 		CALLFAR0(SEL_PAPI);
 //		ESP += 112;
-		ESP += 40;
+		ESP += 36; /* eocが残っている */
 
 		/* mapping PC-Card Window */
 
@@ -468,7 +468,7 @@ void far Init()
 		if (==) /* i386SX */
 			EBX = 0x00d00000;
 		POP(EAX);
-		PUSH(0);
+	//	PUSH(0);
 		PUSH((int) ECX /* addr64(high) */);
 		PUSH((int) EBX /* addr64(low) */);
 		PUSH((int) ECX /* offset64(high) */);
@@ -480,7 +480,7 @@ void far Init()
 		PUSH((int) ESI /* cmd(mapping) */);
 		EBX = ESP;
 		CALLFAR0(SEL_PAPI);
-		ESP += 40;
+		ESP += 36; /* eocが残っている */
 
 	#endif
 
@@ -519,7 +519,7 @@ void far Init()
 
 		EBX = ESP;
 		CALLFAR0(SEL_PAPI);
-		ESP += 40;
+		ESP += 36; /* eocが残っている */
 	#endif
 
 	ECX = swork_ES->bootmalloc_fre1;
@@ -611,7 +611,7 @@ void far Init()
 	} while (!= 0);
 
 //	AX = SS; FS = AX;
-	PUSH((int) 0); /* eoc */
+//	PUSH((int) 0); /* eoc */
 	PUSH(EAX);
 	PUSH(EAX);
 	PUSH((int) 0x0120 /* TAPI_INT07のベクタを要求 */);
@@ -620,7 +620,7 @@ void far Init()
 	POP(EDX);
 	EBX = 0x0038 /* int07 */;
 	POP(EAX);
-	POP(ECX);
+	POP(ECX); /* eocが残っている */
 //	POP(EDX);
 	(short) [DS:EBX + 0] = AX;
 	(unsigned int) EAX >>= 16;
@@ -720,6 +720,7 @@ void far Init()
 	(short) [DS:EBX + 2] = CX;
 	(short) [DS:EBX + 4] = 0x8e00;
 	(short) [DS:EBX + 6] = AX;
+	/* eocが残っている */
 
 	/* PIC初期化 */
 
@@ -807,7 +808,7 @@ void far Init()
 
 	/* フォントロード for debug */
 	#if (defined(BOCHS))
-		PUSH((int) 0x0000);
+	//	PUSH((int) 0x0000);
 		PUSH((int) 7 * 8 /* ankfont-sel */);
 		PUSH((int) 0x0000 /* offset */);
 		PUSH((int) 0x1000 /* to */);
@@ -819,7 +820,7 @@ void far Init()
 	//	PUSH(SS);
 	//	POP(FS);
 		CALLFAR0(SEL_GAPI);
-		ESP += 32;
+		ESP += 28; /* eocが残っている */
 	#endif
 
 	/* キーボード初期化とプロテクトメモリ初期化をやる */
@@ -829,15 +830,16 @@ void far Init()
 	PUSH((int) 0x0104 /* KeyboardReset */);
 	EBX = ESP;
 	CALLFAR0(SEL_KEYINT);
-//	ESP += 8 - 4;
+	POP(EAX); /* eocが残っている */
 
 	#if (defined(PCAT))
-		PUSH((int) 0); /* eoc */
+	//	PUSH((int) 0); /* eoc */
 		PUSH((int) 0x0120 /* MouseEnable */);
 		PUSH((int) 0x011c /* MouseReset */);
 		EBX = ESP;
 		CALLFAR0(SEL_KEYINT);
-		ESP += 16 - 8;
+		POP(EAX);
+		POP(EAX); /* eocが残っている */
 
 	//	PUSH((int) 0); /* eoc */
 		EAX = (unsigned char) swork_ES->boot_keylock;
@@ -845,7 +847,8 @@ void far Init()
 		PUSH((int) 0x0104 /* Keydecode_setlock */);
 		EBX = ESP;
 		CALLFAR0(SEL_DECODE);
-		ESP += 12;
+		POP(EAX);
+		POP(EAX); /* eocが残っている */
 	#endif
 
 	/* tapiworkのためのメモリ空間を確保 */
@@ -867,7 +870,7 @@ void far Init()
 	work->tapiwork_Paddr = EAX;
 
 	EBX = 0;
-	PUSH((int) EBX /* eoc */);
+//	PUSH((int) EBX /* eoc */);
 	PUSH((int) EBX /* addr64(high) */);
 	PUSH((int) EAX /* addr64(low) */);
 	PUSH((int) EBX /* offset64(high) */);
@@ -879,7 +882,7 @@ void far Init()
 	PUSH((int) 0x0108 /* cmd(mapping) */);
 	EBX = ESP;
 	CALLFAR0(SEL_PAPI);
-	ESP += 40;
+	ESP += 36; /* eocが残っている */
 
 	PUSH(GS);
 	EBX = 384 + SEL_TAPIWORK;
@@ -893,60 +896,81 @@ void far Init()
 
 //	AX = SS; FS = AX;
 
+	PUSH(SEL_IDTGDT);
+	POP(DS);
+
+	#if (defined(PCAT) | defined(TOWNS))
+	//	PUSH(0); /* EOC */
+		ESP -= 24;
+		PUSH(0x0008); /* vectors */
+		PUSH(0x0004); /* special */
+		EBX = ESP;
+		CALLFAR0(SEL_TIMERINT);
+		EAX = [SS:ESP + 0x10]; /* mscount用ベクタ */
+		EBX = 0x20 * 8;
+		(short) [DS:EBX + 0] = AX;
+		(unsigned int) EAX >>= 16;
+		(short) [DS:EBX + 4] = 0x8e00;
+		(short) [DS:EBX + 2] = SEL_TIMERINT;
+		(short) [DS:EBX + 6] = AX;
+		ESP += 24; /* ?, ?, eocは残っている */
+		PUSH(0x000c); /* calc_count1ms */
+		PUSH(0x0004); /* special */
+		EBX = ESP;
+		CALLFAR0(SEL_TIMERINT);
+		POP(EAX);
+		POP(EAX);
+		POP(EDX);
+		POP(EAX); /* eocが残っている */
+	#endif
+
 	/* Timer, TAPIを起動 */
-//	PUSHFD();
 	CLI();
 //	PUSH(0 /* eoc */);
-//	PUSH(EAX /* reserve */);
+	PUSH(EAX /* reserve */);
 	PUSH(EAX /* reserve */);
 	PUSH(0 /* init */);
 	PUSH(4 /* special */);
 	EBX = ESP;
 	CALLFAR0(SEL_TIMERINT);
-//	ESP += 20 - 4;
+	/* 4, 0, ?, ?, eocが残っている */
 
-//	PUSH(0 /* eoc */);
-	ESP -= 24 - 20 + 4;
+	ESP -= 8;
 	PUSH(8 /* intハンドラ情報要求 */);
 	PUSH(4);
 	EBX = ESP;
 	CALLFAR0(SEL_TIMERINT);
 	EAX = [SS:ESP + 8]; /* EAXにオフセット */
-//	ESP += 36 - 4;
-	PUSH(SEL_IDTGDT);
 	EBX = 0x20 * 8;
-	POP(DS);
 	(short) [DS:EBX + 0] = AX;
 	(unsigned int) EAX >>= 16;
 	(short) [DS:EBX + 4] = 0x8e00;
-	(short) [DS:EBX + 2] = 10 * 8;
+	(short) [DS:EBX + 2] = SEL_TIMERINT;
 	(short) [DS:EBX + 6] = AX;
-//	POPFD();
 	STI();
+	/* 4, 8, ?, ?, ?, ?, ?, ?, eocが残っている */
 
-//	PUSH(0 /* eoc */);
-//	ESP -= 32;
 	PUSH(4 /* 一般情報要求 */);
 	PUSH(4);
 	EBX = ESP;
 	CALLFAR0(SEL_TIMERINT);
 	EAX = [SS:ESP + 36]; /* 割り込み周波数[Hz] */
 	ECX = [SS:ESP + 28]; /* 割り込み周期[2^-32sec] */
-	ESP += 44 - 4;
+	ESP += 44 - 4; /* eocが残っている */
 	work->timer_freq = EAX;
 	work->timer_sec4 = ECX;
 
-//	PUSH((int) 0 /* eoc */);
 	PUSH((int) 0x0108 /* init */);
 	EBX = ESP;
 	CALLFAR0(SEL_TAPI);
-//	ESP += 8 - 4;
-	POP(EAX);
+	POP(EAX); /* eocが残っている */
 
 	PUSH(SEL_SYSWORK);
 	POP(DS);
+	#if (defined(PCAT))
+		swork_DS->mscount[0] = EDX;
+	#endif
 
-//	PUSH((int) 0);
 	#if (defined(PCAT))
 		AL = swork_DS->FD_motor_init;
 		/* 0x0c(全モーター停止、ドライブ0選択)か0x1c(drv0のモーター回転、他は停止、ドライブ0選択) */
@@ -959,10 +983,12 @@ void far Init()
 	PUSH((int) 0x0100 /* 初期化 */);
 	EBX = ESP;
 	CALLFAR0(SEL_FDCDRIVE);
-	ESP += 12;
+	POP(EAX);
+	POP(EAX); /* eocが残っている */
+
+	POP(EAX); /* eocが残ってない */
 
 	/* PIT2の初期化、消音 */
-//	PUSHFD();
 	CLI();
 	#if (defined(PCAT))
 		IN(AL, 0x0061);
@@ -997,8 +1023,6 @@ void far Init()
 		NOP();
 		OUT(DX, AL);
 	#endif
-
-//	POPFD();
 	STI();
 
 	/* root作成 */

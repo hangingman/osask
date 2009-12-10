@@ -59,6 +59,8 @@ ALL :
 $(TARGET) : $(OSALINK_OPT) $(LINK_OBJS)
 	$(OSALINK)
 
+depend.mak :
+
 $(OSALINK_OPT) : makefile depend.mak
 	echo on > $(OSALINK_OPT)
 	for %%i in ($(LINK_OBJS)) do echo %%i >> $(OSALINK_OPT)

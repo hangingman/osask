@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" for TOWNS ver.2.3 copyright(C) 2003 H.Kawai(ì‡GŽÀ)
+// "fdcdrv0.ask" for TOWNS ver.2.4 copyright(C) 2003 H.Kawai(ì‡GŽÀ)
 
 #include "osaskinc.ask"
 
@@ -55,33 +55,34 @@ struct FDC_WORK {
 
 	int CFIDE_name[12], CFport, CFbaseLBA;
 	char CFdev, CFerrflg, CFpower, CFdev2;
-	int readsecs, writesecs, formatsecs, loadfat, cardbus, [104]; /* test4, test6, test5 */
+	int readsecs, writesecs, formatsecs, loadfat, cardbus; /* test4, test6, test5 */
+	int wait400count, [100];
 
 	/* 0x0800`0xfff */
 	void [2048];
 };
 
-void near FDC_Init();
-void near FDC_dosload();
-void near FDC_loadFAT_fd();
-void near FDC_loadFAT_cf();
-void near FDC_format();
-void near FDC_writeIPL();
-void near FDC_format2();
-void near FDC_writeIPL2();
-// void near FDC_MC_test4();
-void near FDC_doswrite();
-void near check_WBF();
-void near FDC_deletefile();
-void near FDC_createfile();
-void near ready_track01();
-void near search_file();
-void near send_sigfin();
-void near FDC_renamefile();
-void near FDC_resizefile();
-void near FDC_writebackcache();
-void near save_dosname();
-void near save_dosname2();
+void FDC_Init();
+void FDC_dosload();
+void FDC_loadFAT_fd();
+void FDC_loadFAT_cf();
+void FDC_format();
+void FDC_writeIPL();
+void FDC_format2();
+void FDC_writeIPL2();
+// void FDC_MC_test4();
+void FDC_doswrite();
+void check_WBF();
+void FDC_deletefile();
+void FDC_createfile();
+void ready_track01();
+void search_file();
+void send_sigfin();
+void FDC_renamefile();
+void FDC_resizefile();
+void FDC_writebackcache();
+void save_dosname();
+void save_dosname2();
 void poweron();
 void poweroff();
 void close_all();
@@ -946,12 +947,20 @@ fdcint:
 }
 #endif
 
-void near FDC_Init()
+void FDC_Init()
 // ƒ[ƒNƒGƒŠƒA‚Ì‰Šú‰»
 // AL(0x020c), AH(0x0208)
 {
 	FDC_WORK *work == DS:0;
-	unsigned int tapi_sel == 12 * 8;
+	STR_SYSWORK *FS_syswork == FS:0;
+
+	PUSH(FS);
+	PUSH(SEL_SYSWORK);
+	POP(FS);
+	ECX = FS_syswork->mscount[0];
+	ECX /= 2048; /* –{“–‚Í2500‚ÅŠ„‚è‚½‚¢‚Æ‚±‚ë‚¾‚ª */
+	ECX++; /* ’[”Ø‚èã‚°•0‘jŽ~ */
+	work->wait400count = ECX;
 
 //	PUSH(EAX);
 
@@ -994,14 +1003,13 @@ void near FDC_Init()
 	work->motor = AL;
 	work->motor2 = 0;
 
-	asmout("MOV DWORD PTR DS:[0010H],0 ; OFFSET TimerSysCmd"); // TimerCmd
-	asmout("MOV DWORD PTR DS:[0014H],10*8");
+	work->TimerCmd[0] = 0; /* TimerSysCmd */
+	work->TimerCmd[4] = SEL_TIMERINT;
 
 	work->timer_cmd6 = 2 * 4 /* GetNode */;
 	work->timer_cmd7 = 0;
 
 	MOV(EAX, DS);
-	PUSH(FS);
 	FS = AX;
 	EBX = /* (offset) &work->timer_cmd6 */ 0x0060;
 	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
@@ -1032,7 +1040,6 @@ void near FDC_Init()
 	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
 	ECX = [SS:ESP + 36]; // Š„‚èž‚ÝŽü”g”[Hz]
 	ESP += 44;
-	POP(FS);
 	work->wait0_0 = ECX;
 	ECX *= 3;
 	work->wait0_4 = EAX;
@@ -1065,7 +1072,6 @@ void near FDC_Init()
 	work->CFIDE_name[4] = 0x30454741;
 	work->CFIDE_name[8] = 0x004e4942;
 
-	PUSH(FS);
 	PUSH((int) 0);
 	PUSH(EAX);
 	PUSH(EAX);
@@ -1073,13 +1079,14 @@ void near FDC_Init()
 	MOV(EAX, SS);
 	EBX = ESP;
 	FS = EAX;
-	CALL(tapi_sel, 0);
+	CALL(SEL_TAPI, 0);
 	POP(EAX);
 	POP(work->TAPI_sendsignalofs);
 	POP(work->TAPI_sendsignalsel);
 	POP(EAX);
-	POP(FS);
 	close_all();
+
+	POP(FS);
 	return;
 }
 
@@ -3047,14 +3054,19 @@ void near save_dosname2()
 }
 
 void CFIDE_wait400ns()
-/* 3GHz‚ð‘z’è‚µ‚½Žè”²‚« */
 {
+	FDC_WORK *work == DS:0;
+	PUSH(DS);
 	PUSH(EAX);
-	EAX = 1200;
+	MOV(EAX, CS);
+	EAX += 8;
+	DS = AX;
+	EAX = work->wait400count;
 	do {
 		EAX--;
 	} while (!= 0);
 	POP(EAX);
+	POP(DS);
 	return;
 }
 

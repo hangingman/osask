@@ -1,47 +1,51 @@
-"src41"の使い方の説明                      2003/10/10 川合秀実
+"src42"の使い方の説明                      2003/10/30 川合秀実
 
 １．これは何か？
 
-  "src41"は、OSASK ver.4.1の「OSASK.EXE」を生成するのに必要なモジュールのソース
+  "src42"は、OSASK ver.4.2の「OSASK.EXE」を生成するのに必要なモジュールのソース
 プログラムのセットです。ただし、以前のバージョンのものをそのまま利用しているも
 のついては、このアーカイブに含まれていません。OSASK.EXEを生成するのに必要なモジ
 ュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.NAP     : ver.2.7
-    OSASKINC.ASK : ver.0.1
-    BOOT32.ASK   : ver.0.2
-    INIT.ASK     : ver.3.5
-    PIONEER0.ASK : ver.3.2
-    POKON0.C     : ver.4.1
-    WINMAN0.C    : ver.3.3
+    BASE.NAP     : ver.2.8
+    OSASKINC.ASK : ver.0.2
+    INIT.ASK     : ver.3.6
+    PIONEER0.ASK : ver.3.3
+    WINMAN0.C    : ver.3.4
+    POKON0.C     : ver.4.2
     PCAT/
+      TIMERDRV.ASK : type-A ver.1.2
+      FDCDRV0.BIN  : ver.2.5
+    TOWNS/
+      TIMERDRV.ASK : type-A ver.1.2
       FDCDRV0.BIN  : ver.2.4
 
   (以前のバージョンのものを利用するもの)
 
+    BOOT32.ASK   : ver.0.2
     TAPI0.ASK    : ver.0.4
     PAPI0.ASK    : ver.0.6
-    TIMERDRV.ASK : type-A ver.1.1
-    DECODE0.ASK  : ver.1.0
     VGADRV0.ASK  : ver.1.9
-    BMP2BETA.NAS : ver.0.1
-    KJPEGLS2.C   : ver.0.0
-    SYSGG00.LIB  : ver.0.8
-    BETACLIP.NAS : ver.0.0
+    DECODE0.ASK  : ver.1.0
     IBMANK0.TXT  : ver.0.4
+    SYSGG00.LIB  : ver.0.8
+    BMP2BETA.NAS : ver.0.1
+    BETACLIP.NAS : ver.0.0
+    KJPEGLS2.C   : ver.0.0
     PCAT/
       OSALINK1.OPT : ver.0.1
       VESA8.ASK    : ver.0.1
       VESA16.ASK   : ver.0.3
       VESA32.ASK   : ver.0.2
+      KEYMOS0.BIN  : ver.0.6
     TOWNS/
       OSALINK1.OPT : ver.0.0
       KEYMOS0.BIN  : ver.0.4
-      FDCDRV0.BIN  : ver.2.3
     NEC98/
       OSALINK1.OPT : ver.0.0
+      TIMERDRV.ASK : type-A ver.1.1
       KEYMOS0.BIN  : ver.0.4
       FDCDRV0.BIN  : ver.2.1
 
@@ -52,10 +56,10 @@
 
   使用したアセンブラ、コンパイラ、コンバータ、ライブラリは以下の通りです。
 
-・tolset05
-  (ASKA + GO + osalink1 + obj2bim3 + bim2bin3 + gg00l010 + stdlib6)
+・tolset07
+  (ASKA + GO + osalink1 + obj2bim3 + bim2bin3 + golibc + gg00libc)
 
-tolset05はOSASKの開発者向けページからダウンロードできます。
+tolset07はOSASKの開発者向けページからダウンロードできます。
 
   SYSGG00.LIBの生成は、MAKEFILEで行いました。MAKEFILEを読んでコンパイル・アセン
 ブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成のみに
@@ -81,7 +85,7 @@ MODE」と「-DCLGD543X」を書き加えたときに一般公開版になります。これらを省略すれ
 （このinitの部分を置き換えれば他のソースも同様にアセンブルできます）
 
   拡張子が.Cのものは、cc1→gas2nask→naskでオブジェクトファイルにし、あとはtols
-et05内のdoc_link.txtで説明されている方法でリンクします。ただしAT互換機版を生成
+et07内のdoc_link.txtで説明されている方法でリンクします。ただしAT互換機版を生成
 する時は、cc1に「-DPCAT」オプションをつけてください。またTOWNS版を生成する時は
 、cc1に「-DTOWNS」オプションをつけてください。98版は「-DNEC98」です。またここで
 もウィンドウデザインに関するオプションが必要です。ライブラリーにSYSGG00を使う必
@@ -95,7 +99,7 @@ et05内のdoc_link.txtで説明されている方法でリンクします。ただしAT互換機版を生成
 >bim2bin3 malloc:4208k mmare:4096k in:winman0.bim out:winman0.bin
 
   そしてさらに、たいていの場合は.BINファイルを.TEKファイルに変換する必要がある
-でしょう。それはbim2bin3の-osacmpモードで行ないます。具体的な手順はtolset05内の
+でしょう。それはbim2bin3の-osacmpモードで行ないます。具体的な手順はtolset07内の
 doc_link.txtでの説明を参照してください。
 
   BASE.EXEの生成は、以下のように行います。
@@ -104,7 +108,7 @@ doc_link.txtでの説明を参照してください。
 >nask base.nas base.exe base.lst
 
   OSALINK1.OPTに書かれている全てのファイルが用意できたら、osalink1でそれらをま
-とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset05内のdoc_nask.txtを
+とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset07内のdoc_nask.txtを
 参照してください。
 
   またVMware対応バイナリを生成する場合は、-DPCATに加えて-DVMWAREを指定してくだ
@@ -152,5 +156,5 @@ doc_link.txtでの説明を参照してください。
     OSASKの開発者向けページ   http://www.imasy.org/~kawai/osask/developers.html
     小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
     OSASKのページ             http://www.imasy.org/~kawai/osask/
-    OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
+    OSASK伝言板               http://koya.marokun.net/osask/form/
     川合秀実のページ          http://www.imasy.org/~kawai/

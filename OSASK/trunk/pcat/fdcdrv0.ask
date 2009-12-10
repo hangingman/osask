@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.2.4 copyright(C) 2003 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.2.5 copyright(C) 2003 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -57,7 +57,7 @@ struct FDC_WORK {
 	int CFIDE_name[12], CFport, CFbaseLBA;
 	char CFdev, CFerrflg, CFpower, CFdev2;
 	int readsecs, writesecs, formatsecs, loadfat, cardbus; /* test4, test6, test5 */
-	int PCCardDriveList[32], [72];
+	int PCCardDriveList[32], wait400count, [68];
 
 	/* 0x0800～0xfff */
 	void [2048];
@@ -1105,6 +1105,15 @@ void FDC_Init()
 	FDC_WORK *work == DS:0;
 	unsigned int fdc_control == 0x03f2; // bit7-4はmotor制御(1でON)、bit3はDMA許可、bit2はFDCリセット(0でリセット)、bit1-0はドライブ番号
 	unsigned short DMA_singlemask_master == 0x00c0, DMA_mode_master == 0x00d6, DMA_singlemask == 0x000a;
+	STR_SYSWORK *FS_syswork == FS:0;
+
+	PUSH(FS);
+	PUSH(SEL_SYSWORK);
+	POP(FS);
+	ECX = FS_syswork->mscount[0];
+	ECX /= 2048; /* 本当は2500で割りたいところだが */
+	ECX++; /* 端数切り上げ＆0阻止 */
+	work->wait400count = ECX;
 
 	PUSH(EAX);
 	AL = 0xc0;
@@ -1125,14 +1134,13 @@ void FDC_Init()
 	OUT(DX, AL);
 	work->motor2 = 0;
 
-	asmout("MOV DWORD PTR DS:[0010H],0 ; OFFSET TimerSysCmd"); // TimerCmd
-	asmout("MOV DWORD PTR DS:[0014H],10*8");
+	work->TimerCmd[0] = 0; /* TimerSysCmd */
+	work->TimerCmd[4] = SEL_TIMERINT;
 
 	work->timer_cmd6 = 2 * 4 /* GetNode */;
 	work->timer_cmd7 = 0;
 
 	MOV(EAX, DS);
-	PUSH(FS);
 	FS = AX;
 	EBX = /* (offset) &work->timer_cmd6 */ 0x0060;
 	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
@@ -1163,7 +1171,6 @@ void FDC_Init()
 	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
 	ECX = [SS:ESP + 36]; // 割り込み周波数[Hz]
 	ESP += 44;
-	POP(FS);
 	work->wait0_0 = ECX;
 	ECX *= 3;
 	work->wait0_4 = EAX;
@@ -1195,7 +1202,6 @@ void FDC_Init()
 	work->CFIDE_name[4] = 0x30454741;
 	work->CFIDE_name[8] = 0x004e4942;
 
-	PUSH(FS);
 	PUSH((int) 0);
 	PUSH(EAX);
 	PUSH(EAX);
@@ -1203,12 +1209,11 @@ void FDC_Init()
 	MOV(EAX, SS);
 	EBX = ESP;
 	FS = AX;
-	DB(0x9a); DD(0); DW(SEL_TAPI);
+	CALL(SEL_TAPI, 0);
 	POP(EAX);
 	POP(work->TAPI_sendsignalofs);
 	POP(work->TAPI_sendsignalsel);
 	POP(EAX);
-	POP(FS);
 
 	/* CardBusブリッジを全て探す */
 	/* とりあえずこれでバス番号31までは探している */
@@ -1318,6 +1323,7 @@ ISA_not_detected:
 //		} while ((signed) AL < 0);
 //	}
 
+	POP(FS);
 	return;
 }
 
@@ -3669,14 +3675,19 @@ skip:
 }
 
 void CFIDE_wait400ns()
-/* 3GHzを想定した手抜き */
 {
+	FDC_WORK *work == DS:0;
+	PUSH(DS);
 	PUSH(EAX);
-	EAX = 1200;
+	MOV(EAX, CS);
+	EAX += 8;
+	DS = AX;
+	EAX = work->wait400count;
 	do {
 		EAX--;
 	} while (!= 0);
 	POP(EAX);
+	POP(DS);
 	return;
 }
 

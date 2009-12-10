@@ -1,5 +1,13 @@
 ●主な変更点 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
+Version 4.2(2002/11)
+[OSASK 6603][OSASK 6604]
+・OSASKの大きすぎるウィンドウに対する対策処理が追加されました
+・windowの枠だけ描画がサポートされました
+・ATAとPCカードの読み書き速度がアップしました(AT/TOWNS）。
+・.BMPの関連付けがPICTURE0.BINに変更されました
+・画面イメージセーブのキー操作がF6からShift+F7に変更されました。
+
 Version 4.1(2002/10)
 [OSASK 6511][OSASK 6515]
 ・一部のノートPCにおいてPCカードスロットが原因で起動に失敗する問題を修正しました。

@@ -24,6 +24,7 @@ struct STR_SYSWORK {
 	int bmodule_size, bmodule_paddr, bmodule_laddr;
 	int DiskCacheLength;
 	int gdt0[8];
+	unsigned int mscount[8];
 };
 
 #define ENT_SYSWORK		0x0000 /* ‚±‚ê‚Í•K‚¸ 0x0000 */

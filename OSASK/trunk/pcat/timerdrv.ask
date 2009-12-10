@@ -1,6 +1,6 @@
-/*	"timerdrv.aska"
-	OSASK/AT用のタイマールーチン(type-A ver. 1.1)
-	Copyright(C) 2002 川合秀実(川合堂)		*/
+/*	"timerdrv.ask"
+	OSASK/AT用のタイマールーチン(type-A ver. 1.2)
+	Copyright(C) 2003 川合秀実(川合堂)		*/
 
 //	古いチップセットには対応していない。なぜなら、連続アクセスの際にウェイトが入っていないから。
 
@@ -49,6 +49,8 @@ struct TimerWork {
 
 	TimerNode head, last, timeout, freenode[3200 /* 50 * sizeof (TimerNode) */];
 };
+
+void calc_count1ms();
 
 void far TimerSysCmd()
 // FS:EBXからコマンド
@@ -901,9 +903,9 @@ void near TimerSC_AddTimeNode2()
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EDI]");
 }
 
-void near TimerInit();
+void TimerInit();
 
-void near TimerSC_Special()
+void TimerSC_Special()
 {
 	EAX = (int) [FS:EBX + 4]; // sub-cmd(4の倍数)
 	if (EAX == 0) {
@@ -933,27 +935,35 @@ void near TimerSC_Special()
 		// Intハンドラ情報
 		// +08 : エントリ
 		// +0c : reserve
-		// +10 : reserve
+		// +10 : mscount用ベクタ
 		// +14 : reserve
 		// +18 : reserve
 		// +1c : reserve
-		asmout("MOV EAX,OFFSET TimerInt");
 		ECX = 0;
-		(int) [FS:EBX + 0x08] = EAX;
+		asmout("MOV DWORD [FS:EBX+0x08],TimerInt");
 		(int) [FS:EBX + 0x0c] = ECX;
-		(int) [FS:EBX + 0x10] = ECX;
+		asmout("MOV DWORD [FS:EBX+0x10],int8vect");
 		(int) [FS:EBX + 0x14] = ECX;
 		(int) [FS:EBX + 0x18] = ECX;
 		(int) [FS:EBX + 0x1c] = ECX;
 		EBX += 32;
+	} else if (EAX == 12) {
+		calc_count1ms();
+		(int) [FS:EBX + 0x08] = EAX;
+		(int) [FS:EBX + 0x0c] = 0;
+		EBX += 16;
 	} else {
 		INT(0x03);
 	}
 	EAX = [FS:EBX];
+	TEST(EAX, EAX);
+	asmout("JZ TimerSC_EOC");
+//	if (EAX == 0)
+//		goto TimerSC_EOC;
 	asmout("JMP DWORD PTR DS:[TimerSC_JmpTbl+EAX]");
 }
 
-void near TimerInit()
+void TimerInit()
 //	汎用レジスタはすべて破壊
 {
 	TimerWork *work == DS:0x0000;
@@ -1037,19 +1047,19 @@ void near TimerInit()
 	/* tback->next = (offset) &work->head */ asmout("MOV DWORD PTR DS:[EBX+#TN_back],#work_head");
 
 	asmout("MOV EAX,TimerSC_JmpTbl");
-	asmout("MOV DWORD PTR DS:[EAX+ 0],OFFSET TimerSC_EOC");
-	asmout("MOV DWORD PTR DS:[EAX+ 4],OFFSET TimerSC_Special");
-	asmout("MOV DWORD PTR DS:[EAX+ 8],OFFSET TimerSC_GetNode");
-	asmout("MOV DWORD PTR DS:[EAX+12],OFFSET TimerSC_FreeNode");
-	asmout("MOV DWORD PTR DS:[EAX+16],OFFSET TimerSC_SetTimer");
-	asmout("MOV DWORD PTR DS:[EAX+20],OFFSET TimerSC_CancelTimer");
-	asmout("MOV DWORD PTR DS:[EAX+24],OFFSET TimerSC_SetNowTime");
-	asmout("MOV DWORD PTR DS:[EAX+28],OFFSET TimerSC_SetNowTimeNode");
-	asmout("MOV DWORD PTR DS:[EAX+32],OFFSET TimerSC_AddTimeNode");
-	asmout("MOV DWORD PTR DS:[EAX+36],OFFSET TimerSC_SubTimeNode");
-	asmout("MOV DWORD PTR DS:[EAX+40],OFFSET TimerSC_SetCallVectorNode");
-	asmout("MOV DWORD PTR DS:[EAX+44],OFFSET TimerSC_SetMsgDataNode");
-	asmout("MOV DWORD PTR DS:[EAX+52],OFFSET TimerSC_AddTimeNode2");
+	asmout("MOV DWORD DS:[EAX+ 0],TimerSC_EOC");
+	asmout("MOV DWORD DS:[EAX+ 4],TimerSC_Special");
+	asmout("MOV DWORD DS:[EAX+ 8],TimerSC_GetNode");
+	asmout("MOV DWORD DS:[EAX+12],TimerSC_FreeNode");
+	asmout("MOV DWORD DS:[EAX+16],TimerSC_SetTimer");
+	asmout("MOV DWORD DS:[EAX+20],TimerSC_CancelTimer");
+	asmout("MOV DWORD DS:[EAX+24],TimerSC_SetNowTime");
+	asmout("MOV DWORD DS:[EAX+28],TimerSC_SetNowTimeNode");
+	asmout("MOV DWORD DS:[EAX+32],TimerSC_AddTimeNode");
+	asmout("MOV DWORD DS:[EAX+36],TimerSC_SubTimeNode");
+	asmout("MOV DWORD DS:[EAX+40],TimerSC_SetCallVectorNode");
+	asmout("MOV DWORD DS:[EAX+44],TimerSC_SetMsgDataNode");
+	asmout("MOV DWORD DS:[EAX+52],TimerSC_AddTimeNode2");
 
 //	CLI();
 
@@ -1071,5 +1081,83 @@ void near TimerInit()
 // そういうことはInitがやるので、ここではやらない。
 
 //	POP(DS);
+	return;
+}
+
+/* mscount計算用 */
+
+void calc_count1ms_sub()
+{
+	PUSH(EAX);
+	AL = 0x36;
+	OUT(0x43, AL);
+	POP(EAX);
+	OUT(0x40, AL);
+	AL = AH;
+	OUT(0x40, AL);
+	EAX = 0;
+	do {
+		EAX--;
+	} while (!= 0);
+	NEG(ECX);
+	return;
+}
+
+void far int8vect()
+{
+	ECX = EAX;
+	AL = 0x60;
+	OUT(0x20, AL);
+	EAX = 1;
+	IRET();
+}
+
+void calc_count1ms()
+/* do { EAX--; } while (!= 0);で1.0msに要する時間をできるだけ正確に測定 */
+/* 4GHzで1clock/loopの場合、0x003d0900が返ってくる */
+{
+	PUSH(EBX);
+	PUSH(EDX);
+	PUSH(ECX);
+
+	/* デフォルトは65536らしい ＞ PIT0 */
+
+	/* 安全のためのダミー設定 */
+	AL = 0x36;
+	OUT(0x43, AL);
+	EAX = 0;
+	OUT(0x40, AL);
+	NOP();
+	OUT(0x40, AL);
+	NOP();
+
+	IN(AL, 0x21);
+	BL = AL;
+	AL = 0xfe;
+	OUT(0x21, AL);	/* 測定誤差をなくすために、PICをタイマーのみにする */
+
+	EAX = 119; /* キャッシュにはめるため(0.1ms) */
+	calc_count1ms_sub();
+	EAX = 1193 * 2;
+	calc_count1ms_sub();
+	EDX = ECX;
+	EAX = 1193;
+	calc_count1ms_sub(); /* 合計(3.1ms) */
+	EDX -= ECX;
+
+	AL = 0x36;
+	OUT(0x43, AL);
+	EAX = 0;
+	OUT(0x40, AL);
+	NOP();
+	OUT(0x40, AL);
+
+	AL = BL;
+	OUT(0x21, AL);
+
+	EAX = EDX;
+	POP(ECX);
+	POP(EDX);
+	POP(EBX);
 	return;
 }
