@@ -1,47 +1,32 @@
-"src28"の使い方の説明                      2002/08/29 川合秀実
+"src29"の使い方の説明                      2002/09/25 川合秀実
 
 １．これは何か？
 
-  "src28"は、OSASK ver.2.8の「OSASK28.EXE」を生成するのに必要なモジュールのソー
+  "src29"は、OSASK ver.2.9の「OSASK29.EXE」を生成するのに必要なモジュールのソー
 スプログラムのセットです。ただし、以前のバージョンのものをそのまま利用している
-ものついては、このアーカイブに含まれていません。OSASK28.EXEを生成するのに必要な
+ものついては、このアーカイブに含まれていません。OSASK29.EXEを生成するのに必要な
 モジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    PIONEER0.BIN : ver.2.5
-    INIT.ASK     : ver.2.6
-    WINMAN0.BIN  : ver.2.2
-    POKON0.BIN   : ver.2.8
-
-    PCAT/
-      VGADRV0.BIN  : ver.1.6
-
-    TOWNS/
-      VGADRV0.BIN  : ver.1.6
-
-    NEC98/
-      BASE.EXE     : ver.2.1
-      VGADRV0.BIN  : ver.1.6
-      TIMERDRV.BIN : type-A ver.1.1
-      KEYMOS0.BIN  : ver.0.4
-      DECODE0.BIN  : ver.1.0
-      FDCDRV0.BIN  : ver.1.6
+    PIONEER0.BIN : ver.2.6
+    INIT.ASK     : ver.2.7
+    WINMAN0.BIN  : ver.2.3
+    POKON0.BIN   : ver.2.9
 
   (以前のバージョンのものを利用するもの)
 
+    BASE.EXE     : ver.2.1
     OSASKINC.ASK : ver.0.0
     TAPI0.BIN    : ver.0.4
     PAPI0.BIN    : ver.0.6
     OSALINK0.OPT : ver.1.9
+    TIMERDRV.BIN : type-A ver.1.1
+    VGADRV0.BIN  : ver.1.6
+    KEYMOS0.BIN  : ver.0.4
+    DECODE0.BIN  : ver.1.0
+    FDCDRV0.BIN  : ver.1.6
     SYSGG00.LIB  : ver.0.8
-
-    PCAT/ および TOWNS/
-      BASE.EXE     : ver.2.1
-      TIMERDRV.BIN : type-A ver.1.1
-      KEYMOS0.BIN  : ver.0.4
-      DECODE0.BIN  : ver.1.0
-      FDCDRV0.BIN  : ver.1.6
 
   このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
 るだけです。
@@ -50,13 +35,13 @@
 
   使用したアセンブラ、コンパイラ、コンバータ、ライブラリは以下の通りです。
 
-・aska10b19 (ASKA version 1.0 beta 19 Modified by RisaPapa)
-・naskset0  (NASK ver.0.0 + naskcnv0 + osalink0)
-・introa09  (obj2bim2 + bim2bin2 + gg00lib9 + stdlib6)
+・tolset00
+  (ASKA version 1.0 beta 19 Modified by RisaPapa + NASK ver.0.0 + naskcnv0 +
+   osalink0 + obj2bim2 + bim2bin2 + gg00lib9 + stdlib6)
 ・lcc-win32 (LCC.EXEのタイムスタンプ2002/06/09、サイズ532,000バイト)
 
-OSASKの開発者向けページに、lcc以外の全てのツールが公開されています。lccについて
-は、introa09のドキュメントにしたがって入手してください。
+tolset00はOSASKの開発者向けページからダウンロードできます。lccについては、tolse
+t00のドキュメントにしたがって入手してください。
 
   BASE.EXEの生成は、以下のように行います。
 
@@ -81,16 +66,16 @@ WNS」オプションをつけてください。またウィンドウデザインを指定するために「-DWIN
 
 （このinitの部分を置き換えれば他のソースも同様にアセンブルできます）
 
-  拡張子が.Cのものは、linkset3で説明されている方法で生成できます。ただし、AT互
-換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を
-生成する時は、LCCに「-DTOWNS」オプションをつけてください。98版は「-DNEC98」です
-。またここでもウィンドウデザインに関するオプションが必要です。ライブラリーにSYS
-GG00を使う必要があることにも注意してください。指定すべきスタックサイズ、malloc
-サイズは、各ソース中の最初の方に明記してあります。
+  拡張子が.Cのものは、tolset00内のdoc_link.txtで説明されている方法で生成できま
+す。ただしAT互換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。
+またTOWNS版を生成する時は、LCCに「-DTOWNS」オプションをつけてください。98版は「
+-DNEC98」です。またここでもウィンドウデザインに関するオプションが必要です。ライ
+ブラリーにSYSGG00を使う必要があることにも注意してください。指定すべきスタックサ
+イズ、mallocサイズは、各ソース中の最初の方に明記してあります。
 
   OSALINK0.OPTに書かれている全てのファイルが用意できたら、osalnk0pでそれらをま
-とめて、OSASK.EXEを生成できます。osalnk0pの使い方は、osalnk0p内のアーカイブを参
-照してください。
+とめて、OSASK.EXEを生成できます。osalnk0pの使い方は、tolset00内のdoc_nask.txtを
+参照してください。
 
   またVMware対応バイナリを生成する場合は、-DPCATに加えて-DVMWAREを指定してくだ
 さい。

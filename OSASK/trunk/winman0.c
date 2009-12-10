@@ -1,6 +1,6 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.2
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.3
 		copyright(C) 2002 川合秀実, I.Tak., 小柳雅明, KIYOTO
-    stack:4k malloc:620k file:768k */
+    stack:4k malloc:624k file:768k */
 
 #define WALLPAPERMAXSIZE	(512 * 1024)
 
@@ -23,6 +23,7 @@
 #define JOBLIST_SIZE		 256		// 1KB
 #define	MAX_SOUNDTRACK		  16		// 0.5KB
 #define	DEFSIGBUFSIZ		2048
+#define	MOSWINSIGS			 128		/* 4KB */
 
 #define	BACKCOLOR			   6
 
@@ -86,6 +87,13 @@ struct SOUNDTRACK {
 	int sigbox, sigbase, slot, reserve[5];
 };
 
+struct MOSWINSIG { /* 32bytes */
+	int flags, sig[6];
+	struct WM0_WINDOW *win;
+	/* flagsの下位4bitはlen */
+	/* sig[4], sig[5]は場合によってはx0, y0 */
+};
+
 static struct STR_JOB {
 	int now, movewin4_ready, fontflag;
 	int *list, free, *rp, *wp;
@@ -103,12 +111,18 @@ int x2 = 0, y2, mx = 0x80000000, my, mbutton = 0;
 int fromboot = 0, mousescale = 1;
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
 struct DEFINESIGNAL *defsigbuf;
+struct MOSWINSIG *moswinsig;
+int mws_sensitivecount = 0;
+struct WM0_WINDOW *mws_mousewin = NULL;
 
 void init_screen(const int x, const int y);
 struct WM0_WINDOW *handle2window(const int handle);
 void chain_unuse(struct WM0_WINDOW *win);
 struct WM0_WINDOW *get_unuse();
 void mousesignal(const unsigned int header, int dx, int dy);
+void mousesignal_sub0(int _mx, int _my);
+void mousesignal_sub1(int _mx, int _my);
+
 int writejob_n(int n, int p0,...);
 void runjobnext();
 void job_openwin0(struct WM0_WINDOW *win);
@@ -133,6 +147,8 @@ void job_loadfont0(int fonttype, int tss, int sig);
 void job_loadfont1(int flag, int dmy);
 void job_loadfont2();
 void job_loadfont3(int flag, int dmy);
+void moswinsig_flagset();
+struct WM0_WINDOW *searchwin(int x, int y);
 
 #ifdef TOWNS
 void job_savevram0(void);
@@ -148,6 +164,7 @@ void putwallpaper(int x0, int y0, int x1, int y1);
 struct SOUNDTRACK *alloc_sndtrk();
 void send_signal2dw(const int sigbox, const int data0, const int data1);
 void send_signal3dw(const int sigbox, const int data0, const int data1, const int data2);
+void send_signal4dw(const int sigbox, const int data0, const int data1, const int data2, int data3);
 
 void lib_drawletters_ASCII(const int opt, const int win, const int charset, const int x0, const int y0,
 	const int color, const int backcolor, const char *str);
@@ -177,6 +194,7 @@ void OsaskMain()
 	int *signal, *signal0, i, j;
 	struct WM0_WINDOW *win;
 	struct STR_JOB *pjob = &job;
+	struct MOSWINSIG *mws;
 
 	#if (defined(TOWNS))
 		static int TOWNS_mouseinit[] = {
@@ -236,9 +254,16 @@ void OsaskMain()
 	#endif
 
 	wallpaper = malloc(WALLPAPERMAXSIZE);
+	mws = moswinsig = malloc(MOSWINSIGS * sizeof(struct MOSWINSIG));
+	for (i = 0; i < MOSWINSIGS - 1; i++, mws++) {
+		mws->win = NULL;
+		mws->flags = 0;
+	}
+	mws->win = (struct WM0_WINDOW *) -1;
 
 	for (;;) {
 		unsigned char siglen = 1;
+		int sig4;
 		win = top;
 		struct SOUNDTRACK *sndtrk;
 		switch (i = signal[0]) {
@@ -328,7 +353,7 @@ void OsaskMain()
 
 		case 0x002c:
 			/* ウィンドウ連動デバイス指定
-			    (opt,  win-handle, reserve(signalebox),
+			    (opt,  win-handle, reserve(signalbox),
 			       default-device, default-code, len(2), 0x7f000001, signal) */
 
 			win = handle2window(signal[2]);
@@ -351,6 +376,32 @@ void OsaskMain()
 				}
 			}
 			siglen = 9;
+			break;
+
+		case 0x0030:
+			/* マウスシグナル指定
+			    (win-handle, reserve(signalbox),
+			       default-device, default-code, [x0, y0], len(2), 0x7f000001, signal) */
+			for (mws = moswinsig; mws->win != NULL && mws->win != (struct WM0_WINDOW *) -1; mws++);
+			siglen = 8;
+			i = 6;
+			sig4 = signal[4];
+			if ((sig4 & 0xff) == 0x10 || (sig4 & 0xff) == 0x12) {
+				siglen = 10;
+				i += 2;
+			}
+			if (mws->win == NULL) {
+				static int flagtable[] = { 0x00100002, 0x00700002, 0x07700002, 0x77700002 };
+				mws->win = handle2window(signal[1]);
+				mws->flags = (sig4 & 0xff) << 8 | flagtable[(sig4 >> 12) & 0x3];
+				mws->sig[4] = signal[5];
+				mws->sig[5] = signal[6];
+				mws->sig[0] = signal[i];
+				mws->sig[1] = signal[i + 1];
+			}
+			moswinsig_flagset();
+			if (siglen == 10)
+				mousesignal(mbutton, 0, 0); /* eyeなどのため */
 			break;
 
 		case 0x0040: /* open sound track (slot, tss, signal-base, reserve0, reserve1)
@@ -790,17 +841,26 @@ struct WM0_WINDOW *get_unuse()
 
 static struct STR_PRESS {
 	enum {
-		NO_PRESS, CLOSE_BUTTON, TITLE_BAR
+		NO_PRESS = 0, CLOSE_BUTTON, TITLE_BAR
 	} pos;
 	struct WM0_WINDOW *win;
 	int mx0, my0;
-} press0 = { NO_PRESS }; 
+} press0 = { NO_PRESS, NULL }; 
 
 void mousesignal(const unsigned int header, int dx, int dy)
 {
 	struct STR_JOB *pjob = &job;
 	struct STR_PRESS *press = &press0;
-	int _mx = mx, _my = my;
+	int _mx = mx, _my = my, flagmask = 0, nbutton;
+	struct WM0_WINDOW *win;
+	struct MOSWINSIG *mws;
+	char call_flagset = 0;
+
+	// マウスのボタン状態が変化
+	// bit0:left
+	// bit1:right
+	// bit2:middle
+
 	dx *= mousescale;
 	dy *= mousescale;
 	if ((header >> 28) == 0x0 /* normal mode */) {
@@ -825,138 +885,117 @@ void mousesignal(const unsigned int header, int dx, int dy)
 					job_movewin4m(_mx, _my);
 			}
 		}
-		if (mbutton != (header & 0x07)) {
-			struct WM0_WINDOW *win;
-			// マウスのボタン状態が変化
-			// bit0:left
-			// bit1:right
-			// bit2:middle
-			// bit3:always 1
-			// bit4:reserve(dx bit8)
-			// bit5:reserve(dy bit8)
 
-			if ((mbutton & 0x01) == 0x00 && (header & 0x01) == 0x01) {
-				// 左ボタンが押された
-				if (pjob->movewin4_ready != 0 && press->pos == NO_PRESS) {
-					job_movewin4(0x00f0 /* Enter */);
-					goto skip;
+		if (mbutton == (nbutton = header & 0x07)) { /* マウスのボタン状態は不変 */
+			if (nbutton | mbutton) { /* ドラッグ中 */
+				flagmask |= 0x02;
+				goto send0;
+			}
+			/* 通常のマウス移動中 */
+			if (mws_sensitivecount) {
+	send0:
+				win = searchwin(_mx, _my);
+	send1:
+				if (mws_mousewin != win) {
+					if (mws_mousewin) {
+						/* sensitiveのアウトを送信 */
+						for (mws = moswinsig; mws->win != (struct WM0_WINDOW *) -1; mws++) {
+							if ((mws->flags & 0x0000ff00) == 0x00001100 && mws->win == mws_mousewin) {
+								/* !手抜き! len == 2のみを想定 */
+								//	if ((mws->flags & 0x0f) == 2) {
+									send_signal2dw(mws->win->sgg.image[WINSTR_SIGNALEBOX], mws->sig[0], mws->sig[1]);
+							//	}
+							}
+						}
+					}
+					mws_mousewin = win;
+					call_flagset = 1;
 				}
-				// どのwindowをクリックしたのかを検出
-				if (win = top) {
-					do {
-						if (win->x0 <= _mx && _mx < win->x1 && win->y0 <= _my && _my < win->y1)
-							goto found_window;
-						win = win->down;
-					} while (win != top);
-					win = NULL;
-				}
-				if (win != NULL) {
-		found_window:
-					if (win == top) {
-						// アクティブなウィンドウの中にマウスがある
-						#if (defined(WIN9X))
-							if (win->x1 - 21 <= _mx && _mx < win->x1 - 5 && win->y0 + 5 <= _my && _my < win->y0 + 19) {
-								// close buttonをプレスした
-								press->win = win;
-								press->pos = CLOSE_BUTTON;
-							} else if (win->x0 + 3 <= _mx && _mx < win->x1 - 4 && win->y0 + 3 <= _my && _my < win->y0 + 21) {
-								/* title-barをプレスした */
-								if (pjob->free >= 2) {
-									/* 空きが十分にある */
-									press->win = win;
-									press->pos = TITLE_BAR;
-									press->mx0 = _mx;
-									press->my0 = _my;
-									writejob_n(2, 0x0028 /* move */, (int) win);
-								}
+				flagmask |= 0x04;
+				if (call_flagset)
+					moswinsig_flagset();
+				/* フラグに基づいて送信 */
+				flagmask <<= 16;
+				call_flagset = nbutton | mbutton << 4;
+				for (mws = moswinsig; mws->win != (struct WM0_WINDOW *) -1; mws++) {
+					if (mws->flags & flagmask) {
+						/* !手抜き! len == 2のみを想定 */
+						switch ((mws->flags >> 8) & 0xff) {
+						case 0x10: /* マウスx-y */
+							if (win != mws->win)
+								break;
+						case 0x12: /* マウスx-y(outなし) */
+							if (pjob->movewin4_ready != 0 && pjob->win == mws->win) {
+								if (press->pos == NO_PRESS || (press->pos == TITLE_BAR && press->win == pjob->win))
+									break;
 							}
-						#elif (defined(TMENU) || defined(WIN31))
-							if (win->x0 + 2 <= _mx && _mx < win->x0 + 20 && win->y0 + 3 <= _my && _my < win->y0 + 21) {
-								// close buttonをプレスした
-								press->win = win;
-								press->pos = CLOSE_BUTTON;
-							} else if (win->x0 + 1 <= _mx && _mx < win->x1 - 1 && win->y0 + 1 <= _my && _my < win->y0 + 21) {
-								/* title-barをプレスした */
-								if (pjob->free >= 2) {
-									/* 空きが十分にある */
-									press->win = win;
-									press->pos = TITLE_BAR;
-									press->mx0 = _mx;
-									press->my0 = _my;
-									writejob_n(2, 0x0028 /* move */, (int) win);
-								}
+							send_signal4dw(mws->win->sgg.image[WINSTR_SIGNALEBOX], mws->sig[0], mws->sig[1],
+								_mx - mws->win->x0 - mws->sig[4], _my - mws->win->y0 - mws->sig[5]);
+							break;
+						case 0x20:
+							if ((call_flagset & 0x11) == 0x01)	/* ((nbutton & 0x01) != 0 && (mbutton & 0x01) == 0) */
+								goto sendsig2dw;
+							break;
+						case 0x21:
+							if ((call_flagset & 0x22) == 0x02)	/* ((nbutton & 0x02) != 0 && (mbutton & 0x02) == 0) */
+								goto sendsig2dw;
+							break;
+						case 0x22:
+							if ((call_flagset & 0x44) == 0x04)	/* ((nbutton & 0x04) != 0 && (mbutton & 0x04) == 0) */
+								goto sendsig2dw;
+							break;
+						case 0x30:
+							if ((call_flagset & 0x11) == 0x10)	/* ((nbutton & 0x01) == 0 && (mbutton & 0x01) != 0) */
+								goto sendsig2dw;
+							break;
+						case 0x31:
+							if ((call_flagset & 0x22) == 0x20)	/* ((nbutton & 0x02) == 0 && (mbutton & 0x02) != 0) */
+								goto sendsig2dw;
+							break;
+						case 0x32:
+							if ((call_flagset & 0x44) == 0x40) {/* ((nbutton & 0x04) == 0 && (mbutton & 0x04) != 0) */
+				sendsig2dw:
+								send_signal2dw(mws->win->sgg.image[WINSTR_SIGNALEBOX], mws->sig[0], mws->sig[1]);
 							}
-						#elif (defined(CHO_OSASK))
-							if (win->x0 + 4 <= _mx && _mx < win->x0 + 20 && win->y0 + 4 <= _my && _my < win->y0 + 20) {
-								// close buttonをプレスした
-								press->win = win;
-								press->pos = CLOSE_BUTTON;
-							} else if (win->x0 + 1 <= _mx && _mx < win->x1 - 1 && win->y0 + 1 <= _my && _my < win->y0 + 21) {
-								/* title-barをプレスした */
-								if (pjob->free >= 2) {
-									/* 空きが十分にある */
-									press->win = win;
-									press->pos = TITLE_BAR;
-									press->mx0 = _mx;
-									press->my0 = _my;
-									writejob_n(2, 0x0028 /* move */, (int) win);
-								}
-							}
-						#elif (defined(NEWSTYLE)) /* クローズボタンはありません */
-							if (win->x0 + 1 <= _mx && _mx < win->x1 - 1 && win->y0 + 1 <= _my && _my < win->y0 + 21) {
-								/* title-barをプレスした */
-								if (pjob->free >= 2) {
-									/* 空きが十分にある */
-									press->win = win;
-									press->pos = TITLE_BAR;
-									press->mx0 = _mx;
-									press->my0 = _my;
-									writejob_n(2, 0x0028 /* move */, (int) win);
-								}
-							}
-						#endif
-					} else {
-						writejob_n(2, 0x0024 /* active */, (int) win);
+						//	break;
+						}
 					}
 				}
-			} else if ((mbutton & 0x01) == 0x01 && (header & 0x01) == 0x00) {
-				/* 左ボタンがはなされた */
-				switch (press->pos) {
-				case CLOSE_BUTTON:
-					#if (defined(WIN9X))
-						if (press->win->x1 - 21 <= _mx && _mx < press->win->x1 - 5 &&
-							press->win->y0 + 5 <= _my && _my < press->win->y0 + 19) {
-							if (press->win != pokon0)
-								sgg_wm0s_close(&press->win->sgg);
-						}
-					#elif (defined(TMENU) || defined(WIN31))
-						if (press->win->x0 + 2 <= _mx && _mx < press->win->x0 + 20 &&
-							press->win->y0 + 3 <= _my && _my < press->win->y0 + 21) {
-							if (press->win != pokon0)
-								sgg_wm0s_close(&press->win->sgg);
-						}
-					#elif (defined(CHO_OSASK))
-						if (press->win->x0 + 4 <= _mx && _mx < press->win->x0 + 20 &&
-							press->win->y0 + 4 <= _my && _my < press->win->y0 + 20) {
-							if (press->win != pokon0)
-								sgg_wm0s_close(&press->win->sgg);
-						}
-					#endif
-					break;
-
-				case TITLE_BAR:
-					if (press->win == pjob->win && pjob->movewin4_ready != 0) {
-						/* 移動先確定シグナルを送る */
-						job_movewin4(0x00f0 /* Enter */);
-					}
-				//	break;
-
+				if (nbutton == 0) {
+					press->win = NULL;
+					if (mws_sensitivecount == 0)
+						mws_mousewin = NULL;
+					moswinsig_flagset();
 				}
+			}
+		} else { /* マウスのボタン状態が変化 */
+			if (pjob->movewin4_ready != 0 && press->pos == NO_PRESS && nbutton == 0x01) {
+				job_movewin4(0x00f0 /* Enter */);
+				goto skip;
+			}
+			if ((mbutton & 0x01) == 0x01 && (nbutton & 0x01) == 0x00 && press->pos != NO_PRESS) {
+				mousesignal_sub0(_mx, _my); /* 左ボタンが放された */
 				press->pos = NO_PRESS;
 			}
-skip:
-			mbutton = header & 0x07;
+			flagmask |= 0x03;
+			if (mbutton != 0)
+				goto send0;
+			/* プレス状態の立ち上がり */
+			win = searchwin(_mx, _my);
+			if (top != win) {
+				if (mbutton == 0 && win != NULL) {
+					writejob_n(2, 0x0024 /* active */, (int) win);
+					goto skip;
+				}
+			}
+			press->win = win;
+			call_flagset = 1;
+			if ((nbutton & 0x01) != 0 && press->win != NULL)
+				mousesignal_sub1(_mx, _my); /* 左ボタンが押された */
+			goto send1;
 		}
+skip:
+		mbutton = nbutton;
 	} else if ((header >> 28) == 0xa /* extmode byte2 */) {
 		/* マウスリセット */
 		mbutton = 0;
@@ -970,6 +1009,110 @@ skip:
 	/* 溜まったジョブがあれば、実行する */
 	if (pjob->now == 0)
 		runjobnext();
+	return;
+}
+
+void mousesignal_sub1(int _mx, int _my)
+/* 左ボタンが押されたときの組み込みイベント */
+{
+	struct STR_JOB *pjob = &job;
+	struct STR_PRESS *press = &press0;
+	struct WM0_WINDOW *win = press->win;
+
+	#if (defined(WIN9X))
+		if (win->x1 - 21 <= _mx && _mx < win->x1 - 5 && win->y0 + 5 <= _my && _my < win->y0 + 19) {
+			// close buttonをプレスした
+			press->pos = CLOSE_BUTTON;
+		} else if (win->x0 + 3 <= _mx && _mx < win->x1 - 4 && win->y0 + 3 <= _my && _my < win->y0 + 21) {
+			/* title-barをプレスした */
+			if (pjob->free >= 2) {
+				/* 空きが十分にある */
+				press->pos = TITLE_BAR;
+				press->mx0 = _mx;
+				press->my0 = _my;
+				writejob_n(2, 0x0028 /* move */, (int) win);
+			}
+		}
+	#elif (defined(TMENU) || defined(WIN31))
+		if (win->x0 + 2 <= _mx && _mx < win->x0 + 20 && win->y0 + 3 <= _my && _my < win->y0 + 21) {
+			// close buttonをプレスした
+			press->pos = CLOSE_BUTTON;
+		} else if (win->x0 + 1 <= _mx && _mx < win->x1 - 1 && win->y0 + 1 <= _my && _my < win->y0 + 21) {
+			/* title-barをプレスした */
+			if (pjob->free >= 2) {
+				/* 空きが十分にある */
+				press->pos = TITLE_BAR;
+				press->mx0 = _mx;
+				press->my0 = _my;
+				writejob_n(2, 0x0028 /* move */, (int) win);
+			}
+		}
+	#elif (defined(CHO_OSASK))
+		if (win->x0 + 4 <= _mx && _mx < win->x0 + 20 && win->y0 + 4 <= _my && _my < win->y0 + 20) {
+			// close buttonをプレスした
+			press->pos = CLOSE_BUTTON;
+		} else if (win->x0 + 1 <= _mx && _mx < win->x1 - 1 && win->y0 + 1 <= _my && _my < win->y0 + 21) {
+			/* title-barをプレスした */
+			if (pjob->free >= 2) {
+				/* 空きが十分にある */
+				press->pos = TITLE_BAR;
+				press->mx0 = _mx;
+				press->my0 = _my;
+				writejob_n(2, 0x0028 /* move */, (int) win);
+			}
+		}
+	#elif (defined(NEWSTYLE)) /* クローズボタンはありません */
+		if (win->x0 + 1 <= _mx && _mx < win->x1 - 1 && win->y0 + 1 <= _my && _my < win->y0 + 21) {
+			/* title-barをプレスした */
+			if (pjob->free >= 2) {
+				/* 空きが十分にある */
+				press->pos = TITLE_BAR;
+				press->mx0 = _mx;
+				press->my0 = _my;
+				writejob_n(2, 0x0028 /* move */, (int) win);
+			}
+		}
+	#endif
+	return;
+}
+
+void mousesignal_sub0(int _mx, int _my)
+/* 左ボタンが放されたときの組み込みイベント */
+{
+	struct STR_JOB *pjob = &job;
+	struct STR_PRESS *press = &press0;
+	struct WM0_WINDOW *win = press->win;
+
+	switch (press->pos) {
+	case CLOSE_BUTTON:
+		#if (defined(WIN9X))
+			if (press->win->x1 - 21 <= _mx && _mx < press->win->x1 - 5 &&
+				press->win->y0 + 5 <= _my && _my < press->win->y0 + 19) {
+				if (press->win != pokon0)
+					sgg_wm0s_close(&press->win->sgg);
+			}
+		#elif (defined(TMENU) || defined(WIN31))
+			if (press->win->x0 + 2 <= _mx && _mx < press->win->x0 + 20 &&
+				press->win->y0 + 3 <= _my && _my < press->win->y0 + 21) {
+				if (press->win != pokon0)
+					sgg_wm0s_close(&press->win->sgg);
+			}
+		#elif (defined(CHO_OSASK))
+			if (press->win->x0 + 4 <= _mx && _mx < press->win->x0 + 20 &&
+				press->win->y0 + 4 <= _my && _my < press->win->y0 + 20) {
+				if (press->win != pokon0)
+					sgg_wm0s_close(&press->win->sgg);
+			}
+		#endif
+		break;
+
+	case TITLE_BAR:
+		if (press->win == pjob->win && pjob->movewin4_ready != 0) {
+			/* 移動先確定シグナルを送る */
+			job_movewin4(0x00f0 /* Enter */);
+		}
+	//	break;
+	}
 	return;
 }
 
@@ -1093,7 +1236,7 @@ void job_openwin0(struct WM0_WINDOW *win)
 
 	// 入力アクティブを変更
 	redirect_input(win); // この関数は、ウィンドウ制御はしない
-	iactive = win;
+//	iactive = win;
 
 	// 接続
 	if (top == NULL)
@@ -1163,6 +1306,10 @@ void redirect_input(struct WM0_WINDOW *win)
 			}
 		}
 	}
+
+	iactive = win;
+	moswinsig_flagset();
+
 	return;
 }
 
@@ -1192,8 +1339,8 @@ void job_activewin0(struct WM0_WINDOW *win)
 
 	/* 入力アクティブを変更 */
 	redirect_input(win); /* この関数は、ウィンドウ制御はしない */
-	iactive = win;
-	win = top;
+//	iactive = win;
+//	win = top;
 	do {
 		win->job_flag0 = 0;
 	} while ((win = win->down) != top);
@@ -1388,19 +1535,28 @@ void job_closewin0(struct WM0_WINDOW *win0)
 {
 	struct STR_JOB *pjob = &job;
 	struct WM0_WINDOW *win1, *win_up, *win_down;
+	struct DEFINESIGNAL *dsp;
+	struct MOSWINSIG *mws;
 
-	/* winをリストから切り離す */
+	/* win0をリストから切り離す */
 	win_up = win0->up;
 	win_down = win0->down;
 	win_up->down = win_down;
-	win_down->up = win_up;	
+	win_down->up = win_up;
 
 	sgg_wm0s_windowclosed(&win0->sgg);
 
-	struct DEFINESIGNAL *dsp;
 	for (dsp = defsigbuf; dsp->win != -1; dsp++) {
 		if (dsp->win == (int) win0)
 			dsp->win = NULL;
+	}
+	for (mws = moswinsig; mws->win != (struct WM0_WINDOW *) -1; mws++) {
+		if (mws->win == win0) {
+			mws->win = NULL;
+			mws->flags = 0;
+			if (mws->flags & 0x88880000)
+				mws_sensitivecount--;
+		}
 	}
 
 	pjob->count = 0;
@@ -1420,11 +1576,11 @@ void job_closewin0(struct WM0_WINDOW *win0)
 		if (win_up == win0) {
 			top = NULL;
 			redirect_input(0);
-			iactive = NULL;
+		//	iactive = NULL;
 			goto no_window;
 		}
 		redirect_input(top);
-		iactive = top;
+	//	iactive = top;
 	}
 
 	win1 = top;
@@ -1673,6 +1829,12 @@ void send_signal2dw(const int sigbox, const int data0, const int data1)
 void send_signal3dw(const int sigbox, const int data0, const int data1, const int data2)
 {
 	sgg_execcmd0(0x0020, 0x80000000 + 4, sigbox | 3, data0, data1, data2, 0x000);
+	return;
+}
+
+void send_signal4dw(const int sigbox, const int data0, const int data1, const int data2, const int data3)
+{
+	sgg_execcmd0(0x0020, 0x80000000 + 5, sigbox | 4, data0, data1, data2, data3, 0x000);
 	return;
 }
 
@@ -3718,4 +3880,40 @@ int bmp2beta(unsigned char *src, char *dest, int bw, int bh, int mappedsize)
 	return 1;
 error:
 	return 0;
+}
+
+void moswinsig_flagset()
+{
+	struct MOSWINSIG *mws;
+	mws_sensitivecount = 0;
+	for (mws = moswinsig; mws->win != (struct WM0_WINDOW *) -1; mws++) {
+		if (mws->win != NULL) {
+			int i = 12;
+			if (mws_mousewin == mws->win)
+				i = 8;
+			if (press0.win == mws->win)
+				i = 4;
+			mws->flags = (mws->flags & ~0x000f0000) | ((mws->flags >> i) & 0x000f0000);
+			if (mws->flags & 0x44000000)
+				mws_sensitivecount++;
+		}
+	}
+	return;
+}
+
+struct WM0_WINDOW *searchwin(int x, int y)
+// どのwindowをクリックしたのかを検出
+{
+	struct WM0_WINDOW *win;
+
+	if (win = top) {
+		do {
+			if (win->x0 <= x && x < win->x1 && win->y0 <= y && y < win->y1)
+				goto ret;
+			win = win->down;
+		} while (win != top);
+		win = NULL;
+	}
+ret:
+	return win;
 }

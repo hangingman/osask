@@ -4,4 +4,3 @@
 #DESIGN = CHO_OSASK#   Cho-Kanji style OSASK
 #DESIGN = NEWSTYLE#    NWSOS style
 ARCH = pcat
-BOCHS = 13

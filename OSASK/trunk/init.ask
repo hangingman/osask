@@ -1,4 +1,4 @@
-/* "init.ask" ver.2.6 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "init.ask" ver.2.7 copyright(C) 2002 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -3581,7 +3581,7 @@ movestack:
 	asmout("DW 0C8FH,OFFSET int12,2*8");
 	asmout("DW 0D8FH,OFFSET int13,2*8");
 //	asmout("DW 0E8FH,OFFSET int14,2*8");
-	#if (defined(PCAT))
+	#if (defined(PCAT) || defined(NEC98))
 		asmout("DW 278EH,OFFSET int39,2*8");
 	#endif
 	asmout("DW 0");
@@ -6966,23 +6966,71 @@ cmd0510:
 //	POP(DS); /* == SS */
 	EAX = (int) [DS:EDX + 8]; // win
 
-	// ウィンドウ連動デバイス指定(to winman0)
-	PUSH((int) 0);
-	PUSH(cmd[32]); // signal
-	PUSH(cmd[28]); // signal
-	PUSH(cmd[24]); // len
-	PUSH(cmd[12]); // code
-	PUSH(cmd[ 8]); // device
-	PUSH((int) 0 /* signalbox...0ならwindowと同じ */);
-	PUSH(EAX);
-	PUSH(cmd[ 4]); // opt(bit31が0だと、purposeはなし)
-	PUSH((int) 0x002c); // signal設定
-	PUSH((int) 0x7f000009);
-	PUSH((int) 0x3240 + 10);
-	PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */);
-	EBX = ESP;
-	CALLFAR0(tapi_sel);
-	ESP += 52;
+	if (cmd[8] == 0x0100) {
+		// ウィンドウ連動デバイス指定(to winman0)
+		PUSH((int) 0);
+		PUSH(cmd[32]); // signal
+		PUSH(cmd[28]); // signal
+		PUSH(cmd[24]); // len
+		PUSH(cmd[12]); // code
+		PUSH(cmd[ 8]); // device
+		PUSH((int) 0 /* signalbox...0ならwindowと同じ */);
+		PUSH(EAX);
+		PUSH(cmd[ 4]); // opt(bit31が0だと、purposeはなし)
+		PUSH((int) 0x002c); // signal設定
+		PUSH((int) 0x7f000009);
+		PUSH((int) 0x3240 + 10);
+		PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */);
+		EBX = ESP;
+		CALLFAR0(tapi_sel);
+		ESP += 52;
+	} else if (cmd[8] == 0x0200) {
+		EBX = cmd[12];
+		if (BL == 0x10)
+			goto cmd0510_skip;
+		if (BL == 0x12) {
+cmd0510_skip:
+			EBX = cmd[28];
+			PUSH((int) 0);
+			EBX += 2;
+			PUSH(cmd[32]); // signal
+			PUSH(EBX); // signal
+			PUSH(cmd[24]); // len
+			PUSH(29);
+			PUSH(8);
+			PUSH(cmd[12]); // code
+			PUSH(cmd[ 8]); // device
+			PUSH((int) 0 /* signalbox...0ならwindowと同じ */);
+			PUSH(EAX);
+	//		PUSH(cmd[ 4]); // opt(bit31が0だと、purposeはなし)
+			PUSH((int) 0x0030); // signal設定
+			PUSH((int) 0x7f00000a);
+			PUSH((int) 0x3240 + 11);
+			PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */);
+			EBX = ESP;
+			CALLFAR0(tapi_sel);
+			ESP += 48 + 8;
+			(offset) cmd += 44;
+			goto nextcmd;
+		}
+		// ウィンドウ連動デバイス指定(to winman0)
+		PUSH((int) 0);
+		PUSH(cmd[32]); // signal
+		PUSH(cmd[28]); // signal
+		PUSH(cmd[24]); // len
+		PUSH(cmd[12]); // code
+		PUSH(cmd[ 8]); // device
+		PUSH((int) 0 /* signalbox...0ならwindowと同じ */);
+		PUSH(EAX);
+//		PUSH(cmd[ 4]); // opt(bit31が0だと、purposeはなし)
+		PUSH((int) 0x0030); // signal設定
+		PUSH((int) 0x7f000008);
+		PUSH((int) 0x3240 + 9);
+		PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */);
+		EBX = ESP;
+		CALLFAR0(tapi_sel);
+		ESP += 48;
+	}
 	(offset) cmd += 44;
 	goto nextcmd;
 
@@ -9694,6 +9742,42 @@ void far int39()
 	OUT(0x21, AL); /* OCW1 (IMR復帰) */
 	AL = 0x4a; /* OCW3 IRR読み込み 特殊マスクモードリセット 01001010 */
 	OUT(0x20, AL); /* master */
+	POP(EAX);
+	IRETD();
+
+#if 0
+	PUSH(EAX); /* ダミーのエラーコード */
+	PUSHAD();
+	EAX = 0;
+	ESI = CODE::"INT 0x27 IRQ7\0";
+	IN(AL, 0x0020);
+	(int) [SS:ESP + 32] = EAX;
+	asmout("JMP put_int_status_ec");
+#endif
+}
+
+#elif (defined(NEC98))
+
+void far int39()
+{
+	/* ノイズにより不完全割り込みが発生したと判断 */
+	/* いや多分GAPIのCLI期間が長すぎた */
+	/* IRRをクリアするために、PICを再初期化 */
+	PUSH(EAX);
+	IN(AL, 0x02); /* master IMR */
+	PUSH(EAX);
+	AL = 0x11; /* ICW1 (edge trigger) */
+	OUT(0x00, AL); /* master */
+	AL = 0x20; /* ICW2(int-no.) */
+	OUT(0x02, AL); /* master */
+	AL = 0x04; /* ICW3 slaveがつながっているIRQのbitを1にする(bit2 = 1) */
+	OUT(0x02, AL); /* master */
+	AL = 0x01; /* ICW4(non-buf. mode) */
+	OUT(0x02, AL); /* master */
+	POP(EAX);
+	OUT(0x02, AL); /* OCW1 (IMR復帰) */
+	AL = 0x4a; /* OCW3 IRR読み込み 特殊マスクモードリセット 01001010 */
+	OUT(0x00, AL); /* master */
 	POP(EAX);
 	IRETD();
 

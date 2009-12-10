@@ -14,6 +14,8 @@ SUBDIRS = ankfont0 $(SYSGGINC)
 SUBDIRS += $(ARCH)
 
 TARGET = OSASK.EXE
+BOOTIMAGE = $(TARGET:EXE=SYS)
+EXE2SYS = exe2sys
 
 ARCH_OBJS = timerdrv.bin keymos0.bin fdcdrv0.bin vgadrv0.bin decode0.bin
 
@@ -35,7 +37,7 @@ POKON_STACK = 4k
 POKON_MALLOC = 84k
 POKON_FILE = 1024k
 WINMAN_STACK = 4k
-WINMAN_MALLOC = 620k
+WINMAN_MALLOC = 624k
 WINMAN_FILE = 768k
 
 # prevent automatic deletion of an intermediate file
@@ -91,6 +93,11 @@ FORCE:
 	echo #DESIGN = CHO_OSASK#   Cho-Kanji style OSASK>> depend.mak
 	echo #DESIGN = NEWSTYLE#    NWSOS style>> depend.mak
 
+bootimg : $(BOOTIMAGE)
+
+$(BOOTIMAGE) : $(TARGET)
+	$(EXE2SYS) $< $@	
+
 #$(BASE) : $(BASE:.exe=.nas)
 #	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
 
@@ -129,7 +136,7 @@ winman0.bin : winman0.bim
 
 clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i clean
-	del $(TARGET)
+	del $(TARGET) $(BOOTIMAGE)
 	for %%i in ($(OBJS)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i

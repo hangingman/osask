@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.5
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.6
     copyright(C) 2002 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -2094,11 +2094,12 @@ void near cmd068()
 			CALL(0x0017,0); // shell-call
 			ESP += 28;
 		} else if (EAX == 0x0100) {
+back:
 			WINDOW *cmd0068_win == DS:EDX;
 			(offset) cmd0068_win = cmd[16]; // window
-			if (EAX != 0x0100 /* decoded keycode */) {
-				INT(0x03);
-			}
+		//	if (EAX != 0x0100 /* decoded keycode */) {
+		//		INT(0x03);
+		//	}
 			PUSH((int) 0);
 			PUSH((int) 0);
 			PUSH((int) 0); // for purpose
@@ -2116,6 +2117,9 @@ void near cmd068()
 			EBX = ESP;
 			CALL(0x0017,0); // shell-call
 			ESP += 48;
+		} else {
+			if (EAX == 0x0200) /* マウス */
+				goto back;
 		}
 		(offset) cmd += 28;
 		EAX = cmd[0];
@@ -3679,11 +3683,11 @@ void far pioneer_softint()
 	PUSH(DS);
 	PUSH(ES);
 	PUSH(GS);
-	AX = SS;
-	ECX = 0x0027; // system signalbox selector
+	MOV(EAX, SS);
+	PUSH(0x0027); // system signalbox selector
 	DS = AX;
 	FS = AX;
-	GS = CX;
+	POP(GS);
 
 	EBX = 0xffffffff;
 	EAX = 0x0004; // リードユーザースロットコマンド
@@ -3709,6 +3713,8 @@ void far pioneer_softint()
 			goto sig0080; // system-timer time out
 		if (EAX == 1)
 			goto sig0001; // rewind
+		if (EAX == 0x20)
+			goto sig0020;	/* kill myslef immediately (0x20, 0) */
 		if (EAX == 0x40)
 			goto sig0040; // set window position
 		if (EAX == 0x41)
@@ -3943,6 +3949,7 @@ sig0043:
 		goto nextsignal;
 	}
 
+sig0020:
 	PUSH((int) 0);
 	PUSH((int) 0x0001); // opt(close all handle)
 	PUSH((int) 0x0040); /* タスク終了 */

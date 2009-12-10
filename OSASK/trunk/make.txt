@@ -1,18 +1,15 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2002.8.29 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
+2002.9.30 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 
 0. document.txt の２．コンパイル＆アセンブル方法を参照して
 必要なファイルをPATH の通ったディレクトリに置きます。
-NASK, naskcnv, osalnk0p は
+LCC 以外は
 http://www.imasy.org/~kawai/osask/developers.html
-の naskset0 に入っています。
+の tolset00 に入っているのでこれを使って下さい。
 
-1. GNU GNU Make for Win32 の実行ファイルを make.exe の名前で
-PATH の通ったディレクトリに置きます。
-
-2. 対象とするアーキテクチャに従って make にパラメータを与えて実行します。
+1. 対象とするアーキテクチャに従って make にパラメータを与えて実行します。
 (1) PC/AT 互換機
 make pcat
 (2) VMware
@@ -30,7 +27,7 @@ make nec98
 一度対象を決定した後は make のみで生成できます。
 対象を変更する場合は、変更前に make -i clean を実行して下さい。
 
-3. make clean とすると全ての生成物が削除されます。
+2. make clean とすると全ての生成物が削除されます。
 また make dist_clean で中間生成物が削除されます。
 
 ◎画面デザイン
@@ -66,9 +63,18 @@ make pcat DESIGN=WIN9X
 仮想画面の幅を変更できます。高さは自動的に決まります。
 
 ◎その他
-  一部の生成ファイルが無い状態で make clean あるいは make dist_cleanす
+・一部の生成ファイルが無い状態で make clean あるいは make dist_cleanす
 ると、del に失敗して処理が停止してしまいます。この場合には -i オプショ
 ンを付けて make -i clean あるいはmake -i dist_clean して下さい。
+
+・make towns を行った後 make bootimg を実行すると OSASK.EXE から OSASK.SYS
+を生成します。これは FM-TOWNS 用の直接起動ディスク用のバイナリです。
+直接起動ディスク用の IPL は I.Tak. さんのページ
+http://user.ecc.u-tokyo.ac.jp/~g240845/osask/
+にあります。また、exe2sys.exe が必要です。
+http://homepage1.nifty.com/dreaming/osask/index.html
+からたどって下さい。
+
 
 ◎著作権
   makefile の著作権は、小柳 雅明にあり、川合堂ライセンス-01を適用しま

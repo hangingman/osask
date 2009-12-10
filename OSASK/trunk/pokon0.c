@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.2.8
+/* "pokon0.c":アプリケーションラウンチャー  ver.2.9
      copyright(C) 2002 小柳雅明, 川合秀実
     stack:4k malloc:84k file:1024k */
 
@@ -10,9 +10,9 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon28"
+#define POKON_VERSION "pokon29"
 
-#define POKO_VERSION "Heppoko-shell \"poko\" version 2.1\n    Copyright (C) 2002 OSASK Project\n"
+#define POKO_VERSION "Heppoko-shell \"poko\" version 2.2\n    Copyright (C) 2002 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
 
 #define	FILEAREA		(1024 * 1024)
@@ -1467,6 +1467,8 @@ write_exe:
 							poko_nfname,		"nfname", 6, 1,
 							poko_autodecomp,	"autodecomp", 10, 1,
 							poko_sortmode,		"sortmode", 8, 1,
+							poko_kill,			"kill", 4, 1,
+							poko_exec,			"exec", 4, 1,
 #if defined(DEBUG)
 							poko_debug,			"debug", 5, 1,
 #endif
@@ -1486,14 +1488,10 @@ write_exe:
 										p++;
 								}
 								status = -ERR_ILLEGAL_PARAMETERS;
-								if (pcmdlist->prmflg == 0) {
-									if (*p != '\0')
-										break;
-								}
-								if (pcmdlist->prmflg == 1) {
-									if (*p == '\0')
-										break;
-								}
+								if (pcmdlist->prmflg == 0 && *p != '\0')
+									break;
+								if (pcmdlist->prmflg == 1 && *p == '\0')
+									break;
 								status = (*(pcmdlist->fnc))(p);
 								break;
 							}
@@ -2495,6 +2493,79 @@ int poko_sortmode(const char *cmdlin)
 error:
 	return -ERR_ILLEGAL_PARAMETERS;
 }
+
+int poko_kill(const char *cmdlin)
+{
+	int task, i;
+	struct STR_BANK *bank = banklist;
+//	if (*cmdlin == '\0')
+//		goto error;
+	task = cons_getdec_skpspc(&cmdlin) * 4096;
+	for (i = 0; i < MAX_BANK; i++) {
+		if (bank[i].tss == task)
+			goto find;
+	}
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+
+find:
+	sgg_execcmd0(0x0020, 0x80000000 + 3, task | 0x0242, 0x0020, 0, 0x0000);
+	return 1;
+}
+
+int poko_exec(const char *cmdlin)
+{
+	int param, i;
+
+/*	"console0.bin"を準備して、slot210にhw.txtを接続して、シグナルを送ってやる */
+/* どんなシグナル？ */
+/*	サイズ変更確定、リード確定 */
+/*	consoleはこれに応じて、ロックをかけて読み込む */
+/*	仕事が済んだらスリープして待つ。ユーザがタスク終了シグナルを送っておわり */
+/*	シェルと通信したければ、そういうコネクションが必要...別になくてもいいか。shellcallすればどうせ分かる */
+
+
+/*	自動伸長型の確定範囲管理は、srmlでできる。確定領域を加えていって先頭が0でサイズが伸びたら連絡 */
+/*	これはあまりに典型的なので、特別なモードを作る(リードオンリー・ライトオンリー) */
+/*	サイズ確定と・ライト確定(しかも順方向)しか通知しない */
+/*	32bitモード, 64bitモード, 128bitモード, リザーブがある */
+/*  sighed, 確定後のサイズ(32bit) */
+/*	sighed, サイズ、確定領域 */
+
+/* 通知は、いろいろある。確定か一時か。サイズ、ライト完了、リード完了、オプショナル */
+/* アクセスロック要求(リード、ライト、サイズ変更権) */
+
+
+/* モジュールシグナルハブ */
+
+/*
+(1)アクセスロック要求 (リード一時・リード確定・リードライト)
+(2)ロック開放
+(3)アクセス可能範囲通知 (リード・ライト、一時・確定)
+(4)通知シグナル設定
+(5)通知シグナル送信 (リード・ライト・サイズ変更、一時・確定)
+*/
+
+//	if (*cmdlin == '\0')
+//		goto error;
+	param = cons_getdec_skpspc(&cmdlin);
+	if (*cmdlin)
+		goto error;
+	if (param < SORT_NAME)
+		goto error;
+	if (param >= SORTS)
+		goto error;
+	sort_mode = param;
+	/* 全てのファイルセレクタを更新 */
+	for (i = 0; i < MAX_SELECTOR; i++) {
+		if (selwin0[i].subtitle_str[0])
+			list_set(&selwin0[i]);
+	}
+	return 1;
+error:
+	return -ERR_ILLEGAL_PARAMETERS;
+}
+
 
 #if 0
 

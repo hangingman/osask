@@ -290,6 +290,8 @@ int poko_debug(const char *cmdlin);
 int poko_nfname(const char *cmdlin);
 int poko_autodecomp(const char *cmdlin);
 int poko_sortmode(const char *cmdlin);
+int poko_exec(const char *cmdlin);
+int poko_kill(const char *cmdlin);
 
 /* */
 void sgg_wm0s_sendto2_winman0(const int signal, const int param);
