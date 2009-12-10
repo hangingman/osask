@@ -1,0 +1,192 @@
+"src38"の使い方の説明                      2003/06/27 川合秀実
+
+１．これは何か？
+
+  "src38"は、OSASK ver.3.8の「OSASK.EXE」を生成するのに必要なモジュールのソース
+プログラムのセットです。ただし、以前のバージョンのものをそのまま利用しているも
+のついては、このアーカイブに含まれていません。OSASK.EXEを生成するのに必要なモジ
+ュールのバージョンを書いておきます。
+
+  (このアーカイブ内に含まれているもの)
+
+    BASE.NAS     : ver.2.4
+    INIT.ASK     : ver.3.2
+    PIONEER0.ASK : ver.3.1
+    VGADRV0.ASK  : ver.1.9
+    FDCDRV0.BIN  : ver.2.1
+    WINMAN0.C    : ver.3.1
+    BMP2BETA.NAS : ver.0.1
+    POKON0.C     : ver.3.8
+    PCAT/
+      VESA8.ASK    : ver.0.1
+      VESA16.ASK   : ver.0.2
+
+  (以前のバージョンのものを利用するもの)
+
+    BOOT32.ASK   : ver.0.1
+    OSASKINC.ASK : ver.0.0
+    TAPI0.ASK    : ver.0.4
+    PAPI0.ASK    : ver.0.6
+    TIMERDRV.ASK : type-A ver.1.1
+    DECODE0.ASK  : ver.1.0
+    IBMANK0.TXT  : ver.0.4
+    SYSGG00.LIB  : ver.0.8
+    BETACLIP.NAS : ver.0.0
+    KJPEGLS2.C   : ver.0.0
+    PCAT/
+      OSALINK1.OPT : ver.0.1
+      VGADRV0.ASK  : ver.1.7
+      VESA32.ASK   : ver.0.1
+    TOWNS/
+      OSALINK1.OPT : ver.0.0
+      KEYMOS0.BIN  : ver.0.4
+    NEC98/
+      OSALINK1.OPT : ver.0.0
+      KEYMOS0.BIN  : ver.0.4
+
+
+
+
+
+
+
+  このバージョンナンバーは完成度と比例しません。改定が行われるたびに増加してい
+るだけです。
+
+２．コンパイル＆アセンブル方法
+
+  使用したアセンブラ、コンパイラ、コンバータ、ライブラリは以下の通りです。
+
+・tolset05
+  (ASKA + GO + osalink1 + obj2bim3 + bim2bin3 + gg00l010 + stdlib6)
+
+tolset05はOSASKの開発者向けページからダウンロードできます。
+
+  BASE.EXEの生成は、以下のように行います。
+
+>nask base.nas base.exe base.lst
+
+  SYSGG00.LIBの生成は、MAKEFILEで行いました。MAKEFILEを読んでコンパイル・アセン
+ブル手順を把握してください。SYSGG00.LIBは、WINMAN0.BINとPOKON0.BINの生成のみに
+必要な専用ライブラリです。
+
+  拡張子が.ASKのものは、cpp0→ASKA→naskcnv0→NASKで.BINファイルにします。nask
+cnv0のオプション指定では、-lと-sを指定します。cpp0はプリプロセッサです。オプシ
+ョン-Pを付けてください。ただしAT互換機版を生成する時は、cpp0に「-DPCAT」オプシ
+ョンをつけてください。またTOWNS版を生成する時は、cpp0に「-DTOWNS」オプションを
+つけてください。またウィンドウデザインを指定するために「-DWIN9X」「-DTMENU」「
+-DCHO_OSASK」「-DNEWSTYLE」「-DWIN31」のいずれかも併せて指定します。以下は一例
+です。
+
+  ごめんなさい、さらに追記するべきものが増えました。TOWNS版を作るときは、「-DV
+MODE」と「-DCLGD543X」を書き加えたときに一般公開版になります。これらを省略すれ
+ば多少コンパクトにはなりますが、いくつかの機能が利用できなくなります。
+
+>cpp0 -I. -P -DPCAT -DWIN9X init.ask
+>aska init.i init.3as
+>naskcnv0 -l -s init.3as init.nas
+>nask init.nas init.bin init.lst
+
+（このinitの部分を置き換えれば他のソースも同様にアセンブルできます）
+
+  拡張子が.Cのものは、cc1→gas2nask→naskでオブジェクトファイルにし、あとはtols
+et05内のdoc_link.txtで説明されている方法でリンクします。ただしAT互換機版を生成
+する時は、cc1に「-DPCAT」オプションをつけてください。またTOWNS版を生成する時は
+、cc1に「-DTOWNS」オプションをつけてください。98版は「-DNEC98」です。またここで
+もウィンドウデザインに関するオプションが必要です。ライブラリーにSYSGG00を使う必
+要があることにも注意してください。指定すべきスタックサイズ、mallocサイズは、各
+ソース中の最初の方に明記してあります。以下は一例です。
+
+>cc1 -Os -quiet -I. -DPCAT -DWIN9X -o winman0.s winman0.c
+>gas2nask -a winman0.s winman0.nas
+>nask winman0.nas winman0.obj winman0.lst
+>obj2bim3 @guigui00.rul stack:8k map:winman0.map out:winman0.bim winman0.obj
+>bim2bin3 malloc:4208k mmare:4096k in:winman0.bim out:winman0.bin
+
+  そしてさらに、たいていの場合は.BINファイルを.TEKファイルに変換する必要がある
+でしょう。それはbim2bin3の-osacmpモードで行ないます。具体的な手順はtolset05内の
+doc_link.txtでの説明を参照してください。
+
+  OSALINK1.OPTに書かれている全てのファイルが用意できたら、osalink1でそれらをま
+とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset05内のdoc_nask.txtを
+参照してください。
+
+  またVMware対応バイナリを生成する場合は、-DPCATに加えて-DVMWAREを指定してくだ
+さい。
+
+  Bochs 1.3対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSを指定した上に、
+base.nasを以下の指示にしたがって書き換える必要があります。
+
+・117～118行目のセミコロンだけを削除する。
+・238行目の(セミコロンの前の)0を1に変更する（to_winman0の初期値）。
+
+  Bochs 1.2.1対応バイナリを生成する場合は、-DPCATに加えて-DBOCHSと-DNOHLTを指定
+した上に、base.nasをBochs 1.3と同様に書き換えてください。
+
+３．説明＆注意点
+
+  これらのソースは、単にOSASKを改良するためだけではなく、他のOSのために利用した
+り、その他の目的に利用することを認めています。詳しい利用範囲はLICENSE.TXTを参照
+してください。
+
+  これらのソースの大半は、全く清書されていません。註釈がついているものもありま
+すが、意味の無い註釈だったり、バージョンアップの過程でコードが削除されたのに註
+釈だけ残ったものなどがあり、はっきりいってあてになりません。
+
+  このソースを公開することにしたのは、「バイナリだけよりはマシだろう」というひ
+どいセンスによるものです。読みにくくてほとんど役に立たないかもしれません。大変
+申し訳ないです。どなたかが著作者に代わって清書してくれるのは大歓迎です。
+
+  何か疑問に感じられることがあれば、OSASK-MLにメールでご連絡ください(OSASK伝言
+板でもかまいません)。すぐにはお返事できないかもしれませんが、できるだけお答えし
+ます。川合秀実にメールすることもできますが、基本的に個人メールでなければいけな
+い理由がなければ、OSASK-MLかOSASK伝言板の利用をお願いします。
+
+４．謝辞
+
+  このアーカイブは、各著作者が川合堂ライセンス-01の適用に快く応じていただけたこ
+とで公開することができました。この場を借りて、心からお礼申し上げます。
+
+５．著作権
+
+  著作権については、該当するOSASKの一般公開版に付属するCOPYRIGHT.TXTを参照して
+ください。このアーカイブないの全てのファイルに対して川合堂ライセンス-01を適用し
+ます。
+
+６．リンク
+
+  このドキュメントに関係のあるいくつかのURLを挙げておきます。
+
+    OSASKの開発者向けページ   http://www.imasy.org/~kawai/osask/developers.html
+    小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
+    OSASKのページ             http://www.imasy.org/~kawai/osask/
+    OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
+    川合秀実のページ          http://www.imasy.org/~kawai/
+
+７．おまけ
+
+  このソースには、OSASKFDI.EXEを作ることなく、HDD/CF起動を可能にするコードが、
+こっそりと含まれています。極めて危険ですし、動作可能な条件はかなり制限されるの
+で、物好きな方がエミュレータなどで遊んでみるという程度の利用のみ、おすすめしま
+す。なおこの改造が可能なのはAT版のみです。
+
+  まず、適当な1440KBのディスクイメージを用意します。osat34iに付いてくるやつとか
+で十分です。これを一切の圧縮をかけないままにして、FDIMAGE0.BINと改名しておきま
+す。次に4台のうちのATAハードディスクのどれかを選び、その第一パーティションにFA
+T16の区画を作ります。サイズはいくつでもかまいません。そのハードディスク番号(0～
+3)を、base.nasのCFportと書かれた部分のところに書いておきます。そして、先ほどの
+FDIMAGE0.BINをさきほどのFAT16の区画のルートディレクトリにコピーします(この時ク
+ラスタが連続するようにしてください、コピー前にデフラグをかけておくなどして)。最
+後に、fdcdrv0.askの最初にあるEXT_CFIDEの#defineを有効にしてやればOKです。
+
+  これで作ったOSASK.EXEは、起動直後にCFportで指定されたハードディスクの最初の区
+画がFAT16であることを確かめて、そしてそのルートディレクトリからFDIMAGE0.BINを探
+し出し、ディスクイメージとしてロードします。書き戻しはできませんのでやらないで
+ください。全体的に非常に粗削りで、動作保障は全くできません。・・・なお、FDIMAGE
+0.BINのアクセスまでの間に何らかの障害があった場合は、「File Not Found!」になり
+ます。
+
+  なおもし3GHz以上の実マシンで実行するというなら、fdcdrv0.ask内の関数CFIDE_wait
+400ns()の「EAX = 1200;」の部分を直すといいと思います。1600にしておけば4GHzまで
+OKです(手抜きなのでソフトウェアwaitになっているんです)。まともになる頃には直し
+ます。
