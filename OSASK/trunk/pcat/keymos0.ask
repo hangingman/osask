@@ -1,4 +1,4 @@
-// "keymos0.ask" ver.0.5 copyright(C) 2001 H.Kawai(川合秀実)
+// "keymos0.ask" ver.0.6 copyright(C) 2002 H.Kawai(川合秀実)
 
 // このバージョンもOTASK版と同じく、キーを押しながら抜くとフェーズが狂う
 
@@ -96,7 +96,7 @@ cmd0100:
 
 cmd0104:
 	// KeyboardReset
-#if 0
+#if 1
 	PUSH(FS);
 	PUSH((offset) cmd);
 	MOV(EAX, CS);
@@ -855,16 +855,21 @@ intack:
 	EBP += 2;
 	asmout("CMP DWORD PTR DS:[EBX],OFFSET KeyQueCmd_RecieveCheck");
 	if (==) {
-		if (AL == [DS:EBX+4]) {
+		/* 2002.11.12 ときのひとさん対策(マシン名不明)として、if文を無効に */
+	//	if (AL == [DS:EBX+4]) {
 			EBX += 8;
 			EBP += 2;
 			/* goto [(void near *) DS:EBX] */ asmout("JMP DWORD PTR DS:[EBX]");
-		}
+	//	}
 	}
+	/* 2002.11.25 ときのひとさん対策 */
+	/* goto [(void near *) DS:EBX] */ asmout("JMP DWORD PTR DS:[EBX]");
 
+#if 0
 	EBX -= 8;
 	EBP -= 2;
 	INT(0x03); // エラーシグナルを発生させる
+#endif
 }
 
 /*

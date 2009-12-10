@@ -27,7 +27,7 @@ ALL : $(OBJS)
 #	make $(TARGET)
 
 %.bin : %.ask makefile ..\depend.mak
-	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<
+	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $*.i $<
 	$(ASKA) $*.i $*.3as
 	$(NASKCNV) $(NASKCNV_FLAGS) $*.3as $*.nas
 	$(NASK) $(NASK_FLAGS) $*.nas $*.bin $*.lst

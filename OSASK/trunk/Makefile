@@ -43,7 +43,7 @@ WINMAN_MALLOC = 624k
 WINMAN_FILE = 768k
 
 # prevent automatic deletion of an intermediate file
-.SECONDARY : $(ASK_OBJS) $(ASK_OBJS:.bin=.3as) $(ASK_OBJS:.bin=.asm) $(ASK_OBJS:.bin=.nas) $(ASK_OBJS:.bin=.i) $(ASK_OBJS:.bin=.obj) $(ASK_OBJS:.bin=.exe) $(BASE:.exe=.asm)
+.SECONDARY : $(ASK_OBJS) $(ASK_OBJS:.bin=.3as) $(ASK_OBJS:.bin=.asm) $(ASK_OBJS:.bin=.nas) $(ASK_OBJS:.bin=.i) $(ASK_OBJS:.bin=.obj) $(ASK_OBJS:.bin=.exe) $(BASE:.exe=.asm) $(C_OBJS:.bin=.s)
 
 ALL :
 	for %%i in ($(SUBDIRS)) do $(MAKE) -C %%i
@@ -118,7 +118,7 @@ winman0.bin : winman0.bim
 	$(BIM2BIN) malloc:$(WINMAN_MALLOC) file:$(WINMAN_FILE) input:$< output:$@
 
 %.i : %.ask .\depend.mak
-	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<
+	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $*.i $<
 
 %.3as : %.i
 	$(ASKA) $< $@
@@ -132,8 +132,14 @@ winman0.bin : winman0.bim
 %.tek : %.bin
 	$(BIM2BIN) $(BIM2BIN_FLAGS_TEK) input:$< output:$@
 
-%.obj : %.c .\depend.mak
-	$(CC) $< $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC)
+%.s : %.c .\depend.mak
+	$(CC) $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC) -o $@ $<
+
+%.obj : %.s .\depend.mak
+	$(ASM) $(ASM_FLAGS) -o $@ $<
+
+#%.obj : %.c .\depend.mak
+#	$(CC) $< $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC)
 
 #%.bin : %.exe # for ASM objs
 #	$(BIM2BIN) input:$< output:$@ $(BIM2BIN_FLAGS_ASK)
@@ -141,7 +147,7 @@ winman0.bin : winman0.bim
 
 clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i clean
-	del $(TARGET) $(BOOTIMAGE)
+	del $(TARGET) $(BOOTIMAGE) $(BOOT:.bin=.o)
 	for %%i in ($(OBJS)) do del %%i
 	for %%i in ($(LINK_OBJS)) do del %%i
 	for %%i in ($(BOOT:.bin=.lst)) do del %%i
@@ -153,6 +159,7 @@ clean:
 	for %%i in ($(ASK_OBJS:.bin=.lst)) do del %%i
 #	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
 #	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
+	for %%i in ($(C_OBJS:.bin=.s)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.bim)) do del %%i
 
@@ -170,9 +177,11 @@ dist_clean:
 #	for %%i in ($(ASK_OBJS:.bin=.lst)) do del %%i
 #	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
 #	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
+	for %%i in ($(C_OBJS:.bin=.s)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.exe)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.tek)) do del %%i
+	for %%i in ($(C_OBJS:.bin=.bim)) do del %%i
 
 # dependencies
 pokon0.obj : pokon0.c pokon0.h

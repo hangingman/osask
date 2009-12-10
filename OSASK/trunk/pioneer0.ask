@@ -2155,7 +2155,7 @@ void cmd06c()
 	if (== 0) {
 		/* 即値 */
 		LEA(EDI, cmd[8]);
-		ESI += ECX; /* bit1も0であることを想定していている */
+		LEA(ESI, [ESI+ECX+8]); /* bit1も0であることを想定していている */
 		ECX /= 4;
 		PUSH(DS); POP(ES); /* 必要ないかも */
 	} else {

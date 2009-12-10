@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.3.0
+/* "pokon0.c":アプリケーションラウンチャー  ver.3.1
      copyright(C) 2002 小柳雅明, 川合秀実
     stack:4k malloc:88k file:1024k */
 
@@ -10,7 +10,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon30"
+#define POKON_VERSION "pokon31"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.2\n    Copyright (C) 2002 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -1213,8 +1213,8 @@ void OsaskMain()
 				/* ファイルサイズ変更要求 */
 				/* cmd, virtualmodule, new-size, task, sig, slot */
 				siglen = 6;
+/* lib_putstring_ASCII(0x0000, 0, 0, &win[0].subtitle.tbox, 0, 0, "debug!debug!"); */
 				for (fbuf = fbuf0; fbuf->virtualmodule != sbp[1] || fbuf->linkcount <= 0; fbuf++);
-lib_putstring_ASCII(0x0000, 0, 0, &win[0].subtitle.tbox, 0, 0, "debug!debug!");
 				if (fbuf->pipe) {
 
 
@@ -1597,7 +1597,7 @@ write_exe:
 							}
 						} while ((++pcmdlist)->fnc);
 						if (status < 0)
-							consoleout(pokon_error_message[-status - ERR_CODE_START]);
+							consoleout((char *) pokon_error_message[-status - ERR_CODE_START]);
 						if (status == 1)
 							consoleout("\n");
 					}

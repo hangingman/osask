@@ -1,13 +1,12 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2002.11.1 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
+2002.12.3 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 
 0. document.txt の２．コンパイル＆アセンブル方法を参照して
 必要なファイルをPATH の通ったディレクトリに置きます。
-LCC 以外は
 http://www.imasy.org/~kawai/osask/developers.html
-の tolset01 に入っているのでこれを使って下さい。
+の tolset02 をダウンロードして使って下さい。
 
 1. 対象とするアーキテクチャに従って make にパラメータを与えて実行します。
 (1) PC/AT 互換機
