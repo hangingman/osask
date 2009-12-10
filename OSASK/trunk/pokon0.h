@@ -188,6 +188,7 @@ struct STR_BANK { /* 84bytes */
 
 #define FILESELWINFLAG_DRAWENABLED	1
 #define FILESELWINFLAG_GRABBED		2
+#define FILESELWINFLAG_SBARDIRTY	4
 struct FILESELWIN { /* 1Ç¬Ç†ÇΩÇËÅA5.6KBïKóv */
 	int ext, cur, winslot, sigbase, listsize;
 	int task, mdlslot, num, siglen, sig[16];

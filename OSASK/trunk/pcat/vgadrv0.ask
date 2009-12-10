@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" ver.1.9 copyright(C) 2003 川合秀実, I.Tak., ODP */
+/* "VGADRV0.ASK" ver.2.0 copyright(C) 2003 川合秀実, I.Tak., ODP */
 
 #include "osaskinc.ask"
 
@@ -1063,7 +1063,411 @@ error:
 	INT(0x03);
 }
 
-void near GAPI_putbox()
+#if 0
+
+void putline()
+/*	SS:EBPからパラメータ
+		x方向のサイズ, xの端数, カラーテーブル(64B)
+	pもqも破壊しない
+	EBXすら破壊する
+	EBPはキープする	*/
+{
+	unsigned char *p == DS:ESI, *q == ES:EDI;
+	ECX = [SS:EBP + 0]; /* xsize */
+	EDX = 0;
+	EAX = 0;
+	PUSH((offset) p);
+	do { /* color-search loop */
+		DL = *p;
+		p++;
+		EAX |= [SS:EBP + EDX * 4 + 8];
+		ECX--;
+	} while (!= 0);
+	POP((offset) p);
+	ECX = [SS:EBP + 4]; /* x0の端数 */
+	EDX = 0x03ce;
+	PUSH((offset) p);
+	(offset) p -= ECX;
+	PUSH(EAX);
+	EAX = 0x0305;
+	CLI();
+	OUT(DX, AX); // Mode Reg (writing mode : 3)
+	EAX = 0x0003;
+	OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
+	EAX = 0;
+	EBX = 0;
+	do { /* color loop */
+		ECX = [SS:EBP + EAX * 4 + 8];
+		EDX = 0x03ce;
+		TEST(ECX, [SS:ESP + 0]);
+		if (!= 0) {
+		//	IMUL(EBX, EAX, 0x01010101);
+			PUSH((offset) q);
+			EAX <<= 8;
+			PUSH((offset) p);
+			OUT(DX, AX); // Set / Reset Reg (color)
+			EDX = [SS:EBP + 4]; /* x0の端数 */
+			ECX = [SS:EBP + 0]; /* xsize */
+			EDX--;
+			if (== 0)
+				goto bit6;
+			EDX--;
+			if (== 0)
+				goto bit5;
+			EDX--;
+			if (== 0)
+				goto bit4;
+			EDX--;
+			if (== 0)
+				goto bit3;
+			EDX--;
+			if (== 0)
+				goto bit2;
+			EDX--;
+			if (== 0)
+				goto bit1;
+			EDX--;
+			if (== 0)
+				goto bit0;
+bit7:
+			if (ECX >= 8) {
+				if (EBX == [DS:ESI]) {
+					if (EBX == [DS:ESI + 4]) {
+						(offset) p += 8;
+						*q = 0xff;
+						(offset) q++;
+						ECX -= 8;
+						if (!= 0)
+							goto bit7;
+						goto skip_flush;
+					}
+				}
+				CMP(AH, p[0]);
+				SETE(AL);
+				CMP(AH, p[1]);
+				SETE(DL);
+				AL <<= 7;
+				CMP(AH, p[2]);
+				SETE(DH);
+				DL <<= 6;
+				DH <<= 5;
+				AL |= DL;
+				CMP(AH, p[3]);
+				SETE(DL);
+				AL |= DH;
+				DL <<= 4;
+				CMP(AH, p[4]);
+				SETE(DH);
+				AL |= DL;
+				DH <<= 3;
+				CMP(AH, p[5]);
+				SETE(DL);
+				AL |= DH;
+				DL <<= 2;
+				CMP(AH, p[6]);
+				SETE(DH);
+				AL |= DL;
+				DH <<= 1;
+				CMP(AH, p[7]);
+				SETE(DL);
+				AL |= DH;
+				(offset) p += 8;
+				AL |= DL;
+				if (!= 0) {
+					DL = *q;
+					*q = AL;
+				}
+				(offset) q++;
+				ECX -= 8;
+				if (!= 0)
+					goto bit7;
+				goto skip_flush;
+			}
+			CMP(AH, p[0]);
+			SETE(AL);
+			AL <<= 7;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit6:
+			CMP(AH, p[1]);
+			SETE(DL);
+			DL <<= 6;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit5:
+			CMP(AH, p[2]);
+			SETE(DL);
+			DL <<= 5;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit4:
+			CMP(AH, p[3]);
+			SETE(DL);
+			DL <<= 4;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit3:
+			CMP(AH, p[4]);
+			SETE(DL);
+			DL <<= 3;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit2:
+			CMP(AH, p[5]);
+			SETE(DL);
+			DL <<= 2;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit1:
+			CMP(AH, p[6]);
+			SETE(DL);
+			DL <<= 1;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit0:
+			CMP(AH, p[7]);
+			SETE(DL);
+			(offset) p += 8;
+			AL |= DL;
+			if (!= 0) {
+				DL = *q;
+				*q = AL;
+			}
+			(offset) q++;
+			ECX--;
+			if (!= 0)
+				goto bit7;
+			goto skip_flush;
+flush:
+			if (AL != 0) {
+				DL = *q;
+				*q = AL;
+			}
+skip_flush:
+			POP((offset) p);
+			EAX >>= 8;
+			POP((offset) q);
+		}
+		EAX++;
+		EBX += 0x01010101;
+	} while (EAX != 16);
+	STI();
+	POP(EAX); /* color-flags */
+	POP((offset) p);
+	return;
+}
+
+#endif
+
+void putline()
+/*	SS:EBPからパラメータ
+		x方向のサイズ, xの端数, カラーテーブル(64B)
+	pもqも破壊しない
+	EBXすら破壊する
+	EBPはキープする	*/
+{
+	unsigned char *p == DS:ESI, *q == ES:EDI;
+	unsigned int *pi == DS:ESI;
+	ECX = [SS:EBP + 0]; /* xsize */
+	EAX = 0;
+	PUSH((offset) p);
+	do { /* color-search loop */
+		EDX = *p;
+		p++;
+		EAX |= [SS:EBP + EDX * 4 + 8];
+		ECX--;
+	} while (!= 0);
+	(offset) p = [SS:ESP + 0];
+	EDX = 0x03ce;
+	(offset) p -= [SS:EBP + 4]; /* x0の端数 */;
+	PUSH(EAX);
+	EAX = 0x0305;
+	CLI();
+	OUT(DX, AX); // Mode Reg (writing mode : 3)
+	EAX = 0x0003;
+	OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
+	EBX = 0x0f0f0f0f;
+	do { /* color loop */
+		EAX = (unsigned char) BL;
+		ECX = [SS:ESP + 0];
+		EDX = 0x03ce;
+		TEST(ECX, [SS:EBP + EAX * 4 + 8]);
+		if (!= 0) {
+			PUSH((offset) q);
+			EAX <<= 8;
+			PUSH((offset) p);
+			OUT(DX, AX); // Set / Reset Reg (color)
+			EDX = [SS:EBP + 4]; /* x0の端数 */
+			ECX = [SS:EBP + 0]; /* xsize */
+			EDX--;
+			if (== 0)
+				goto bit6;
+			EDX--;
+			if (== 0)
+				goto bit5;
+			EDX--;
+			if (== 0)
+				goto bit4;
+			EDX--;
+			if (== 0)
+				goto bit3;
+			EDX--;
+			if (== 0)
+				goto bit2;
+			EDX--;
+			if (== 0)
+				goto bit1;
+			EDX--;
+			if (== 0)
+				goto bit0;
+bit7:
+			if (ECX >= 8) {
+				PUSH(ECX);
+				EDX = pi[0];
+				ECX = pi[4];
+				(offset) p += 8;
+				EDX ^= EBX;
+				ECX ^= EBX;
+				AH = 1;
+				if (== 0) {
+					if (EDX == 0) {
+						POP(ECX);
+						*q = 0xff;
+						(offset) q++;
+						ECX -= 8;
+						if (!= 0)
+							goto bit7;
+						goto skip_flush;
+					}
+				}
+				CMP(DL, AH); /* CF = (DL == 0); */
+				ADC(AL, AL); /* RCL(AL, 1);と同じ */
+				CMP(DH, AH);
+				ADC(AL, AL);
+				(unsigned int) EDX >>= 16;
+				CMP(DL, AH);
+				ADC(AL, AL);
+				CMP(DH, AH);
+				ADC(AL, AL);
+				CMP(CL, AH);
+				ADC(AL, AL);
+				CMP(CH, AH);
+				ADC(AL, AL);
+				(unsigned int) ECX >>= 16;
+				CMP(CL, AH);
+				ADC(AL, AL);
+				CMP(CH, AH);
+				ADC(AL, AL);
+				POP(ECX);
+				if (!= 0) {
+					DL = *q;
+					*q = AL;
+				}
+				(offset) q++;
+				ECX -= 8;
+				if (!= 0)
+					goto bit7;
+				goto skip_flush;
+			}
+			CMP(BL, p[0]);
+			SETE(AL);
+			AL <<= 7;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit6:
+			CMP(BL, p[1]);
+			SETE(DL);
+			DL <<= 6;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit5:
+			CMP(BL, p[2]);
+			SETE(DL);
+			DL <<= 5;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit4:
+			CMP(BL, p[3]);
+			SETE(DL);
+			DL <<= 4;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit3:
+			CMP(BL, p[4]);
+			SETE(DL);
+			DL <<= 3;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit2:
+			CMP(BL, p[5]);
+			SETE(DL);
+			DL <<= 2;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit1:
+			CMP(BL, p[6]);
+			SETE(DL);
+			DL <<= 1;
+			AL |= DL;
+			ECX--;
+			if (== 0)
+				goto flush;
+bit0:
+			CMP(BL, p[7]);
+			SETE(DL);
+			(offset) p += 8;
+			AL |= DL;
+			if (!= 0) {
+				DL = *q;
+				*q = AL;
+			}
+			(offset) q++;
+			ECX--;
+			if (!= 0)
+				goto bit7;
+			goto skip_flush;
+flush:
+			if (AL != 0) {
+				DL = *q;
+				*q = AL;
+			}
+skip_flush:
+			POP((offset) p);
+			POP((offset) q);
+		}
+		EBX -= 0x01010101;
+	} while ((unsigned) >= 0);
+	STI();
+	POP(EAX); /* color-flags */
+	POP((offset) p);
+	return;
+}
+
+void GAPI_putbox()
 {
 	/* 16色ブロック転送 */
 	/* cmd, opt, x0, y0, xsize, ysize, yskip, ofs, sel */
@@ -1087,230 +1491,42 @@ void near GAPI_putbox()
 	EAX = VRAM_sel;
 	PUSH(DS);
 	PUSH(EBP);
-	PUSH(EAX);
-
 	ECX = 0x8000;
 	do {
 		PUSH(ECX);
 		ECX >>= 1;
 	} while (!= 0);
 	ES = AX;
-	asmout("LDS ESI,FS:[EBX + 28]");
+	LDS(ESI, cmd[28]);
 	EAX = cmd[ 8]; /* x */
 	EDI = cmd[12]; /* y */
 	ECX = EAX;
 	IMUL(EDI, XBYTES);
 	EAX /= 8;
 	ECX &= 0x07;
-//	LEA(EDI, [EDI + EAX + 0xa0000]);
 	EDI += EAX;
 	AL = (char) cmd[4];
 	PUSH(ECX); /* x0の端数 */
-	TEST(AL, 0x10);
 	ECX = cmd[20]; /* ysize */
+	PUSH(cmd[16]); /* xsize */
+	TEST(AL, 0x10);
+	EBP = ESP;
 	if (!= 0)
 		goto putbox1;
 	AL &= 0x2f;
 	if (AL == 0x01) {
-		(offset) p -= [SS:ESP + 0 /* x0の端数 */];
+		PUSH(cmd[24]); /* skip */
+		PUSH(ECX);
+		PUSH((offset) cmd);
 		do { /* ysize loop */
-			PUSH(ECX);
-			PUSH((offset) p);
-			(offset) p += [SS:ESP + 8 /* x0の端数 */];
-			ECX = cmd[16]; /* xsize */
-			EDX = 0;
-			EAX = 0;
-			do { /* color-search loop */
-				DL = *p;
-				p++;
-				EAX |= [SS:ESP + EDX * 4 + 12];
-				ECX--;
-			} while (!= 0);
-			POP((offset) p);
-			EDX = 0x03ce;
-			PUSH(EAX);
-			EAX = 0x0305;
-			CLI();
-			OUT(DX, AX); // Mode Reg (writing mode : 3)
-			EAX = 0x0003;
-			OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
-			EAX = 0;
-			do { /* color loop */
-				ECX = [SS:ESP + EAX * 4 + 12];
-				EDX = 0x03ce;
-				TEST(ECX, [SS:ESP]);
-				if (!= 0) {
-					IMUL(EBP, EAX, 0x01010101);
-					PUSH((offset) q);
-					EAX <<= 8;
-					PUSH((offset) p);
-					OUT(DX, AX); // Set / Reset Reg (color)
-					EDX = [SS:ESP + 16 /* x0の端数 */];
-					ECX = cmd[16]; /* xsize */
-					EDX--;
-					if (== 0)
-						goto mode01_bit6;
-					EDX--;
-					if (== 0)
-						goto mode01_bit5;
-					EDX--;
-					if (== 0)
-						goto mode01_bit4;
-					EDX--;
-					if (== 0)
-						goto mode01_bit3;
-					EDX--;
-					if (== 0)
-						goto mode01_bit2;
-					EDX--;
-					if (== 0)
-						goto mode01_bit1;
-					EDX--;
-					if (== 0)
-						goto mode01_bit0;
-mode01_bit7:
-					if (ECX >= 8) {
-						if (EBP == [DS:ESI]) {
-							if (EBP == [DS:ESI + 4]) {
-								(offset) p += 8;
-								*q = 0xff;
-								(offset) q++;
-								ECX -= 8;
-								if (!= 0)
-									goto mode01_bit7;
-								goto skip_flush;
-							}
-						}
-						CMP(AH, p[0]);
-						SETE(AL);
-						CMP(AH, p[1]);
-						SETE(DL);
-						AL <<= 7;
-						CMP(AH, p[2]);
-						SETE(DH);
-						DL <<= 6;
-						DH <<= 5;
-						AL |= DL;
-						CMP(AH, p[3]);
-						SETE(DL);
-						AL |= DH;
-						DL <<= 4;
-						CMP(AH, p[4]);
-						SETE(DH);
-						AL |= DL;
-						DH <<= 3;
-						CMP(AH, p[5]);
-						SETE(DL);
-						AL |= DH;
-						DL <<= 2;
-						CMP(AH, p[6]);
-						SETE(DH);
-						AL |= DL;
-						DH <<= 1;
-						CMP(AH, p[7]);
-						SETE(DL);
-						AL |= DH;
-						(offset) p += 8;
-						AL |= DL;
-						if (!= 0) {
-							DL = *q;
-							*q = AL;
-						}
-						(offset) q++;
-						ECX -= 8;
-						if (!= 0)
-							goto mode01_bit7;
-						goto skip_flush;
-					}
-					CMP(AH, p[0]);
-					SETE(AL);
-					AL <<= 7;
-					ECX--;
-					if (== 0)
-						goto flush;
-mode01_bit6:
-					CMP(AH, p[1]);
-					SETE(DL);
-					DL <<= 6;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto flush;
-mode01_bit5:
-					CMP(AH, p[2]);
-					SETE(DL);
-					DL <<= 5;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto flush;
-mode01_bit4:
-					CMP(AH, p[3]);
-					SETE(DL);
-					DL <<= 4;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto flush;
-mode01_bit3:
-					CMP(AH, p[4]);
-					SETE(DL);
-					DL <<= 3;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto flush;
-mode01_bit2:
-					CMP(AH, p[5]);
-					SETE(DL);
-					DL <<= 2;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto flush;
-mode01_bit1:
-					CMP(AH, p[6]);
-					SETE(DL);
-					DL <<= 1;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto flush;
-mode01_bit0:
-					CMP(AH, p[7]);
-					SETE(DL);
-					(offset) p += 8;
-					AL |= DL;
-					if (!= 0) {
-						DL = *q;
-						*q = AL;
-					}
-					(offset) q++;
-					ECX--;
-					if (!= 0)
-						goto mode01_bit7;
-					goto skip_flush;
-flush:
-					if (AL != 0) {
-						DL = *q;
-						*q = AL;
-					}
-skip_flush:
-					POP((offset) p);
-					EAX >>= 8;
-					POP((offset) q);
-				}
-				EAX++;
-			} while (EAX != 16);
-			STI();
-			POP(EAX); /* color-flags */
-			(offset) p += cmd[16]; /* xsize */
-			POP(ECX);
+			putline();
+			(offset) p += [SS:EBP + 0]; /* xsize */
 			(offset) q += XBYTES;
-			(offset) p += cmd[24]; /* yskip */
-			ECX--;
+			(offset) p += [SS:EBP - 4]; /* skip */
+			(int) [SS:EBP - 8]--;
 		} while (!= 0);
-		ESP += 72; 
+		POP((offset) cmd);
+		ESP += 8 + 8 + 64;
 		(offset) cmd += 36;
 		POP(EBP);
 		POP(DS);
@@ -1318,64 +1534,60 @@ skip_flush:
 		asmout("JMP next_command");
 	}
 	if (AL == 0x22) {
-		/* ダイレクトカラー16bit, RRRRRGGG_GGGBBBBB */
-
-		/* [SS:ESP] : xの端数 */
-		/* p, qは準備済み */
-		EBP = ECX;
-		AL = 0x80;
-		CL = (char) [SS:ESP];
-		(unsigned char) AL >>= CL;
-		(char) [SS:ESP + 1] = AL;
-		do {
-			ECX = cmd[16]; /* xsize */
-			PUSH((offset) q);
+		/* ダイレクトカラー16bit, RRRRRGGG_GGGBBBBB, 高速版 */
+		PUSH(cmd[24]); /* skip */
+		PUSH(ECX);
+		ESP -= 2048;
+		/* xsizeがこれよりでかいと死ぬ */
+		if ((unsigned) (int) [SS:EBP + 0] > 2048)
+			INT(0x03);
+		PUSH((offset) cmd);
+//		CH = cmd[ 8];
+		do { /* ysize loop */
+			int xcount22 == ECX;
+//			CL = [SS:EBP + 4];
+		//	PUSH(EDI);
 			PUSH(EBP);
-			PUSH(EBX);
-			BL = (char) [SS:ESP + 13];
-			EDX = 0x03ce;
-			EAX = 0x0305;
-			CLI();
-			OUT(DX, AX); // Mode Reg (writing mode : 3)
-			EAX = 0x0003;
-			OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
+			xcount22 = [SS:EBP + 0]; /* xsize */
+			LEA(EBP, [SS:ESP + 8]);
 			do {
-				EAX = *ps;
+				EAX = *ps; /* RRRRRGGG_GGGBBBBB */
 				(offset) ps += 2;
+				EAX &= 0x8410; /* R0000G00_000B0000 */
 				EDX = EAX;
-				EBP = EAX;
-				EAX >>= 15;
-				EDX >>=  9;
-				EBP >>=  2;
-				EAX &= 0x01;
-				EDX &= 0x02;
-				EBP &= 0x04;
+				EBX = EAX;
+				EAX >>= 15; /*              R */
+				EDX >>=  9; /*        R0000G0 */
+				EBX >>=  2; /* R0000G00000B00 */
 				EAX |= EDX;
-				EAX |= EBP;
-				if (!= 0)
-					EAX += 8;
-				EDX = 0x03ce;
-				EAX <<= 8;
-				OUT(DX, AX); // Set / Reset Reg (color)
-				BH = *q; /* ラッチ更新 */
-				*q = BL;
-				(unsigned char) BL >>= 1;
-				if (== 0) {
-					q++;
-					BL = 0x80;
-				}
-				ECX--;
+				EAX |= EBX;
+				EAX &= 0x7;
+				SETNZ(DL);
+				DL *= 8;
+				AL |= DL;
+				[SS:EBP] = AL;
+				EBP++;
+				xcount22--;
 			} while (!= 0);
-			STI();
-			POP(EBX);
 			POP(EBP);
-			POP((offset) q);
+		//	POP(EDI);
+			PUSH(DS);
+			PUSH((offset) p);
+			PUSH(SS);
+			POP(DS);
+			LEA(ESI, [SS:ESP + 12]);
+		//	PUSH(ECX);
+			putline();
+		//	POP(ECX);
+			POP((offset) p);
+			POP(DS);
 			(offset) q += XBYTES;
-			(offset) p += cmd[24]; /* yskip */
-			EBP--;
+			(offset) p += [SS:EBP - 4]; /* skip */
+			(int) [SS:EBP - 8]--;
 		} while (!= 0);
+		POP((offset) cmd);
+		ESP += 2048 + 8 + 8 + 64;
 		(offset) cmd += 36;
-		ESP += 72; 
 		POP(EBP);
 		POP(DS);
 		POP(ES);
@@ -1383,63 +1595,60 @@ skip_flush:
 	}
 	if (AL == 0x24) {
 		/* ダイレクトカラー32bit(24bit) */
-
-		/* [SS:ESP] : xの端数 */
-		/* p, qは準備済み */
-		EBP = ECX;
-		AL = 0x80;
-		CL = (char) [SS:ESP];
-		(unsigned char) AL >>= CL;
-		(char) [SS:ESP + 1] = AL;
-		do {
-			ECX = cmd[16]; /* xsize */
-			PUSH((offset) q);
+		/* ダイレクトカラー16bit, RRRRRGGG_GGGBBBBB, 高速版 */
+		PUSH(cmd[24]); /* skip */
+		PUSH(ECX);
+		ESP -= 2048;
+		/* xsizeがこれよりでかいと死ぬ */
+		if ((unsigned) (int) [SS:EBP + 0] > 2048)
+			INT(0x03);
+		PUSH((offset) cmd);
+//		CH = cmd[ 8];
+		do { /* ysize loop */
+			int xcount24 == ECX;
+//			CL = [SS:EBP + 4];
+		//	PUSH(EDI);
 			PUSH(EBP);
-			PUSH(EBX);
-			BL = (char) [SS:ESP + 13];
-			EDX = 0x03ce;
-			EAX = 0x0305;
-			CLI();
-			OUT(DX, AX); // Mode Reg (writing mode : 3)
-			EAX = 0x0003;
-			OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
+			xcount24 = [SS:EBP + 0]; /* xsize */
+			LEA(EBP, [SS:ESP + 8]);
 			do {
 				EAX = *pi;
 				(offset) pi += 4;
+				EAX &= 0x808080;
 				EDX = EAX;
-				EBP = EAX;
+				EBX = EAX;
 				EAX >>= 23;
 				EDX >>= 14;
-				EBP >>=  5;
-				EAX &= 0x01;
-				EDX &= 0x02;
-				EBP &= 0x04;
+				EBX >>=  5;
 				EAX |= EDX;
-				EAX |= EBP;
-				if (!= 0)
-					EAX += 8;
-				EDX = 0x03ce;
-				EAX <<= 8;
-				OUT(DX, AX); // Set / Reset Reg (color)
-				BH = *q; /* ラッチ更新 */
-				*q = BL;
-				(unsigned char) BL >>= 1;
-				if (== 0) {
-					q++;
-					BL = 0x80;
-				}
-				ECX--;
+				EAX |= EBX;
+				EAX &= 0x07;
+				SETNZ(DL);
+				DL *= 8;
+				AL |= DL;
+				[SS:EBP] = AL;
+				EBP++;
+				xcount24--;
 			} while (!= 0);
-			STI();
-			POP(EBX);
 			POP(EBP);
-			POP((offset) q);
+		//	POP(EDI);
+			PUSH(DS);
+			PUSH((offset) p);
+			PUSH(SS);
+			POP(DS);
+			LEA(ESI, [SS:ESP + 12]);
+		//	PUSH(ECX);
+			putline();
+		//	POP(ECX);
+			POP((offset) p);
+			POP(DS);
 			(offset) q += XBYTES;
-			(offset) p += cmd[24]; /* yskip */
-			EBP--;
+			(offset) p += [SS:EBP - 4]; /* skip */
+			(int) [SS:EBP - 8]--;
 		} while (!= 0);
+		POP((offset) cmd);
+		ESP += 2048 + 8 + 8 + 64;
 		(offset) cmd += 36;
-		ESP += 72; 
 		POP(EBP);
 		POP(DS);
 		POP(ES);
@@ -1448,108 +1657,93 @@ skip_flush:
 	if (AL == 0x02) {
 		/* ダイレクトカラー16bit, RRRRRGGG_GGGBBBBB */
 		/* タイリングあり */
-
-		/* [SS:ESP] : xの端数 */
-		/* p, qは準備済み */
-		EBP = ECX;
-		CL = (char) [SS:ESP];
-		AL = 0x80;
-		CH = (char) cmd[12];
-		(unsigned char) AL >>= CL;
-		CH *= 2;
-		(char) [SS:ESP + 1] = AL;
-		CH &= 0x02;
-		(char) [SS:ESP + 2] = CH;
-		do {
-			ECX = cmd[16]; /* xsize */
-			PUSH((offset) q);
+		PUSH(cmd[24]); /* skip */
+		PUSH(ECX);
+		ESP -= 2048;
+		/* xsizeがこれよりでかいと死ぬ */
+		if ((unsigned) (int) [SS:EBP + 0] > 2048)
+			INT(0x03);
+		PUSH((offset) cmd);
+		CH = cmd[ 8];
+		do { /* ysize loop */
+			int xcount02 == EDI;
+			TEST(CH, 0x01);
+			CL = 6;
+			if (!= 0)
+				CL = 25;
+			TEST((char) [SS:EBP + 4], 0x01);
+			if (!= 0)
+				CL ^= 0x15;
+			PUSH(EDI);
 			PUSH(EBP);
-			PUSH(EBX);
-			BL = (char) [SS:ESP + 13];
+			xcount02 = [SS:EBP + 0]; /* xsize */
+			LEA(EBP, [SS:ESP + 12]);
 			do {
-				EBP = *ps;
+				EAX = *ps;
 				(offset) ps += 2;
-				PUSH(ECX);
-				TEST(BL, 0x55);
-				ECX = (unsigned char) [SS:ESP + 18];
-				if (!= 0)
-					ECX++;
-				asmout("MOV BH,[CS:.table+ECX]"); /* { 0, 3, 7, 1 }[ECX] */
-
-				/* AL : カラー番号 */
-				ECX = EBP; /* red */
-				EAX = EBP;
-				ECX >>= 13;
-				EAX >>= 15;
-				CL &= 0x03;
-				AL &= 0x01;
-				CH = BH;
-				if (!= 0) {
-					CL++;
-					CH >>= CL;
-					SBB(AL, 0); /* if (CF != 0) AL = 0; */
-				}
-				ECX = EBP; /* green */
-				EDX = EBP;
-				ECX >>= 8;
-				EDX >>= 9;
-				CL &= 0x03;
-				DL &= 0x02;
-				CH = BH;
-			//	if (!= 0) {
-					CL++;
-					CH >>= CL;
-					if (CF != 0)
-						DL = 0;
-			//	}
+				EDX = EAX;
+				EBX = EAX;
+				EAX >>= 11;
+				EDX >>=  6;
+#if 0
+				AL &= 0x1f; /* red */
+				DL &= 0x1f; /* green */
+				CMP(AL, CL);
+				SETA(AL);
+				BL &= 0x1f; /* blue */
+				CMP(DL, CL);
+				SETA(DL);
+				CMP(BL, CL);
+				SETA(BL);
+				DL *= 2;
+				BL *= 4;
 				AL |= DL;
-				ECX = EBP; /* blue */
-				EDX = EBP;
-				ECX >>= 2;
-				EDX >>= 2;
-				CL &= 0x03;
-				DL &= 0x04;
-			//	if (!= 0) {
-					CL++;
-					BH >>= CL;
-					if (CF != 0)
-						DL = 0;
-			//	}
+				AL |= BL;
+				SETNZ(DL);
+				DL *= 8;
+				CL ^= 0x15;
 				AL |= DL;
-				POP(ECX);
-				if (!= 0)
-					AL += 8;
-				EDX = 0x03ce;
-				EBP = EAX;
-				EAX = 0x0305;
-				CLI();
-				OUT(DX, AX); // Mode Reg (writing mode : 3)
-				EAX = 0x0003;
-				OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
-				EAX = EBP;
-				EDX = 0x03ce;
-				EAX <<= 8;
-				OUT(DX, AX); // Set / Reset Reg (color)
-				BH = *q; /* ラッチ更新 */
-				*q = BL;
-				STI();
-				(unsigned char) BL >>= 1;
-				if (== 0) {
-					q++;
-					BL = 0x80;
-				}
-				ECX--;
+#endif
+#if 1
+				AH = 0;
+				BL &= 0x1f; /* blue */
+				DL &= 0x1f; /* green */
+				AL &= 0x1f; /* red */
+				CMP(CL, BL); /* blue */
+				ADC(AH, AH); /* RCL(AH, 1); */
+				CMP(CL, DL); /* green */
+				ADC(AH, AH); /* RCL(AH, 1); */
+				CMP(CL, AL); /* red */
+				ADC(AH, AH); /* RCL(AH, 1); */
+				SETNZ(AL);
+				AL *= 8;
+				CL ^= 0x15;
+				AL |= AH;
+#endif
+				[SS:EBP] = AL;
+				EBP++;
+				xcount02--;
 			} while (!= 0);
-			POP(EBX);
 			POP(EBP);
-			POP((offset) q);
+			POP(EDI);
+			PUSH(DS);
+			PUSH((offset) p);
+			PUSH(SS);
+			POP(DS);
+			LEA(ESI, [SS:ESP + 12]);
+			PUSH(ECX);
+			putline();
+			POP(ECX);
+			POP((offset) p);
+			POP(DS);
 			(offset) q += XBYTES;
-			(offset) p += cmd[24]; /* yskip */
-			(char) [SS:ESP + 2] ^= 0x02;
-			EBP--;
+			(offset) p += [SS:EBP - 4]; /* skip */
+			CH++;
+			(int) [SS:EBP - 8]--;
 		} while (!= 0);
+		POP((offset) cmd);
+		ESP += 2048 + 8 + 8 + 64;
 		(offset) cmd += 36;
-		ESP += 72; 
 		POP(EBP);
 		POP(DS);
 		POP(ES);
@@ -1558,324 +1752,102 @@ skip_flush:
 	if (AL == 0x04) {
 		/* ダイレクトカラー32bit(24bit) */
 		/* タイリングあり */
-
-		/* [SS:ESP] : xの端数 */
-		/* p, qは準備済み */
-		EBP = ECX;
-		CL = (char) [SS:ESP];
-		AL = 0x80;
-		CH = (char) cmd[12];
-		(unsigned char) AL >>= CL;
-		CH *= 2;
-		(char) [SS:ESP + 1] = AL;
-		CH &= 0x02;
-		(char) [SS:ESP + 2] = CH;
-		do {
-			ECX = cmd[16]; /* xsize */
-			PUSH((offset) q);
+		PUSH(cmd[24]); /* skip */
+		PUSH(ECX);
+		ESP -= 2048;
+		/* xsizeがこれよりでかいと死ぬ */
+		if ((unsigned) (int) [SS:EBP + 0] > 2048)
+			INT(0x03);
+		PUSH((offset) cmd);
+		CH = cmd[ 8];
+		do { /* ysize loop */
+			int xcount04 == EDI;
+			TEST(CH, 0x01);
+			CL = 51;
+			if (!= 0)
+				CL = 204;
+			TEST((char) [SS:EBP + 4], 0x01);
+			if (!= 0)
+				CL ^= 0xaa;
+			PUSH(EDI);
 			PUSH(EBP);
-			PUSH(EBX);
-			BL = (char) [SS:ESP + 13];
+			xcount04 = [SS:EBP + 0]; /* xsize */
+			LEA(EBP, [SS:ESP + 12]);
 			do {
-				EBP = *pi;
-				(offset) pi += 4;
-				PUSH(ECX);
-				TEST(BL, 0x55);
-				ECX = (unsigned char) [SS:ESP + 18];
-				if (!= 0)
-					ECX++;
-				asmout("MOV BH,[CS:.table+ECX]"); /* { 0, 3, 7, 1 }[ECX] */
-
-				/* AL : カラー番号 */
-				ECX = EBP; /* red */
-				EAX = EBP;
-				ECX >>= 21;
-				EAX >>= 23;
-				CL &= 0x03;
-				AL &= 0x01;
-				CH = BH;
-				if (!= 0) {
-					CL++;
-					CH >>= CL;
-					SBB(AL, 0); /* if (CF != 0) AL = 0; */
-				}
-				ECX = EBP; /* green */
-				EDX = EBP;
-				ECX >>= 13;
-				EDX >>= 14;
-				CL &= 0x03;
-				DL &= 0x02;
-				CH = BH;
-			//	if (!= 0) {
-					CL++;
-					CH >>= CL;
-					if (CF != 0)
-						DL = 0;
-			//	}
+#if 0
+				CMP(p[0], CL); /* blue */
+				SETA(AL);
+				CMP(p[1], CL); /* green */
+				SETA(DL);
+				CMP(p[2], CL); /* red */
+				SETA(AH);
+				AL *= 4;
+				DL *= 2;
+				AL |= AH;
+				(offset) p += 4;
 				AL |= DL;
-				ECX = EBP; /* blue */
-				EDX = EBP;
-				ECX >>= 5;
-				EDX >>= 5;
-				CL &= 0x03;
-				DL &= 0x04;
-			//	if (!= 0) {
-					CL++;
-					BH >>= CL;
-					if (CF != 0)
-						DL = 0;
-			//	}
-				AL |= DL;
-				POP(ECX);
-				if (!= 0)
-					AL += 8;
-				EDX = 0x03ce;
-				EBP = EAX;
-				EAX = 0x0305;
-				CLI();
-				OUT(DX, AX); // Mode Reg (writing mode : 3)
-				EAX = 0x0003;
-				OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
-				EAX = EBP;
-				EDX = 0x03ce;
-				EAX <<= 8;
-				OUT(DX, AX); // Set / Reset Reg (color)
-				BH = *q; /* ラッチ更新 */
-				*q = BL;
-				STI();
-				(unsigned char) BL >>= 1;
-				if (== 0) {
-					q++;
-					BL = 0x80;
-				}
-				ECX--;
+				SETNZ(AH);
+#endif
+#if 1
+				AL = 0;
+				CMP(CL, p[0]); /* blue */
+				ADC(AL, AL); /* RCL(AL, 1); */
+				CMP(CL, p[1]); /* green */
+				ADC(AL, AL); /* RCL(AL, 1); */
+				CMP(CL, p[2]); /* red */
+				ADC(AL, AL); /* RCL(AL, 1); */
+				SETNZ(AH);
+				(offset) p += 4;
+#endif
+				AH *= 8;
+				CL ^= 0xaa;
+				AL |= AH;
+				[SS:EBP] = AL;
+				EBP++;
+				xcount04--;
 			} while (!= 0);
-			STI();
-			POP(EBX);
 			POP(EBP);
-			POP((offset) q);
+			POP(EDI);
+			PUSH(DS);
+			PUSH((offset) p);
+			PUSH(SS);
+			POP(DS);
+			LEA(ESI, [SS:ESP + 12]);
+			PUSH(ECX);
+			putline();
+			POP(ECX);
+			POP((offset) p);
+			POP(DS);
 			(offset) q += XBYTES;
-			(offset) p += cmd[24]; /* yskip */
-			(char) [SS:ESP + 2] ^= 0x02;
-			EBP--;
+			(offset) p += [SS:EBP - 4]; /* skip */
+			CH++;
+			(int) [SS:EBP - 8]--;
 		} while (!= 0);
+		POP((offset) cmd);
+		ESP += 2048 + 8 + 8 + 64;
 		(offset) cmd += 36;
-		ESP += 72; 
 		POP(EBP);
 		POP(DS);
 		POP(ES);
 		asmout("JMP next_command");
 	}
 	INT(0x03);
-table:
-	DB(0, 3, 7, 1);
 
 putbox1:
 	EAX = cmd[36]; /* 透明色 */
-	EDX = 0;
-	(offset) p -= [SS:ESP + 0 /* x0の端数 */];
-	(int) [SS:ESP + EAX * 4 + 4] = EDX; /* 透明色はビットを立てない */
-
+	(int) [SS:EBP + EAX * 4 + 8] = 0;
+	PUSH(cmd[24]); /* skip */
+	PUSH(ECX);
+	PUSH((offset) cmd);
 	do { /* ysize loop */
-		PUSH(ECX);
-		PUSH((offset) p);
-		(offset) p += [SS:ESP + 8 /* x0の端数 */];
-		ECX = cmd[16]; /* xsize */
-		EDX = 0;
-		EAX = 0;
-		do { /* color-search loop */
-			DL = *p;
-			p++;
-			EAX |= [SS:ESP + EDX * 4 + 12];
-			ECX--;
-		} while (!= 0);
-		POP((offset) p);
-		if (EAX != 0) {
-			EDX = 0x03ce;
-			PUSH(EAX);
-			EAX = 0x0305;
-			CLI();
-			OUT(DX, AX); // Mode Reg (writing mode : 3)
-			EAX = 0x0003;
-			OUT(DX, AX); // Data Rotate / Function Select Reg (PSET)
-			EAX = 0;
-			do { /* color loop */
-				ECX = [SS:ESP + EAX * 4 + 12];
-				EDX = 0x03ce;
-				TEST(ECX, [SS:ESP]);
-				if (!= 0) {
-					IMUL(EBP, EAX, 0x01010101);
-					PUSH((offset) q);
-					EAX <<= 8;
-					PUSH((offset) p);
-					OUT(DX, AX); // Set / Reset Reg (color)
-					EDX = [SS:ESP + 16 /* x0の端数 */];
-					ECX = cmd[16]; /* xsize */
-					EDX--;
-					if (== 0)
-						goto mode11_bit6;
-					EDX--;
-					if (== 0)
-						goto mode11_bit5;
-					EDX--;
-					if (== 0)
-						goto mode11_bit4;
-					EDX--;
-					if (== 0)
-						goto mode11_bit3;
-					EDX--;
-					if (== 0)
-						goto mode11_bit2;
-					EDX--;
-					if (== 0)
-						goto mode11_bit1;
-					EDX--;
-					if (== 0)
-						goto mode11_bit0;
-mode11_bit7:
-					if (ECX >= 8) {
-						if (EBP == [DS:ESI]) {
-							if (EBP == [DS:ESI + 4]) {
-								(offset) p += 8;
-								*q = 0xff;
-								(offset) q++;
-								ECX -= 8;
-								if (!= 0)
-									goto mode11_bit7;
-								goto mode11_skip_flush;
-							}
-						}
-						CMP(AH, p[0]);
-						SETE(AL);
-						CMP(AH, p[1]);
-						SETE(DL);
-						AL <<= 7;
-						CMP(AH, p[2]);
-						SETE(DH);
-						DL <<= 6;
-						DH <<= 5;
-						AL |= DL;
-						CMP(AH, p[3]);
-						SETE(DL);
-						AL |= DH;
-						DL <<= 4;
-						CMP(AH, p[4]);
-						SETE(DH);
-						AL |= DL;
-						DH <<= 3;
-						CMP(AH, p[5]);
-						SETE(DL);
-						AL |= DH;
-						DL <<= 2;
-						CMP(AH, p[6]);
-						SETE(DH);
-						AL |= DL;
-						DH <<= 1;
-						CMP(AH, p[7]);
-						SETE(DL);
-						AL |= DH;
-						(offset) p += 8;
-						AL |= DL;
-						if (!= 0) {
-							DL = *q;
-							*q = AL;
-						}
-						(offset) q++;
-						ECX -= 8;
-						if (!= 0)
-							goto mode11_bit7;
-						goto mode11_skip_flush;
-					}
-					CMP(AH, p[0]);
-					SETE(AL);
-					AL <<= 7;
-					ECX--;
-					if (== 0)
-						goto mode11_flush;
-mode11_bit6:
-					CMP(AH, p[1]);
-					SETE(DL);
-					DL <<= 6;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto mode11_flush;
-mode11_bit5:
-					CMP(AH, p[2]);
-					SETE(DL);
-					DL <<= 5;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto mode11_flush;
-mode11_bit4:
-					CMP(AH, p[3]);
-					SETE(DL);
-					DL <<= 4;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto mode11_flush;
-mode11_bit3:
-					CMP(AH, p[4]);
-					SETE(DL);
-					DL <<= 3;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto mode11_flush;
-mode11_bit2:
-					CMP(AH, p[5]);
-					SETE(DL);
-					DL <<= 2;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto mode11_flush;
-mode11_bit1:
-					CMP(AH, p[6]);
-					SETE(DL);
-					DL <<= 1;
-					AL |= DL;
-					ECX--;
-					if (== 0)
-						goto mode11_flush;
-mode11_bit0:
-					CMP(AH, p[7]);
-					SETE(DL);
-					(offset) p += 8;
-					AL |= DL;
-					if (!= 0) {
-						DL = *q;
-						*q = AL;
-					}
-					(offset) q++;
-					ECX--;
-					if (!= 0)
-						goto mode11_bit7;
-					goto mode11_skip_flush;
-mode11_flush:
-					if (AL != 0) {
-						DL = *q;
-						*q = AL;
-					}
-mode11_skip_flush:
-					POP((offset) p);
-					EAX >>= 8;
-					POP((offset) q);
-				}
-				EAX++;
-			} while (EAX != 16);
-			STI();
-			POP(EAX); /* color-flags */
-		}
-		(offset) p += cmd[16]; /* xsize */
-		POP(ECX);
+		putline();
+		(offset) p += [SS:EBP + 0]; /* xsize */
 		(offset) q += XBYTES;
-		(offset) p += cmd[24]; /* yskip */
-		ECX--;
+		(offset) p += [SS:EBP - 4]; /* skip */
+		(int) [SS:EBP - 8]--;
 	} while (!= 0);
-	ESP += 72;
+	POP((offset) cmd);
+	ESP += 8 + 8 + 64;
 	(offset) cmd += 40;
 	POP(EBP);
 	POP(DS);

@@ -45,7 +45,7 @@ clean:
 #	for %%i in ($(BASE:.exe=.obj)) do del %%i
 #	for %%i in ($(BASE:.exe=.lst)) do del %%i
 #	for %%i in ($(BASE:.exe=.map)) do del %%i
-#	for %%i in ($(ASK_OBJS)) do del %%i
+	for %%i in ($(ASK_OBJS)) do del %%i
 #	for %%i in ($(C_OBJS)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i

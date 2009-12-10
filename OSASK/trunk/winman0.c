@@ -1,6 +1,8 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.4
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.3.5
 		copyright(C) 2003 川合秀実, I.Tak., 小柳雅明, KIYOTO, nikq
     stack:8k malloc:4208k file:4096k */
+
+/* job_flag0 関係をいじった */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 #include "kjpegls.h"
@@ -119,6 +121,7 @@
 #endif
 
 #define WINFLG_MUSTREDRAW		0x80000000	/* bit31 */
+#define WINFLG_MUSTREDRAWDIF	0x40000000	/* bit30 */
 #define WINFLG_OVERRIDEDISABLED	0x01000000	/* bit24 */
 #define WINFLG_NOWINDOW			0x00000400	/* bit10 */
 #define	WINFLG_WAITREDRAW		0x00000200	/* bit 9 */
@@ -160,7 +163,7 @@ static struct STR_JOB {
 	int now, movewin4_ready, fontflag;
 	int *list, free, *rp, *wp;
 	int count, int0;
-	int movewin_x, movewin_y, movewin_x0, movewin_y0;
+	int movewin_x, movewin_y, movewin_x0, movewin_y0; /* 移動先と移動元 */
 	int readCSd10;
 	void (*func)(int, int);
 	struct WM0_WINDOW *win;
@@ -216,8 +219,9 @@ void job_movewin2();
 void job_movewin3();
 void job_movewin4(int sig);
 void job_movewin4m(int x, int y);
+int job_movewin5();
+void job_movewin6(const int cmd, const int handle);
 void job_closewin0(struct WM0_WINDOW *win0);
-void job_closewin1(const int cmd, const int handle);
 void job_general1();
 void job_general2(const int cmd, const int handle);
 void job_openvgadriver(const int drv);
@@ -2645,9 +2649,9 @@ void job_activewin0(struct WM0_WINDOW *win)
 	redirect_input(win); /* この関数は、ウィンドウ制御はしない */
 //	iactive = win;
 //	win = top;
-	do {
-		win->job_flag0 = 0;
-	} while ((win = win->down) != top);
+//	do {	/* deleted by I.Tak. (Jenny1.2) */
+//		win->job_flag0 = 0;
+//	} while ((win = win->down) != top);
 	job_general1();
 	return;
 }
@@ -2659,11 +2663,24 @@ void job_movewin0(struct WM0_WINDOW *win)
 
 	pjob->win = top /* win */;
 
+	/* どうせ再描画するのだから0にしてしまう。
+	   必ず0にしておかないと, ウィンドウを消している最中に
+	   描画されたりしてやっかいだ。消す直前に描画禁止に
+	   する手もあるが。*/
+	win->condition = 0;
+	pjob->count = 1;
+	pjob->func = job_movewin1;
+	sgg_wm0s_accessdisable(&win->sgg);
+	do {
+		win->job_flag0 = 0;
+	} while ((win = win->down) != top);
+
 	// キー入力シグナルの対応づけを初期化
 //	sgg_wm0_definesignal0(255, 0x0100, 0);
 //	sgg_wm0_definesignal3com();
 	sgg_execcmd(&defbindcommand);
 
+#if 0	/* deleted by I.Tak. (Jenny1.2) */
 	// とりあえず、全てのウィンドウの画面更新権を一時的に剥奪する
 	pjob->count = 0;
 	win = top;
@@ -2681,6 +2698,10 @@ void job_movewin0(struct WM0_WINDOW *win)
 //	if (pjob->count == 0) {
 //		job_movewin2(); // すぐにウィンドウ枠表示へ
 //	}
+#else	/* added by I.Tak. (Jenny1.2) */
+	pjob->movewin_x0 = pjob->movewin_x = win->x0;
+	pjob->movewin_y0 = pjob->movewin_y = win->y0;
+#endif
 
 	return;
 }
@@ -2714,8 +2735,8 @@ void job_movewin2()
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x00f0);
 
 	// 枠を描く
-	pjob->movewin_x0 = pjob->movewin_x = win->x0;
-	pjob->movewin_y0 = pjob->movewin_y = win->y0;
+//	pjob->movewin_x0 = pjob->movewin_x = win->x0;	/* deleted by I.Tak. (Jenny1.2) */
+//	pjob->movewin_y0 = pjob->movewin_y = win->y0;
 	job_movewin3();
 	pjob->movewin4_ready = 1;
 	if (press->pos == NO_PRESS) {
@@ -2774,24 +2795,42 @@ void job_movewin4(int sig)
 			my += y0 - pjob->movewin_y;
 			sgg_wm0_movemouse(mx, my);
 		}
+		#if 1	/* added by I.Tak. (Jenny1.2) */
+		if (pjob->count == 0){
+			job_movewin3();
+			pjob->movewin_x = x0;
+			pjob->movewin_y = y0;
+			if (job_movewin5())
+				return;
+			job_movewin3();
+		}
+		#else
 		job_movewin3();
 		pjob->movewin_x = x0;
 		pjob->movewin_y = y0;
 		job_movewin3();
+		#endif
 	}
 
 	if (sig == 0x00f0) {
+		struct WM0_WINDOW *win1;
 		pjob->movewin4_ready = 0;
 		press->mx0 = -1;
-		job_movewin3();
-		struct WM0_WINDOW *win1;
-		win0->job_flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
+	//	job_movewin3();	/* deleted by I.Tak. (Jenny1.2) */
+		win0->job_flag0 |= WINFLG_MUSTREDRAW;	/* changed by I.Tak. (Jenny1.2) */
+	//	win0->job_flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
 		win1 = win0 /* top */->down;
 		do {
-			int flag0 = WINFLG_OVERRIDEDISABLED; // override-disabled
-			if (overrapwin(win0, win1))
-				flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
-			win1->job_flag0 = flag0;
+			/* deleted by I.Tak. (Jenny1.2) */
+		//	int flag0 = WINFLG_OVERRIDEDISABLED; // override-disabled
+		//	if (overrapwin(win0, win1))
+		//		flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
+		//	win1->job_flag0 = flag0;
+			/* added by I.Tak. (Jenny1.2) */
+			/* 最初から描画禁止で, ジョブ終了後も描画禁止
+			   のウィンドウはjob_generalでは再描画されない */
+			if ((win1->condition & 0x01) == 0 && overrapwin(win0, win1))
+				win1->job_flag0 |= WINFLG_MUSTREDRAW;
 		} while ((win1 = win1->down) != win0);
 
 		// ウィンドウを消す
@@ -2826,12 +2865,69 @@ void job_movewin4m(int x, int y)
 		y0 = RESERVELINE0;
 	if (y0 > y2 - ysize - RESERVELINE1)
 		y0 = y2 - ysize - RESERVELINE1;
-	if ((x0 - pjob->movewin_x) | (y0 - pjob->movewin_y)) {
+	/* deleted by I.Tak. (Jenny1.2) */
+//	if ((x0 - pjob->movewin_x) | (y0 - pjob->movewin_y)) {
+//		job_movewin3();
+//		pjob->movewin_x = x0;
+//		pjob->movewin_y = y0;
+//		job_movewin3();
+//	}
+	/* added by I.Tak. (Jenny1.2) */
+	if (pjob->count == 0 && ((x0 - pjob->movewin_x) | (y0 - pjob->movewin_y)) != 0) {
 		job_movewin3();
 		pjob->movewin_x = x0;
 		pjob->movewin_y = y0;
-		job_movewin3();
+		if (job_movewin5() == 0)
+			job_movewin3();
 	}
+	return;
+}
+
+/* ウィンドウ枠描画の前に当たり判定をし, 描画禁止や差分描画を発行する。
+   シグナル発行数を返すので, 返り値が非零ならシグナルを待つこと。 */
+int job_movewin5()
+{
+	struct STR_JOB *pjob = &job;
+	struct WM0_WINDOW *win = pjob->win;
+	int x0 = pjob->movewin_x;
+	int y0 = pjob->movewin_y;
+	int x1 = win->x1 - win->x0 + x0;
+	int y1 = win->y1 - win->y0 + y0;
+	int count = 0;
+
+	win = top;
+	do {
+		if (win->condition & 0x01) {
+			char flag = (win->job_flag0 & WINFLG_OVERRIDEDISABLED) == 0;
+			if (win->x0 < x1 && win->x1 > x0 && win->y0 < y1 && win->y1 > y0) {
+				if (flag) {
+					count++;
+					win->job_flag0 |= WINFLG_OVERRIDEDISABLED;
+					sgg_wm0s_accessdisable(&win->sgg);
+				}
+			} else if (flag == 0) {
+				count++;
+				win->job_flag0 &= ~WINFLG_OVERRIDEDISABLED;
+				sgg_wm0s_accessenable(&win->sgg);
+				sgg_wm0s_redrawdif(&win->sgg);
+			}
+		}
+		win = win->down;
+	} while (win != top);
+
+	if ((pjob->count = count) != 0)
+		pjob->func = job_movewin6;
+	return count;
+}
+
+/* 描画禁止などが全て受信されたら枠を描く */
+void job_movewin6(const int cmd, const int handle)
+{
+	if ((cmd & 0x00c3) != 0x00c0)
+		return;
+	// 0x00c0か0x00c4しかこない
+	if (--job.count == 0)
+		job_movewin3();
 	return;
 }
 
@@ -2869,8 +2965,8 @@ void job_closewin0(struct WM0_WINDOW *win0)
 		return;
 	}
 
-	pjob->count = 0;
-	pjob->func = job_closewin1;
+//	pjob->count = 0;	/* deleted by I.Tak. (Jenny1.2) */
+//	pjob->func = job_closewin1;
 
 #if 0
 	if (allclose) {
@@ -2893,18 +2989,24 @@ void job_closewin0(struct WM0_WINDOW *win0)
 	//	iactive = top;
 	}
 
+	/* 最初から描画禁止で, ジョブ終了後も描画禁止
+	   のウィンドウはjob_generalで再描画されない */
 	win1 = top;
 	do {
-		int flag0 = 0;
-		if (overrapwin(win0, win1)) {
-			flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED;
-			if (win1->condition & 0x01) {
-				sgg_wm0s_accessdisable(&win1->sgg);
-				pjob->count++;
-				flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED | WINFLG_WAITDISABLE;
-			}
-		}
-		win1->job_flag0 = flag0;
+		/* deleted by I.Tak. (Jenny1.2) */
+	//	int flag0 = 0;
+	//	if (overrapwin(win0, win1)) {
+	//		flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED;
+	//		if (win1->condition & 0x01) {
+	//			sgg_wm0s_accessdisable(&win1->sgg);
+	//			pjob->count++;
+	//			flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED | WINFLG_WAITDISABLE;
+	//		}
+	//	}
+	//	win1->job_flag0 = flag0;
+		/* added by I.Tak. (Jenny1.2) */
+		if ((win1->condition & 1) == 0 && overrapwin(win0, win1))
+			win1->job_flag0 |= WINFLG_MUSTREDRAW;
 	} while ((win1 = win1->down) != top);
 
 no_window:
@@ -2912,10 +3014,13 @@ no_window:
 	/* ウィンドウを消す */
 	putwallpaper(win0->x0, win0->y0, win0->x1, win0->y1);
 	chain_unuse(win0);
-	if (pjob->count == 0)
-		job_general1();
+//	if (pjob->count == 0)	/* deleted by I.Tak. (Jenny1.2) */
+//		job_general1();
+	job_general1();	/* added by I.Tak. (Jenny1.2) */
 	return;
 }
+
+#if 0	/* deleted by I.Tak. (Jenny1.2) */
 
 void job_closewin1(const int cmd, const int handle)
 {
@@ -2936,6 +3041,8 @@ void job_closewin1(const int cmd, const int handle)
 	return;
 }
 
+#endif
+
 // ウィンドウ消去の場合、消したいウィンドウと重なっているものを全て"must-redraw"にしたあと
 // ウィンドウを消し、あとは自動に任せる
 
@@ -2954,7 +3061,12 @@ void job_general1()
    job_flag0.bit 8 ... disable-accept waiting
    job_flag0.bit 9 ... redraw finish waiting
    job_flag0.bit24 ... 0:normal 1:override-accessdisabled
-   job_flag0.bit31 ... 0:normal 1:must-redraw */
+   job_flag0.bit30 ... 0:normal 1:must-redraw-difference
+   job_flag0.bit31 ... 0:normal 1:must-redraw
+
+   conditionはjobに入る前の状態
+   job_flag0の対応するビットはjob終了後の状態 (になるように計算しなおす)
+   job_flag0のOVERRIDEDISABLED は, とにかく現在の描画禁止状態 */
 {
 	struct STR_JOB *pjob = &job;
 	struct WM0_WINDOW *win0, *win1, *bottom, *top_ = top /* 高速化、コンパクト化のため */;
@@ -2969,11 +3081,12 @@ void job_general1()
 	/* accessenable & not input active */
 	win0 = top_;
 	do {
-		flag0 = win0->job_flag0;
-		flag0 |=  0x0001; /* accessenable */
-		flag0 &= ~0x0302; /* not-input-active & no-waiting */
+		/* 入力なし, 待ちなし, とりあえず描画許可 */
+		/* not-input-active & no-waiting(~0x0302), accessenable(1) */
+		flag0 = (win0->job_flag0 & ~0x0302) | 1;
+		/* 描画禁止だったやつにはoverride-disabled */
 		if ((win0->condition & 0x01) == 0)
-			flag0 |= WINFLG_OVERRIDEDISABLED; /* override-disabled */
+			flag0 |= WINFLG_OVERRIDEDISABLED;
 		win0->job_flag0 = flag0;
 	} while ((win0 = win0->down) != top_);
 
@@ -2991,14 +3104,25 @@ void job_general1()
 	/* topはjob_flag0.bit 1 = 1; */
 	top_->job_flag0 |= 0x02; /* input-active */
 
-	/* 下から見ていって、conditionが変化していたらjob_flag0.bit31 = 1;
-	     job_flag0.bit31 == 1なら自分に重なっている上のやつ全てもjob_flag0.bit31 = 1; */
+	/* 下から見ていって、conditionが変化する予定なら (差分) 再描画
+	   そのとき自分に重なっている上のやつ全ても再描画 */
+	/* それまで描画許可であったなら, 差分描画で済ませる */
+	pjob->count = 0;	/* added by I.Tak. (Jenny1.2) */
+	pjob->func = job_general2;	/* added by I.Tak. (Jenny1.2) */
 	win0 = bottom = top_->up; /* 一番上の上は、一番下 */
 	do {
 		flag0 = win0->job_flag0;
-		if (win0->condition != (flag0 & 0x03) ||
-			(flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01))
-			win0->job_flag0 = (flag0 |= WINFLG_MUSTREDRAW);
+		if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01)
+			|| (win0->condition & 0x03) != (flag0 & 0x03)) {
+			/* added by I.Tak. (Jenny1.2) (if-block) */
+			if (win0->condition & 1)
+				flag0 |= WINFLG_MUSTREDRAWDIF;
+			else
+				flag0 |= WINFLG_MUSTREDRAW;
+				/* 再描画と差分描画が同時に立つこともあるけど
+				   再描画を優先するようになっている */
+			win0->job_flag0 = flag0;
+		}
 		if (flag0 & WINFLG_MUSTREDRAW) {
 			for (win1 = win0->up; win1 != bottom; win1 = win1->up) {
 				if ((win1->job_flag0 & WINFLG_MUSTREDRAW) == 0) { /* このif文がなくても実行結果は変わらないが、高速化のため */
@@ -3009,6 +3133,7 @@ void job_general1()
 		}
 	} while ((win0 = win0->down) != bottom);
 
+#if 0	/* deleted by I.Tak. (Jenny1.2) */
 	/* redrawを予定しているウィンドウで、他のredraw予定ウィンドウとオーバーラップしているものは、
 		全てoverride-accessdisabledにする */
 	pjob->count = 0;
@@ -3034,6 +3159,7 @@ void job_general1()
 			}
 		}
 	} while ((win0 = win0->down) != top_);
+#endif
 	pjob->win = NULL;
 	if (pjob->count == 0)
 		job_general2(0, 0);
@@ -3088,7 +3214,8 @@ error:
 		win->job_flag0 = 0;
 		if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01) && x2 != 0)
 			sgg_wm0s_accessenable(&win->sgg);
-		if (flag0 & WINFLG_MUSTREDRAW) {
+	//	if (flag0 & WINFLG_MUSTREDRAW) {	/* deleted by I.Tak. (jenny1.2) */
+		if (flag0 & (WINFLG_MUSTREDRAW | WINFLG_MUSTREDRAWDIF)) {	/* added by I.Tak. (jenny1.2) */
 			pjob->win = win;
 			if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == 0) {
 				sgg_wm0s_accessdisable(&win->sgg);
@@ -3097,7 +3224,12 @@ error:
 			}
 			if ((flag0 & 0x03) != win->condition)
 				sgg_wm0s_setstatus(&win->sgg, win->condition = (flag0 & 0x03));
-			sgg_wm0s_redraw(&win->sgg);
+		//	sgg_wm0s_redraw(&win->sgg);	/* deleted by I.Tak. (jenny1.2) */
+			/* added by I.Tak. (jenny1.2) (if-block) */
+			if (flag0 & WINFLG_MUSTREDRAW)
+				sgg_wm0s_redraw(&win->sgg);
+			else
+				sgg_wm0s_redrawdif(&win->sgg);
 			win->job_flag0 |= WINFLG_WAITREDRAW;
 			pjob->count++;
 			return;
@@ -3596,7 +3728,8 @@ void job_setvgamode3(const int sig, const int result)
 				if (d = win->x0 & mask){
 					win->x0 -= d;
 					win->x1 -= d;
-					win->job_flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
+					/* deleted by I.Tak. (Jenny1.2) */
+				//	win->job_flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
 					sgg_wm0s_movewindow(&win->sgg, win->x0, win->y0);
 				}
 			} while ((win = win->down) != top);

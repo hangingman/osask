@@ -80,6 +80,12 @@ void sgg_execcmd(void *EBX);
 	((struct SGG_WINDOW *) (window))->image[WINSTR_SIGNALBASE] + 8, \
 	((struct SGG_WINDOW *) (window))->image[WINSTR_USERID], 0x0000)
 
+#define sgg_wm0s_redrawdif(window) \
+	sgg_execcmd0(0x0020, 0x80000000 + 3, \
+	((struct SGG_WINDOW *) (window))->image[WINSTR_SIGNALEBOX] | 2, \
+	((struct SGG_WINDOW *) (window))->image[WINSTR_SIGNALBASE] + 9, \
+	((struct SGG_WINDOW *) (window))->image[WINSTR_USERID], 0x0000)
+
 #define sgg_wm0_win2sbox(window) \
 	(((struct SGG_WINDOW *) (window))->image[WINSTR_SIGNALEBOX])
 

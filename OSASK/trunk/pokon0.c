@@ -1,11 +1,11 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.4.2
+/* "pokon0.c":アプリケーションラウンチャー  ver.4.3
      copyright(C) 2003 小柳雅明, 川合秀実
     stack:4k malloc:88k file:4096k */
 
 /* scrollbar & mouse by I.Tak. */
 /* シグナル受信通知を*sbp==0のときに一回だけする……ほとんど意味無し
    描画処理を抑えるための第一歩です */
-#define PROCESS_ALL_POOLED_SIGNAL
+#define PROCESS_ALL_POOLED_SIGNAL	1
 #if defined(CHO_OSASK)
 	#define LISTX0 16
 	#define LISTY0 32
@@ -54,7 +54,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon42"
+#define POKON_VERSION "pokon43"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.6\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -1019,7 +1019,8 @@ void put_file(struct FILESELWIN *win, const char *name, const int pos, const int
 }
 
 #if defined(WIN9X) || defined(WIN31) || defined(NEWSTYLE)
-void draw_button(struct LIB_WINDOW *win, int c, int x0, int y0, int x1, int y1){
+void draw_button(struct LIB_WINDOW *win, int c, int x0, int y0, int x1, int y1)
+{
 	lib_drawline(0x20, win,  c, x0+1,y0+1, x1-2,y1-2);	/* button */
 	lib_drawline(0x20, win,  8, x0  ,y0  , x1  ,y0  );	/* UP0 */
 	lib_drawline(0x20, win, 15, x0+1,y0+1, x1-1,y0+1);	/* UP1 */
@@ -1030,14 +1031,16 @@ void draw_button(struct LIB_WINDOW *win, int c, int x0, int y0, int x1, int y1){
 	lib_drawline(0x20, win,  7, x0+1,y1-1, x1-1,y1-1);	/* DOWN1 */
 	lib_drawline(0x20, win,  0, x0  ,y1  , x1  ,y1  );	/* DOWN0 */
 }
-void draw_triangle(struct LIB_WINDOW *win, int c, int x0, int y, int d){
+void draw_triangle(struct LIB_WINDOW *win, int c, int x0, int y, int d)
+{
 	int i;
 	for (i = 0; i<4; i++){
 		lib_drawline(0x20, win, c, x0-i,y,x0+i,y);
 		y += d;
 	}
 }
-void draw_sbar_frame(struct FILESELWIN *win){
+void draw_sbar_frame(struct FILESELWIN *win)
+{
 	struct LIB_WINDOW *window = &win->window;
 	/* バーの上の枠 */
 	lib_drawline(0x20, window, 7, LISTX1+2,LISTY0-3, SBARX1+2,LISTY0-3);
@@ -1086,7 +1089,8 @@ void draw_triangle(struct LIB_WINDOW *win, int c, int x0, int y, int d){
 	i--;
 	lib_drawline(0x20, win, c, x0-i,y,x0+i+1,y);
 }
-void draw_sbar_frame(struct FILESELWIN *win){
+void draw_sbar_frame(struct FILESELWIN *win)
+{
 	struct LIB_WINDOW *window = &win->window;
 	/* テキストボックスの枠を伸ばす */
 	lib_drawline(0x10, window, 0, SBARX0-1,SBARY0, SBARX0-1,SBARY1);
@@ -1097,12 +1101,14 @@ void draw_sbar_frame(struct FILESELWIN *win){
 	draw_triangle(window, 0, SBARX0+SBARW/2,SBARY1+SBARW/2+3, -1);
 }
 #endif
-void draw_sbar(int barlen, int hndl, struct FILESELWIN *win){
-	int y0=0, y1=SBARH;
+
+void draw_sbar(unsigned int barlen, unsigned int hndl, struct FILESELWIN *win)
+{
+	int y0 = 0, y1 = SBARH;
 	struct LIB_WINDOW *window = &win->window;
-	if (barlen > LIST_HEIGHT){
+	if (barlen > LIST_HEIGHT) {
 		y0 = y1 * hndl / barlen;
-		y1 = y1 *(hndl+LIST_HEIGHT) / barlen;
+		y1 = y1 * (hndl + LIST_HEIGHT) / barlen;
 	}
 	win->shndly0 = y0 += SBARY0;
 	win->shndly1 = y1 += SBARY0;
@@ -1112,6 +1118,7 @@ void draw_sbar(int barlen, int hndl, struct FILESELWIN *win){
 		lib_drawline(0x20, window, SBARBC, SBARX0,SBARY0, SBARX1,y0-1);
 	if (y1 < SBARY1)
 		lib_drawline(0x20, window, SBARBC, SBARX0,y1, SBARX1,SBARY1);
+	return;
 }
 
 void list_set(struct FILESELWIN *win)
@@ -1148,23 +1155,21 @@ void list_set(struct FILESELWIN *win)
 	lp->name[0] = '\0';
 
 	// sort by Koyanagi
-	if (list[0].name[0] != '\0') {
-		for (wp1 = list; wp1->name[0]; ++wp1) {
-			for (wp2 = lp - 1; wp2 != wp1; --wp2) {
-				// compare
-				for (i = 0; i < 11; ++i) {
-					j = (int) ((wp2 - 1)->name[sort_order[sort_mode][i]])
-						- (int) (wp2->name[sort_order[sort_mode][i]]);
-					if (j == 0)
-						continue;
-					if (j > 0) {
-						// swap and break
-						tmp = *wp2;
-						*wp2 = *(wp2 - 1);
-						*(wp2 - 1) = tmp;
-					}
-					break;
+	for (wp1 = list; wp1->name[0]; ++wp1) {
+		for (wp2 = lp - 1; wp2 != wp1; --wp2) {
+			// compare
+			for (i = 0; i < 11; ++i) {
+				j = (int) ((wp2 - 1)->name[sort_order[sort_mode][i]])
+					- (int) (wp2->name[sort_order[sort_mode][i]]);
+				if (j == 0)
+					continue;
+				if (j > 0) {
+					// swap and break
+					tmp = *wp2;
+					*wp2 = *(wp2 - 1);
+					*(wp2 - 1) = tmp;
 				}
+				break;
 			}
 		}
 	}
@@ -1184,6 +1189,8 @@ void list_set(struct FILESELWIN *win)
 	}
 	if (win->flags & FILESELWINFLAG_DRAWENABLED)
 		draw_sbar(win->listsize, 0, win);
+	else
+		win->flags |= FILESELWINFLAG_SBARDIRTY;
 	return;
 }
 
@@ -1324,9 +1331,9 @@ void OsaskMain()
 	struct VIRTUAL_MODULE_REFERENCE *vmref;
 	struct FILESELWIN *selwin;
 
-#if defined(PROCESS_ALL_POOLED_SIGNAL)
-	unsigned int _siglen = 0;
-#endif
+	#if (defined(PROCESS_ALL_POOLED_SIGNAL))
+		unsigned int _siglen = 0;
+	#endif
 	int i, j, sig, *sb0, *sbp, tss;
 	int *subcmd;
 	struct STR_BANK *bank;
@@ -1447,21 +1454,21 @@ void OsaskMain()
 			case NO_SIGNAL:
 			//	siglen--; /* siglen = 0; */
 				pcons->sleep = 1;
-#if !defined(PROCESS_ALL_POOLED_SIGNAL)
-				lib_waitsignal(0x0001, 0, 0);
-#else
-				lib_waitsignal(0x0001, _siglen, 0);
-				_siglen = 0;
-#endif
+				#if (!defined(PROCESS_ALL_POOLED_SIGNAL))
+					lib_waitsignal(0x0001, 0, 0);
+				#else
+					lib_waitsignal(0x0001, _siglen, 0);
+					_siglen = 0;
+				#endif
 				continue;
 
 			case SIGNAL_REWIND:
 			//	siglen--; /* siglen = 0; */
-#if defined(PROCESS_ALL_POOLED_SIGNAL)
-				_siglen += sbp[1];
-#else
-				lib_waitsignal(0x0000, *(sbp + 1), 0);
-#endif
+				#if (defined(PROCESS_ALL_POOLED_SIGNAL))
+					_siglen += sbp[1];
+				#else
+					lib_waitsignal(0x0000, *(sbp + 1), 0);
+				#endif
 				sbp = sb0;
 				continue;
 
@@ -1874,9 +1881,11 @@ write_exe:
 					break;
 
 				case CONSOLE_REDRAW_0:
-				case CONSOLE_REDRAW_1:
 					/* 再描画 */
-					lib_controlwindow(0x0203, &pcons->win);
+					lib_controlwindow(0x0207, &pcons->win); /* コンソールは枠だけでいいから */
+				case CONSOLE_REDRAW_1:
+					/* 差分再描画 */
+					lib_controlwindow(0x020f, &pcons->win); /* 枠だけ＆差分モード */
 					break;
 
 				case CONSOLE_CHANGE_TITLE_COLOR /* change console title color */:
@@ -1974,27 +1983,39 @@ write_exe:
 				goto nextsig;
 			}
 
-			if (win->subtitle_str[0])
-				switch(sig){
-					case SIGNAL_WINDOW_DISABLE_DRAW:
-						lib_controlwindow(0x100, &win->window);
-						win->flags &= ~FILESELWINFLAG_DRAWENABLED;
-						break;
+			if (win->subtitle_str[0]) {
+				switch(sig) {
+				case SIGNAL_WINDOW_DISABLE_DRAW:
+					lib_controlwindow(0x100, &win->window);
+					win->flags &= ~FILESELWINFLAG_DRAWENABLED;
+					break;
 
-					case SIGNAL_WINDOW_ENABLE_DRAW:
-						win->flags |= FILESELWINFLAG_DRAWENABLED;
-						break;
+				case SIGNAL_WINDOW_ENABLE_DRAW:
+					win->flags |= FILESELWINFLAG_DRAWENABLED;
+					break;
 
-					case SIGNAL_WINDOW_REDRAW:
-					case SIGNAL_WINDOW_REDRAW_PARTIAL:
-						lib_controlwindow(0x03, &win->window);
+				case SIGNAL_WINDOW_REDRAW:
+					lib_controlwindow(0x03, &win->window);
+					win->flags &= ~FILESELWINFLAG_SBARDIRTY;
+					draw_sbar_frame(win);
+					draw_sbar(win->listsize, win->lp - win->list, win);
+					lib_controlwindow(0x200, &win->window);
+					break;
+
+				case SIGNAL_WINDOW_REDRAW_PARTIAL:
+					lib_controlwindow(0x0b, &win->window);
+					if (win->flags & FILESELWINFLAG_SBARDIRTY) {
+						win->flags &= ~FILESELWINFLAG_SBARDIRTY;
 						draw_sbar_frame(win);
 						draw_sbar(win->listsize, win->lp - win->list, win);
-						lib_controlwindow(0x200, &win->window);
+					}
+					lib_controlwindow(0x200, &win->window);
+				//	break;
 				}
-			if (fmode > STATUS_MAKE_COMPRESSED_BOOT_DISK){
+			}
+			if (fmode > STATUS_MAKE_COMPRESSED_BOOT_DISK) {
 				if (sig == SIGNAL_MOSPOS)
-					siglen += 2;
+					siglen = 3;
 				goto nextsig; /* boot中は無視 */
 			}
 
@@ -2022,6 +2043,8 @@ listup:
 						}
 						if (win->flags & FILESELWINFLAG_DRAWENABLED)
 							draw_sbar(win->listsize, lp-list, win);
+						else
+							win->flags |= FILESELWINFLAG_SBARDIRTY;
 					}
 					break;
 
@@ -2109,34 +2132,35 @@ listup:
 				case SIGNAL_MOSPOS:
 					win->mosx = sbp[1];
 					win->mosy = sbp[2];
-					siglen += 2;
-
-					if (win->flags & FILESELWINFLAG_GRABBED
-						&& win->listsize > LIST_HEIGHT){
-						i = (win->mosy - win->grabbedy)*win->listsize/SBARH;
-						if (i < 0){
-							if (cur < 0)
-								break;
-							if (win->grabbedlp - list + i < 0)
-								i = -(win->grabbedlp - list);
-							goto scroll;
-						}else if (i > 0){
-							if (cur < 0)
-								break;
-							if (win->grabbedlp - list + i + LIST_HEIGHT > win->listsize)
-								i = win->listsize - (LIST_HEIGHT + win->grabbedlp - list);
-						scroll:
-							if (lp != win->grabbedlp +i){
-								cur += lp - (win->grabbedlp +i);
-								lp = win->grabbedlp +i;
-								if (cur > LIST_HEIGHT-1)
-									cur = LIST_HEIGHT-1;
+					siglen = 3;
+					if (win->flags & FILESELWINFLAG_GRABBED) {
+						if (win->listsize > LIST_HEIGHT) {
+							i = (win->mosy - win->grabbedy) * win->listsize / SBARH;
+							if (i < 0) {
 								if (cur < 0)
-									cur = 0;
+									break;
+								if (win->grabbedlp - list + i < 0)
+									i = - (win->grabbedlp - list);
+								goto scroll;
+							} else if (i > 0) {
+								if (cur < 0)
+									break;
+								if (win->grabbedlp - list + i + LIST_HEIGHT > win->listsize)
+									i = win->listsize - (LIST_HEIGHT + win->grabbedlp - list);
+							scroll:
+								if (lp != win->grabbedlp + i) {
+									cur += lp - (win->grabbedlp + i);
+									lp = win->grabbedlp + i;
+									if (cur > LIST_HEIGHT - 1)
+										cur = LIST_HEIGHT - 1;
+									if (cur < 0)
+										cur = 0;
 								goto listup;
+								}
 							}
 						}
-					}
+					} else
+						win->flags |= FILESELWINFLAG_SBARDIRTY;
 					break;
 
 				case SIGNAL_MOSBTN:
@@ -2392,11 +2416,11 @@ listup:
 		}
 nextsig:
 		if (siglen) {
-#if !defined(PROCESS_ALL_POOLED_SIGNAL)
-			lib_waitsignal(0x0000, siglen, 0);
-#else
-			_siglen += siglen;
-#endif
+			#if (!defined(PROCESS_ALL_POOLED_SIGNAL))
+				lib_waitsignal(0x0000, siglen, 0);
+			#else
+				_siglen += siglen;
+			#endif
 			sbp += siglen;
 		}
 		while (*sbp == 0 && selwaitcount != 0 && selwincount < MAX_SELECTOR && fmode == STATUS_RUN_APPLICATION) {

@@ -1,0 +1,42 @@
+MAKE = make
+
+TARGET = guigui00.lib
+
+CC1 = cc1.exe
+CPP0 = cpp0.exe
+AS = as.exe
+GOLIB = golib00w.exe
+OBJ2BIM = obj2bim3.exe
+ASKA = aska.exe
+NASKCNV = naskcnv0.exe
+NASK = nask.exe
+
+OBJS = execcmd.obj fwinman.obj fpokon.obj fdebug.obj \
+		execcmd0.obj execcmd1.obj
+
+INCPATH = h:/osask/inclib
+
+ALL :
+	make $(TARGET)
+
+$(TARGET) : $(OBJS)
+	$(GOLIB) out:sysgg00.lib @sysgg00.opt
+
+%.gas : %.c Makefile
+	$(CC1) -Os -quiet -I$(INCPATH) -o $*.gas $*.c
+
+%.obj : %.gas Makefile
+	$(AS) -o $*.obj $*.gas
+	obj2bim3 -fixobj $*.obj text_align:1 data_align:4 bss_align:4
+
+%.i : %.ask Makefile
+	$(CPP0) -P -o $*.i $*.ask
+
+%.3as : %.i Makefile
+	$(ASKA) $*.i $*.3as
+
+%.nas : %.3as Makefile
+	$(NASKCNV) -l -s -w $*.3as $*.nas
+
+%.obj : %.nas Makefile
+	$(NASK) $*.nas $*.obj $*.lst

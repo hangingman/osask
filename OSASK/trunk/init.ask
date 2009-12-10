@@ -1,4 +1,4 @@
-/* "init.ask" ver.3.6 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
+/* "init.ask" ver.3.7 copyright(C) 2003 H.Kawai(川合秀実), I.Tak., KIYOTO */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -20,6 +20,10 @@ void dumpreg();
 
 #if (defined(TOWNS) && defined(CLGD543X))
 	void clgd543XDetectSetup();
+#endif
+
+#ifdef BOCHS
+	#define DEBUG031127		1
 #endif
 
 struct SS0_struct {
@@ -896,6 +900,10 @@ void far Init()
 
 //	AX = SS; FS = AX;
 
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 1; POP(DS);
+#endif
+
 	PUSH(SEL_IDTGDT);
 	POP(DS);
 
@@ -924,6 +932,10 @@ void far Init()
 		POP(EAX); /* eocが残っている */
 	#endif
 
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 2; POP(DS);
+#endif
+
 	/* Timer, TAPIを起動 */
 	CLI();
 //	PUSH(0 /* eoc */);
@@ -934,6 +946,10 @@ void far Init()
 	EBX = ESP;
 	CALLFAR0(SEL_TIMERINT);
 	/* 4, 0, ?, ?, eocが残っている */
+
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 3; POP(DS);
+#endif
 
 	ESP -= 8;
 	PUSH(8 /* intハンドラ情報要求 */);
@@ -950,6 +966,10 @@ void far Init()
 	STI();
 	/* 4, 8, ?, ?, ?, ?, ?, ?, eocが残っている */
 
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 4; POP(DS);
+#endif
+
 	PUSH(4 /* 一般情報要求 */);
 	PUSH(4);
 	EBX = ESP;
@@ -960,16 +980,28 @@ void far Init()
 	work->timer_freq = EAX;
 	work->timer_sec4 = ECX;
 
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 5; POP(DS);
+#endif
+
 	PUSH((int) 0x0108 /* init */);
 	EBX = ESP;
 	CALLFAR0(SEL_TAPI);
 	POP(EAX); /* eocが残っている */
+
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 6; POP(DS);
+#endif
 
 	PUSH(SEL_SYSWORK);
 	POP(DS);
 	#if (defined(PCAT))
 		swork_DS->mscount[0] = EDX;
 	#endif
+
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 7; POP(DS);
+#endif
 
 	#if (defined(PCAT))
 		AL = swork_DS->FD_motor_init;
@@ -987,6 +1019,10 @@ void far Init()
 	POP(EAX); /* eocが残っている */
 
 	POP(EAX); /* eocが残ってない */
+
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 8; POP(DS);
+#endif
 
 	/* PIT2の初期化、消音 */
 	CLI();
@@ -1024,6 +1060,10 @@ void far Init()
 		OUT(DX, AL);
 	#endif
 	STI();
+
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 9; POP(DS);
+#endif
 
 	/* root作成 */
 	/*	+0000 : header
@@ -1067,6 +1107,10 @@ void far Init()
 	ECX = 1024 * 255;
 	free_area();
 
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 10; POP(DS);
+#endif
+
 	ECX = 512; /* tag用の領域 */
 	ESI = 512; /* allocator */
 	alloc_tagdir();
@@ -1096,6 +1140,10 @@ void far Init()
 	EBX = 1024;
 	regist_module(); /* EBXのディレクトリにEDIのモジュール(タグディレクトリ)を接続する */
 
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 11; POP(DS);
+#endif
+
 	/* GAPIのフォント領域管理(暫定) */
 	area_man_struct *gapifontarea == DS:ESI;
 	(offset) gapifontarea = 0x0e00;
@@ -1119,6 +1167,10 @@ void far Init()
 	PUSH(SS /* stack_sel */);
 	POP(ES); /* = stack_sel; */
 	POP(GS); /* = syswork_sel; */
+
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 12; POP(DS);
+#endif
 
 	/* 自分自身のタスク情報を構築する */
 	EDX = 0;
@@ -1149,8 +1201,14 @@ void far Init()
 			int tskdir[8], stack0size, stack0addr[8], stack3size, stack3addr[8];
 		}; // total 60bytes
 	*/
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 13; POP(DS);
+#endif
 	create_task();
 	ESP += 60;
+#ifdef DEBUG031127
+PUSH(DS); PUSH(SEL_TAPIWORK); POP(DS); (int) [DS:12] = 14; POP(DS);
+#endif
 
 	/* このタスクのLlvを定義し、TskPointerを設定し、TRへ代入する。 */
 
@@ -1552,12 +1610,12 @@ void far Init()
 			POP(EBX);
 			POP(EBX);
 		#elif (defined(TOWNS))
-	//		PUSH((int) 0x0300 /* 全モーター停止、ドライブ選択なし */);
-	//		PUSH((int) 0x0124 /* FDC motorcontrol */);
-	//		EBX = ESP;
-	//		CALLFAR0(SEL_FDCDRIVE);
-	//		POP(EBX);
-	//		POP(EBX);
+			PUSH((int) 0x0300 /* 全モーター停止、ドライブ選択なし */);
+			PUSH((int) 0x0124 /* FDC motorcontrol */);
+			EBX = ESP;
+			CALLFAR0(SEL_FDCDRIVE);
+			POP(EBX);
+			POP(EBX);
 		#elif (defined(NEC98))
 	//		PUSH((int) 0x0301 /* 全モーター停止、ドライブ0選択 */);
 	//		PUSH((int) 0x0124 /* FDC motorcontrol */);
@@ -9039,7 +9097,7 @@ void near put_int_status_ec()
 	// CS:EIP, ECを表示したあとにput_int_status2へ
 }
 
-void near put_int_status2()
+void put_int_status2()
 {
 	unsigned int tapiwork_sel  == 13 * 8;
 
@@ -9151,7 +9209,7 @@ void near put_int_status2()
 //	asmout("MOV DWORD PTR SS:[EBP+68],'5'+'6'*100h+'7'*10000h+000*1000000h");
 	#if 1
 		PUSH(DS);
-		EAX = tapiwork_sel;
+		EAX = SEL_TAPIWORK;
 		DS = AX;
 		EAX = (int) [DS:0x000c];
 		POP(DS);
