@@ -1,4 +1,4 @@
-/* "init.ask" ver.1.50 copyright(C) 2001 H.Kawai(川合秀実) */
+/* "init.ask" ver.1.60 copyright(C) 2001 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -4556,6 +4556,8 @@ nextcmd:
 			goto cmd0204; // add nest
 		if (EAX == 0x0208)
 			goto cmd0208; // add nest & return soft-int
+		if (EAX == 0x0240)
+			goto cmd0240; // set segment
 		if (EAX == 0x0300)
 			goto cmd0300; // open timer
 		if (EAX == 0x0304)
@@ -4976,6 +4978,37 @@ cmd0208:
 	EBX = ESP;
 	CALLFAR0(tapi_sel);
 	ESP += 16;
+	goto nextcmd;
+
+cmd0240:
+	// set segment
+	// opt, selector, ar, limit, offset, base_selector
+	EAX = tapiwork_sel;
+	EDX = 0x0800;
+	DS = AX;
+	EDX += [DS:0x0c];
+	ECX = EDX;
+	EDX += cmd[24]; /* base_selector */
+	ECX += cmd[ 8]; /* selector */
+	EDX &= 0xfffffff8;
+	ECX &= 0xfffffff8;
+	AL = [DS:EDX + 4];
+	AH = [DS:EDX + 7];
+	EAX <<= 16;
+	AX = [DS:EDX + 2];
+	EAX += cmd[20]; /* offset */
+	[DS:ECX + 2] = AX;
+	(unsigned int) EAX >>= 16;
+	[DS:ECX + 4] = AL;
+	[DS:ECX + 7] = AH;
+	EAX = cmd[16]; /* limit */
+	[DS:ECX + 0] = AX;
+	(unsigned int) EAX >>= 16;
+	AL |= (char) cmd[13]; /* ar[1] */
+	[DS:ECX + 6] = AL;
+	AL = cmd[12]; /* ar[0] */
+	[DS:ECX + 5] = AL;
+	(offset) cmd += 28;
 	goto nextcmd;
 
 cmd0300:
@@ -5730,6 +5763,12 @@ cmd0700:
 		[ES:EDX + 0] = EAX;
 		goto nextcmd;
 	}
+	if (EAX == 12 /* マシンディレクトリ */) {
+		EAX = 0;
+		EAX--;
+		[ES:EDX + 0] = EAX;
+		goto nextcmd;
+	}
 	if (EAX == 64 /* ルート(仮) */) {
 		(int) [ES:EDX + 0] = 1024;
 		goto nextcmd;
@@ -5769,6 +5808,33 @@ cmd0708:
 	EAX = [DS:ECX + 0];
 	[DS:EDX + 0] = EAX;
 	goto nextcmd;
+
+cmd070c:
+	/* ディレクトリ移動 */
+	/* cmd, opt, slot, bytes, ofs, sel */
+	/* 完了した場合も見付からない場合も、シグナルで知らせる */
+
+	EAX = tapiwork_sel;
+	DS = AX;
+
+	/* 0x7f000006, sig, task, slot, bytes, ofs, sel */
+	PUSH((int) 0);
+	PUSH(cmd[20] /* sel */);
+	PUSH(cmd[16] /* ofs */);
+	PUSH(cmd[12] /* bytes */);
+	PUSH(cmd[ 8] /* slot */);
+	PUSH((int) [DS:0x000c /* tskptr */]);
+	PUSH((int) 0x0088 /* steppath */);
+	PUSH((int) 0x7f000006);
+	PUSH((int) 0x4240 /* pokon0 */ + 7);
+	PUSH((int) 0x0128 /* コマンドシグナル直接(with wait) */);
+	(offset) cmd += 24;
+	EBX = ESP;
+	CALLFAR0(tapi_sel);
+	ESP += 40;
+	goto nextcmd;
+
+#if 0
 
 cmd070c:
 	/* ディレクトリ移動 */
@@ -5853,6 +5919,8 @@ cmd070c_next:
 	} while (cmd[0] != 0xffffffff);
 	(offset) cmd += 4;
 	goto nextcmd;
+
+#endif
 
 cmd0710:
 	/* create new module */

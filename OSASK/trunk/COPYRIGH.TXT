@@ -1,7 +1,7 @@
 
-    sb15 の著作権情報
+    sb16 の著作権情報
 
-  このアーカイブに含まれるファイルは、以下の23個です。
+  このアーカイブに含まれるファイルは、以下の29個です。
 
 ・BASE/
     BASEHEAD.ASM
@@ -9,20 +9,27 @@
     INIT.ASK
     BASEFOOT.ASM
     MAKEBASE.BAT
+・SGG00LIB/
+    EXECCMD.ASM
+    EXECCMD0.ASM
+    EXECCMD1.ASM
+    FDEBUG.C
+    FPOKON.C
+    FWINMAN.C
+    INIT.C
+    MAKEFILE
+    SYSGG00.H
+    SYSGG00.LIB
+    SYSGG00.OPT
 ・PCAT/
     BASE.EXE
     WINMAN0.BIN
-    FDCDRV0.ASK
-    FDCDRV0.BIN
 ・TOWNS/
     BASE.EXE
     WINMAN0.BIN
 ・OSALINK0.OPT
-・TAPI0.ASK
-・TAPI0.BIN
 ・PIONEER0.ASK
 ・PIONEER0.BIN
-・WINMAN0.C
 ・POKON0.C
 ・POKON0.BIN
 ・INC.ASM

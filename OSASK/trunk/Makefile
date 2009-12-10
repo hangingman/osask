@@ -69,15 +69,22 @@ FORCE:
 	$(LINK) $*,$*,$*,nul,nul
 	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
 
-%.exe : %.c Makefile depend.mak
+%.obj : %.c Makefile depend.mak
 	$(CC) $< $(CFLAGS) -I$(INCPATH) -I$(SYSGGINC)
-	$(LINK32) $(LINK32_FLAGS) /LIBPATH:$(LIBPATH) $*.obj $(LIBS)
 
-pokon0.bin : pokon0.exe Makefile
-	$(EXE2BIN) $< $@ -s 64k -d
+pokon0.bim : pokon0.obj
+	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
+	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
 
-winman0.bin : winman0.exe Makefile
-	$(EXE2BIN) $< $@ -s 96k -d
+pokon0.bin : pokon0.bim Makefile
+	$(BIM2BIN) malloc:72k file:0 input:$< output:$@
+
+winman0.bim : winman0.obj
+	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
+	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
+
+winman0.bin : winman0.bim Makefile
+	$(BIM2BIN) malloc:92k file:0 input:$< output:$@
 
 clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i clean
@@ -91,7 +98,7 @@ clean:
 	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
 	for %%i in ($(C_OBJS:.bin=.obj)) do del %%i
-	for %%i in ($(C_OBJS:.bin=.exe)) do del %%i
+	for %%i in ($(C_OBJS:.bin=.bim)) do del %%i
 
 dist_clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i dist_clean

@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.1.4
+/* "pokon0.c":アプリケーションラウンチャー  ver.1.5
      copyright(C) 2001 川合秀実, 小柳雅明
-    exe2bin2 pokon0 -s 64k -d */
+    stack:4k malloc:72k file:0 */
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -345,7 +345,7 @@ check_notask:
 			sbp++;
 			goto check_notask;
 #endif
-		} else if (sig == 0x0084) {
+		} else if (sig == 0x0084 || sig == 0x0088) {
 			/* ダイアログ要求シグナル */
 			/* とりあえずバッファに入れておく */
 			int i;
@@ -508,7 +508,7 @@ void main()
 	for (i = 0; i < MAX_VMREF; i++)
 		vmref[i].task = 0;
 
-	openselwin(&selwin[0], "pokon14", "< Run Application > ");
+	openselwin(&selwin[0], "pokon15", "< Run Application > ");
 
 	lib_opentimer(SYSTEM_TIMER);
 	lib_definesignal1p0(0, 0x0010 /* timer */, SYSTEM_TIMER, 0, 287);
@@ -561,16 +561,85 @@ void main()
 				sgg_debug00(0, selwait[bank].bytes, 0,
 					selwait[bank].ofs, selwait[bank].sel | (selwin[i].task << 8) + 0xf80000, (const int) subcmd, 0x000c);
 				selwait[bank].task = 0;
-				selwin[i].num = subcmd[1];
-				selwin[i].siglen = subcmd[3];
-				selwin[i].sig[0] = subcmd[4];
-				selwin[i].sig[1] = subcmd[5];
-				for (bank = 0; banklist[bank].size == 0 || banklist[bank].tss != selwin[i].task; bank++);
-				for (j = 0; j < 8; j++)
-					t[j + 6] = banklist[bank].name[j];
-				openselwin(&selwin[i], "(open)", t);
-				selwin[i].ext = -1;
-				list_set(&selwin[i]);
+				if (subcmd[0] == 0xffffff01 /* num */) {
+					selwin[i].num = subcmd[1];
+					selwin[i].siglen = subcmd[3];
+					selwin[i].sig[0] = subcmd[4];
+					selwin[i].sig[1] = subcmd[5];
+					for (bank = 0; banklist[bank].size == 0 || banklist[bank].tss != selwin[i].task; bank++);
+					for (j = 0; j < 8; j++)
+						t[j + 6] = banklist[bank].name[j];
+					openselwin(&selwin[i], "(open)", t);
+					selwin[i].ext = -1;
+					list_set(&selwin[i]);
+				} else if (subcmd[0] == 0xffffff03 /* direct-name */) {
+					/* とりあえず、名前は12バイト固定(最後のバイトは00) */
+					struct SGG_FILELIST *fp;
+					int j, k, fileid;
+					unsigned char c;
+					selwin[i].siglen = subcmd[6];
+					selwin[i].sig[0] = subcmd[7];
+					selwin[i].sig[1] = subcmd[8];
+					for (fp = file + 1; fp->name[0]; fp++) {
+						c = 0;
+						for (j = 0; j < 8; j++)
+							c |= ((unsigned char *) &subcmd[2])[j] - fp->name[j];
+						for (j = 0; j < 3; j++)
+							c |= ((unsigned char *) &subcmd[2])[j + 9] - fp->name[j + 8];
+						if (c == 0)
+							goto find;
+					}
+					goto error_sig;
+find:
+					fileid = fp->id;
+					/* 見付かった */
+					for (j = 0; j < MAX_FILEBUF; j++) {
+						if (filebuf[j].dirslot != fileid)
+							continue;
+						filebuf[j].linkcount++;
+						goto filebuf_hit1;
+					}
+					for (j = 0; j < MAX_FILEBUF; j++) {
+						if (filebuf[j].linkcount)
+							continue;
+						goto find_freefilebuf1;
+					}
+					/* ここに来たらバッファ不足でロードできなかったことを意味する */
+error_sig:
+					k = (0x003c /* slot_sel */ | selwin[i].task << 8) + 0xf80000;
+					sgg_directwrite(0, 4, 0, selwin[i].mdlslot, k, (int) &j, 0x000c);
+					send_command.data[0] = selwin[i].task | 0x0242;
+					send_command.data[2] = selwin[i].sig[1] + 1;
+					sgg_execcmd(&send_command);
+					selwin[i].task = 0;
+					selwincount--;
+
+find_freefilebuf1:
+					sgg_loadfile2(fileid /* file id */,
+						99 /* finish signal */
+					);
+					wait99(); // finish signalが来るまで待つ
+					filebuf[j].size = sbp[0];
+					filebuf[j].paddr = sbp[1];
+					sbp += 2;
+					lib_waitsignal(0x0000, 2, 0);
+					if (filebuf[j].size == 0)
+						goto error_sig; /* メモリが足りない */
+					filebuf[j].dirslot = fileid;
+					filebuf[j].linkcount = 1;
+filebuf_hit1:
+					for (k = 0; vmref[k].task != 0; k++);
+					vmref[k].task = selwin[i].task;
+					vmref[k].module_paddr = filebuf[j].paddr;
+					j = sgg_createvirtualmodule(filebuf[j].size, filebuf[j].paddr);
+					k = (0x003c /* slot_sel */ | selwin[i].task << 8) + 0xf80000;
+					sgg_directwrite(0, 4, 0, selwin[i].mdlslot, k, (int) &j, 0x000c);
+					send_command.data[0] = selwin[i].task | 0x0242;
+					send_command.data[2] = selwin[i].sig[1];
+					sgg_execcmd(&send_command);
+					selwin[i].task = 0;
+					selwincount--;
+				}
 			}
 		} while (sig == 0);
 
@@ -1210,7 +1279,8 @@ void open_console()
 	console_win = lib_openwindow1(AUTO_MALLOC, 0x0210, CONSOLESIZEX * 8, CONSOLESIZEY * 16, 0x0d, 256);
 	console_tit = lib_opentextbox(0x1000, AUTO_MALLOC,  0, 16,  1,  0,  0, console_win, 0x00c0, 0);
 	console_txt = lib_opentextbox(0x0001, AUTO_MALLOC,  0, CONSOLESIZEX, CONSOLESIZEY,  0,  0, console_win, 0x00c0, 0); // 5KB
-	lib_putstring_ASCII(0x0000, 0, 0, console_tit, 0, 0, "pokon14 console");
+	lib_putstring_ASCII(0x0000, 0, 0, console_tit, 0, 0, "pokon15 console");
+
 	if (consolebuf == NULL)
 		consolebuf = (char *) malloc((CONSOLESIZEX + 2) * (CONSOLESIZEY + 1));
 	bp = consolebuf;

@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.3
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.4
     copyright(C) 2001 H.Kawai (川合秀実) */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -83,7 +83,7 @@ void far pioneer0()
 
 asmout("nextcmd:");
 	EAX = cmd[0];
-	if ((unsigned) EAX < 0x00f0) {
+	if ((unsigned) EAX < 0x0100) {
 		TEST(EAX, 0x03);
 		if (== 0)
 			asmout("JMP DWORD PTR CS:[EAX+#cmd_jumptable]");
@@ -119,7 +119,7 @@ cmd_jumptable:
 	asmout("DD OFFSET cmd0c0,  OFFSET cmd0c4,  OFFSET cmd0c8,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd0d0,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
 	asmout("DD OFFSET cmd0e0,  OFFSET cmd0e4,  OFFSET cmd0e8,  OFFSET #cmderr");
-
+	asmout("DD OFFSET cmd0f0,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
 }
 
 void far cmd000()
@@ -1481,52 +1481,20 @@ void near cmd0a8()
 
 void near cmd0ac()
 /* ディレクトリ移動 */
-/* cmd, opt, slot, tag0, tag1, ..., -1 */
+/* cmd, opt, slot, bytes, ofs, sel */
 {
 	int *cmd == DS:ESI;
-	ESP -= 512;
-	(int) [SS:ESP] = 0x070c; /* cmd */
-	EAX = cmd[ 4]; /* opt */
-	ECX = cmd[ 8]; /* slot */
-	[SS:ESP + 508] = EBP;
-	[SS:ESP + 504] = EAX;
-	[SS:ESP + 500] = (offset) cmd;
-	(offset) cmd += 12;
-	LEA(EBP, [SS:ESP + 12]);
-	[SS:ESP +   4] = EAX;	
-	[SS:ESP +   8] = ECX;
-	EAX = cmd[0];
-	do {
-		ECX = cmd[4];
-		(offset) cmd += 8;
-		[SS:EBP    ] = EAX;
-		[SS:EBP + 4] = ECX;
-		EBP += 8;
-		ECX -= 8;
-		if (!= 0) {
-			do {
-				EAX = *cmd;
-				(offset) cmd += 4;
-				[SS:EBP] = EAX;
-				EBP += 4;
-				ECX -= 4;
-			} while (!= 0);
-		}
-		EAX = cmd[0];
-	} while (EAX != 0xffffffff);
-	(offset) cmd += 4;
-	(int) [SS:EBP    ] = EAX;
-	(int) [SS:EBP + 4] = 0;
+	PUSH((int) 0);
+	PUSH(cmd[20] /* sel */);
+	PUSH(cmd[16] /* ofs */);
+	PUSH(cmd[12] /* bytes */);
+	PUSH(cmd[ 8] /* slot */);
+	PUSH(cmd[ 4] /* opt */);
+	(offset) cmd += 24;
+	PUSH((int) 0x070c);
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // shell-call
-	asmout("TEST BYTE PTR SS:[ESP+504],01H");
-	if (!= 0) {
-		EBX = [SS:ESP + 500]; /* old cmd */
-		EAX = [SS:ESP +   4];
-		[DS:EBX + 4] = EAX;
-	}
-	EBP = [SS:ESP + 508];
-	ESP += 512;
+	ESP += 28;
 	asmout("JMP nextcmd");
 }
 
@@ -1717,6 +1685,27 @@ void near cmd0e8()
 	PUSH(cmd[ 8]);
 	PUSH(cmd[ 4]);
 	PUSH((int) 0x0410);
+	(offset) cmd += 28;
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	ESP += 32;
+	asmout("JMP nextcmd");
+}
+
+void near cmd0f0()
+/* set segment */
+/* cmd, opt, selector, ar, limit, offset, base_selector */
+/* selectorとbase_selectorは0xfff8でマスクしておくこと */
+{
+	int *cmd == DS:ESI;
+	PUSH((int) 0);
+	PUSH(cmd[24]);
+	PUSH(cmd[20]);
+	PUSH(cmd[16]);
+	PUSH(cmd[12]);
+	PUSH(cmd[ 8]);
+	PUSH(cmd[ 4]);
+	PUSH((int) 0x0240);
 	(offset) cmd += 28;
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // shell-call

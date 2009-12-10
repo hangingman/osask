@@ -20,6 +20,12 @@ EXE2BIN = exe2bin2
 EXE2BIN_FLAGS_ASK = -n
 EXE2BIN_FLAGS_C = -t -s
 
+OBJ2BIM = obj2bim0
+BIM2BIN = bim2bin0
+
+OBJ2BIM_ALIGN_FLAGS = text_align:1 data_align:4 bss_align:4
+DEFAULT_RULE_FILE = osask.rul
+
 # architecture dependency
 ifeq ($(ARCH),towns)
 PREPROCESSOR_FLAGS += -DTOWNS

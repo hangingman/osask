@@ -2,6 +2,8 @@
 
 #include <sysgg00.h>
 
+#if 0
+
 #define	WINSTR_STATUS		 0 / 4
 #define	WINSTR_USERID		 4 / 4
 #define	WINSTR_SIGNALBASE	 8 / 4
@@ -103,6 +105,8 @@ void sgg_wm0s_redraw(const struct SGG_WINDOW *window)
 	return;
 }
 
+#endif
+
 void sgg_wm0_openwindow(struct SGG_WINDOW *window, const int handle)
 {
 	static struct {
@@ -119,10 +123,14 @@ void sgg_wm0_openwindow(struct SGG_WINDOW *window, const int handle)
 	return;
 }
 
+#if 0
+
 const int sgg_wm0_win2sbox(const struct SGG_WINDOW *window)
 {
 	return window->image[WINSTR_SIGNALEBOX];
 }
+
+#endif
 
 #if 0
 
@@ -162,6 +170,8 @@ void sgg_wm0_definesignal0(const int opt, const int device, const int code)
 }
 
 #endif
+
+#if 0
 
 const int sgg_wm0_winsizex(const struct SGG_WINDOW *window)
 {
@@ -205,7 +215,6 @@ void sgg_wm0s_windowclosed(const struct SGG_WINDOW *window)
 	sgg_execcmd(&command);
 	return;
 }
-
 
 void sgg_wm0_setvideomode(const int mode, const int signal)
 {
@@ -353,6 +362,8 @@ void sgg_wm0_enablemouse()
 	sgg_execcmd(&command);
 	return;
 }
+
+#endif
 
 #if 0
 void sgg_wm0s_sendto1_pokon0(const int signal)
