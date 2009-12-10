@@ -1,2 +1,3 @@
-ARCH = pcat
-BOCHS = 13
+ARCH = towns
+TWSCRL1 = n
+TWVSW = 1024

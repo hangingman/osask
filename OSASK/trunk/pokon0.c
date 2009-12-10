@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.2.3
+/* "pokon0.c":アプリケーションラウンチャー  ver.2.4
      copyright(C) 2002 小柳雅明, 川合秀実
     stack:4k malloc:84k file:1024k */
 
@@ -10,7 +10,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon23"
+#define POKON_VERSION "pokon24"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.0\n    Copyright (C) 2002 H.Kawai(Kawaido)\n"
 #define POKO_PROMPT "\npoko>"
@@ -40,6 +40,7 @@ static struct STR_VIEWER TXTEDIT = { "TEDITC01BIN", 2, 0x7f000001, 42, 0 };
 static struct STR_VIEWER PICEDIT = { "BMPV06  BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER RESIZER = { "RESIZER0BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER HELPLAY = { "HELO    BIN", 0, 0, 0, 0 };
+static struct STR_VIEWER MMLPLAY = { "MMLPLAY BIN", 0, 0, 0, 0 };
 
 struct STR_BANK *banklist;
 struct SGG_FILELIST *file;
@@ -51,10 +52,12 @@ int selwaitcount = 0, selwincount = 1;
 struct VIRTUAL_MODULE_REFERENCE *vmref0;
 int need_wb;
 int auto_decomp = 1;
+int sort_mode = DEFAULT_SORT_MODE;
 
 //static struct STR_CONSOLE console = { -1, 0, 0, NULL, NULL, NULL, NULL, 0, 0, 0 };
 static struct STR_CONSOLE *console;
 
+#if 0
 void writejob(int i)
 {
 	*(job.wp)++ = i;
@@ -69,6 +72,38 @@ void writejob2(int i, int j)
 	writejob(i);
 	writejob(j);
 	return;
+}
+#endif
+
+int writejob_np(int n, int *p)
+{
+	struct STR_JOBLIST *pjob = &job;
+	if (pjob->free >= n) {
+		do {
+			*(pjob->wp)++ = *p++;
+			pjob->free--;
+			if (pjob->wp == pjob->list + JOBLIST_SIZE)
+				pjob->wp = pjob->list;
+		} while (--n);
+		*(pjob->wp) = 0; /* ストッパー */
+		return 1;
+	}
+	return 0;
+}
+
+int writejob_n(int n, int p0, ...)
+{
+	return writejob_np(n, &p0);
+}
+
+int writejob_1(int p0)
+{
+	return writejob_n(1, p0);
+}
+
+int writejob_3p(int *p)
+{
+	return writejob_np(3, p);
 }
 
 const int readjob()
@@ -168,6 +203,16 @@ struct STR_BANK *searchfrebank()
 	return NULL;
 }
 
+void getjobparam(int i,...)
+{
+	struct STR_JOBLIST *pjob = &job;
+	int *p = &i;
+	do {
+		pjob->param[*p] = readjob();
+	} while (*++p);
+	return;
+}
+
 void runjobnext()
 {
 	struct STR_JOBLIST *pjob = &job;
@@ -262,19 +307,21 @@ void runjobnext()
 			break;
 
 		case JOB_FREE_MEMORY:
-			pjob->param[0] = readjob(); /* fileid */
-			pjob->param[1] = readjob(); /* size */
-			pjob->param[2] = readjob(); /* addr */
+		//	pjob->param[0] = readjob(); /* fileid */
+		//	pjob->param[1] = readjob(); /* size */
+		//	pjob->param[2] = readjob(); /* addr */
+			getjobparam(0, 1, 2, 0); /* fileid, size, addr */
 			sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, pjob->param[0], pjob->param[1], pjob->param[2], 0x0000);
 			pjob->now = 0;
 			break;
 
 		case JOB_CREATE_FILE:
-			pjob->param[0] = readjob(); /* filename */
-			pjob->param[1] = readjob();
-			pjob->param[2] = readjob();
-			pjob->param[6] = readjob(); /* task */
-			pjob->param[7] = readjob(); /* signal */
+		//	pjob->param[0] = readjob(); /* filename */
+		//	pjob->param[1] = readjob();
+		//	pjob->param[2] = readjob();
+		//	pjob->param[6] = readjob(); /* task */
+		//	pjob->param[7] = readjob(); /* signal */
+			getjobparam(0, 1, 2, 6, 7, 0);
 			if (searchfid((char *) pjob->param) == 0) {
 				sgg_execcmd0(0x0020, 0x80000000 + 9, 0x1248, 0x0148, pjob->param[0], pjob->param[1], pjob->param[2] >> 8,
 					0x4243 /* to pokon0 */, 0x7f000002, SIGNAL_REFRESH_FLIST, 0, 0x0000);
@@ -287,14 +334,16 @@ void runjobnext()
 			break;
 
 		case JOB_RENAME_FILE:
-			pjob->param[0] = readjob(); /* filename0 */
-			pjob->param[1] = readjob();
-			pjob->param[2] = readjob();
-			pjob->param[3] = readjob(); /* filename1 */
-			pjob->param[4] = readjob();
-			pjob->param[5] = readjob();
-			pjob->param[6] = readjob(); /* task */
-			pjob->param[7] = readjob(); /* signal */
+		//	pjob->param[0] = readjob(); /* filename0 */
+		//	pjob->param[1] = readjob();
+		//	pjob->param[2] = readjob();
+		//	pjob->param[3] = readjob(); /* filename1 */
+		//	pjob->param[4] = readjob();
+		//	pjob->param[5] = readjob();
+		//	pjob->param[6] = readjob(); /* task */
+		//	pjob->param[7] = readjob(); /* signal */
+			for (i = 0; i < 8; i++)
+				pjob->param[i] = readjob();
 			if (searchfid((char *) &pjob->param[0]) != 0 && searchfid((char *) &pjob->param[3]) == 0) {
 				sgg_execcmd0(0x0020, 0x80000000 + 12, 0x124b, 0x014c,
 					pjob->param[0], pjob->param[1], pjob->param[2] >> 8,
@@ -305,13 +354,14 @@ void runjobnext()
 			goto errorsignal;
 
 		case JOB_RESIZE_FILE:
-			pjob->param[0] = readjob(); /* filename */
-			pjob->param[1] = readjob();
-			pjob->param[2] = readjob();
-			pjob->param[3] = readjob(); /* new-size */
-			pjob->param[4] = readjob(); /* max-linkcount */
-			pjob->param[6] = readjob(); /* task */
-			pjob->param[7] = readjob(); /* signal */
+		//	pjob->param[0] = readjob(); /* filename */
+		//	pjob->param[1] = readjob();
+		//	pjob->param[2] = readjob();
+		//	pjob->param[3] = readjob(); /* new-size */
+		//	pjob->param[4] = readjob(); /* max-linkcount */
+		//	pjob->param[6] = readjob(); /* task */
+		//	pjob->param[7] = readjob(); /* signal */
+			getjobparam(0, 1, 2, 3, 4, 6, 7, 0);
 			if ((i = searchfid((char *) &pjob->param[0])) != 0) {
 				fbuf = searchfbuf(i);
 				i = 0;
@@ -330,12 +380,13 @@ void runjobnext()
 			goto errorsignal;
 
 		case JOB_DELETE_FILE:
-			pjob->param[0] = readjob(); /* filename */
-			pjob->param[1] = readjob();
-			pjob->param[2] = readjob();
-			pjob->param[4] = readjob(); /* max-linkcount */
-			pjob->param[6] = readjob(); /* task */
-			pjob->param[7] = readjob(); /* signal */
+		//	pjob->param[0] = readjob(); /* filename */
+		//	pjob->param[1] = readjob();
+		//	pjob->param[2] = readjob();
+		//	pjob->param[4] = readjob(); /* max-linkcount */
+		//	pjob->param[6] = readjob(); /* task */
+		//	pjob->param[7] = readjob(); /* signal */
+			getjobparam(0, 1, 2, 4, 6, 7, 0);
 			if ((i = searchfid((char *) &pjob->param[0])) != 0) {
 				fbuf = searchfbuf(i);
 				i = 0;
@@ -361,12 +412,7 @@ void sgg_freememory2(const int fileid, const int size, const int addr)
 	if (size > 0) {
 		if (fileid == -1)
 			sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, -1, size, addr, 0x0000);
-		else if (job.free >= 4) {
-			/* 空きが十分にある */
-			writejob2(JOB_FREE_MEMORY, fileid);
-			writejob2(size, addr);
-			*(job.wp) = 0; /* ストッパー */
-	//	} else {
+		else if (writejob_n(4, JOB_FREE_MEMORY, fileid, size, addr) == 0) {
 			/* どうすりゃいいんだ？ */
 		}
 	}
@@ -402,6 +448,10 @@ void list_set(struct FILESELWIN *win)
 	int i, ext = win->ext;
 	struct SGG_FILELIST *fp;
 	struct FILELIST *lp, *list = win->list, *wp1, *wp2, tmp;
+	static int sort_order[2][11] = {
+		{0, 1, 2,  3, 4, 5, 6, 7, 8, 9, 10,},
+		{8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, },
+	};
 
 	// システムにファイルのリストを要求
 	sgg_getfilelist(256, file, 0, 0);
@@ -432,13 +482,13 @@ void list_set(struct FILESELWIN *win)
 			for (wp2 = lp - 1; wp2 != wp1; --wp2) {
 				// compare
 				for (i = 0; i < 11; ++i) {
-					if ((wp2 - 1)->name[i] > wp2->name[i]) {
+					if ((wp2 - 1)->name[sort_order[sort_mode][i]] > wp2->name[sort_order[sort_mode][i]]) {
 						// swap and break
 						tmp = *wp2;
 						*wp2 = *(wp2 - 1);
 						*(wp2 - 1) = tmp;
 						break;
-					} if ((wp2 - 1)->name[i] < wp2->name[i]) {
+					} if ((wp2 - 1)->name[sort_order[sort_mode][i]] < wp2->name[sort_order[sort_mode][i]]) {
 						break;
 					}
 				}
@@ -891,20 +941,14 @@ void OsaskMain()
 						fbuf->dirslot = -1;
 
 						if (fbuf->size > 0) {
-							writejob2(JOB_FREE_MEMORY, i); /* ライトバック＆メモリ開放 */
-							writejob2(fbuf->size, fbuf->paddr);
+							/* ライトバック＆メモリ開放 */
+							writejob_n(4, JOB_FREE_MEMORY, i, fbuf->size, fbuf->paddr);
 						}
 
-						writejob2(JOB_RESIZE_FILE, *((int *) &fp->name[0]));
-						writejob2(*((int *) &fp->name[4]), (*((int *) &fp->name[8]) << 8) | '.');
-						writejob2(sbp[2], 0 /* new-size, max-linkcount */);
-						writejob2(0, 0 /* task, signal */);
-
-						writejob2(JOB_LOAD_FILE, (int) fbuf);
-						writejob2((int) win, win->task);
-						writejob(i);
-
-						*(pjob->wp) = 0; /* ストッパー */
+						writejob_n(13, JOB_RESIZE_FILE, *((int *) &fp->name[0]),
+							*((int *) &fp->name[4]), (*((int *) &fp->name[8]) << 8) | '.',
+							sbp[2], 0 /* new-size, max-linkcount */, 0, 0 /* task, signal */,
+							JOB_LOAD_FILE, (int) fbuf, (int) win, win->task, i);
 						gotsignal(6);
 						sbp += 6;
 						break;
@@ -988,10 +1032,8 @@ void OsaskMain()
 					fbuf->dirslot = pjob->dirslot;
 					bank->fbuf = fbuf;
 					/* 空きが十分にある */
-					writejob2(JOB_CREATE_TASK, (int) bank);
-					for (i = 0; i < 8; i++)
-						writejob(pjob->param[i]);
-					*(pjob->wp) = 0; /* ストッパー */
+					writejob_n(2, JOB_CREATE_TASK, (int) bank);
+					writejob_np(8, &pjob->param[0]);
 				}
 				pjob->now = 0;
 				break;
@@ -1151,8 +1193,7 @@ write_exe:
 				if (fmode == STATUS_WRITE_KERNEL_COMPLETE) {
 				//	if (pjob->free >= 1) {
 						/* 空きが十分にある */
-						writejob(JOB_INVALID_DISKCACHE);
-						*(pjob->wp) = 0; /* ストッパー */
+						writejob_1(JOB_INVALID_DISKCACHE);
 						win->cur = -1;
 				//	}
 				} else {
@@ -1176,8 +1217,7 @@ write_exe:
 				if (fmode == STATUS_WRITE_KERNEL_COMPLETE) {
 				//	if (pjob->free >= 1) {
 						/* 空きが十分にある */
-						writejob(JOB_INVALID_DISKCACHE);
-						*(pjob->wp) = 0; /* ストッパー */
+						writejob_1(JOB_INVALID_DISKCACHE);
 						win->cur = -1;
 				//	}
 				} else {
@@ -1317,6 +1357,7 @@ write_exe:
 								poko_resize,		"resize", 6,
 								poko_nfname,		"nfname", 6,
 								poko_autodecomp,	"autodecomp", 10,
+								poko_sortmode,		"sortmode", 8,
 #if defined(DEBUG)
 								poko_debug,			"debug", 5,
 #endif
@@ -1450,10 +1491,8 @@ listup:
 						if ((fbuf = searchfrefbuf()) != NULL && pjob->free >= 5) {
 							lib_closewindow(0, &win->window);
 							/* 空きが十分にある */
-							writejob2(JOB_LOAD_FILE, (int) fbuf);
-							writejob2((int) win, tss);
-							writejob(lp[cur].ptr->id);
-							*(pjob->wp) = 0; /* ストッパー */
+							writejob_n(5, JOB_LOAD_FILE, (int) fbuf,
+								(int) win, tss, lp[cur].ptr->id);
 						//	win->lp = NULL;
 							lp = NULL;
 						//	bank->size = -1; /* これは何だ？？？ */
@@ -1473,12 +1512,8 @@ listup:
 							bank->name[11] = '\0';
 							if ((fbuf = searchfrefbuf()) == NULL)
 								break;
-							if (pjob->free >= 4) {
-								/* 空きが十分にある */
-								writejob2(JOB_LOAD_FILE_AND_EXECUTE, j);
-								writejob2((int) fbuf, (int) bank);
-								*(pjob->wp) = 0; /* ストッパー */
-							}
+							writejob_n(4, JOB_LOAD_FILE_AND_EXECUTE, j,
+								(int) fbuf, (int) bank);
 							break;
 						}
 						if (i == ('B' | 'M' << 8 | 'P' << 16)) {
@@ -1493,6 +1528,10 @@ listup:
 							run_viewer(&HELPLAY, j);
 							break;
 						}
+						if (i == ('M' | 'M' << 8 | 'L' << 16)) {
+							run_viewer(&MMLPLAY, j);
+							break;
+						}
 						run_viewer(&BINEDIT, j);
 						break;
 					}
@@ -1502,8 +1541,7 @@ listup:
 					if (pjob->free >= 2) {
 						/* 空きが十分にある */
 						fmode = STATUS_FORMAT_COMPLETE;
-						writejob2(JOB_LOAD_FILE_AND_FORMAT, lp[cur].ptr->id);
-						*(pjob->wp) = 0; /* ストッパー */
+						writejob_n(2, JOB_LOAD_FILE_AND_FORMAT, lp[cur].ptr->id);
 					}
 					break;
 
@@ -1558,49 +1596,29 @@ listup:
 
 				case SIGNAL_DISK_CHANGED:
 					/* Insert */
-					if (pjob->free >= 2) {
-						/* 空きが十分にある */
-						writejob2(JOB_CHECK_WB_CACHE, JOB_INVALID_DISKCACHE);
-						*(pjob->wp) = 0; /* ストッパー */
-					}
+					writejob_n(2, JOB_CHECK_WB_CACHE, JOB_INVALID_DISKCACHE);
 					break;
 
 				case SIGNAL_START_WB:
 					/* Delete */
-					if (pjob->free >= 2) {
-						/* 空きが十分にある */
-						writejob2(JOB_CHECK_WB_CACHE, JOB_WRITEBACK_CACHE);
-						*(pjob->wp) = 0; /* ストッパー */
-					}
+					writejob_n(2, JOB_CHECK_WB_CACHE, JOB_WRITEBACK_CACHE);
 					break;
 
 				case SIGNAL_FORCE_CHANGED:
 					/* Shift+Insert */
-					if (pjob->free >= 3) {
-						/* 空きが十分にある */
-						writejob2(JOB_CHECK_WB_CACHE, JOB_INVALID_WB_CACHE);
-						writejob(JOB_INVALID_DISKCACHE);
-						*(pjob->wp) = 0; /* ストッパー */
-					}
+					writejob_n(3, JOB_CHECK_WB_CACHE, JOB_INVALID_WB_CACHE,
+						JOB_INVALID_DISKCACHE);
 					break;
 
 				case SIGNAL_CHECK_WB_CACHE:
 					/* Shift+Delete */
-					if (pjob->free >= 1) {
-						/* 空きが十分にある */
-						writejob(JOB_CHECK_WB_CACHE);
-						*(pjob->wp) = 0; /* ストッパー */
-					}
+					writejob_1(JOB_CHECK_WB_CACHE);
 					break;
 
 				case SIGNAL_CREATE_NEW:
-					if (pjob->free >= 6) {
-						/* 空きが十分にある */
-						writejob2(JOB_CREATE_FILE, 'N' | 'E' << 8 | 'W' << 16 | '_' << 24);
-						writejob2('F' | 'I' << 8 | 'L' << 16 | 'E' << 24, '.' | ' ' << 8 | ' ' << 16 | ' ' << 24);
-						writejob2(0, 0 /* task, signal */);
-						*(pjob->wp) = 0; /* ストッパー */
-					}
+					writejob_n(6, JOB_CREATE_FILE, 'N' | 'E' << 8 | 'W' << 16 | '_' << 24,
+						'F' | 'I' << 8 | 'L' << 16 | 'E' << 24, '.' | ' ' << 8 | ' ' << 16 | ' ' << 24,
+						0, 0);
 					break;
 
 				case SIGNAL_DELETE_FILE:
@@ -1613,6 +1631,13 @@ listup:
 						name[0] = cname[0] | cname[1] << 8 | cname[2] << 16 | cname[3] << 24;
 						name[1] = cname[4] | cname[5] << 8 | cname[6] << 16 | cname[7] << 24;
 						name[2] = '.' | cname[8] << 8 | cname[9] << 16 | cname[10] << 24;
+						writejob_1(JOB_RESIZE_FILE);
+						writejob_3p(&name[0]);
+						writejob_n(5, 0, 0, 0, 0, JOB_DELETE_FILE);
+						writejob_3p(&name[0]);
+						writejob_n(3, 0, 0, 0);
+
+#if 0
 						writejob2(JOB_RESIZE_FILE, name[0]);
 						writejob2(name[1], name[2]);
 						writejob2(0, 0 /* new-size, max-linkcount */);
@@ -1622,6 +1647,7 @@ listup:
 						writejob(0 /* max-linkcount */);
 						writejob2(0, 0 /* task, signal */);
 						*(pjob->wp) = 0; /* ストッパー */
+#endif
 					}
 					break;
 
@@ -1755,6 +1781,7 @@ open_redirect:
 					selwincount--;
 					continue;
 				}
+#if 0
 				if ((fbuf = searchfrefbuf()) != NULL && pjob->free >= 5) {
 					/* 空きが十分にある */
 					writejob2(JOB_LOAD_FILE, (int) fbuf);
@@ -1764,6 +1791,11 @@ open_redirect:
 				//	fbuf->linkcount = -1;
 					continue;
 				}
+#endif
+				if ((fbuf = searchfrefbuf()) != NULL &&
+					writejob_n(5, JOB_LOAD_FILE, (int) fbuf, (int) win, win->task, i))
+					continue;
+
 error_sig:
 				/* エラーなのでslotを無効にしようかとも思ったが、そこまでやることもないよな */
 #if 0
@@ -2210,10 +2242,9 @@ int poko_create(const char *cmdlin)
 	if (filename.s[0] == '\0' || *cmdlin != '\0') return -ERR_ILLEGAL_PARAMETERS;
 	if (pjob->free >= 6) {
 		/* 空きが十分にある */
-		writejob2(JOB_CREATE_FILE, filename.i[0]);
-		writejob2(filename.i[1], filename.i[2]);
-		writejob2(0, 0 /* task, signal */);
-		*(pjob->wp) = 0; /* ストッパー */
+		writejob_1(JOB_CREATE_FILE);
+		writejob_3p(&filename.i[0]);
+		writejob_n(2, 0, 0 /* task, signal */);
 	}
 	consoleout_nl();
 	return 0;
@@ -2231,6 +2262,7 @@ int poko_delete(const char *cmdlin)
 	if (filename.s[0] == '\0' || *cmdlin != '\0') return -ERR_ILLEGAL_PARAMETERS;
 	if (pjob->free >= 15) {
 		/* 空きが十分にある */
+#if 0
 		writejob2(JOB_RESIZE_FILE, filename.i[0]);
 		writejob2(filename.i[1], filename.i[2]);
 		writejob2(0, 0 /* new-size, max-linkcount */);
@@ -2240,6 +2272,13 @@ int poko_delete(const char *cmdlin)
 		writejob(0 /* max-linkcount */);
 		writejob2(0, 0 /* task, signal */);
 		*(pjob->wp) = 0; /* ストッパー */
+#endif
+
+		writejob_1(JOB_RESIZE_FILE);
+		writejob_3p(&filename.i[0]);
+		writejob_n(5, 0, 0, 0, 0, JOB_DELETE_FILE);
+		writejob_3p(&filename.i[0]);
+		writejob_n(3, 0, 0, 0);
 	}
 	consoleout_nl();
 	return 0;
@@ -2258,12 +2297,18 @@ int poko_rename(const char *cmdlin)
 	if (filename0.s[0] == '\0' || filename1.s[0] == '\0' || *cmdlin != '\0') return -ERR_ILLEGAL_PARAMETERS;
 	if (pjob->free >= 9) {
 		/* 空きが十分にある */
+#if 0
 		writejob2(JOB_RENAME_FILE, filename0.i[0]);
 		writejob2(filename0.i[1], filename0.i[2]);
 		writejob2(filename1.i[0], filename1.i[1]);
 		writejob(filename1.i[2]);
 		writejob2(0, 0 /* task, signal */);
 		*(pjob->wp) = 0; /* ストッパー */
+#endif
+		writejob_1(JOB_RENAME_FILE);
+		writejob_3p(&filename0.i[0]);
+		writejob_3p(&filename1.i[0]);
+		writejob_n(2, 0, 0);
 	}
 	consoleout_nl();
 	return 0;
@@ -2285,11 +2330,16 @@ int poko_resize(const char *cmdlin)
 	if (*cmdlin != '\0') return -ERR_ILLEGAL_PARAMETERS;
 	if (pjob->free >= 8) {
 		/* 空きが十分にある */
+#if 0
 		writejob2(JOB_RESIZE_FILE, filename.i[0]);
 		writejob2(filename.i[1], filename.i[2]);
 		writejob2(size, 0 /* new-size, max-linkcount */);
 		writejob2(0, 0 /* task, signal */);
 		*(pjob->wp) = 0; /* ストッパー */
+#endif
+		writejob_1(JOB_RESIZE_FILE);
+		writejob_3p(&filename.i[0]);
+		writejob_n(4, size, 0, 0, 0);
 	}
 	consoleout_nl();
 	return 0;
@@ -2307,12 +2357,10 @@ int poko_nfname(const char *cmdlin)
 	if (filename.s[0] == '\0' || *cmdlin != '\0') return -ERR_ILLEGAL_PARAMETERS;
 	if (pjob->free >= 9) {
 		/* 空きが十分にある */
-		writejob2(JOB_RENAME_FILE, 'N' | 'E' << 8 | 'W' << 16 | '_' << 24);
-		writejob2('F' | 'I' << 8 | 'L' << 16 | 'E' << 24, '.' | ' ' << 8 | ' ' << 16 | ' ' << 24);
-		writejob2(filename.i[0], filename.i[1]);
-		writejob(filename.i[2]);
-		writejob2(0, 0 /* task, signal */);
-		*(pjob->wp) = 0; /* ストッパー */
+		writejob_n(4, JOB_RENAME_FILE, 'N' | 'E' << 8 | 'W' << 16 | '_' << 24,
+			'F' | 'I' << 8 | 'L' << 16 | 'E' << 24, '.' | ' ' << 8 | ' ' << 16 | ' ' << 24);
+		writejob_3p(&filename.i[0]);
+		writejob_n(2, 0, 0 /* task, signal */);
 	}
 	consoleout_nl();
 	return 0;
@@ -2335,14 +2383,21 @@ struct STR_BANK *run_viewer(struct STR_VIEWER *viewer, int fid)
 		goto error;
 	if ((fbuf = searchfrefbuf()) == NULL)
 		goto error;
+
 	if (pjob->free >= 10) {
 		/* 空きが十分にある */
+#if 0
 		writejob2(JOB_VIEW_FILE, i);
 		writejob2((int) fbuf, (int) bank);
 		writejob2(1 /* num */, fid); /* 待機するやつ */
 		writejob2(viewer->signal[0], viewer->signal[1]); /* シグナルボックスに溜め込むやつ */
 		writejob2(viewer->signal[2], viewer->signal[3]);
 		*(pjob->wp) = 0; /* ストッパー */
+#endif
+
+		writejob_n(6, JOB_VIEW_FILE, i, (int) fbuf, (int) bank, 1 /* num */, fid);
+		writejob_np(4, &viewer->signal[0]);
+
 		return bank;
 	}
 	fbuf->linkcount = 0;
@@ -2379,6 +2434,29 @@ int poko_autodecomp(const char *cmdlin)
 	if (*cmdlin) return -ERR_ILLEGAL_PARAMETERS;
 	auto_decomp = param;
 	consoleout_nl();
+	return 0;
+}
+
+int poko_sortmode(const char *cmdlin)
+{
+	int param, i;
+
+	if (*cmdlin == '\0') return -ERR_ILLEGAL_PARAMETERS;
+
+	param = console_getdec(&cmdlin);
+	while (*cmdlin == ' ')
+		cmdlin++;
+	if (*cmdlin) return -ERR_ILLEGAL_PARAMETERS;
+	if (param < SORT_NAME || param >= SORTS) return -ERR_ILLEGAL_PARAMETERS;
+	sort_mode = param;
+	consoleout_nl();
+
+	/* 全てのファイルセレクタを更新 */
+	for (i = 0; i < MAX_SELECTOR; i++) {
+		if (selwin[i].subtitle_str[0])
+			list_set(&selwin[i]);
+	}
+
 	return 0;
 }
 

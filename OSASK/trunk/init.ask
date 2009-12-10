@@ -1,4 +1,4 @@
-/* "init.ask" ver.2.3 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "init.ask" ver.2.4 copyright(C) 2002 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -3355,7 +3355,7 @@ tasksdir:
 gapidata_mdl:
 	DD(0xffe00000); DD(16); asmout("DB 'gapidata'");
 	DD(0xffe00002); DD(16); DD(1 /* normal-module */); DD(0);
-	DD(0xffe00003); DD(32); DD(0x62000); DD(0); DD(0x62000); DD(0); DD(0 /* addr */); DD(0);
+	DD(0xffe00003); DD(32); DD(0xb0000); DD(0); DD(0xb0000); DD(0); DD(0 /* addr */); DD(0);
 	DD(0xfff00000); DD(0xffffffff); /* DD(0); DD(0); */
 
 movemodule_list:

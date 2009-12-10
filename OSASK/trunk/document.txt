@@ -1,33 +1,29 @@
-"sb23"の使い方の説明                      2002/04/02 川合秀実
+"sb24"の使い方の説明                      2002/04/26 川合秀実
 
 １．これは何か？
 
-  "sb23"は、OSASK ver.2.3の「OSASK23.EXE」を生成するのに必要なモジュールのソー
+  "sb24"は、OSASK ver.2.4の「OSASK24.EXE」を生成するのに必要なモジュールのソー
 スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
-そのまま利用しているものついては、このアーカイブに含まれていません。OSASK23.EXE
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK24.EXE
 を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    INIT.ASK     : ver.2.3
-    PAPI0.BIN    : ver.0.5
-    PIONEER0.BIN : ver.2.1
-    WINMAN0.BIN  : ver.1.7
-    POKON0.BIN   : ver.2.3
-    PCAT/
-      VGADRV0.BIN  : ver.1.2
-      TIMERDRV.BIN : type-A ver.1.0
-    TOWNS/
-      VGADRV0.BIN  : ver.1.2
-      TIMERDRV.BIN : type-A ver.1.0
+    INIT.ASK     : ver.2.4
+    WINMAN0.BIN  : ver.1.8
+    POKON0.BIN   : ver.2.4
 
   (以前のバージョンのものを利用するもの)
 
     BASE.EXE     : ver.2.0
     OSALINK0.OPT : ver.1.9
     TAPI0.BIN    : ver.0.3
+    PAPI0.BIN    : ver.0.5
+    PIONEER0.BIN : ver.2.1
+    TIMERDRV.BIN : type-A ver.1.0
     KEYMOS0.BIN  : ver.0.3
     DECODE0.BIN  : ver.0.9
+    VGADRV0.BIN  : ver.1.2
     SYSGG00.LIB  : ver.0.7
 
   このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
@@ -44,12 +40,12 @@
 ・lcc-win32 (LCC.EXEのタイムスタンプ2001/07/30、サイズ459,264バイト)
 ・linkset2
 ・gg00lib9
-・stdlib4
+・stdlib5
 ・osalnk0p
 
 これらの入手先・使い方の説明は、大半がOSASKの開発者向けページにあり、その他のも
-のについては、masmcnv2、linkset1に付属のドキュメントを参照してください。C言語に
-よるアプリ開発入門セット"introa05"をダウンロードすれば、gg00lib7, stdlib4の2つ
+のについては、masmcnv2、linkset2に付属のドキュメントを参照してください。C言語に
+よるアプリ開発入門セット"introa08"をダウンロードすれば、gg00lib9, stdlib5の2つ
 をまとめて入手できます。
 
   BASE.EXEの生成は、MAKEBASE.BATで行いました。MAKEBASE.BATを読んでアセンブル手
@@ -65,7 +61,7 @@
 換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を
 生成する時は、LCCに「-DTOWNS」オプションをつけてください。
 
-  拡張子が.Cのものは、linkset1で説明されている方法で生成できます。ただし、AT互
+  拡張子が.Cのものは、linkset2で説明されている方法で生成できます。ただし、AT互
 換機版を生成する時は、LCCに「-DPCAT」オプションをつけてください。またTOWNS版を
 生成する時は、LCCに「-DTOWNS」オプションをつけてください。ライブラリーにSYSGG00
 を使う必要があることにも注意してください。指定すべきスタックサイズ、mallocサイ
@@ -101,9 +97,10 @@
 ひどいセンスによるものです。読みにくくてほとんど役に立たないかもしれません。大
 変申し訳ないです。どなたかが著作者に代わって清書してくれるのは大歓迎です。
 
-  何か疑問に感じられることがあれば、川合秀実かOSASK-MLにメールでご連絡ください
-(OSASK伝言板でもかまいません)。すぐにはお返事できないかもしれませんが、できるだ
-けお答えします。
+  何か疑問に感じられることがあれば、OSASK-MLにメールでご連絡ください(OSASK伝言
+板でもかまいません)。すぐにはお返事できないかもしれませんが、できるだけお答えし
+ます。川合秀実にメールすることもできますが、基本的に個人メールでなければいけな
+い理由がなければ、OSASK-MLかOSASK伝言板の利用をお願いします。
 
 ４．謝辞
 
@@ -118,5 +115,4 @@
     小柳さんのOSASKのページ   http://homepage1.nifty.com/dreaming/osask/
     OSASKのページ             http://www.imasy.org/~kawai/osask/
     OSASK伝言板               http://www.imasy.org/~mone/osask/index.cgi
-    川合堂のページ            http://www.imasy.org/~mone/kawaido/
     川合秀実のページ          http://www.imasy.org/~kawai/
