@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" for TOWNS ver.1.0 copyright(C) 2001 H.Kawai(川合秀実)
+// "fdcdrv0.ask" for TOWNS ver.1.3 copyright(C) 2001 H.Kawai(川合秀実)
 
 segment FDC_Mdl(USE32, PARA);
 
@@ -24,6 +24,18 @@ struct FDC_WORK {
 	int TAPI_sendsignalofs, TAPI_sendsignalsel; // 0x00c4
 	char trackreg[4], [48]; // ドライブの値
 	// 0x0100～0x03ff : マイクロコマンドキュー(0.75KB)...192DW
+
+	/* 0x0400～0x5ff */
+	void [512];
+
+ 	/* 360バイトのフラグ領域が必要(dirty bits) */
+	char WBF[4]; /* ドライブ単位 */
+	int WBFS[360]; /* セクタ単位 */ /* 1.2MBでは160バイト, 1.44MBでは360バイト */
+
+	void [148];
+
+	/* 0x0800～0xfff */
+	void [2048];
 };
 
 void near FDC_Init();
@@ -34,6 +46,7 @@ void near FDC_writeIPL();
 void near FDC_format2();
 void near FDC_writeIPL2();
 void near FDC_MC_test4();
+void near FDC_doswrite();
 
 void far FDC_syscmd()
 {
@@ -78,6 +91,10 @@ nextcmd:
 		goto cmd012c; // FDC_writeIPL(512)
 	if (EAX == 0x0018)
 		goto cmd0018; // バージョン要求
+	if (EAX == 0x0134)
+		goto cmd0134; /* doswrite */
+	if (EAX == 0x0138)
+		goto cmd0138; /* invalid WB cache */
 	if (EAX == 0x00140)
 		goto cmd0140; /* リードトラック */
 
@@ -115,6 +132,16 @@ cmd0108:
 		[ECX - 4 + work->track] = EAX;
 		ECX -= 4;
 	} while (!= 0);
+cmd0138:
+	/* invalid WB cache */
+	EAX = 0;
+	ECX = 360;
+	do {
+	//	work->WBFS[ECX - 4] = EAX;
+		[ECX - 4 + work->WBFS] = EAX;
+		ECX -= 4;
+	} while (!= 0);
+	work->WBF[0] = AL;
 	(offset) cmd += 4;
 	goto nextcmd;
 
@@ -235,6 +262,18 @@ cmd0018:
 	cmd[16] = 0;
 	cmd[20] = 0;
 	(offset) cmd += 24;
+	goto nextcmd;
+
+cmd0134:
+	// FDC_doswrite
+	PUSH(GS);
+	PUSH((offset) cmd);
+	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); // ディレクトリエントリ
+	EAX = cmd[12]; // ライトバック内容アドレス（４バイトアライン）
+	FDC_doswrite();
+	POP((offset) cmd);
+	POP(GS);
+	(offset) cmd += 16;
 	goto nextcmd;
 
 cmd0140:
@@ -1876,7 +1915,7 @@ pass00:
 	PUSH((int) 0); // eoc
 	PUSH(work->dosload_sigfin);
 	PUSH(0x1241);
-	PUSH(0x0114 /* コマンドシグナル直接 */);
+	PUSH(0x0128 /* コマンドシグナル直接(with wait) */);
 	FS = AX;
 	EBX = ESP;
 	DB(0x9a); DD(0); DW((short) tapi_sel);
@@ -1899,3 +1938,205 @@ subphase:
 	DD(0xffffffff); DD(0x113000);
 }
 
+void near FDC_doswrite()
+// EAX:ロードアドレス(必ず4バイトアライン)
+// GS:ESI ファイル名(11bytes)
+{
+	unsigned int tapi_sel == 12 * 8;
+	FDC_WORK *work == DS:0;
+
+	if (work->dosload_phase != 0) {
+		INT(0x03);
+	}
+
+	// 依頼された値をworkに保存しておく
+	work->dosload_addr = EAX;
+	ECX = 11;
+	LEA(EBX, work->dosload_name[0]);
+	do {
+		AL = [GS:ESI];
+		ESI++;
+		[DS:EBX] = AL;
+		EBX++;
+		ECX--;
+	} while (!= 0);
+	(char) [DS:EBX] = 0;
+
+	// ファイルをサーチする
+
+	EAX = 1 * 8;
+	PUSH(ES);
+	ES = AX;
+	EDI = 0x101400;
+	do {
+		EAX = [ES:EDI + 0];
+		ECX = [ES:EDI + 4];
+		EDX = [ES:EDI + 8];
+		if (AL == 0)
+			break;
+		EDX &= 0x00ffffff;
+		EAX -= work->dosload_name[0];
+		ECX -= work->dosload_name[4];
+		EDX -= work->dosload_name[8];
+		EAX |= ECX;
+		EAX |= EDX;
+		if (== 0)
+			goto find;
+		EDI += 32;
+	} while ((unsigned) EDI < 0x102c00); /* 1.2MBでは0x102c00 */
+	POP(ES);
+	// 見つからなかった
+	INT(0x03);
+find:
+	EAX = (unsigned short) [ES:EDI + 0x1a];
+	ECX = [ES:EDI + 0x1c];
+	POP(ES);
+	work->dosload_FAT = EAX;
+	work->dosload_size0 = ECX;
+	work->dosload_size1 = ECX;
+
+	// ローディングループ
+	if (ECX != 0) {
+		for (;;) {
+			// FAT番号からトラック番号を求める
+		//	EAX = work->dosload_FAT;
+			EAX += 9; // (1.44MBでは+31、1.2MBでは、+9)
+		//	CL = 8; /* 1.2MBでは8で割る */
+			EDX = EAX; // 物理アドレスEDX
+		//	DIV(CL); // ALにトラック番号
+		//	EAX &= 0xff;
+			EAX /= 8;
+
+#if 0
+			/* track cache check */
+			BT(work->track[0], EAX);
+			if (CF == 0) {
+			//	EDX = EAX * 9;
+			//	LEA(EDX, [EAX * 8 + EAX]);
+				EDX = EAX;
+				asmout("MOV ECX,OFFSET #pass02");
+			//	EDX *= 1024;
+				EDX *= 8192;
+				work->dosload_phase = ECX;
+				(unsigned char) AL >>= 1;
+				ECX = work->dosload_sigtmp;
+				ADC(AH, 0);
+				EDX += 0x100000;
+				FDC_MC_test4();
+				goto pass99;
+pass02:
+				// FAT番号からトラック番号を求める
+				EAX = work->dosload_FAT;
+				EAX += 9; // (1.44MBでは+31、1.2MBでは、+9)
+			//	CL = 8;
+				EDX = EAX; // 物理アドレスEDX
+			//	DIV(CL); // ALにトラック番号
+			//	EAX &= 0xff;
+				EAX /= 8;
+
+				BTS(work->track[0], EAX);
+			}
+#endif
+
+			PUSH(EDI);
+			PUSH(ESI);
+			PUSH(DS);
+			EAX = 1 * 8;
+			EDX *= 1024; // 1.44MBでは512、1.2MBでは1024
+			ECX = work->dosload_size1;
+			EDX += 0x100000;
+			ECX -= 1024; // 1.44MBでは512、1.2MBでは1024
+			EDI = work->dosload_addr;
+			if ((unsigned) <= 0)
+				break;
+			PUSH(work->dosload_FAT);
+			work->dosload_size1 = ECX;
+			DS = AX;
+			ESI = 0;
+			ECX = 1024 / 4; // 1.44MBでは512、1.2MBでは1024
+			do {
+				EAX = [DS:EDI];
+				EDI += 4;
+				EBX = [DS:EDX];
+				[DS:EDX] = EAX;
+				EAX ^= EBX;
+				EDX += 4;
+				ESI |= EAX;
+				ECX--;
+			} while (!= 0);
+
+			/* 次のFAT番号を取得 */
+			POP(EAX);
+			ECX = EAX;
+			EBX = EAX;
+			(unsigned int) EAX >>= 1;
+			LEA(EBX, [EBX + EAX]);
+			AL = [DS:EBX + 0x100400]; // 1.44MBでは+0x100200、1.2MBでは+0x100400
+			AH = [DS:EBX + 0x100401]; // 1.44MBでは+0x100201、1.2MBでは+0x100401
+			if (CF == 1)
+				EAX >>= 4;
+			EAX &= 0x0fff;
+
+			POP(DS);
+			if (ESI != 0) 
+				BTS(work->WBFS[0], ECX);
+			POP(ESI);
+			POP(EDI);
+
+			work->dosload_addr += 1024; // 1.44MBでは512、1.2MBでは1024
+			work->dosload_FAT = EAX;
+		}
+		ECX += 1024; // 1.44MBでは512、1.2MBでは1024
+		if (!= 0) {
+			DS = AX;
+			EAX = 0;
+			ESI = 0;
+			do {
+				AL = [DS:EDI];
+				EDI++;
+				BL = [DS:EDX];
+				[DS:EDX] = AL;
+				AL ^= BL;
+				EDX++;
+				ESI |= EAX;
+				ECX--;
+			} while (!= 0);
+		}
+		POP(DS);
+		if (ESI != 0) {
+			EAX = work->dosload_FAT;
+			BTS(work->WBFS[0], EAX);
+		}
+		POP(ESI);
+		POP(EDI);
+	}
+
+	work->dosload_phase = 0;
+	if (work->WBF[0] == 0) {
+		ECX = 360;
+		EAX = 0;
+		do {
+		//	EAX |= work->WBFS[ECX - 4];
+			EAX |= [ECX - 4 + work->WBFS];
+			ECX -= 4;
+		} while (!= 0);
+		if (EAX != 0) {
+			work->WBF[0] = 1;
+			AX = SS;
+			PUSH(FS);
+			PUSH((int) 0); // eoc
+			PUSH((int) 0); /* dummy */
+			PUSH(0x0090 /* SIGNAL_NEED_WB */);
+			PUSH(0x7f000002);
+			PUSH(0x4243);
+			PUSH(0x0128 /* コマンドシグナル直接(with wait) */);
+			FS = AX;
+			EBX = ESP;
+			DB(0x9a); DD(0); DW((short) tapi_sel);
+			ESP += 6 * 4;
+			POP(FS);
+		}
+	}
+pass99:
+	return;
+}

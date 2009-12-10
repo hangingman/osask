@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.3
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.4
 		copyright(C) 2001 川合秀実
     stack:4k malloc:92k file:768k */
 
@@ -28,12 +28,13 @@ struct DEFINESIGNAL { // 32bytes
 	int win, opt, dev, cod, len, sig[3];
 };
 
-struct WM0_WINDOW {	// total 104bytes
+struct WM0_WINDOW {	// total 108bytes
 //	struct DEFINESIGNAL defsig[29]; // 928bytes
 	struct SGG_WINDOW sgg; // 68bytes
 //	struct DEFINESIGNAL *ds1;
 	int condition, x0, y0, x1, y1, job_flag0, job_flag1;
 	int tx0, ty0, tx1, ty1; /* ウィンドウ移動のためのタブ */
+	int flags;
 	struct WM0_WINDOW *up, *down;
 };
 
@@ -233,6 +234,7 @@ void main()
 		case 0x0020:
 			/* ウィンドウオープン要請(handle) */
 			win = get_unuse();
+			win->flags = 0;
 			sgg_wm0_openwindow(&win->sgg, signal[1]);
 			signal += 2;
 			lib_waitsignal(0x0000, 2, 0);
@@ -257,8 +259,9 @@ void main()
 			signal += 2;
 			lib_waitsignal(0x0000, 2, 0);
 			/* ジョブリストにこの要求を入れる */
-			if (jobfree >= 2) {
+			if ((win->flags & 0x01) == 0 && jobfree >= 2) {
 				// 空きが十分にある
+				win->flags |= 0x01; /* クローズ処理中 */
 			//	writejob(0x002c /* close */);
 			//	writejob((int) win);
 				writejob2(0x002c /* close */, (int) win);
@@ -400,7 +403,7 @@ void main()
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 			/* ジョブリストにこの要求を入れる */
-			if (jobfree >= 2) {
+			if ((win->flags & 0x01) == 0 && jobfree >= 2) {
 				/* 空きが十分にある */
 			//	writejob(0x0024 /* active */);
 			//	writejob((int) top->up);
@@ -416,7 +419,7 @@ void main()
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 			/* ジョブリストにこの要求を入れる */
-			if (jobfree >= 2) {
+			if ((win->flags & 0x01) == 0 && jobfree >= 2) {
 				/* 空きが十分にある */
 			//	writejob(0x0024 /* active */);
 			//	writejob((int) top->down);
@@ -432,7 +435,7 @@ void main()
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
 			/* ジョブリストにこの要求を入れる */
-			if (jobfree >= 2) {
+			if ((win->flags & 0x01) == 0 && jobfree >= 2) {
 				// 空きが十分にある
 			//	writejob(0x0028 /* move by keyboard */);
 			//	writejob((int) top);
@@ -447,7 +450,7 @@ void main()
 		case 0x0203 /* close window */:
 			signal++;
 			lib_waitsignal(0x0000, 1, 0);
-			if (win /* top */ != pokon0)
+			if (win /* top */ != pokon0 && (win->flags & 0x01) == 0)
 				sgg_wm0s_close(&win /* top */ ->sgg);
 			break;
 
@@ -924,12 +927,13 @@ void redirect_input(struct WM0_WINDOW *win)
 	sgg_wm0_definesignal3com();
 
 	// winman0のキー操作を登録(F9～F12)
-	sgg_wm0_definesignal3(3, 0x0100, 0x0089 /* F9 */,
+	sgg_wm0_definesignal3(3, 0x0100, 0x00701089 /* F9～F12 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0200);
-	sgg_wm0_definesignal3(1, 0x0100, 0x0081 /* F1 */,
+
+	sgg_wm0_definesignal3(1, 0x0100, 0x00701081 /* F1 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0204);
 
-	sgg_wm0_definesignal3(0, 0x0100, 0x0085 /* F5 */,
+	sgg_wm0_definesignal3(0, 0x0100, 0x00701085 /* F5 */,
 		0x3240 /* winman0 signalbox */, 0x7f000001, 0x0240); /* JPN16$.FNTの即時ロード */
 
 	if (win) {
@@ -1545,8 +1549,8 @@ void job_setvgamode1(const int cmd, const int handle)
 void job_setvgamode2()
 {
 	#if (defined(TOWNS))
-		int mode = job_int0;
 #if 0
+		int mode = job_int0;
 		switch (mode) {
 		case 0x0000:
 			x2 = 1024;
@@ -1567,7 +1571,7 @@ void job_setvgamode2()
 			y2 = 512;
 			/* 画面モード0設定(640x480) */
 			/* 画面モード1設定(768x512) */
-			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, mode, 0x0000, 0x0000);
+			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job_int0 /* mode */, 0x0000, 0x0000);
 
 
 		sgg_wm0_gapicmd_001c_0004(); /* ハードウェア初期化 */
@@ -1577,18 +1581,28 @@ void job_setvgamode2()
 	#endif
 
 	#if (defined(PCAT))
+		#if (defined(BOCHS))
+			x2 = 640; /* Bochsは仮想画面が使えない */
+			y2 = 480;
+		#else
+			x2 = 800;
+			y2 = 600;
+		#endif
+
 		if (fromboot & 0x0001) {
 			/* 普通の方法が使えない */
 			/* (仮想86モードでのVGAモード切り換えがうまく行かない) */
-			x2 = 640;
-			y2 = 480;
-			sgg_wm0_gapicmd_001c_0020(); // 画面モード設定(640x480)
+		//	x2 = 640;
+		//	y2 = 480;
+		//	sgg_wm0_gapicmd_001c_0020(); // 画面モード設定(640x480)
+			sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, 0x0012, 0x0000, 0x0000);
 			sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
 			init_screen(x2, y2);
 			job_general1();
 			return;
 		}
 
+#if 0
 		int mode = job_int0;
 		switch (mode) {
 		case 0x0012:
@@ -1601,8 +1615,9 @@ void job_setvgamode2()
 			y2 = 600;
 
 		}
+#endif
 		jobfunc = &job_setvgamode3;
-		sgg_wm0_setvideomode(mode, 0x0014);
+		sgg_wm0_setvideomode(job_int0 /* mode */, 0x0014);
 		return;
 	#endif
 }
@@ -1613,6 +1628,7 @@ void job_setvgamode3(const int sig, const int result)
 {
 	// 0x0014しかこない
 	if (result == 0) {
+		sgg_execcmd0(0x0050, 7 * 4, 0x001c, 0, 0x0020, job_int0 | 0x01000000, 0x0000, 0x0000);
 		sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
 		init_screen(x2, y2);
 		job_general1();
@@ -1620,8 +1636,8 @@ void job_setvgamode3(const int sig, const int result)
 	}
 
 	// VESAのノンサポートなどにより、画面モード切り換え失敗
-	x2 = 640;
-	y2 = 480;
+//	x2 = 640;
+//	y2 = 480;
 //	jobfunc = &job_setvgamode3;
 	sgg_wm0_setvideomode(0x0012 /* VGA */, 0x0014);
 	return;
@@ -1701,8 +1717,10 @@ void job_loadfont3(int flag, int dmy)
 		send_signal3dw(0x4000 /* pokon0 */ | 0x240, 0x7f000002,
 			0x008c /* SIGNAL_FREE_FILES */, 0x3000 /* winman0 */);
 	}
-	if (job_fonttss)
+	if (job_fonttss) {
 		send_signal2dw(job_fonttss | 0x240, 0x7f000001, job_sig);
+		send_signal2dw(job_fonttss | 0x240, 0x000000cc, 0); /* to pioneer0 */
+	}
 	jobnow = 0;
 //	jobfunc = NULL;
 	return;
@@ -2122,7 +2140,7 @@ void sgg_wm0_definesignal3sub(const int keycode)
 			{ 0x2f, CAPLKON, 0xff, 0xff    } /* 'N' */,
 			{ 0x19, CAPLKON, 0xff, 0xff    } /* 'O' */,
 			{ 0x1a, CAPLKON, 0xff, 0xff    } /* 'P' */,
-			{ 0x1a, CAPLKON, 0xff, 0xff    } /* 'Q' */,
+			{ 0x11, CAPLKON, 0xff, 0xff    } /* 'Q' */,
 			{ 0x14, CAPLKON, 0xff, 0xff    } /* 'R' */,
 			{ 0x1f, CAPLKON, 0xff, 0xff    } /* 'S' */,
 			{ 0x15, CAPLKON, 0xff, 0xff    } /* 'T' */,

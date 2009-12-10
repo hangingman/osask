@@ -7,6 +7,7 @@
 #define LIST_HEIGHT			8
 #define ext_EXE				('E' | ('X' << 8) | ('E' << 16))
 #define ext_BIN				('B' | ('I' << 8) | ('N' << 16))
+#define	ext_ALL				-1
 #define CONSOLESIZEX		40
 #define CONSOLESIZEY		15
 #define MAX_BANK			56
@@ -14,7 +15,8 @@
 #define MAX_SELECTOR		5
 #define MAX_SELECTORWAIT	64
 #define MAX_VMREF			64
-#define JOBLIST_SIZE		16
+#define JOBLIST_SIZE		64
+#define MAX_ORDER			16	/* 256B */ //	256 /* 4KB */
 
 /* key defines */
 #define DEFSIG_EXT1     0x00001000
@@ -53,6 +55,9 @@ enum {
 #define SIGNAL_REQUEST_DIALOG                   0x0084 /* ダイアログ要求シグナル */
 #define SIGNAL_REQUEST_DIALOG2                  0x0088
 #define	SIGNAL_FREE_FILES						0x008c /* ファイル開放要求(えせファイルシステム用) */
+#define	SIGNAL_NEED_WB							0x0090 /* ファイルキャッシュはライトバックが必要 */
+#define	SIGNAL_NO_WB_CACHE						0x0094 /* to clear need_wb */
+#define	SIGNAL_CHECK_WB_CACHE_NEXT				0x0098 /* JOB_CHECK_WB_CACHEの作業用シグナル */
 #define SIGNAL_RELOAD_FAT_COMPLETE              0x00a0 /* FAT再読み込み完了(Insert) */
 #define SIGNAL_LOAD_APP_FILE_COMPLETE           0x00a4 /* ファイル読み込み完了(file load & execute) */
 #define SIGNAL_CREATE_TASK_COMPLETE             0x00a8 /* タスク生成完了(create task) */
@@ -72,6 +77,9 @@ enum {
 	SIGNAL_TOP_OF_LIST = 12,
 	SIGNAL_BOTTOM_OF_LIST,
 	SIGNAL_DISK_CHANGED = 14,
+	SIGNAL_START_WB,
+	SIGNAL_FORCE_CHANGED,
+	SIGNAL_CHECK_WB_CACHE,
 	SIGNAL_LETTER_START = '!',
 	SIGNAL_LETTER_END = 'Z',
 	SIGNAL_WINDOW_CLOSE0 = 126,
@@ -108,11 +116,16 @@ enum {
 };
 
 /* jobs */
-#define JOB_INVALID_DISKCACHE           0x0004  /* invalid diskcache -> reload fat*/
-#define JOB_LOAD_FILE_AND_EXECUTE       0x0008  /* file load & execute */
-#define JOB_CREATE_TASK                 0x000c  /* create task */
-#define JOB_LOAD_FILE                   0x0010  /* file load */
-#define JOB_LOAD_FILE_AND_FORMAT        0x0014  /* file load & format (1) */
+#define JOB_INVALID_DISKCACHE			0x0004  /* invalid diskcache -> reload fat */
+#define JOB_LOAD_FILE_AND_EXECUTE		0x0008  /* file load & execute */
+#define JOB_CREATE_TASK					0x000c  /* create task */
+#define JOB_LOAD_FILE					0x0010  /* file load */
+#define JOB_LOAD_FILE_AND_FORMAT		0x0014  /* file load & format (1) */
+#define	JOB_VIEW_FILE					0x0018	/* viewer load & execute, file open */
+#define JOB_CHECK_WB_CACHE				0x001c  /* check WB cache */
+#define JOB_WRITEBACK_CACHE				0x0020  /* writeback cache */
+#define JOB_INVALID_WB_CACHE			0x0024  /* invalid WB cache */
+#define JOB_FREE_MEMORY					0x0028	/* free memory */
 
 /* structs */
 struct FILELIST {
@@ -138,6 +151,7 @@ struct FILESELWIN { /* 1つあたり、5.6KB必要 */
 	struct FILELIST list[256] /* 4KB */, *lp;
 	int ext, cur, winslot, sigbase;
 	int task, mdlslot, num, siglen, sig[16];
+	char subtitle_str[24];
 };
 
 struct SELECTORWAIT {
@@ -157,12 +171,16 @@ struct VIRTUAL_MODULE_REFERENCE {
 	int task, module_paddr;
 };
 
-static struct STR_CONSOLE {
+struct STR_CONSOLE {
 	int curx, cury, col;
 	struct LIB_WINDOW *win;
 	unsigned char *buf;
 	struct LIB_TEXTBOX *tbox, *title;
 	int sleep, cursorflag, cursoractive;
+};
+
+struct STR_OPEN_ORDER {
+	int task, num, fileid, dummy;
 };
 
 /* functions */

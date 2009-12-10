@@ -1,5 +1,5 @@
 ―GNU Make for Win32 を使用した OSASK.EXE のビルドの方法について―
-2001.5.29 by 小柳 雅明
+2002.1.7 by 小柳 雅明(Koyanagi.Masaaki@nifty.com)
 
 ◎ビルド方法
 
@@ -14,11 +14,14 @@ PATH の通ったディレクトリに置きます。
 make pcat
 (2) VMware
 make vmware
-(3) FM-TOWNS
+(3) BOCHS
+make bochs
+(4) FM-TOWNS
 make towns
 
 するとOSASK.EXE が生成されます。
 一度対象を決定した後は make のみで生成できます。
+対象を変更する場合は、変更前に make -i clean を実行して下さい。
 
 3. make clean とすると全ての生成物が削除されます。
 また make dist_clean で中間生成物が削除されます。

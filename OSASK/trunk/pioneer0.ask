@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.7
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.8
     copyright(C) 2001 H.Kawai (川合秀実) */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -274,7 +274,7 @@ void far cmd004()
 	work->softint_mask_buf[12] = EAX /* 0x0000 */;
 	work->signaldw = EAX /* 0 */;
 //	work->signalbox_write_ptr = 0xfffffffe;
-	work->ending_count = /* EAX */ 0;
+	work->ending_count = 0x80; /* bit7:生存フラグ, bit6-0:終了カウント */
 	EAX--;
 	work->nest = EAX /* 0xffffffff */;
 	EAX--;
@@ -656,11 +656,14 @@ void near cmd008()
 	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
 	AL = [SS:ESP + 6];
 	ESP += 12;
+	AL += work->ending_count;
+	AL &= 0x7f;
 	work->ending_count = AL;
-	if (AL != 0) {
+	if (!= 0) {
 		/* sleep */
 		LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更する) */
-		work->softint_mask_buf[ 8] = 0x0080;
+	//	work->softint_mask_buf[ 8] = 0x0080;
+		(int) [DS:EBX + 8] = 0x0080;
 		DB(0x9a); DD(0); DW(0x0017); // shell-call
 		INT(0x03);
 	}
@@ -930,6 +933,7 @@ void near cmd024()
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // shell-call
 	ESP += 12;
+	work->ending_count++;
 	asmout("JMP nextcmd");
 }
 
@@ -2184,11 +2188,13 @@ void near cmd080()
 
 	// sleep
 	LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更する)
-	work->softint_mask_buf[ 8] = 0x0080;
+//	work->softint_mask_buf[ 8] = 0x0080;
+	(int) [DS:EBX + 8] = 0x0080;
 	DB(0x9a); DD(0); DW(0x0017); // shell-call
 
 	LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更しない)
-	work->softint_mask_buf[ 8] = 0xff80;
+//	work->softint_mask_buf[ 8] = 0xff80;
+	(int) [DS:EBX + 8] = 0xff80;
 		// ライブラリルーチン内に再入したので、割り込みマスク
 	DB(0x9a); DD(0); DW(0x0017); // shell-call
 
@@ -2207,6 +2213,7 @@ void near cmd084()
 	EBX = ESP;
 	DB(0x9a); DD(0); DW(0x0017); // shell-call
 	ESP += 12;
+	work->ending_count++;
 	asmout("JMP nextcmd");
 }
 
@@ -2464,6 +2471,7 @@ void near cmd0e0()
 /* cmd, opt, slot, len, from(far) */
 {
 	int *cmd == DS:ESI;
+	WORK *work == SS:EBP;
 	EAX = cmd[ 4];
 	PUSH((int) 0);
 	if ((signed) EAX > 0) {
@@ -2488,6 +2496,8 @@ void near cmd0e0()
 		PUSH((int) 0x0408);
 		(offset) cmd += 20;
 		EBX = ESP;
+		if (EAX == 0xc0ffffff)
+			work->ending_count++;
 		DB(0x9a); DD(0); DW(0x0017); // shell-call
 		ESP += 24;
 		asmout("JMP nextcmd");
@@ -3340,6 +3350,8 @@ void far pioneer_softint()
 			goto sig00c4; // closed sound track
 		if (EAX == 0xc8)
 			goto sig00c8; // enable sound track
+		if (EAX == 0xcc)
+			goto sig00cc; /* loaded font (2dw) */
 		INT(0x03);
 
 usersignal:
@@ -3559,10 +3571,12 @@ sig0043:
 	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
 	AL = [SS:ESP + 6];
 	ESP += 12;
-	work->ending_count = AL;
+	AL += work->ending_count;
 	(offset) signal += 8;
 	work->signaldw += 2;
-	if (AL != 0)
+	AL &= 0x7f;	
+	work->ending_count = AL;
+	if (!= 0)
 		goto nextsignal;
 	PUSH((int) 0);
 	PUSH((int) 0x0002); // opt(close task)
@@ -3633,15 +3647,16 @@ sig0045:
 		(char) [SS:ESP + 12 /* GS, ES, DS */ + 16] = 0x02; // リターン時にLlv2へ。
 	}
 sig00c4:
+sig00cc:
 	(offset) signal += 8;
 	work->signaldw += 2;
 	/* カウンタを減少させる */
 	/* 0になったら、終了 */
-	AL = work->ending_count;
-	if (AL == 0)
-		goto nextsignal;
-	AL--;
-	work->ending_count = AL;
+	TEST(work->ending_count, 0x7f);
+	if (== 0)
+		INT(0x03);
+
+	work->ending_count--;
 	if (!= 0)
 		goto nextsignal;
 

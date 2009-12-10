@@ -1,8 +1,18 @@
-/* "VGADRV0.ASK" ver.1.0 copyright(C) 2001 川合秀実, ODP */
+/* "VGADRV0.ASK" ver.1.1 copyright(C) 2001 川合秀実, I.Tak., ODP */
 
 segment GapiMdl(USE32, PARA);
 
 default(code == GapiMdl);
+
+#if (defined(BOCHS))
+	#define XBYTES		 80		/* 640ドット/ライン */
+#else
+	#define XBYTES		100		/* 800ドット/ライン */
+#endif
+
+struct WORK_SUB {
+	unsigned int scr_x0, scr_width, scr_y0, scr_height;
+};
 
 struct GAPI_WORK {
 	int mouse_pattern[768 /* 0x0300 */];
@@ -19,6 +29,7 @@ struct GAPI_WORK {
 	short V86CS, V86SS;
 	char V86flag, mouseflag, maskflag, mouseline;
 	unsigned int lockcount, mouselock;
+	WORK_SUB worksub;
 };
 
 // タスクごとに変化しうるVGAレジスタ
@@ -292,7 +303,7 @@ void near GAPI_fontwrite()
 		goto error; // 8の倍数以外はまだサポートしてない
 
 	(unsigned int) EAX /= 8;
-	IMUL(ESI, 100);
+	IMUL(ESI, XBYTES);
 	ESI += EAX;
 
 	int *font == ES:EDI;
@@ -315,29 +326,29 @@ void near GAPI_fontwrite()
 		(offset) font = *string;
 		(offset) string += 4;
 		EAX = font[ 0]; // 4lines
-		(char) [DS:ESI + 100 *  0] = AL;
-		(char) [DS:ESI + 100 *  1] = AH;
+		(char) [DS:ESI + XBYTES *  0] = AL;
+		(char) [DS:ESI + XBYTES *  1] = AH;
 		(unsigned int) EAX >>= 16;
-		(char) [DS:ESI + 100 *  2] = AL;
-		(char) [DS:ESI + 100 *  3] = AH;
+		(char) [DS:ESI + XBYTES *  2] = AL;
+		(char) [DS:ESI + XBYTES *  3] = AH;
 		EAX = font[ 4]; // 4lines
-		(char) [DS:ESI + 100 *  4] = AL;
-		(char) [DS:ESI + 100 *  5] = AH;
+		(char) [DS:ESI + XBYTES *  4] = AL;
+		(char) [DS:ESI + XBYTES *  5] = AH;
 		(unsigned int) EAX >>= 16;
-		(char) [DS:ESI + 100 *  6] = AL;
-		(char) [DS:ESI + 100 *  7] = AH;
+		(char) [DS:ESI + XBYTES *  6] = AL;
+		(char) [DS:ESI + XBYTES *  7] = AH;
 		EAX = font[ 8]; // 4lines
-		(char) [DS:ESI + 100 *  8] = AL;
-		(char) [DS:ESI + 100 *  9] = AH;
+		(char) [DS:ESI + XBYTES *  8] = AL;
+		(char) [DS:ESI + XBYTES *  9] = AH;
 		(unsigned int) EAX >>= 16;
-		(char) [DS:ESI + 100 * 10] = AL;
-		(char) [DS:ESI + 100 * 11] = AH;
+		(char) [DS:ESI + XBYTES * 10] = AL;
+		(char) [DS:ESI + XBYTES * 11] = AH;
 		EAX = font[12]; // 4lines
-		(char) [DS:ESI + 100 * 12] = AL;
-		(char) [DS:ESI + 100 * 13] = AH;
+		(char) [DS:ESI + XBYTES * 12] = AL;
+		(char) [DS:ESI + XBYTES * 13] = AH;
 		(unsigned int) EAX >>= 16;
-		(char) [DS:ESI + 100 * 14] = AL;
-		(char) [DS:ESI + 100 * 15] = AH;
+		(char) [DS:ESI + XBYTES * 14] = AL;
+		(char) [DS:ESI + XBYTES * 15] = AH;
 		ESI++;
 		ECX--;
 	} while (!= 0);
@@ -355,17 +366,17 @@ opt1:
 		(offset) font = *string;
 		(offset) string += 4;
 		EAX = font[ 0]; // 4lines
-		(char) [DS:ESI + 100 *  0] = AL;
-		(char) [DS:ESI + 100 *  1] = AH;
+		(char) [DS:ESI + XBYTES *  0] = AL;
+		(char) [DS:ESI + XBYTES *  1] = AH;
 		(unsigned int) EAX >>= 16;
-		(char) [DS:ESI + 100 *  2] = AL;
-		(char) [DS:ESI + 100 *  3] = AH;
+		(char) [DS:ESI + XBYTES *  2] = AL;
+		(char) [DS:ESI + XBYTES *  3] = AH;
 		EAX = font[ 4]; // 4lines
-		(char) [DS:ESI + 100 *  4] = AL;
-		(char) [DS:ESI + 100 *  5] = AH;
+		(char) [DS:ESI + XBYTES *  4] = AL;
+		(char) [DS:ESI + XBYTES *  5] = AH;
 		(unsigned int) EAX >>= 16;
-		(char) [DS:ESI + 100 *  6] = AL;
-		(char) [DS:ESI + 100 *  7] = AH;
+		(char) [DS:ESI + XBYTES *  6] = AL;
+		(char) [DS:ESI + XBYTES *  7] = AH;
 		ESI++;
 		ECX--;
 	} while (!= 0);
@@ -392,7 +403,7 @@ opt2:
 		goto error; // 8の倍数以外はまだサポートしてない
 
 	(unsigned int) EAX /= 8;
-	IMUL(ESI, 100);
+	IMUL(ESI, XBYTES);
 	ESI += EAX;
 
 //	int *font == ES:EDI;
@@ -475,29 +486,29 @@ void near fontwritesub16()
 	int *font == ES:EDI;
 
 	EAX = font[ 0]; // 4lines
-	(char) [DS:ESI + 100 *  0] = AL;
-	(char) [DS:ESI + 100 *  1] = AH;
+	(char) [DS:ESI + XBYTES *  0] = AL;
+	(char) [DS:ESI + XBYTES *  1] = AH;
 	(unsigned int) EAX >>= 16;
-	(char) [DS:ESI + 100 *  2] = AL;
-	(char) [DS:ESI + 100 *  3] = AH;
+	(char) [DS:ESI + XBYTES *  2] = AL;
+	(char) [DS:ESI + XBYTES *  3] = AH;
 	EAX = font[ 4]; // 4lines
-	(char) [DS:ESI + 100 *  4] = AL;
-	(char) [DS:ESI + 100 *  5] = AH;
+	(char) [DS:ESI + XBYTES *  4] = AL;
+	(char) [DS:ESI + XBYTES *  5] = AH;
 	(unsigned int) EAX >>= 16;
-	(char) [DS:ESI + 100 *  6] = AL;
-	(char) [DS:ESI + 100 *  7] = AH;
+	(char) [DS:ESI + XBYTES *  6] = AL;
+	(char) [DS:ESI + XBYTES *  7] = AH;
 	EAX = font[ 8]; // 4lines
-	(char) [DS:ESI + 100 *  8] = AL;
-	(char) [DS:ESI + 100 *  9] = AH;
+	(char) [DS:ESI + XBYTES *  8] = AL;
+	(char) [DS:ESI + XBYTES *  9] = AH;
 	(unsigned int) EAX >>= 16;
-	(char) [DS:ESI + 100 * 10] = AL;
-	(char) [DS:ESI + 100 * 11] = AH;
+	(char) [DS:ESI + XBYTES * 10] = AL;
+	(char) [DS:ESI + XBYTES * 11] = AH;
 	EAX = font[12]; // 4lines
-	(char) [DS:ESI + 100 * 12] = AL;
-	(char) [DS:ESI + 100 * 13] = AH;
+	(char) [DS:ESI + XBYTES * 12] = AL;
+	(char) [DS:ESI + XBYTES * 13] = AH;
 	(unsigned int) EAX >>= 16;
-	(char) [DS:ESI + 100 * 14] = AL;
-	(char) [DS:ESI + 100 * 15] = AH;
+	(char) [DS:ESI + XBYTES * 14] = AL;
+	(char) [DS:ESI + XBYTES * 15] = AH;
 	return;
 }
 
@@ -506,17 +517,17 @@ void near fontwritesub8()
 	int *font == ES:EDI;
 
 	EAX = font[ 0]; // 4lines
-	(char) [DS:ESI + 100 *  0] = AL;
-	(char) [DS:ESI + 100 *  1] = AH;
+	(char) [DS:ESI + XBYTES *  0] = AL;
+	(char) [DS:ESI + XBYTES *  1] = AH;
 	(unsigned int) EAX >>= 16;
-	(char) [DS:ESI + 100 *  2] = AL;
-	(char) [DS:ESI + 100 *  3] = AH;
+	(char) [DS:ESI + XBYTES *  2] = AL;
+	(char) [DS:ESI + XBYTES *  3] = AH;
 	EAX = font[ 4]; // 4lines
-	(char) [DS:ESI + 100 *  4] = AL;
-	(char) [DS:ESI + 100 *  5] = AH;
+	(char) [DS:ESI + XBYTES *  4] = AL;
+	(char) [DS:ESI + XBYTES *  5] = AH;
 	(unsigned int) EAX >>= 16;
-	(char) [DS:ESI + 100 *  6] = AL;
-	(char) [DS:ESI + 100 *  7] = AH;
+	(char) [DS:ESI + XBYTES *  6] = AL;
+	(char) [DS:ESI + XBYTES *  7] = AH;
 	return;
 }
 
@@ -527,23 +538,23 @@ void near yline()
 	ECX -= 7;
 	if ((unsigned) >= 0) {
 		do {
-			DL = [DS:ESI + 0 * 100];
-			[DS:ESI + 0 * 100] = AL;
-			DL = [DS:ESI + 1 * 100];
-			[DS:ESI + 1 * 100] = AL;
-			DL = [DS:ESI + 2 * 100];
-			[DS:ESI + 2 * 100] = AL;
-			DL = [DS:ESI + 3 * 100];
-			[DS:ESI + 3 * 100] = AL;
-			DL = [DS:ESI + 4 * 100];
-			[DS:ESI + 4 * 100] = AL;
-			DL = [DS:ESI + 5 * 100];
-			[DS:ESI + 5 * 100] = AL;
-			DL = [DS:ESI + 6 * 100];
-			[DS:ESI + 6 * 100] = AL;
-			DL = [DS:ESI + 7 * 100];
-			[DS:ESI + 7 * 100] = AL;
-			ESI += 800;
+			DL = [DS:ESI + 0 * XBYTES];
+			[DS:ESI + 0 * XBYTES] = AL;
+			DL = [DS:ESI + 1 * XBYTES];
+			[DS:ESI + 1 * XBYTES] = AL;
+			DL = [DS:ESI + 2 * XBYTES];
+			[DS:ESI + 2 * XBYTES] = AL;
+			DL = [DS:ESI + 3 * XBYTES];
+			[DS:ESI + 3 * XBYTES] = AL;
+			DL = [DS:ESI + 4 * XBYTES];
+			[DS:ESI + 4 * XBYTES] = AL;
+			DL = [DS:ESI + 5 * XBYTES];
+			[DS:ESI + 5 * XBYTES] = AL;
+			DL = [DS:ESI + 6 * XBYTES];
+			[DS:ESI + 6 * XBYTES] = AL;
+			DL = [DS:ESI + 7 * XBYTES];
+			[DS:ESI + 7 * XBYTES] = AL;
+			ESI += 8 * XBYTES;
 			ECX -= 8;
 		} while ((unsigned) >= 0);
 	}
@@ -552,7 +563,7 @@ void near yline()
 		do {
 			DL = [DS:ESI];
 			[DS:ESI] = AL;
-			ESI += 100;
+			ESI += XBYTES;
 			ECX--;
 		} while (!= 0);
 	}
@@ -650,7 +661,7 @@ void near GAPI_line()
 		EBP = cmd[20]; // y1
 		ESI = cmd[12]; // y0
 		EBP -= ESI;
-		IMUL(ESI, 100);
+		IMUL(ESI, XBYTES);
 boxfill:
 		EAX = 0x80ff;
 		EDX = cmd[ 8]; // x0
@@ -715,15 +726,15 @@ boxfill:
 						LEA(ECX, [EBP - 7]);
 					//	if ((unsigned) >= 0) {
 							do {
-								[DS:ESI + 0 * 100] = AL;
-								[DS:ESI + 1 * 100] = AL;
-								[DS:ESI + 2 * 100] = AL;
-								[DS:ESI + 3 * 100] = AL;
-								[DS:ESI + 4 * 100] = AL;
-								[DS:ESI + 5 * 100] = AL;
-								[DS:ESI + 6 * 100] = AL;
-								[DS:ESI + 7 * 100] = AL;
-								ESI += 800;
+								[DS:ESI + 0 * XBYTES] = AL;
+								[DS:ESI + 1 * XBYTES] = AL;
+								[DS:ESI + 2 * XBYTES] = AL;
+								[DS:ESI + 3 * XBYTES] = AL;
+								[DS:ESI + 4 * XBYTES] = AL;
+								[DS:ESI + 5 * XBYTES] = AL;
+								[DS:ESI + 6 * XBYTES] = AL;
+								[DS:ESI + 7 * XBYTES] = AL;
+								ESI += 8 * XBYTES;
 								ECX -= 8;
 							} while ((unsigned) >= 0);
 					//	}
@@ -731,7 +742,7 @@ boxfill:
 						if (!= 0) {
 							do {
 								[DS:ESI] = AL;
-								ESI += 100;
+								ESI += XBYTES;
 								ECX--;
 							} while (!= 0);
 						}
@@ -776,7 +787,7 @@ boxfill:
 						xline_pset();
 						STI();
 						EBP--;
-						LEA(ESI, [EAX + 100]);
+						LEA(ESI, [EAX + XBYTES]);
 					} while (!= 0);
 				} else {
 					do {
@@ -793,7 +804,7 @@ boxfill:
 						xline();
 						STI();
 						EBP--;
-						LEA(ESI, [EBX + 100]);
+						LEA(ESI, [EBX + XBYTES]);
 					} while (!= 0);
 				}
 				POP(ESI);
@@ -835,7 +846,7 @@ boxfill:
 	EBP = cmd[20]; // y1
 	ESI = cmd[12]; // y0
 	EBP -= ESI;
-	IMUL(ESI, 100);
+	IMUL(ESI, XBYTES);
 	if ((unsigned) EBP <= 1)
 		goto boxfill;
 	EDX = cmd[ 8]; // x0
@@ -880,7 +891,7 @@ boxfill:
 	if ((unsigned) >) {
 		DL = [DS:ESI];
 		[DS:ESI] = AL;
-		ESI += 100;
+		ESI += XBYTES;
 		ROR(EAX, 16);
 		yline();
 		ROL(EAX, 16);
@@ -891,7 +902,7 @@ boxfill:
 	//	EAX = [SS:ESP];
 		DL = [DS:ESI];
 		[DS:ESI] = AH;
-		ESI += 100;
+		ESI += XBYTES;
 		ECX = EBP;
 		ROR(EAX, 24);
 		yline();
@@ -906,7 +917,7 @@ boxfill:
 			goto fin;
 		EBP += 2;
 		EDX = 0x03ce;
-		IMUL(EBP, 100);
+		IMUL(EBP, XBYTES);
 		if ((unsigned) (char) [SS:ESP + 13] == 0) {
 			EBX = (unsigned char) [SS:ESP + 5];
 			EAX = 0x0105;
@@ -945,7 +956,7 @@ boxfill:
 	AL &= AH;
 	DL = [DS:ESI];
 	[DS:ESI] = AL;
-	ESI += 100;
+	ESI += XBYTES;
 	ROR(EAX, 16);
 	AL |= AH;
 	yline();
@@ -997,7 +1008,7 @@ void near GAPI_putbox()
 	EAX = cmd[ 8]; /* x */
 	EDI = cmd[12]; /* y */
 	ECX = EAX;
-	IMUL(EDI, 100);
+	IMUL(EDI, XBYTES);
 	EAX /= 8;
 	ECX &= 0x07;
 //	LEA(EDI, [EDI + EAX + 0xa0000]);
@@ -1202,7 +1213,7 @@ skip_flush:
 		POP(EAX); /* color-flags */
 		(offset) p += cmd[16]; /* xsize */
 		POP(ECX);
-		(offset) q += 100;
+		(offset) q += XBYTES;
 		(offset) p += cmd[24]; /* yskip */
 		ECX--;
 	} while (!= 0);
@@ -1414,7 +1425,7 @@ mode11_skip_flush:
 		}
 		(offset) p += cmd[16]; /* xsize */
 		POP(ECX);
-		(offset) q += 100;
+		(offset) q += XBYTES;
 		(offset) p += cmd[24]; /* yskip */
 		ECX--;
 	} while (!= 0);
@@ -1477,7 +1488,7 @@ void near GAPI_lineardots()
 			EAX = ESI;
 			(unsigned int) EDX >>= 16;
 			(unsigned int) EAX >>= 16;
-			IMUL(EDX, 100);
+			IMUL(EDX, XBYTES);
 			CL = AL;
 			EAX /= 8;
 			CH = 0x80;
@@ -1546,7 +1557,7 @@ void near GAPI_points()
 		(offset) dat += 12;
 		CL = AL;
 		EAX /= 8;
-		IMUL(ESI, 100);
+		IMUL(ESI, XBYTES);
 		CH = 0x80;
 		CL &= 0x07;
 		SHR(CH, CL);
@@ -1783,7 +1794,11 @@ void near GAPI_resetdevice()
 
 	// VRAM上の横幅を800ドットに
 	/* EDX = 0x03d4 */ EDX += 0x03d4 - 0x03c4;
-	EAX = 0x3213; // Offset Reg = 0x32;
+	#if (!defined(BOCHS))
+		EAX = 0x3213; // Offset Reg = 0x32;
+	#else
+		EAX = 0x2813; // Offset Reg = 0x28;
+	#endif
 	OUT(DX, AX);
 
 	/* EDX = 0x03ce */ EDX += 0x03ce - 0x03d4;
@@ -1895,7 +1910,7 @@ struct PARAM_VGA640 {
 };
 
 void near GAPI_VGA640()
-// ハードウェア別特別コマンド(0x001c, pri, 0x0020)
+// ハードウェア別特別コマンド(0x001c, pri, 0x0020, mode)
 {
 	// 初期バージョン作成 ODP
 	// ASKAへの移植＆改変 川合秀実
@@ -1905,7 +1920,8 @@ void near GAPI_VGA640()
 	int *cmd == FS:EBX;
 
 	cmd[4] = 0xffffffff; // 終了
-	(offset) cmd += 12;
+	if ((unsigned) (char) cmd[15] != 0)
+		goto skip;
 
 	char *param == DS:ESI;
 	asmout("MOV ESI,OFFSET #param640");
@@ -1986,27 +2002,46 @@ void near GAPI_VGA640()
 	STI();
 	EAX = VRAM_sel;
 	DS = AX;
+
+skip:
+	GAPI_WORK *work_DS == DS:0x0000;
+	WORK_SUB *wsub == ES:ESI;
+	LEA((offset) wsub, (int) [work_DS->worksub]);
+	EAX = 0;
+	EDX = cmd[12];
+	wsub->scr_x0 = EAX;
+	wsub->scr_y0 = EAX;
+	EDX &= 0x00ffffff;
+	EAX = 640 - 7;
+	ECX = 480 - 15;
+	if (EDX != 0x12) {
+		EAX = 800 - 7;
+		ECX += 600 - 480;
+	}
+	(offset) cmd += 16;
+	wsub->scr_width  = EAX;
+	wsub->scr_height = ECX;
 	asmout("JMP next_command");
 
 	ALIGN(4);
 param640:
-	asmout("DB 0E3H,070H,005H,000H,001H");
+	DB(0xe3, 0x70, 0x05, 0x00, 0x01); /* いろいろ */
 
-	asmout("DB 001H,001H,00FH,000H,006H");
+	DB(0x01, 0x01, 0x0f, 0x00, 0x06); /* 0x03c4 */
 
-	asmout("DB 05FH,04FH,050H,082H,054H,080H,00BH,03EH");
-	asmout("DB 000H,040H,000H,000H,000H,000H,000H,000H");
-	asmout("DB 0EAH,08CH,0DFH,032H,000H,0E7H,004H,0E3H");
-	asmout("DB 0FFH");
+	DB(0x5f, 0x4f, 0x50, 0x82, 0x54, 0x80, 0x0b, 0x3e); /* 0x03d4 */
+	DB(0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+	DB(0xea, 0x8c, 0xdf, XBYTES / 2, 0x00, 0xe7, 0x04, 0xe3);
+	DB(0xff);
 
-	asmout("DB 000H,000H,000H,000H,000H,000H,005H,00FH");
-	asmout("DB 0FFH");
+	DB(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x0f); /* 0x03ce */
+	DB(0xff);
 
-	asmout("DB 000H,001H,002H,003H,004H,005H,014H,007H");
-	asmout("DB 038H,039H,03AH,03BH,03CH,03DH,03EH,03FH");
-	asmout("DB 001H,000H,00FH,000H,000H");
+	DB(0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07); /* 0x03c0 */
+	DB(0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f);
+	DB(0x01, 0x00, 0x0f, 0x00, 0x00);
 
-	asmout("DB 0FFH");
+	DB(0xff); /* 0x03c6 */
 }
 
 void near GAPI_accesslock()
@@ -2158,22 +2193,22 @@ void near GAPI_mouse_backup16()
 {
 	char *b == DS:EDI, *p == DS:ESI;
 	// 書き込みモード1を使って、ラッチ経由で転送
-	AL = p[   0]; b[ 0] = AL;
-	AL = p[ 100]; b[ 1] = AL;
-	AL = p[ 200]; b[ 2] = AL;
-	AL = p[ 300]; b[ 3] = AL;
-	AL = p[ 400]; b[ 4] = AL;
-	AL = p[ 500]; b[ 5] = AL;
-	AL = p[ 600]; b[ 6] = AL;
-	AL = p[ 700]; b[ 7] = AL;
-	AL = p[ 800]; b[ 8] = AL;
-	AL = p[ 900]; b[ 9] = AL;
-	AL = p[1000]; b[10] = AL;
-	AL = p[1100]; b[11] = AL;
-	AL = p[1200]; b[12] = AL;
-	AL = p[1300]; b[13] = AL;
-	AL = p[1400]; b[14] = AL;
-	AL = p[1500]; b[15] = AL;
+	AL = p[ 0 * XBYTES]; b[ 0] = AL;
+	AL = p[ 1 * XBYTES]; b[ 1] = AL;
+	AL = p[ 2 * XBYTES]; b[ 2] = AL;
+	AL = p[ 3 * XBYTES]; b[ 3] = AL;
+	AL = p[ 4 * XBYTES]; b[ 4] = AL;
+	AL = p[ 5 * XBYTES]; b[ 5] = AL;
+	AL = p[ 6 * XBYTES]; b[ 6] = AL;
+	AL = p[ 7 * XBYTES]; b[ 7] = AL;
+	AL = p[ 8 * XBYTES]; b[ 8] = AL;
+	AL = p[ 9 * XBYTES]; b[ 9] = AL;
+	AL = p[10 * XBYTES]; b[10] = AL;
+	AL = p[11 * XBYTES]; b[11] = AL;
+	AL = p[12 * XBYTES]; b[12] = AL;
+	AL = p[13 * XBYTES]; b[13] = AL;
+	AL = p[14 * XBYTES]; b[14] = AL;
+	AL = p[15 * XBYTES]; b[15] = AL;
 	return;
 }
 
@@ -2185,29 +2220,29 @@ void near GAPI_mouse_drawsub16()
 	char *p == DS:ESI;
 	// 書き込みモード3でパターンを書き込む
 	EAX = q[ 0];
-	CL = p[   0]; p[   0] = AL;
-	CL = p[ 100]; p[ 100] = AH;
+	CL = p[ 0 * XBYTES]; p[ 0 * XBYTES] = AL;
+	CL = p[ 1 * XBYTES]; p[ 1 * XBYTES] = AH;
 	(unsigned int) EAX >>= 16;
-	CL = p[ 200]; p[ 200] = AL;
-	CL = p[ 300]; p[ 300] = AH;
+	CL = p[ 2 * XBYTES]; p[ 2 * XBYTES] = AL;
+	CL = p[ 3 * XBYTES]; p[ 3 * XBYTES] = AH;
 	EAX = q[ 4];
-	CL = p[ 400]; p[ 400] = AL;
-	CL = p[ 500]; p[ 500] = AH;
+	CL = p[ 4 * XBYTES]; p[ 4 * XBYTES] = AL;
+	CL = p[ 5 * XBYTES]; p[ 5 * XBYTES] = AH;
 	(unsigned int) EAX >>= 16;
-	CL = p[ 600]; p[ 600] = AL;
-	CL = p[ 700]; p[ 700] = AH;
+	CL = p[ 6 * XBYTES]; p[ 6 * XBYTES] = AL;
+	CL = p[ 7 * XBYTES]; p[ 7 * XBYTES] = AH;
 	EAX = q[ 8];
-	CL = p[ 800]; p[ 800] = AL;
-	CL = p[ 900]; p[ 900] = AH;
+	CL = p[ 8 * XBYTES]; p[ 8 * XBYTES] = AL;
+	CL = p[ 9 * XBYTES]; p[ 9 * XBYTES] = AH;
 	(unsigned int) EAX >>= 16;
-	CL = p[1000]; p[1000] = AL;
-	CL = p[1100]; p[1100] = AH;
+	CL = p[10 * XBYTES]; p[10 * XBYTES] = AL;
+	CL = p[11 * XBYTES]; p[11 * XBYTES] = AH;
 	EAX = q[12];
-	CL = p[1200]; p[1200] = AL;
-	CL = p[1300]; p[1300] = AH;
+	CL = p[12 * XBYTES]; p[12 * XBYTES] = AL;
+	CL = p[13 * XBYTES]; p[13 * XBYTES] = AH;
 	(unsigned int) EAX >>= 16;
-	CL = p[1400]; p[1400] = AL;
-	CL = p[1500]; p[1500] = AH;
+	CL = p[14 * XBYTES]; p[14 * XBYTES] = AL;
+	CL = p[15 * XBYTES]; p[15 * XBYTES] = AH;
 	return;
 }
 
@@ -2215,22 +2250,22 @@ void near GAPI_mouse_erasesub16()
 {
 	char *b == DS:EDI, *p == DS:ESI;
 	// 書き込みモード1を使って、ラッチ経由で転送
-	AL = b[ 0]; p[   0] = AL;
-	AL = b[ 1]; p[ 100] = AL;
-	AL = b[ 2]; p[ 200] = AL;
-	AL = b[ 3]; p[ 300] = AL;
-	AL = b[ 4]; p[ 400] = AL;
-	AL = b[ 5]; p[ 500] = AL;
-	AL = b[ 6]; p[ 600] = AL;
-	AL = b[ 7]; p[ 700] = AL;
-	AL = b[ 8]; p[ 800] = AL;
-	AL = b[ 9]; p[ 900] = AL;
-	AL = b[10]; p[1000] = AL;
-	AL = b[11]; p[1100] = AL;
-	AL = b[12]; p[1200] = AL;
-	AL = b[13]; p[1300] = AL;
-	AL = b[14]; p[1400] = AL;
-	AL = b[15]; p[1500] = AL;
+	AL = b[ 0]; p[ 0 * XBYTES] = AL;
+	AL = b[ 1]; p[ 1 * XBYTES] = AL;
+	AL = b[ 2]; p[ 2 * XBYTES] = AL;
+	AL = b[ 3]; p[ 3 * XBYTES] = AL;
+	AL = b[ 4]; p[ 4 * XBYTES] = AL;
+	AL = b[ 5]; p[ 5 * XBYTES] = AL;
+	AL = b[ 6]; p[ 6 * XBYTES] = AL;
+	AL = b[ 7]; p[ 7 * XBYTES] = AL;
+	AL = b[ 8]; p[ 8 * XBYTES] = AL;
+	AL = b[ 9]; p[ 9 * XBYTES] = AL;
+	AL = b[10]; p[10 * XBYTES] = AL;
+	AL = b[11]; p[11 * XBYTES] = AL;
+	AL = b[12]; p[12 * XBYTES] = AL;
+	AL = b[13]; p[13 * XBYTES] = AL;
+	AL = b[14]; p[14 * XBYTES] = AL;
+	AL = b[15]; p[15 * XBYTES] = AL;
 	return;
 }
 
@@ -2380,12 +2415,13 @@ void near GAPI_clippingmouse()
 		maskflag |= 0x01;
 		if (x < 0 - 8)
 			maskflag |= 0x03;
-	} else /* (false) */ if (x >= 800 - 16) {
-		work->mx1 = 800;
+	} else /* (false) */ if (x >= 8 * XBYTES - 16) {
+		work->mx1 = 8 * XBYTES;
 		maskflag |= 0x04;
-		if (x >= 800 - 8)
+		if (x >= 8 * XBYTES - 8)
 			maskflag |= 0x06;
 	}
+	PUSH(x);
 	x /= 8;
 //	x += 0x000a0000;
 	/* (false) */ if (y < 0) {
@@ -2401,13 +2437,66 @@ void near GAPI_clippingmouse()
 			work->my1 = mouseline;
 			mouseline -= y;
 	}
-	IMUL((offset) p, y, 100);
+	IMUL((offset) p, y, XBYTES);
 skip_imul:
 	work->maskflag = maskflag;
 	work->mouseline = mouseline;
 	(offset) p += x;
 	work->pattern0_addr = (offset) q;
 	work->cursor_addr = (offset) p;
+
+	/* 自動スクロールルーチン by I.Tak. */
+	/* (註)川合がPC/AT用に改変 */
+
+	unsigned int vx == ESI, vy == EBP; /* vectors */
+	unsigned int sx == ECX, sy == EAX; /* screen positons */
+	WORK_SUB *wsub == ES:EDI;
+	GAPI_WORK *work_DS == DS:0x0000;
+
+	/* Calc. Vectors */
+	LEA((offset) wsub, (int) [work_DS->worksub]);
+	POP(vx); /* mouse x */
+	sx = wsub->scr_x0;
+	sy = wsub->scr_y0;
+	vx -= sx;
+	if ((unsigned) >= 0) {
+		vx -= wsub->scr_width;
+		/* vx = (vx < 0) ? 0 : vx + 1; */
+		SBB(EDX, EDX);
+		NOT(EDX);
+		vx &= EDX;
+		vx -= EDX;
+	}
+	vy -= sy;
+	if ((unsigned) >= 0) {
+	//	vy += 15;
+		vy -= wsub->scr_height;
+		/* vy = (vy < 0) ? 0 : vy + 1; */
+		SBB(EDX, EDX);
+		NOT(EDX);
+		vy &= EDX;
+		vy -= EDX;
+	}
+
+	/* Scroll Part */
+	sy += vy;
+	vy |= vx;
+	if (!= 0) {
+		wsub->scr_y0 = sy;
+		sx += vx;
+		IMUL(sy, XBYTES);
+		wsub->scr_x0 = sx;
+		sx /= 8;
+		sx += sy;
+		AL = 0x0d;
+		AH = CL;
+		EDX = 0x03d4;
+		CL = 0x0c;
+		OUT(DX, AX);
+		EAX = ECX;
+		OUT(DX, AX);
+	}
+
 	return;
 }
 

@@ -12,8 +12,7 @@ OBJS = execcmd.obj fwinman.obj fpokon.obj fdebug.obj \
 INCPATH = ../include
 DIST_DIR = ..\lib
 
-ALL :
-	make $(TARGET)
+ALL : $(TARGET)
 
 $(TARGET) : $(OBJS) $(OPT)
 	$(LCCLIB) -OUT:$@ @$(OPT)

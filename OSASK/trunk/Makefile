@@ -48,15 +48,24 @@ $(OSALINK_OPT) : makefile
 $(ANKFONT) :
 
 pcat : FORCE
+	copy /y base.as base.asm
 	echo ARCH = pcat> depend.mak
 	$(MAKE)
 
 vmware : FORCE
+	copy /y base.as base.asm
 	echo ARCH = pcat> depend.mak
 	echo VMWARE = y>> depend.mak
 	$(MAKE)
 
+bochs : FORCE
+	copy /y base.bch base.asm
+	echo ARCH = pcat> depend.mak
+	echo BOCHS = y>> depend.mak
+	$(MAKE)
+
 towns : FORCE 
+	copy /y base.as base.asm
 	echo ARCH = towns> depend.mak
 	echo TWSCRL1 = n>> depend.mak
 	$(MAKE)
@@ -70,7 +79,7 @@ pokon0.bim : pokon0.obj
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
 
 pokon0.bin : pokon0.bim
-	$(BIM2BIN) malloc:76k file:0 input:$< output:$@
+	$(BIM2BIN) malloc:80k file:0 input:$< output:$@
 
 winman0.bim : winman0.obj
 	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
@@ -122,7 +131,6 @@ dist_clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i dist_clean
 #	del $(TARGET)
 	for %%i in ($(OBJS)) do del %%i
-	for %%i in ($(BASE:.exe=.asm)) do del %%i
 	for %%i in ($(BASE:.exe=.obj)) do del %%i
 	for %%i in ($(BASE:.exe=.lst)) do del %%i
 	for %%i in ($(BASE:.exe=.map)) do del %%i

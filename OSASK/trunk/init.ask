@@ -1,4 +1,4 @@
-/* "init.ask" ver.1.9 copyright(C) 2001 H.Kawai(川合秀実) */
+/* "init.ask" ver.2.0 copyright(C) 2001 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -430,21 +430,22 @@ void far Init()
 		ECX--;
 	} while (!= 0);
 
-	EAX = pdepte_sel;
-	DS = AX;
-	(int) [DS:0x000] /*  0～ 3MB */ = 0x2000;
-	(int) [DS:0x004] /*  4～ 7MB */ = 0x4000;
-	(int) [DS:0x008] /*  8～11MB */ = 0x5000;
-	(int) [DS:0x00c] /* 12～15MB */ = 0x6000;
-	(int) [DS:0x010] /* 16～19MB */ = 0x7000;
+	PUSH((int) pdepte_sel);
+	ECX = 0;
+	POP(DS);
+	(int) [DS:ECX + 0x000] /*  0～ 3MB */ = 0x2000;
+	(int) [DS:ECX + 0x004] /*  4～ 7MB */ = 0x4000;
+	(int) [DS:ECX + 0x008] /*  8～11MB */ = 0x5000;
+	(int) [DS:ECX + 0x00c] /* 12～15MB */ = 0x6000;
+	(int) [DS:ECX + 0x010] /* 16～19MB */ = 0x7000;
 	(int) [DS:0xe00] = 0x3000;
 
-	DL = [ES:0x001c + 2 /* eflags[2] */];
+	DL = [ES:ECX + 0x001c + 2 /* eflags[2] */];
 
-	AX = SS;
-	ECX = 0;
+	PUSH(SS);
+//	ECX = 0;
 	ESI = 0x0108;
-	FS = AX;
+	POP(FS);
 
 	/* PAPI初期化 */
 	PUSH((int) ECX /* eoc */);
@@ -549,10 +550,10 @@ void far Init()
 		ESP += 112;
 	#endif
 
-	EAX = syswork_sel;
-	ECX = stack_sel;
-	ES = AX;
-	DS = CX;
+	PUSH((int) syswork_sel);
+	POP(ES);
+	PUSH((int) stack_sel);
+	POP(DS);
 
 //	EAX = (int) [ES:0x000c /* addr1 */];
 //	ECX = (int) [ES:0x0010 /* free1 */];
@@ -624,6 +625,7 @@ void far Init()
 
 	EAX = idtgdt_sel;
 	GS = AX;
+	DS = AX;
 
 	unsigned char *idt_table == CS:EDI;
 	unsigned short *idt_table2 == CS:EDI;
@@ -637,10 +639,10 @@ void far Init()
 		CX = idt_table2[4];
 		DH = idt_table[0];
 		(offset) idt_table += 6;
-		(short) [GS:EBX + 0] = AX;
-		(short) [GS:EBX + 4] = DX;
-		(short) [GS:EBX + 2] = CX;
-		(short) [GS:EBX + 6] = BP /* == 0 */;
+		(short) [DS:EBX + 0] = AX;
+		(short) [DS:EBX + 4] = DX;
+		(short) [DS:EBX + 2] = CX;
+		(short) [DS:EBX + 6] = BP /* == 0 */;
 		EBX = idt_table[1];
 		EBX *= 8;
 	} while (!= 0);
@@ -653,14 +655,15 @@ void far Init()
 	EBX = ESP;
 	CALLFAR0(tapi_sel);
 	POP(EDX);
+	EBX = 0x0038 /* int07 */;
 	POP(EAX);
 	POP(ECX);
 //	POP(EDX);
-	(short) [GS:0x0038 /* int07 */ + 0] = AX;
+	(short) [DS:EBX + 0] = AX;
 	(unsigned int) EAX >>= 16;
-	(short) [GS:0x0038 /* int07 */ + 2] = CX;
-	(short) [GS:0x0038 /* int07 */ + 4] = 0x8f00;
-	(short) [GS:0x0038 /* int07 */ + 6] = AX;
+	(short) [DS:EBX + 2] = CX;
+	(short) [DS:EBX + 4] = 0x8f00;
+	(short) [DS:EBX + 6] = AX;
 
 //	PUSH((int) 0); /* eoc */
 	#if (defined(PCAT))
@@ -674,22 +677,25 @@ void far Init()
 	EBX = ESP;
 	CALLFAR0(keyint_sel);
 	POP(EDX);
+	EBX = 0x0108 /* int21 */;
 	POP(EAX);
 	POP(ECX);
-	(short) [GS:0x0108 /* int21 */ + 0] = AX;
+	(short) [DS:EBX + 0] = AX;
 	(unsigned int) EAX >>= 16;
-	(short) [GS:0x0108 /* int21 */ + 2] = CX;
-	(short) [GS:0x0108 /* int21 */ + 4] = 0x8e00;
-	(short) [GS:0x0108 /* int21 */ + 6] = AX;
+	(short) [DS:EBX + 2] = CX;
+	(short) [DS:EBX + 4] = 0x8e00;
+	(short) [DS:EBX + 6] = AX;
 	#if (defined(PCAT))
 		POP(EDX);
+	//	EBX = 0x0160 /* int2c */;
+		BL = 0x60;
 		POP(EAX);
 		POP(ECX);
-		(short) [GS:0x0160 /* int2c */ + 0] = AX;
+		(short) [DS:EBX + 0] = AX;
 		(unsigned int) EAX >>= 16;
-		(short) [GS:0x0160 /* int2c */ + 2] = CX;
-		(short) [GS:0x0160 /* int2c */ + 4] = 0x8e00;
-		(short) [GS:0x0160 /* int2c */ + 6] = AX;
+		(short) [DS:EBX + 2] = CX;
+		(short) [DS:EBX + 4] = 0x8e00;
+		(short) [DS:EBX + 6] = AX;
 	#endif
 //	POP(EDX);
 
@@ -700,14 +706,15 @@ void far Init()
 	EBX = ESP;
 	CALLFAR0(fdcdrive_sel);
 	POP(EDX);
+	EBX = 0x0130 /* int26 */;
 	POP(EAX);
 	POP(ECX);
 //	POP(EDX);
-	(short) [GS:0x0130 /* int26 */ + 0] = AX;
+	(short) [DS:EBX + 0] = AX;
 	(unsigned int) EAX >>= 16;
-	(short) [GS:0x0130 /* int26 */ + 2] = CX;
-	(short) [GS:0x0130 /* int26 */ + 4] = 0x8e00;
-	(short) [GS:0x0130 /* int26 */ + 6] = AX;
+	(short) [DS:EBX + 2] = CX;
+	(short) [DS:EBX + 4] = 0x8e00;
+	(short) [DS:EBX + 6] = AX;
 
 //	PUSH((int) 0); /* eoc */
 	PUSH((int) 0x0100 /* keyboardInit */);
@@ -737,14 +744,15 @@ void far Init()
 	(int) [SS:ESP] = 0x0104 /* PageFaultHandlerへのベクタ取得 */;
 	EBX = ESP;
 	CALLFAR0(papi_sel);
-	POP(EAX);
+	POP(ECX);
+	EBX = 0x0070 /* int0e */;
 	POP(EAX /*  */);
-	POP(EBX);
-	(short) [GS:0x0070 /* int0e */ + 0] = AX;
+	POP(ECX);
+	(short) [DS:EBX + 0] = AX;
 	(unsigned int) EAX >>= 16;
-	(short) [GS:0x0070 /* int0e */ + 2] = BX;
-	(short) [GS:0x0070 /* int0e */ + 4] = 0x8e00;
-	(short) [GS:0x0070 /* int0e */ + 6] = AX;
+	(short) [DS:EBX + 2] = CX;
+	(short) [DS:EBX + 4] = 0x8e00;
+	(short) [DS:EBX + 6] = AX;
 
 	/* PIC初期化 */
 
@@ -804,7 +812,7 @@ void far Init()
 	STI(); // IF = 1;
 
 	/* フォントロード for debug */
-	#if 0
+	#if (defined(BOCHS))
 		PUSH((int) 0x0000);
 		PUSH((int) 7 * 8 /* ankfont-sel */);
 		PUSH((int) 0x0000 /* offset */);
@@ -813,9 +821,9 @@ void far Init()
 		PUSH((int) 0x0001 /* type */);
 		PUSH((int) 0x0000 /* opt */);
 		PUSH((int) 0x0104 /* loadfont(gapi cmd) */);
-		BX = SS;
-		FS = BX;
 		EBX = ESP;
+	//	PUSH(SS);
+	//	POP(FS);
 		CALLFAR0(GAPI_sel);
 		ESP += 32;
 	#endif
@@ -897,11 +905,13 @@ void far Init()
 	EAX = [SS:ESP + 8]; /* EAXにオフセット */
 //	ESP += 36 - 4;
 	ECX = idtgdt_sel;
+	EBX = 0x20 * 8;
 	DS = CX;
-	(short) [DS:0x20 * 8 + 0] = AX;
-	(short) [DS:0x20 * 8 + 4] = 0x8e00;
-	(short) [DS:0x20 * 8 + 2] = 10 * 8;
-	(short) [DS:0x20 * 8 + 6] = 0;
+	(short) [DS:EBX + 0] = AX;
+	(unsigned int) EAX >>= 16;
+	(short) [DS:EBX + 4] = 0x8e00;
+	(short) [DS:EBX + 2] = 10 * 8;
+	(short) [DS:EBX + 6] = AX;
 //	POPFD();
 	STI();
 
@@ -1100,18 +1110,19 @@ void far Init()
 
 	EAX = tapiwork_sel;
 	(offset) tss = EBP;
+	ECX = 0;
 	DS = AX;
 
 	LEA(EAX, (int) *tss_Llv1); // Llv1
 	tss->Glv = /* (offset) glevel[4 * 64] */ 0x0200; // Glvは0x100～0x800
 	tss->Llv = EAX;
-	tss->Ilv = 0;
-	tss->flags = 0;
+	tss->Ilv = ECX /* 0 */;
+	tss->flags = CL /* 0 */;
 	(char) tss->short_run[11] = 0xff;
 
 	tss_Llv1->Glv = /* (offset) glevel[4 * 64] */ 0x0200;
 	(char) tss_Llv1->short_run[11] = 0xff;
-	tss_Llv1->Ilv = 0;
+	tss_Llv1->Ilv = ECX /* 0 */;
 
 	/* ローカルレベルを少し下げて、また上がる */
 	/* 未知(TAPIかも???)のバグ回避(2001.08.01) */
@@ -1119,8 +1130,8 @@ void far Init()
 	(char) tss_Llv2->short_run[11] = 0xff;
 	tss_Llv2->Ilv = 11932; // 10msec.
 
-	(int) [DS:0x000c /* TskPointer */] = (offset) tss;
-	(int) [DS:0x001c /* GlvNow */] = /* (offset) glevel[4 * 64] */ 0x0200;
+	(int) [DS:ECX + 0x000c /* TskPointer */] = (offset) tss;
+	(int) [DS:ECX + 0x001c /* GlvNow */] = /* (offset) glevel[4 * 64] */ 0x0200;
 
 	LTR((short) tss->tr[0]);
 	LLDT((short) tss->tss386.LDTR);
@@ -1134,8 +1145,8 @@ void far Init()
 	glevel[4 * 64].flags = 0x02; /* 時分割抑制モード */
 
 //	glevel[12 * 64].pointer = 0;
-	glevel[12 * 64].tasks = 0;
-	glevel[12 * 64].MinIlv = 0;
+	glevel[12 * 64].tasks = ECX /* 0 */;
+	glevel[12 * 64].MinIlv = ECX /* 0 */;
 	glevel[12 * 64].MaxIlv = 0xffffffff;
 	glevel[12 * 64].flags = 0x00; /* 時分割モード */
 
@@ -1536,9 +1547,10 @@ void far Init()
 		PUSH((int) 12 /* 作業中のシグナル */);
 		PUSH((int) 16 /* 完了シグナル */);
 		PUSH((int) 0x0110 /* FDC_loadFAT */);
+		PUSH((int) 0x0108 /* FDC_diskchange */);
 		EBX = ESP;
 		CALLFAR0(fdcdrive_sel);
-		ESP += 16;
+		ESP += 20;
 	#endif
 
 	int *msg == GS:ESI;
@@ -2622,10 +2634,16 @@ INT(0x03);
 				(int) [SS:EBP - 8] = ECX;
 				ECX += 0x00000fff;
 				ECX &= 0xfffff000;
+				(int) [SS:EBP - 4] = ECX; /* addr = 0 */
+				if (== 0)
+					goto skip012c;
 				get_memory();
 				(int) [SS:EBP - 4] = EAX;
 				if (ZF == 1 /* error */) {
-					(int) [SS:EBP - 8] = 0;
+					(int) [SS:EBP - 8] = 0xffffffff;
+	skip012c:
+					POP(DS);
+					goto cmd8000_2;
 				}
 			//	ESI = [SS:ESP + 12]; /* ディレクトリエントリ */
 
@@ -2670,7 +2688,6 @@ EDX = 0x00300000; /* 3MB */
 			//	POP((offset) msg);
 			//	POP(msgdw);
 				POP(DS);
-
 			} else if (EAX == 0x0130) {
 				/* アプリケーションタスク生成(タスクプログラムには登録されない) */
 				/* cmd, size, addr,
@@ -2823,12 +2840,41 @@ EDX = 0x00300000; /* 3MB */
 
 			} else if (EAX == 0x0134) {
 				/* メモリ解放 */
-				/* cmd, size, addr */
-				ECX = msg[4];
-				EAX = msg[8];
-				(offset) msg += 12;
+				/* cmd, fileid, size, addr */
+				if (msg[4] != 0xffffffff) {
+					ECX = msg[8];
+					EAX = 0;
+					ECX += 0x0fff;
+					PUSH((int) EAX /* eoc */);
+					ECX &= 0xfffff000;
+					EDX = 0x00300000 /* 3MB */;
+					PUSH((int) EAX /* addr64(high) */);
+					PUSH((int) msg[12] /* addr64(low) */);
+					PUSH((int) EAX /* offset64(high) */);
+					PUSH((int) EAX /* offset64(low) */);
+					PUSH((int) EAX /* pageset */);
+					PUSH((int) EDX /* linear */);
+					PUSH((int) ECX /* size */);
+					PUSH((int) 0x1007 /* opt(over-mapping, present, R/W, user) */);
+					PUSH((int) 0x0108 /* cmd(mapping) */);
+					EBX = ESP;
+					CALLFAR0(papi_sel);
+					ESP += 40 - 4;
+
+				//	PUSH((int) 0);
+					PUSH(EDX);
+					PUSH(all_sel);
+					PUSH((int) msg[4]); /* fileid */
+					PUSH((int) 0x0134 /* FDC_doswrite */);
+					EBX = ESP;
+					CALLFAR0(fdcdrive_sel);
+					ESP += 20;
+				}
+				ECX = msg[8];
+				EAX = msg[12];
+				(offset) msg += 16;
 				ECX += 0x00000fff;
-				msgdw += 3;
+				msgdw += 4;
 				ECX &= 0xfffff000;
 				free_memory(); /* フリーメモリの登録 */
 
@@ -2846,6 +2892,73 @@ EDX = 0x00300000; /* 3MB */
 				PUSH(msg[ 8]);
 				PUSH((int) 0x0130 /* FDC_writeIPL3 */);
 				goto cmd0128_cmd011c;
+			} else if (EAX == 0x013c) {
+				/* check wb cahce */
+				/* cmd, fileid, size, addr, 完了シグナル(lenはシグナルの第一dwから判断) */
+
+				ECX = msg[8];
+				EAX = 0;
+				ECX += 0x0fff;
+				PUSH((int) EAX /* eoc */);
+				ECX &= 0xfffff000;
+				EDX = 0x00300000 /* 3MB */;
+				PUSH((int) EAX /* addr64(high) */);
+				PUSH((int) msg[12] /* addr64(low) */);
+				PUSH((int) EAX /* offset64(high) */);
+				PUSH((int) EAX /* offset64(low) */);
+				PUSH((int) EAX /* pageset */);
+				PUSH((int) EDX /* linear */);
+				PUSH((int) ECX /* size */);
+				PUSH((int) 0x1007 /* opt(over-mapping, present, R/W, user) */);
+				PUSH((int) 0x0108 /* cmd(mapping) */);
+				EBX = ESP;
+				CALLFAR0(papi_sel);
+				ESP += 40 - 4;
+
+			//	PUSH((int) 0);
+				PUSH(EDX);
+				PUSH(all_sel);
+				PUSH((int) msg[4]); /* fileid */
+				PUSH((int) 0x0134 /* FDC_doswrite */);
+				EBX = ESP;
+				CALLFAR0(fdcdrive_sel);
+				ESP += 20 - 4;
+
+				(offset) msg += 16;
+				msgdw += 4;
+				goto cmd0140_directsignal;
+
+			} else if (EAX == 0x0140) {
+				/* writeback cache */
+				/* cmd, 完了シグナル(lenはシグナルの第一dwから判断) */
+	cmd0140:
+				PUSH((int) 0);
+				PUSH((int) 0x0138);
+				EBX = ESP;
+				CALLFAR0(fdcdrive_sel);
+				POP(EAX);
+
+				(offset) msg += 4;
+				msgdw++;
+			//	PUSH((int) 0);
+	cmd0140_directsignal:
+				PUSH(GS);
+				PUSH((offset) msg);
+				PUSH(0x0118 /* コマンドシグナル間接 */);
+				EBX = ESP;
+				CALLFAR0(tapi_sel);
+				ECX = msg[0];
+				ESP += 16;
+				ECX &= 0x0f;
+				ECX++;
+				msgdw += ECX;
+				LEA((offset) msg, msg[ECX * 4]);
+
+			} else if (EAX == 0x0144) {
+				/* invalid WB cache */
+				/* cmd, 完了シグナル(lenはシグナルの第一dwから判断) */
+				goto cmd0140;
+
 			} else if (EAX == 0xffffff00) {
 system_reset:
 				INT(0x03);
@@ -3045,6 +3158,9 @@ movestack:
 	asmout("DW 0C8FH,OFFSET int12,2*8");
 	asmout("DW 0D8FH,OFFSET int13,2*8");
 //	asmout("DW 0E8FH,OFFSET int14,2*8");
+	#if (defined(PCAT))
+		asmout("DW 278EH,OFFSET int39,2*8");
+	#endif
 	asmout("DW 0");
 }
 
@@ -8191,120 +8307,121 @@ void near put_int_status_ec()
 void near put_int_status2()
 {
 	unsigned int tapiwork_sel  == 13 * 8;
+	EBP = ESP;
 
-	asmout("MOV DWORD PTR SS:[ESP][00],'E'+'A'*100h+'X'*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][16],' '+' '*100h+' '*10000h+'E'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][20],'C'+'X'*100h+' '*10000h+'='*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][36],' '+' '*100h+'E'*10000h+'D'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][40],'X'+' '*100h+'='*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][52],' '+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][56],' '+'E'*100h+'B'*10000h+'X'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
-	EAX = /* (int) */ [SS:ESP + 84 + 8 + 28];
-	// ESI = ESP +  6;
-	asmout("LEA ESI,[ESP+6]");
+	asmout("MOV DWORD PTR SS:[EBP][00],'E'+'A'*100h+'X'*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][16],' '+' '*100h+' '*10000h+'E'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][20],'C'+'X'*100h+' '*10000h+'='*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][36],' '+' '*100h+'E'*10000h+'D'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][40],'X'+' '*100h+'='*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][52],' '+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][56],' '+'E'*100h+'B'*10000h+'X'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 + 28];
+	// ESI = EBP +  6;
+	asmout("LEA ESI,[EBP+6]");
 	ui32toa();
-	EAX = /* (int) */ [SS:ESP + 84 + 8 + 24];
-	// ESI = ESP + 25;
-	asmout("LEA ESI,[ESP+25]");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 + 24];
+	// ESI = EBP + 25;
+	asmout("LEA ESI,[EBP+25]");
 	ui32toa();
-	EAX = /* (int) */ [SS:ESP + 84 + 8 + 20];
-	// ESI = ESP + 44;
-	asmout("LEA ESI,[ESP+44]");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 + 20];
+	// ESI = EBP + 44;
+	asmout("LEA ESI,[EBP+44]");
 	ui32toa();
-	EAX = /* (int) */ [SS:ESP + 84 + 8 + 16];
-	// ESI = ESP + 63;
-	asmout("LEA ESI,[ESP+63]");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 + 16];
+	// ESI = EBP + 63;
+	asmout("LEA ESI,[EBP+63]");
 	ui32toa();
-	ESI = ESP;
+	ESI = EBP;
 	EAX = 0;
 	ECX = 16 * 2;
 	EDX = 0x000f;
 	output_string();
 
-	asmout("MOV DWORD PTR SS:[ESP][00],'E'+'S'*100h+'P'*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][16],' '+' '*100h+' '*10000h+'E'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][20],'B'+'P'*100h+' '*10000h+'='*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][36],' '+' '*100h+'E'*10000h+'S'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][40],'I'+' '*100h+'='*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][52],' '+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][56],' '+'E'*100h+'D'*10000h+'I'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
-	// EAX = ESP + 84 + 8 + 32 + 16;
-	asmout("LEA EAX,[ESP+84+8+32+16]");
-	// ESI = ESP +  6;
-	asmout("LEA ESI,[ESP+6]");
+	asmout("MOV DWORD PTR SS:[EBP][00],'E'+'S'*100h+'P'*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][16],' '+' '*100h+' '*10000h+'E'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][20],'B'+'P'*100h+' '*10000h+'='*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][36],' '+' '*100h+'E'*10000h+'S'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][40],'I'+' '*100h+'='*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][52],' '+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][56],' '+'E'*100h+'D'*10000h+'I'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
+	// EAX = EBP + 84 + 8 + 32 + 16;
+	asmout("LEA EAX,[EBP+84+8+32+16]");
+	// ESI = EBP +  6;
+	asmout("LEA ESI,[EBP+6]");
 	ui32toa();
-	EAX = /* (int) */ [SS:ESP + 84 + 8 +  8];
-	// ESI = ESP + 25;
-	asmout("LEA ESI,[ESP+25]");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 +  8];
+	// ESI = EBP + 25;
+	asmout("LEA ESI,[EBP+25]");
 	ui32toa();
-	EAX = /* (int) */ [SS:ESP + 84 + 8 +  4];
-	// ESI = ESP + 44;
-	asmout("LEA ESI,[ESP+44]");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 +  4];
+	// ESI = EBP + 44;
+	asmout("LEA ESI,[EBP+44]");
 	ui32toa();
-	EAX = /* (int) */ [SS:ESP + 84 + 8 +  0];
-	// ESI = ESP + 63;
-	asmout("LEA ESI,[ESP+63]");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 +  0];
+	// ESI = EBP + 63;
+	asmout("LEA ESI,[EBP+63]");
 	ui32toa();
-	ESI = ESP;
+	ESI = EBP;
 	EAX = 0;
 	ECX = 16 * 3;
 	EDX = 0x000f;
 	output_string();
 
-	asmout("MOV DWORD PTR SS:[ESP][00],'t'+'s'*100h+'s'*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][16],' '+' '*100h+' '*10000h+'T'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][20],'R'+' '*100h+' '*10000h+'='*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][36],' '+' '*100h+'E'*10000h+'S'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][40],'I'+' '*100h+'='*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][52],' '+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][56],' '+'E'*100h+'D'*10000h+'I'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
-//	asmout("MOV DWORD PTR SS:[ESP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][00],'t'+'s'*100h+'s'*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][16],' '+' '*100h+' '*10000h+'T'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][20],'R'+' '*100h+' '*10000h+'='*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][36],' '+' '*100h+'E'*10000h+'S'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][40],'I'+' '*100h+'='*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][52],' '+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][56],' '+'E'*100h+'D'*10000h+'I'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
 	PUSH(DS);
 	EAX = tapiwork_sel;
 	DS = AX;
 	EAX = (int) [DS:0x000c];
 	POP(DS);
-	// ESI = ESP +  6;
-	asmout("LEA ESI,[ESP+6]");
+	// ESI = EBP +  6;
+	asmout("LEA ESI,[EBP+6]");
 	ui32toa();
 	EAX = 0;
 	STR(AX);
-	// ESI = ESP + 25;
-	asmout("LEA ESI,[ESP+25]");
+	// ESI = EBP + 25;
+	asmout("LEA ESI,[EBP+25]");
 	ui32toa();
-	(char) [SS:ESP + 33] = 0;
+	(char) [SS:EBP + 33] = 0;
 
 //	EAX = /* (int) */ [SS:ESP + 84 + 8 +  4];
 //	// ESI = ESP + 44;
@@ -8314,7 +8431,7 @@ void near put_int_status2()
 //	// ESI = ESP + 63;
 //	asmout("LEA ESI,[ESP+63]");
 //	ui32toa();
-	ESI = ESP;
+	ESI = EBP;
 	EAX = 0;
 	ECX = 16 * 4;
 	EDX = 0x000f;
@@ -8544,22 +8661,23 @@ void near put_int_status()
 	// CS:EIP = 1234:56789ABC
 	ESP -= 84;
 	AX = SS;
+	EBP = ESP;
 	DS = AX;
 	GS = AX;
-	asmout("MOV DWORD PTR SS:[ESP][00],'C'+'S'*100h+':'*10000h+'E'*1000000h");
-	asmout("MOV DWORD PTR SS:[ESP][04],'I'+'P'*100h+' '*10000h+'='*1000000h");
-	asmout("MOV BYTE PTR SS:[ESP][08],' '");
-	EAX = /* (int) */ [SS:ESP + 84 + 8 + 32 + 4 + 4];
-	// ESI = ESP + 9;
-	asmout("LEA ESI,[ESP+9]");
+	asmout("MOV DWORD PTR SS:[EBP][00],'C'+'S'*100h+':'*10000h+'E'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP][04],'I'+'P'*100h+' '*10000h+'='*1000000h");
+	asmout("MOV BYTE PTR SS:[EBP][08],' '");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 + 32 + 4 + 4];
+	// ESI = EBP + 9;
+	asmout("LEA ESI,[EBP+9]");
 	ui16toa();
-	asmout("MOV BYTE PTR SS:[ESP][13],':'");
-	EAX = /* (int) */ [SS:ESP + 84 + 8 + 32 + 4];
-	// ESI = ESP + 14;
-	asmout("LEA ESI,[ESP+14]");
+	asmout("MOV BYTE PTR SS:[EBP][13],':'");
+	EAX = /* (int) */ [SS:EBP + 84 + 8 + 32 + 4];
+	// ESI = EBP + 14;
+	asmout("LEA ESI,[EBP+14]");
 	ui32toa();
-	asmout("MOV BYTE PTR SS:[ESP][22],0");
-	ESI = ESP;
+	asmout("MOV BYTE PTR SS:[EBP][22],0");
+	ESI = EBP;
 	EAX = 0;
 	ECX = 16;
 	EDX = 0x000f;
@@ -8568,6 +8686,43 @@ void near put_int_status()
 	// goto put_int_status2;
 	asmout("JMP put_int_status2");
 }
+
+#if (defined(PCAT))
+
+void far int39()
+{
+	/* ノイズにより不完全割り込みが発生したと判断 */
+	/* IRRをクリアするために、PICを再初期化 */
+	PUSH(EAX);
+	IN(AL, 0x21); /* master IMR */
+	PUSH(EAX);
+	AL = 0x11; /* ICW1 (edge trigger) */
+	OUT(0x20, AL); /* master */
+	AL = 0x20; /* ICW2(int-no.) */
+	OUT(0x21, AL); /* master */
+	AL = 0x04; /* ICW3 slaveがつながっているIRQのbitを1にする(bit2 = 1) */
+	OUT(0x21, AL); /* master */
+	AL = 0x01; /* ICW4(non-buf. mode) */
+	OUT(0x21, AL); /* master */
+	POP(EAX);
+	OUT(0x21, AL); /* OCW1 (IMR復帰) */
+	AL = 0x4a; /* OCW3 IRR読み込み 特殊マスクモードリセット 01001010 */
+	OUT(0x20, AL); /* master */
+	POP(EAX);
+	IRETD();
+
+#if 0
+	PUSH(EAX); /* ダミーのエラーコード */
+	PUSHAD();
+	EAX = 0;
+	ESI = InitMdl::"INT 0x27 IRQ7\0";
+	IN(AL, 0x0020);
+	(int) [SS:ESP + 32] = EAX;
+	asmout("JMP put_int_status_ec");
+#endif
+}
+
+#endif
 
 void near initmalloc()
 // DS == SysWork_sel, ECXにバイト数 → EAXに物理アドレス

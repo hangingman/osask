@@ -1,38 +1,20 @@
 
-    sb19 の著作権情報
+    sb20 の著作権情報
 
-  このアーカイブに含まれるファイルは、以下の38個です。
+  このアーカイブに含まれるファイルは、以下の21個です。
 
 ・PCAT/
     INIT.BIN
     VGADRV0.ASK
     VGADRV0.BIN
+    FDCDRV0.ASK
+    FDCDRV0.BIN
     WINMAN0.BIN
 ・TOWNS/
     INIT.BIN
-    VGADRV0.ASK
-    VGADRV0.BIN
+    FDCDRV0.ASK
+    FDCDRV0.BIN
     WINMAN0.BIN
-・ANKFONT0/
-    ANKFONT0.BIN
-    IBMANK0.BIN
-    TXT2BIN.C
-    TXT2BIN.EXE
-・SGG00LIB/
-    EXECCMD.ASM
-    EXECCMD0.ASM
-    EXECCMD1.ASM
-    FDEBUG.C
-    FPOKON.C
-    FWINMAN.C
-    INIT.C
-    MAKEFILE
-    SYSGG00.H
-    SYSGG00.LIB
-    SYSGG00.OPT
-・BASE.ASM
-・MAKEBASE.BAT
-・BASE.EXE
 ・INIT.ASK
 ・PIONEER0.ASK
 ・PIONEER0.BIN
@@ -40,7 +22,6 @@
 ・POKON0.H
 ・POKON0.C
 ・POKON0.BIN
-・OSALINK0.OPT
 ・INC.ASM
 ・COPYRIGH.TXT
 ・LICENSE.TXT
@@ -56,7 +37,7 @@
     URL     http://www.wizard.elec.waseda.ac.jp/~shoe16/
     e-mail  shoe16@wizard.elec.waseda.ac.jp
 
-・I.Tak.さん （TOWNS/VGADRV0.ASK, VGADRV0.BINの一部）
+・I.Tak.さん  (VGADRV0.ASK, VGADRV0.BINの一部)
     URL     http://home1.catvmics.ne.jp/~msy/takhome.htm
     e-mail  msy@catvmics.ne.jp
 

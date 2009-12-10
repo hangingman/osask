@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.1.9
+/* "pokon0.c":アプリケーションラウンチャー  ver.2.0
      copyright(C) 2001 小柳雅明, 川合秀実
-    stack:4k malloc:76k file:0 */
+    stack:4k malloc:80k file:0 */
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -10,7 +10,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon19"
+#define POKON_VERSION "pokon20"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 1.9\n    Copyright (C) 2001 H.Kawai(Kawaido)\n"
 #define POKO_PROMPT "\npoko>"
@@ -37,6 +37,7 @@ struct FILESELWIN *selwin;
 struct SELECTORWAIT *selwait;
 int selwaitcount = 0, selwincount = 1;
 struct VIRTUAL_MODULE_REFERENCE *vmref0;
+int need_wb;
 
 static struct STR_CONSOLE console = { -1, 0, 0, NULL, NULL, NULL, NULL, 0, 0, 0 };
 
@@ -75,11 +76,13 @@ void sgg_loadfile2(const int file_id, const int fin_sig)
 
 struct FILEBUF *searchfbuf(int fileid);
 void selwinfin(int task, struct FILESELWIN *win, struct FILEBUF *fbuf, struct VIRTUAL_MODULE_REFERENCE *vmr);
+struct FILEBUF *check_wb_cache(struct FILEBUF *fbuf);
 
 void runjobnext()
 {
 	struct STR_JOBLIST *pjob = &job;
 	struct FILEBUF *fbuf;
+	int i;
 	do {
 		if ((pjob->now = *(pjob->rp)) == 0)
 			return;
@@ -88,13 +91,19 @@ void runjobnext()
 		switch (pjob->now) {
 
 		case JOB_INVALID_DISKCACHE:
-			sgg_format(0x0114, SIGNAL_RELOAD_FAT_COMPLETE);
+			if (need_wb == 0) {
+				sgg_format(0x0114, SIGNAL_RELOAD_FAT_COMPLETE);
+				break;
+			}
+			pjob->now = 0;
 			break;
 
 		case JOB_LOAD_FILE_AND_EXECUTE:
 			pjob->dirslot = readjob(); /* fileid */
 			pjob->fbuf = (struct FILEBUF *) readjob(); /* fbuf */
 			pjob->bank = (struct STR_BANK *) readjob(); /* bank */
+			pjob->param[7] = 0;
+	job_load_viewer:
 			if (fbuf = searchfbuf(pjob->dirslot)) {
 				/* 確保しておいたやつを開放 */
 				pjob->fbuf->linkcount = 0;
@@ -103,14 +112,14 @@ void runjobnext()
 				pjob->bank->addr = fbuf->paddr;
 				fbuf->linkcount++;
 				goto job_create_task2;
-			//	sgg_createtask2(pjob->bank->size, pjob->bank->addr, SIGNAL_CREATE_TASK_COMPLETE);
-			//	break;
 			}
 			sgg_loadfile2(pjob->dirslot /* file id */, SIGNAL_LOAD_APP_FILE_COMPLETE);
 			break;
 
 		case JOB_CREATE_TASK:
 			pjob->bank = (struct STR_BANK *) readjob(); /* bank */
+			for (i = 0; i < 8; i++)
+				pjob->param[i] = readjob();
 	job_create_task2:
 			sgg_createtask2(pjob->bank->size, pjob->bank->addr, SIGNAL_CREATE_TASK_COMPLETE);
 			break;
@@ -140,15 +149,56 @@ void runjobnext()
 		case JOB_LOAD_FILE_AND_FORMAT:
 			pjob->param[0] = readjob(); /* fileid */
 			sgg_loadfile2(pjob->param[0] /* file id */, SIGNAL_LOAD_KERNEL_COMPLETE);
+			break;
+
+		case JOB_VIEW_FILE:
+			pjob->dirslot = readjob(); /* fileid */
+			pjob->fbuf = (struct FILEBUF *) readjob(); /* fbuf */
+			pjob->bank = (struct STR_BANK *) readjob(); /* bank */
+			for (i = 0; i < 6; i++)
+				pjob->param[i] = readjob();
+			pjob->param[7] = 1;
+			goto job_load_viewer;
+
+		case JOB_CHECK_WB_CACHE:
+			if (check_wb_cache(filebuf) == NULL) /* 終了したらNULLを返す */
+				pjob->now = 0;
+			break;
+
+		case JOB_WRITEBACK_CACHE:
+			sgg_execcmd0(0x0020, 0x80000000 + 6, 0x1245, 0x0140, 0x4243 /* to pokon0 */, 0x7f000002, SIGNAL_NO_WB_CACHE, 0, 0x0000);
+			break;
+
+		case JOB_INVALID_WB_CACHE:
+			sgg_execcmd0(0x0020, 0x80000000 + 6, 0x1245, 0x0144, 0x4243 /* to pokon0 */, 0x7f000002, SIGNAL_NO_WB_CACHE, 0, 0x0000);
+			break;
+
+		case JOB_FREE_MEMORY:
+			pjob->param[0] = readjob(); /* fileid */
+			pjob->param[1] = readjob(); /* size */
+			pjob->param[2] = readjob(); /* addr */
+			sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, pjob->param[0], pjob->param[1], pjob->param[2], 0x0000);
+			pjob->now = 0;
 		//	break;
 		}
 	} while (pjob->now == 0);
 	return;
 }
 
-void sgg_freememory2(const int size, const int addr)
+void sgg_freememory2(const int fileid, const int size, const int addr)
 {
-	sgg_execcmd0(0x0020, 0x80000000 + 4, 0x1243, 0x0134, size, addr, 0x0000);
+	if (size > 0) {
+		if (fileid == -1)
+			sgg_execcmd0(0x0020, 0x80000000 + 5, 0x1244, 0x0134, -1, size, addr, 0x0000);
+		else if (job.free >= 4) {
+			/* 空きが十分にある */
+			writejob2(JOB_FREE_MEMORY, fileid);
+			writejob2(size, addr);
+			*(job.wp) = 0; /* ストッパー */
+	//	} else {
+			/* どうすりゃいいんだ？ */
+		}
+	}
 	return;
 }
 
@@ -197,7 +247,7 @@ void list_set(struct FILESELWIN *win)
 
 	while (fp->name[0]) {
 		if ((fp->type & 0x18) == 0 
-			&& ((fp->name[8] | (fp->name[9] << 8) | (fp->name[10] << 16)) == ext || ext == -1)) {
+			&& (ext == ext_ALL || (fp->name[8] | (fp->name[9] << 8) | (fp->name[10] << 16)) == ext)) {
 			for (i = 0; i < 11; i++)
 				lp->name[i] = fp->name[i];
 			lp->ptr = fp;
@@ -290,23 +340,29 @@ void openselwin(struct FILESELWIN *win, const char *title, const char *subtitle)
 		{ 0x00a8 /* page-up, down */,      1,  SIGNAL_PAGE_UP },
 		{ 0x00ac /* cursor-left, right */, 1,  SIGNAL_PAGE_UP },
 		{ 0x00a6 /* Home, End */,          1,  SIGNAL_TOP_OF_LIST },
-		{ 0x00a4 /* Insert */,             0,  SIGNAL_DISK_CHANGED },
+		{ 0x007010a4 /* Insert */,         0,  SIGNAL_DISK_CHANGED },
+		{ 0x007010a5 /* Delete */,         0,  SIGNAL_START_WB },
+		{ 0x107010a4 /* Shift+Insert */,   0,  SIGNAL_FORCE_CHANGED },
+		{ 0x107010a5 /* Shift+Delete */,   0,  SIGNAL_CHECK_WB_CACHE },
 		{ SIGNAL_LETTER_START /* letters */,SIGNAL_LETTER_END - SIGNAL_LETTER_START,  SIGNAL_LETTER_START },
 		{ 0,                               0,  0 }
 	};
 	struct KEY_TABLE0 *pkt;
 	struct LIB_WINDOW *window;
+	char *ss;
 
 	window = win->window = lib_openwindow1(AUTO_MALLOC, win->winslot, 160, 40 + LIST_HEIGHT * 16, 0x28, win->sigbase + 120 /* +6 */);
 	win->wintitle = lib_opentextbox(0x1000, AUTO_MALLOC,  0, 10, 1,  0,  0, window, 0x00c0, 0);
 	win->subtitle = lib_opentextbox(0x0000, AUTO_MALLOC,  0, 20, 1,  0,  0, window, 0x00c0, 0);
 	win->selector = lib_opentextbox(0x0001, AUTO_MALLOC, 15, 16, 8, 16, 32, window, 0x00c0, 0);
 	lib_putstring_ASCII(0x0000, 0, 0, win->wintitle, 0, 0, title);
-	lib_putstring_ASCII(0x0000, 0, 0, win->subtitle, 0, 0, subtitle);
+	lib_putstring_ASCII(0x0000, 0, 0, win->subtitle, need_wb & 9, 0, subtitle);
 
 	for (pkt = table; pkt->code; pkt++)
 		lib_definesignal1p0(pkt->opt, 0x0100, pkt->code, window, win->sigbase + pkt->signum);
 	lib_definesignal0p0(0, 0, 0, 0);
+	ss = win->subtitle_str;
+	while (*ss++ = *subtitle++);
 	return;
 }
 
@@ -351,7 +407,7 @@ void selwinfin(int task, struct FILESELWIN *win, struct FILEBUF *fbuf, struct VI
 	int i;
 	if (win->mdlslot == -1) {
 		if (fbuf->linkcount == 0) {
-			sgg_freememory2(fbuf->size, fbuf->paddr);
+			sgg_freememory2(fbuf->dirslot, fbuf->size, fbuf->paddr);
 			fbuf->dirslot = -1;
 		}
 		return;
@@ -385,12 +441,29 @@ int searchfid(const unsigned char *s)
 	return 0;
 }
 
+struct FILEBUF *check_wb_cache(struct FILEBUF *fbuf)
+{
+	struct FILEBUF *fbuf0 = filebuf + MAX_FILEBUF;
+	while (fbuf != fbuf0) {
+		if (fbuf->dirslot != -1 && fbuf->size != 0) {
+			sgg_execcmd0(0x0020, 0x80000000 + 9, 0x1248,
+				0x013c, fbuf->dirslot, fbuf->size, fbuf->paddr,
+				0x4243 /* to pokon0 */, 0x7f000002, SIGNAL_CHECK_WB_CACHE_NEXT, fbuf + 1,
+				0x0000);
+			return fbuf;
+		}
+		fbuf++;
+	}
+	return NULL;
+}
+
 void main()
 {
 	struct FILESELWIN *win;
 	struct STR_JOBLIST *pjob = &job;
 	struct STR_CONSOLE *pcons = &console;
 	struct VIRTUAL_MODULE_REFERENCE *vmref;
+	struct STR_OPEN_ORDER *order;
 
 	int i, j, sig, *sb0, *sbp, tss, booting = 1, fmode = STATUS_RUN_APPLICATION;
 	int *subcmd, bootflags = 0;
@@ -412,6 +485,7 @@ void main()
 	vmref = (struct VIRTUAL_MODULE_REFERENCE *) malloc(MAX_VMREF * sizeof (struct VIRTUAL_MODULE_REFERENCE));
 	vmref0 = vmref;
 	subcmd = (int *) malloc(256 * sizeof (int));
+	order = (struct STR_OPEN_ORDER *) malloc(MAX_ORDER * sizeof (struct STR_OPEN_ORDER));
 
 	pjob->list = (int *) malloc(JOBLIST_SIZE * sizeof (int));
 	*(pjob->rp = pjob->wp = pjob->list) = 0; /* たまった仕事はない */
@@ -435,6 +509,9 @@ void main()
 
 	for (i = 0; i < MAX_VMREF; i++)
 		vmref[i].task = 0;
+
+	for (i = 0; i < MAX_ORDER; i++)
+		order[i].task = 0;
 
 	openselwin(&selwin[0], POKON_VERSION, "< Run Application > ");
 
@@ -511,7 +588,7 @@ void main()
 				bootflags |= 0x01;
 				if (bootflags == 0x03) {
 	bootflags_full:
-					win[0].ext = ext_BIN;
+					win[0].ext = ext_ALL;
 					list_set(&win[0]);
 					booting = 0;
 				}
@@ -542,8 +619,14 @@ void main()
 
 				for (fbuf = filebuf; fbuf->paddr != bank->addr; fbuf++);
 				if (--fbuf->linkcount == 0) {
-					sgg_freememory2(fbuf->size, fbuf->paddr);
+					sgg_freememory2(fbuf->dirslot, fbuf->size, fbuf->paddr);
 					fbuf->dirslot = -1;
+				}
+
+				for (i = 0; i < MAX_ORDER; i++) {
+					if (tss != order[i].task)
+						continue;
+					order[i].task = 0;
 				}
 
 		freefiles:
@@ -554,7 +637,7 @@ void main()
 					vmref[i].task = 0;
 					for (fbuf = filebuf; fbuf->paddr != j; fbuf++);
 						if (--fbuf->linkcount == 0) {
-						sgg_freememory2(fbuf->size, fbuf->paddr);
+						sgg_freememory2(fbuf->dirslot, fbuf->size, fbuf->paddr);
 						fbuf->dirslot = -1;
 					}
 				}
@@ -581,6 +664,33 @@ void main()
 				sbp += 2;
 				goto freefiles;
 
+			case SIGNAL_NEED_WB:
+				/* ファイルキャッシュはライトバックが必要 */
+				need_wb = -1;
+		no_wb_cache2:
+				gotsignal(2);
+				sbp += 2;
+				if (fmode == STATUS_RUN_APPLICATION) {
+					for (i = 0; i < MAX_SELECTOR; i++) {
+						if (win[i].window)
+							lib_putstring_ASCII(0x0000, 0, 0, win[i].subtitle, need_wb & 9, 0, win[i].subtitle_str);
+					}
+				}
+				break;
+
+			case SIGNAL_NO_WB_CACHE:
+				need_wb = 0;
+				pjob->now = 0;
+				goto no_wb_cache2;
+
+			case SIGNAL_CHECK_WB_CACHE_NEXT:
+				fbuf = (struct FILEBUF *) sbp[1];
+				gotsignal(2);
+				sbp += 2;
+				if (check_wb_cache(fbuf) == NULL) /* 終了したらNULLを返す */
+					pjob->now = 0;
+				break;
+
 			case SIGNAL_RELOAD_FAT_COMPLETE:
 				gotsignal(1);
 				sbp++;
@@ -602,12 +712,14 @@ void main()
 				gotsignal(3);
 				sbp += 3;
 				fbuf->linkcount = 0;
-				if ((bank->size = fbuf->size) != 0 && pjob->free >= 2) {
+				if ((bank->size = fbuf->size) != -1 && pjob->free >= 2 + 8) {
 					fbuf->linkcount = 1;
 					fbuf->dirslot = pjob->dirslot;
 					bank->addr = fbuf->paddr;
 					/* 空きが十分にある */
 					writejob2(JOB_CREATE_TASK, (int) bank);
+					for (i = 0; i < 8; i++)
+						writejob(pjob->param[i]);
 					*(pjob->wp) = 0; /* ストッパー */
 				}
 				pjob->now = 0;
@@ -623,12 +735,12 @@ void main()
 					for (fbuf = filebuf; fbuf->paddr != bank->addr; fbuf++);
 					bank->size = 0;
 					if (--fbuf->linkcount == 0) {
-						sgg_freememory2(fbuf->size, fbuf->paddr);
+						sgg_freememory2(fbuf->dirslot, fbuf->size, fbuf->paddr);
 						fbuf->dirslot = -1;
 					}
 				} else {
 					sgg_settasklocallevel(tss,
-						0 * 32 /* local level 1 (スリープレベル) */,
+						0 * 32 /* local level 0 (スリープレベル) */,
 						27 * 64 + 0x0100 /* global level 27 (スリープ) */,
 						-1 /* Inner level */
 					);
@@ -649,6 +761,17 @@ void main()
 					bank->Llv[2].global = 12;
 					bank->Llv[2].inner  = i;
 					sgg_runtask(tss, 1 * 32);
+					if (pjob->param[7]) {
+						/* tssとnumとfileidを登録する */
+						for (i = 0; order[i].task; i++);
+						order[i].task = tss;
+						order[i].num = pjob->param[0];
+						order[i].fileid = pjob->param[1];
+						if (pjob->param[2]) {
+							/* シグナルを送る */
+							sendsignal1dw(tss, pjob->param[4]);
+						}
+					}
 				}
 				pjob->now = 0;
 				break;
@@ -661,7 +784,7 @@ void main()
 				gotsignal(3);
 				sbp += 3;
 				fbuf->linkcount = 0;
-				if (fbuf->size) {
+				if (fbuf->size != -1) {
 					fbuf->dirslot = pjob->dirslot;
 					selwinfin(pjob->param[0], win, fbuf, vmref);
 				} else {
@@ -679,17 +802,17 @@ void main()
 				break;
 
 			case SIGNAL_LOAD_KERNEL_COMPLETE: /* ファイル読み込み完了(.EXE file load) */
-				pjob->param[0] = sbp[1]; /* .EXE size */
-				pjob->param[1] = sbp[2]; /* .EXE addr */
+				pjob->param[1] = sbp[1]; /* .EXE size */
+				pjob->param[2] = sbp[2]; /* .EXE addr */
 				gotsignal(3);
 				sbp += 3;
-				if (pjob->param[0] == 0) {
+				if (pjob->param[1] <= 0) {
 					pjob->now = 0;
 					break;
 				}
-				if ((i = searchfid("OSASKBS3.BIN")) == 0) {
+				if ((i = pjob->param[3] = searchfid("OSASKBS3.BIN")) == 0) {
 free_exe:
-					sgg_freememory2(pjob->param[0], pjob->param[1]);
+					sgg_freememory2(-1, pjob->param[1], pjob->param[2]);
 					pjob->now = 0;
 					break;
 				}
@@ -697,11 +820,11 @@ free_exe:
 				break;
 
 			case SIGNAL_LOAD_BOOT_SECTOR_CODE_COMPLETE: /* ファイル読み込み完了(.EXE file load) */
-				pjob->param[2] = sbp[1]; /* BootSector size */
-				pjob->param[3] = sbp[2]; /* BootSector addr */
+				pjob->param[4] = sbp[1]; /* BootSector size */
+				pjob->param[5] = sbp[2]; /* BootSector addr */
 				gotsignal(3);
 				sbp += 3;
-				if (pjob->param[2] == 0)
+				if (pjob->param[4] <= 0)
 					goto free_exe;
 				for (i = 0; i < LIST_HEIGHT; i++)
 					putselector0(win, i, "                ");
@@ -722,20 +845,20 @@ write_exe:
 				sgg_format2(0x0138 /* 1,440KBフォーマット用 圧縮 */,
 					//	0x011c /* 1,760KBフォーマット用 非圧縮 */
 					//	0x0128; /* 1,440KBフォーマット用 非圧縮 */
-					pjob->param[2], pjob->param[3], pjob->param[0], pjob->param[1],
+					pjob->param[4], pjob->param[5], pjob->param[1], pjob->param[2],
 					SIGNAL_WRITE_KERNEL_COMPLETE /* finish signal */); // store system image
 				break;
 
 			case SIGNAL_WRITE_KERNEL_COMPLETE: /* .EXE書き込み完了 */
 				gotsignal(1);
 				sbp++;
-				sgg_freememory2(pjob->param[0], pjob->param[1]);
-				sgg_freememory2(pjob->param[2], pjob->param[3]);
+				sgg_freememory2(-1, pjob->param[1], pjob->param[2]);
+				sgg_freememory2(-1, pjob->param[4], pjob->param[5]);
 				pjob->now = 0;
 				fmode = STATUS_WRITE_KERNEL_COMPLETE;
 				putselector0(win, 1, "   Completed.   ");
 				putselector0(win, 3, " Change disks.  ");
-				putselector0(win, 5, "  Hit 'R' key.  ");
+				putselector0(win, 5, " Hit Alt+R key. ");
 			//	break;
 			}
 		} else if (COMMAND_SIGNAL_START <= sig && sig < COMMAND_SIGNAL_END + 1) {
@@ -749,11 +872,11 @@ write_exe:
 				j = 0;
 				for (i = 1; i < MAX_SELECTOR; i++)
 					j |= win[i].task;
-				if (j != 0 || pcons->curx != -1)
+				if (j != 0 || pcons->curx != -1 || need_wb != 0)
 					break;
 				if (fmode == STATUS_LOAD_BOOT_SECTOR_CODE_COMPLETE) {
-					sgg_freememory2(pjob->param[0], pjob->param[1]);
-					sgg_freememory2(pjob->param[2], pjob->param[3]);
+					sgg_freememory2(-1, pjob->param[1], pjob->param[2]);
+					sgg_freememory2(-1, pjob->param[4], pjob->param[5]);
 					pjob->now = 0;
 				}
 				win[0].ext = ext_EXE;
@@ -776,12 +899,12 @@ write_exe:
 
 			case COMMAND_TO_RUN_MODE:
 				if (fmode == STATUS_LOAD_BOOT_SECTOR_CODE_COMPLETE) {
-					sgg_freememory2(pjob->param[0], pjob->param[1]);
-					sgg_freememory2(pjob->param[2], pjob->param[3]);
+					sgg_freememory2(-1, pjob->param[1], pjob->param[2]);
+					sgg_freememory2(-1, pjob->param[4], pjob->param[5]);
 					pjob->now = 0;
 				}
-				win[0].ext = ext_BIN;
-				lib_putstring_ASCII(0x0000, 0, 0, win[0].subtitle,     0, 0, "< Run Application > ");
+				win[0].ext = ext_ALL;
+				lib_putstring_ASCII(0x0000, 0, 0, win[0].subtitle, need_wb & 9, 0, "< Run Application > ");
 				if (fmode == STATUS_WRITE_KERNEL_COMPLETE) {
 				//	if (pjob->free >= 1) {
 						/* 空きが十分にある */
@@ -1047,8 +1170,10 @@ listup:
 						}
 						break;
 					}
-					if (win->ext == ext_BIN) {
-						/* .BINファイルモード */
+					if (win->ext == ext_ALL) {
+						/* ALLファイルモード */
+						const char *viewer;
+						int viewer_sig[4];
 						bank = banklist;
 						for (i = 0; i < MAX_BANK; i++) {
 							if (bank[i].size == 0)
@@ -1057,15 +1182,55 @@ listup:
 						break;
 		find_freebank:
 						bank += i;
-						for (i = 0; i < 11; i++)
-							bank->name[i] = lp[cur].name[i];
-						bank->name[11] = '\0';
+						i = lp[cur].name[8] | lp[cur].name[9] << 8 | lp[cur].name[10] << 16;
+						if (i == ('B' | 'I' << 8 | 'N' << 16)) {
+							for (i = 0; i < 11; i++)
+								bank->name[i] = lp[cur].name[i];
+							bank->name[11] = '\0';
+							if ((fbuf = searchfrefbuf()) == NULL)
+								break;
+							if (pjob->free >= 4) {
+								/* 空きが十分にある */
+								writejob2(JOB_LOAD_FILE_AND_EXECUTE, lp[cur].ptr->id);
+								writejob2((int) fbuf, (int) bank);
+								*(pjob->wp) = 0; /* ストッパー */
+								bank->size = -1;
+								fbuf->linkcount = -1;
+							}
+							break;
+						}
+						viewer_sig[0] = 0;
+						viewer_sig[3] = 0;
+						if (i == ('B' | 'M' << 8 | 'P' << 16)) {
+							viewer = "BMPV03  .BIN";
+							goto run_viewer;
+						}
+						if (i == ('T' | 'X' << 8 | 'T' << 16)) {
+							viewer = "TVIEWC05.BIN";
+							viewer_sig[0] = 2;
+							viewer_sig[1] = 0x7f000001;
+							viewer_sig[2] = 42;
+							goto run_viewer;
+						}
+						/* BEDITC00 */
+						viewer = "BEDITC00.BIN";
+		run_viewer:
+						for (i = 0; i < 8; i++)
+							bank->name[i] = viewer[i];
+						for (i = 0; i < 4; i++)
+						bank->name[8 + i] = viewer[9 + i];
+					//	bank->name[11] = '\0';
+						if ((i = searchfid(viewer)) == NULL)
+							break;
 						if ((fbuf = searchfrefbuf()) == NULL)
 							break;
-						if (pjob->free >= 4) {
+						if (pjob->free >= 10) {
 							/* 空きが十分にある */
-							writejob2(JOB_LOAD_FILE_AND_EXECUTE, lp[cur].ptr->id);
+							writejob2(JOB_VIEW_FILE, i);
 							writejob2((int) fbuf, (int) bank);
+							writejob2(1 /* num */, lp[cur].ptr->id); /* 待機するやつ */
+							writejob2(viewer_sig[0], viewer_sig[1]); /* シグナルボックスに溜め込むやつ */
+							writejob2(viewer_sig[2], viewer_sig[3]);
 							*(pjob->wp) = 0; /* ストッパー */
 							bank->size = -1;
 							fbuf->linkcount = -1;
@@ -1133,13 +1298,42 @@ listup:
 					goto listup;
 
 				case SIGNAL_DISK_CHANGED:
-					if (pjob->free >= 1) {
+					/* Insert */
+					if (pjob->free >= 2) {
 						/* 空きが十分にある */
+						writejob2(JOB_CHECK_WB_CACHE, JOB_INVALID_DISKCACHE);
+						*(pjob->wp) = 0; /* ストッパー */
+					}
+					break;
+
+				case SIGNAL_START_WB:
+					/* Delete */
+					if (pjob->free >= 2) {
+						/* 空きが十分にある */
+						writejob2(JOB_CHECK_WB_CACHE, JOB_WRITEBACK_CACHE);
+						*(pjob->wp) = 0; /* ストッパー */
+					}
+					break;
+
+				case SIGNAL_FORCE_CHANGED:
+					/* Shift+Insert */
+					if (pjob->free >= 3) {
+						/* 空きが十分にある */
+						writejob2(JOB_CHECK_WB_CACHE, JOB_INVALID_WB_CACHE);
 						writejob(JOB_INVALID_DISKCACHE);
 						*(pjob->wp) = 0; /* ストッパー */
 					}
 					break;
-					
+
+				case SIGNAL_CHECK_WB_CACHE:
+					/* Shift+Delete */
+					if (pjob->free >= 1) {
+						/* 空きが十分にある */
+						writejob(JOB_CHECK_WB_CACHE);
+						*(pjob->wp) = 0; /* ストッパー */
+					}
+					break;
+
 				case SIGNAL_WINDOW_CLOSE0 /* close window */:
 					if (i == 0)
 						continue;
@@ -1228,11 +1422,18 @@ listup:
 				win->siglen = subcmd[3];
 				win->sig[0] = subcmd[4];
 				win->sig[1] = subcmd[5];
+				for (i = 0; i < MAX_ORDER; i++) {
+					if (order[i].task == win->task && order[i].num == win->num) {
+						order[i].task = 0;
+						i = order[i].fileid;
+						goto open_redirect;
+					}
+				}
 				for (bank = banklist; bank->size == 0 || bank->tss != win->task; bank++);
-				for (j = 0; j < 8; j++)
-					t[j + 6] = bank->name[j];
+				for (i = 0; i < 8; i++)
+					t[i + 6] = bank->name[i];
 				openselwin(win, "(open)", t);
-				win->ext = -1;
+				win->ext = ext_ALL;
 				list_set(win);
 				continue;
 			}
@@ -1244,6 +1445,7 @@ listup:
 				if ((i = searchfid((unsigned char *) &subcmd[2])) == 0)
 					goto error_sig;
 				/* 見付かった */
+open_redirect:
 				if (fbuf = searchfbuf(i)) {
 					selwinfin(win->task, win, fbuf, vmref);
 					win->task = 0;
