@@ -1,6 +1,6 @@
-// "pokon0.c":アプリケーションラウンチャー  ver.0.8
-//   copyright(C) 2000 川合秀実, 小柳雅明
-//  exe2bin0 pokon0 -s 20k
+// "pokon0.c":アプリケーションラウンチャー  ver.1.0
+//   copyright(C) 2001 川合秀実, 小柳雅明
+//  exe2bin0 pokon0 -s 32k
 
 #include <guigui00.h>
 #include <sysgg00.h>
@@ -8,10 +8,14 @@
 // 仕様もかなり流動的
 #include <stdlib.h>
 
-#define	AUTO_MALLOC	0
-#define LIST_HEIGHT	8
-#define ext_EXE		('E' | ('X' << 8) | ('E' << 16))
-#define ext_BIN		('B' | ('I' << 8) | ('N' << 16))
+#define	AUTO_MALLOC		0
+#define	NULL			0
+#define	SYSTEM_TIMER	0x01c0
+#define LIST_HEIGHT		8
+#define ext_EXE			('E' | ('X' << 8) | ('E' << 16))
+#define ext_BIN			('B' | ('I' << 8) | ('N' << 16))
+#define	CONSOLESIZEX	40
+#define	CONSOLESIZEY	15
 
 struct FILELIST {
 	char name[11];
@@ -21,8 +25,66 @@ struct FILELIST {
 unsigned int counter = 0, banklist[8];
 struct SGG_FILELIST *file;
 struct FILELIST *list, *lp;
+struct LIB_TEXTBOX *selector, *console_txt;
+struct LIB_WINDOW *console_win = NULL;
+static unsigned char *consolebuf = NULL;
+static int console_curx, console_cury, console_col;
+void consoleout(char *s);
+void open_console();
 
-struct LIB_TEXTBOX *selector;
+struct LIB_WINDOW *lib_openwindow2(struct LIB_WINDOW *window, const int slot,
+	const int x_size, const int y_size, const int flags, const int base)
+{
+	static struct {
+		int cmd;
+		struct LIB_WINDOW *work_ptr;
+		int slot;
+		int x_size, y_size;
+		char signal_length /* 1にする */, signal_flags, dummy[2];
+		int signal_base;
+		int eoc;
+	} command = { 0x0020, 0, 0, 0, 0, 1, 0, { 0, 0 }, 0, 0x0000 };
+
+	if (window)
+		command.work_ptr = window;
+	else
+		command.work_ptr = (struct LIB_WINDOW *) malloc(sizeof (struct LIB_WINDOW));
+	command.slot = slot | 0x01;
+	command.x_size = x_size;
+	command.y_size = y_size;
+	command.signal_flags = flags;
+	command.signal_base = base;
+	lib_execcmd(&command);
+	return command.work_ptr;
+}
+
+void lib_closewindow(const int opt, struct LIB_WINDOW *window)
+{
+	static struct {
+		int cmd, opt;
+		struct LIB_WINDOW *window;
+		int eoc;
+	} command = { 0x0024, 0, 0, 0x0000 };
+
+	command.opt = opt;
+	command.window = window;
+	lib_execcmd(&command);
+	return;
+}
+
+void lib_controlwindow(const int opt, struct LIB_WINDOW *window)
+{
+	static struct {
+		int cmd, opt;
+		struct LIB_WINDOW *window;
+		int eoc;
+	} command = { 0x003c, 0, 0, 0x0000 };
+
+	command.opt = opt;
+	command.window = window;
+	lib_execcmd(&command);
+	return;
+}
 
 void put_file(const char *name, const int pos, const int col)
 {
@@ -111,12 +173,14 @@ const int list_set(const int ext)
 }
 
 int *sb0, *sbp;
+char sleep = 0, cursorflag = 0, cursoractive = 0;
 
 void wait99sub()
 {
-	if (*sbp == 0)
+	if (*sbp == 0) {
+		sleep = 1;
 		lib_waitsignal(0x0001, 0, 0);
-	else if (*sbp == 1) {
+	} else if (*sbp == 1) {
 		lib_waitsignal(0x0000, *(sbp + 1), 0);
 		sbp = sb0;
 	} else if (*sbp == 0x0080) {
@@ -143,6 +207,14 @@ void wait99()
 	return;
 }
 
+void putcursor()
+{
+	sleep = 0;
+	lib_putstring_ASCII(0x0001, console_curx, console_cury,
+		console_txt, 0, ((console_col & cursorflag) | ((console_col >> 4) & ~cursorflag)) & 0x0f, " ");
+	return;
+}
+
 void main()
 {
 	struct LIB_WINDOW *window;
@@ -152,7 +224,7 @@ void main()
 	struct SGG_FILELIST *fp;
 
 	lib_init(AUTO_MALLOC);
-        sgg_init(AUTO_MALLOC);
+	sgg_init(AUTO_MALLOC);
 
 	sbp = sb0 = lib_opensignalbox(256, AUTO_MALLOC, 0, 1);
 
@@ -164,7 +236,9 @@ void main()
 	mode     = lib_opentextbox(0x0000, AUTO_MALLOC,  0, 20, 1,  0,  0, window, 0x00c0, 0); // 256bytes
 	selector = lib_opentextbox(0x0001, AUTO_MALLOC, 15, 16, 8, 16, 32, window, 0x00c0, 0); // 1.1KB
 
-	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon08");
+	lib_putstring_ASCII(0x0000, 0, 0, wintitle, 0, 0, "pokon10");
+	lib_opentimer(SYSTEM_TIMER);
+	lib_definesignal1p0(0, 0x0010 /* timer */, SYSTEM_TIMER, 0, 287);
 
 	// キー操作を登録
 	lib_definesignal1p0(1, 0x0100, 0x00ae /* cursor-up */,   window,  4);
@@ -183,6 +257,10 @@ void main()
 	lib_definesignal1p0(1, 0x0100, 0x00a6 /* Home */,        window, 12);
 //	lib_definesignal1p0(0, 0x0100, 0x00a7 /* End */,         window, 13);
 	lib_definesignal1p0(0, 0x0100, 0x00a4 /* Insert */,      window, 14);
+	lib_definesignal1p0(0, 0x0100, 'C',                      window, 15);
+	lib_definesignal1p0(0, 0x0100, 'c',                      window, 15);
+	lib_definesignal1p0(0, 0x0100, 'M',                      window, 16);
+	lib_definesignal1p0(0, 0x0100, 'm',                      window, 16);
 	lib_definesignal0p0(0, 0, 0, 0);
 
 	lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Run Application > ");
@@ -256,6 +334,10 @@ find_freebank:
 					99 /* finish signal */
 				);
 				wait99(); // finish signalが来るまで待つ
+				i = *sbp++;
+				lib_waitsignal(0x0000, 1, 0);
+				if (i)
+					break; /* switch文から抜ける */
 
 				sgg_createtask(0x0220 /* "empty00" */ + bank * 16, 99 /* finish signal */);
 				wait99(); // finish signalが来るまで待つ
@@ -287,6 +369,10 @@ find_freebank:
 					99 /* finish signal */
 				);
 				wait99(); // finish signalが来るまで待つ
+				i = *sbp++;
+				lib_waitsignal(0x0000, 1, 0);
+				if (i)
+					break; /* メモリ不足でロードに失敗。switch文から抜ける */
 
 				i = ('K' | ('B' << 8) | ('S' << 16) | ('1' << 24));
 				if (fmode)
@@ -303,16 +389,15 @@ find_freebank:
 						break;
 					}
 				}
-				if (fp->name[0]) {
-					sgg_loadfile(0x0230 /* load to "empty01" */,
-						i /* file id */,
-						99 /* finish signal */
-					);
-				} else {
-					// "OSASKBS0.BIN"が見つからなかった
-					break;
-				}
+				if (fp->name[0] == 0)
+					break; /* "OSASKBS0.BIN"、"OSASKBS0.BIN"が見つからなかった */
+				sgg_loadfile(0x0230 /* load to "empty01" */,
+					i /* file id */, 99 /* finish signal */);
 				wait99(); // finish signalが来るまで待つ
+				i = *sbp++;
+				lib_waitsignal(0x0000, 1, 0);
+				if (i)
+					break; /* メモリ不足でロードに失敗。switch文から抜ける */
 
 				for (i = 0; i < LIST_HEIGHT; i++)
 					lib_putstring_ASCII(0x0000, 0, i, selector, 0, 0, "                ");
@@ -449,10 +534,219 @@ find_freebank:
 			cur = list_set(ext);
 			break;
 
+		case 15 /* open console */:
+			if (console_win == NULL)
+				open_console();
+			break;
+
+		case 16 /* open monitor */:
+			break;
+
+		// console関係
+
+		case 256 + 0 /* VRAMアクセス許可 */:
+			break;
+
+		case 256 + 1 /* VRAMアクセス禁止 */:
+			lib_controlwindow(0x0100, console_win);
+			break;
+
+		case 256 + 2:
+		case 256 + 3:
+			/* 再描画 */
+			lib_controlwindow(0x0203, console_win);
+			break;
+
+		case 256 + 5 /* change console title color */:
+			if (*sbp++ & 0x02) {
+				if (!cursoractive) {
+					lib_settimer(0x0001, SYSTEM_TIMER);
+					cursoractive = 1;
+					cursorflag = ~0;
+					putcursor();
+					lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+				}
+			} else {
+				if (cursoractive) {
+					cursoractive = 0;
+					cursorflag = 0;
+					putcursor();
+					lib_settimer(0x0001, SYSTEM_TIMER);
+				}
+			}
+			lib_waitsignal(0x0000, 1, 0);
+			break;
+
+		case 256 + 6 /* close console window */:
+			lib_closewindow(0, console_win);
+			console_win = NULL;
+			if (cursoractive) {
+				cursoractive = 0;
+				lib_settimer(0x0001, SYSTEM_TIMER);
+			}
+			break;
+
+		case 287 /* cursor blink */:
+			if (sleep == 1 && cursoractive != 0) {
+				cursorflag =~ cursorflag;
+				putcursor();
+				lib_settimertime(0x0012, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+			}
+			break;
+
+		default:
+			if (256 + ' ' <= sig && sig <= 256 + 0x7f) {
+				/* consoleへの1文字入力 */
+				if (console_win != NULL) {
+					if (console_curx < CONSOLESIZEX - 1) {
+						static char c[2] = { 0, 0 };
+						c[0] = sig - 256;
+						consoleout(c);
+					}
+					if (cursoractive) {
+						lib_settimer(0x0001, SYSTEM_TIMER);
+						cursorflag = ~0;
+						putcursor();
+						lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+					}
+				}
+			} else if (sig == 256 + 0xa0) {
+				/* consoleへのEnter入力 */
+				if (console_win != NULL) {
+					if (cursorflag != 0 && cursoractive != 0) {
+						cursorflag = 0;
+						putcursor();
+					}
+					{
+						char *p = consolebuf + console_cury * (CONSOLESIZEX + 2) + 5;
+						while (*p == ' ')
+							p++;
+						if (*p)
+							consoleout("\nBad command.\n");
+					}
+					consoleout("\npoko>");
+					if (cursoractive) {
+						lib_settimer(0x0001, SYSTEM_TIMER);
+						cursorflag = ~0;
+						putcursor();
+						lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+					}
+				}
+			} else if (sig == 256 + 0xa1) {
+				/* consoleへのBackSpace入力 */
+				if (console_win != NULL) {
+					if (cursorflag != 0 && cursoractive != 0) {
+						cursorflag = 0;
+						putcursor();
+					}
+					if (console_curx > 5) {
+						console_curx--;
+						consoleout(" ");
+						console_curx--;
+					}
+					if (cursoractive) {
+						lib_settimer(0x0001, SYSTEM_TIMER);
+						cursorflag = ~0;
+						putcursor();
+						lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+					}
+				}
+			}
+		//	break;
+
 //		case 99:
 //			lib_putstring_ASCII(0x0000, 0, 0, mode,     0, 0, "< Error 99        > ");
-//			sbp++;
 //			break;
 		}
 	}
+}
+
+void open_monitor()
+/*	モニターをオープンする */
+{
+
+
+
+}
+
+void consoleout(char *s)
+{
+	char buf[CONSOLESIZEX + 1], *bp = buf,
+		*cbp = consolebuf + console_cury * (CONSOLESIZEX + 2) + console_curx;
+	int curx = console_curx;
+	while (*s) {
+		if (*s == '\n') {
+			s++;
+			*bp = '\0';
+			lib_putstring_ASCII(0x0001, console_curx, console_cury,
+				console_txt, console_col & 0x0f, (console_col >> 4) & 0x0f, buf);
+			console_cury++;
+			console_curx = curx = 0;
+			if (console_cury == CONSOLESIZEY) {
+				/* スクロールする */
+				int i, j;
+				bp = consolebuf;
+				for (j = 0; j < CONSOLESIZEY; j++) {
+					for (i = 0; i < CONSOLESIZEX + 2; i++)
+						bp[i] = bp[i + (CONSOLESIZEX + 2)];
+					lib_putstring_ASCII(0x0001, 0, j, console_txt,
+						bp[CONSOLESIZEX + 1] & 0x0f, (bp[CONSOLESIZEX + 1] >> 4) & 0x0f, bp);
+					bp += CONSOLESIZEX + 2;
+				}
+				console_cury = CONSOLESIZEY - 1;
+			}
+			bp = buf;
+			cbp = consolebuf + console_cury * (CONSOLESIZEX + 2);
+		} else {
+			*cbp++ = *bp++ = *s++;
+			consolebuf[console_cury * (CONSOLESIZEX + 2) + (CONSOLESIZEX + 1)] = console_col;
+			curx++;
+		}
+	}
+	if (bp != buf) {
+		*bp = '\0';
+		lib_putstring_ASCII(0x0001, console_curx, console_cury,
+			console_txt, console_col & 0x0f, (console_col >> 4) & 0x0f, buf);
+		console_curx = curx;
+	}
+	return;
+}
+
+void open_console()
+/*	コンソールをオープンする */
+/*	カーソル点滅のために、setmodeも拾う */
+/*	カーソル点滅のためのタイマーをイネーブルにする */
+{
+	struct LIB_TEXTBOX *console_tit;
+	int i, j;
+	char *bp;
+	console_win = lib_openwindow2(AUTO_MALLOC, 0x0210, CONSOLESIZEX * 8, CONSOLESIZEY * 16, 0x0d, 256);
+	console_tit = lib_opentextbox(0x1000, AUTO_MALLOC,  0, 16,  1,  0,  0, console_win, 0x00c0, 0);
+	console_txt = lib_opentextbox(0x0001, AUTO_MALLOC,  0, CONSOLESIZEX, CONSOLESIZEY,  0,  0, console_win, 0x00c0, 0); // 5KB
+	lib_putstring_ASCII(0x0000, 0, 0, console_tit, 0, 0, "pokon10 console");
+	if (consolebuf == NULL)
+		consolebuf = (char *) malloc((CONSOLESIZEX + 2) * (CONSOLESIZEY + 1));
+	bp = consolebuf;
+	for (j = 0; j < CONSOLESIZEY + 1; j++) {
+		for (i = 0; i < CONSOLESIZEX; i++) {
+			*bp++ = ' ';
+		}
+		bp[0] = '\0';
+		bp[1] = 0;
+		bp += 2;
+	}
+	lib_definesignal1p0(0x5f, 0x0100, ' ',              console_win, 256 + ' ');
+	lib_definesignal1p0(1,    0x0100, 0xa0 /* Enter */, console_win, 256 + 0xa0);
+	lib_definesignal0p0(0, 0, 0, 0);
+	console_curx = console_cury = 0;
+	console_col = 15;
+	consoleout("Heppoko-shell \"poko\" version 1.7\n    Copyright (C) 2001 H.Kawai(Kawaido)\n");
+	consoleout("\npoko>");
+	if (cursoractive) {
+		lib_settimer(0x0001, SYSTEM_TIMER);
+		cursorflag = ~0;
+		putcursor();
+		lib_settimertime(0x0032, SYSTEM_TIMER, 0x80000000 /* 500ms */, 0, 0);
+	}
+	return;
 }

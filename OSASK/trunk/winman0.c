@@ -1,11 +1,13 @@
-// "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.6
-//		copyright(C) 2001 川合秀実
-//  exe2bin0 winman0 -s 24k
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.0.7
+		copyright(C) 2001 川合秀実
+	exe2bin0 winman0 -s 32k	*/
+
+/* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
 #include <guigui00.h>
 #include <sysgg00.h>
-// sysggは、一般のアプリが利用してはいけないライブラリ
-// 仕様もかなり流動的
+/* sysggは、一般のアプリが利用してはいけないライブラリ
+   仕様もかなり流動的 */
 #include <stdlib.h>
 
 #define	AUTO_MALLOC			  0
@@ -13,6 +15,13 @@
 #define	MAX_WINDOWS			 16		// 16KB
 #define JOBLIST_SIZE		256		// 1KB
 #define	MAX_SOUNDTRACK		 16		// 0.5KB
+
+#define WINFLG_MUSTREDRAW		0x80000000	/* bit31 */
+#define WINFLG_OVERRIDEDISABLED	0x01000000	/* bit24 */
+#define	WINFLG_WAITREDRAW		0x00000200	/* bit 9 */
+#define	WINFLG_WAITDISABLE		0x00000100	/* bit 8 */
+
+#define	DEBUG	1
 
 struct DEFINESIGNAL {
 	int opt, res, dev, cod, len, sig[3];
@@ -59,7 +68,6 @@ void job_movewin4(int sig);
 void job_movewin4m(int x, int y);
 void job_closewin0(struct WM0_WINDOW *win0);
 void job_closewin1(const int cmd, const int handle);
-void job_general0(const int cmd, const int handle);
 void job_general1();
 void job_general2(const int cmd, const int handle);
 void job_openvgadriver(const int drv);
@@ -87,8 +95,20 @@ void main()
 	int *signal, *signal0, i, j;
 	struct WM0_WINDOW *win;
 
+	#if (defined(TOWNS))
+		static int TOWNS_mouseinit[] = {
+			0x0064, 17 * 4, 0x0030 /* SetMouseParam */, 0x020d,
+			20 /* サンプリングレート 20ミリ秒 */,
+			0x08c8, 0x0060, /* TAPIのシグナル処理ベクタ */
+			0x3245, 0x7f000004, 0x73756f6d, 0,
+			0x000d0019 /* wait0=25, wait1=13 */, 0x0f3f0f0f /* strobe */,
+			0x00000000, 0x000000, 0x0f0f0f3f, 0x00000030,
+			0 /* eoc */
+		};
+	#endif
+
 	lib_init(AUTO_MALLOC);
-        sgg_init(AUTO_MALLOC);
+	sgg_init(AUTO_MALLOC);
 
 	signal = signal0 = lib_opensignalbox(256 * 4, AUTO_MALLOC, 0, 4); // 1KB
 
@@ -105,6 +125,10 @@ void main()
 	joblist = (int *) malloc(JOBLIST_SIZE * sizeof (int));
 	*(jobrp = jobwp = joblist) = 0; // たまった仕事はない
 	jobfree = JOBLIST_SIZE - 1;
+
+	#if (defined(TOWNS))
+		sgg_execcmd(&TOWNS_mouseinit);
+	#endif
 
 	for (;;) {
 		switch (signal[0]) {
@@ -359,10 +383,23 @@ void main()
 			break;
 
 		case 0x73756f6d /* from mouse */:
-			mousesignal(signal[1], (signed short) (signal[2] & 0xffff), (signed short) (signal[2] >> 16));
-			signal += 3;
-			lib_waitsignal(0x0000, 3, 0);
-			break;
+			#if (defined(TOWNS))
+				if (mx != 0x80000000) {
+					mousesignal(((signal[3] >> 4) & 0x03) ^ 0x03,
+						- (signed char) (((signal[3] >> 20) & 0xf0) | ((signal[3] >> 16) & 0x0f)),
+						- (signed char) (((signal[3] >>  4) & 0xf0) | ( signal[3]        & 0x0f)));
+				}
+				signal += 4;
+				lib_waitsignal(0x0000, 4, 0);
+				break;
+			#endif
+			#if (defined(PCAT))
+				if (mx != 0x80000000)
+					mousesignal(signal[1], (signed short) (signal[2] & 0xffff), (signed short) (signal[2] >> 16));
+				signal += 3;
+				lib_waitsignal(0x0000, 3, 0);
+				break;
+			#endif
 
 		default:
 		mikannsei:
@@ -681,7 +718,7 @@ void job_openwin0(struct WM0_WINDOW *win)
 	// 各種パラメーターの初期化
 	win->x1 = win->x0 + xsize;
 	win->y1 = win->y0 + ysize;
-	win->job_flag0 = 0x81000000; // override-disable & must-redraw
+	win->job_flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disable & must-redraw
 
 	// 入力アクティブを変更
 	redirect_input(win); // この関数は、ウィンドウ制御はしない
@@ -753,7 +790,7 @@ void job_activewin0(struct WM0_WINDOW *win)
 	top = win;
 
 	// 入力アクティブを変更
-	redirect_input(win); // この関数は、ウィンドウ制御はしない
+	redirect_input(win); /* この関数は、ウィンドウ制御はしない */
 	iactive = win;
 
 	job_general1();
@@ -856,14 +893,27 @@ void job_movewin4(int sig)
 	int xsize = win0->x1 - win0->x0;
 	int ysize = win0->y1 - win0->y0;
 
-	if (sig == 0x00d0 && x0 >= 8)
-		x0 -= 8;
-	if (sig == 0x00d1 && x0 + xsize <= x2 - 8)
-		x0 += 8;
-	if (sig == 0x00d2 && y0 >= 8)
-		y0 -= 8;
-	if (sig == 0x00d3 && y0 + ysize <= y2 - 36)
-		y0 += 8;
+	#if (defined(TOWNS))
+		if (sig == 0x00d0 && x0 >= 4)
+			x0 -= 4;
+		if (sig == 0x00d1 && x0 + xsize <= x2 - 4)
+			x0 += 4;
+		if (sig == 0x00d2 && y0 >= 4)
+			y0 -= 4;
+		if (sig == 0x00d3 && y0 + ysize <= y2 - 32)
+			y0 += 4;
+	#endif
+	#if (defined(PCAT))
+		if (sig == 0x00d0 && x0 >= 8)
+			x0 -= 8;
+		if (sig == 0x00d1 && x0 + xsize <= x2 - 8)
+			x0 += 8;
+		if (sig == 0x00d2 && y0 >= 8)
+			y0 -= 8;
+		if (sig == 0x00d3 && y0 + ysize <= y2 - 36)
+			y0 += 8;
+	#endif
+
 	if ((x0 - job_movewin_x) | (y0 - job_movewin_y)) {
 		if (press_pos == NO_PRESS || press_pos == TITLE_BAR) {
 			mx += x0 - job_movewin_x;
@@ -881,12 +931,12 @@ void job_movewin4(int sig)
 		press_mx0 = -1;
 		job_movewin3();
 		struct WM0_WINDOW *win1;
-		win0->job_flag0 = 0x81000000; // override-disabled & must-redraw
+		win0->job_flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
 		win1 = win0 /* top */->down;
 		do {
-			int flag0 = 0x01000000; // override-disabled
+			int flag0 = WINFLG_OVERRIDEDISABLED; // override-disabled
 			if (overrapwin(win0, win1))
-				flag0 = 0x81000000; // override-disabled & must-redraw
+				flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED; // override-disabled & must-redraw
 			win1->job_flag0 = flag0;
 		} while ((win1 = win1->down) != win0);
 
@@ -908,10 +958,18 @@ void job_movewin4m(int x, int y)
 {
 	struct WM0_WINDOW *win0 = job_win;
 
-	int x0 = job_movewin_x0 + (x - press_mx0) & ~7;
-	int y0 = job_movewin_y0 + y - press_my0;
-	int xsize = win0->x1 - win0->x0;
-	int ysize = win0->y1 - win0->y0;
+	#if (defined(TOWNS))
+		int x0 = job_movewin_x0 + (x - press_mx0) & ~3;
+		int y0 = job_movewin_y0 + y - press_my0;
+		int xsize = win0->x1 - win0->x0;
+		int ysize = win0->y1 - win0->y0;
+	#endif
+	#if (defined(PCAT))
+		int x0 = job_movewin_x0 + (x - press_mx0) & ~7;
+		int y0 = job_movewin_y0 + y - press_my0;
+		int xsize = win0->x1 - win0->x0;
+		int ysize = win0->y1 - win0->y0;
+	#endif
 
 	if (x0 < 0)
 		x0 = 0;
@@ -935,11 +993,13 @@ void job_closewin0(struct WM0_WINDOW *win0)
 {
 	struct WM0_WINDOW *win1, *win_up, *win_down;
 
-	// winをリストから切り離す
+	/* winをリストから切り離す */
 	win_up = win0->up;
 	win_down = win0->down;
 	win_up->down = win_down;
 	win_down->up = win_up;	
+
+	// sgg_wm0s_windowclosed(&win0->sgg);
 
 	job_count = 0;
 	jobfunc = &job_closewin1;
@@ -960,16 +1020,19 @@ void job_closewin0(struct WM0_WINDOW *win0)
 	do {
 		int flag0 = 0;
 		if (overrapwin(win0, win1)) {
-			flag0 = 0x81000000;
-			job_count++;
-			sgg_wm0s_accessdisable(&win1->sgg);
+			flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED;
+			if (win1->condition & 0x01) {
+				sgg_wm0s_accessdisable(&win1->sgg);
+				job_count++;
+				flag0 = WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED | WINFLG_WAITDISABLE;
+			}
 		}
 		win1->job_flag0 = flag0;
 	} while ((win1 = win1->down) != top);
 
 no_window:
 
-	// ウィンドウを消す
+	/* ウィンドウを消す */
 	lib_drawline(0x0020, -1, 6, win0->x0, win0->y0, win0->x1 - 1, win0->y1 - 1);
 	chain_unuse(win0);
 	if (job_count == 0)
@@ -979,7 +1042,9 @@ no_window:
 
 void job_closewin1(const int cmd, const int handle)
 {
-	if (cmd != 0x00c0) {
+	struct WM0_WINDOW *win = handle2window(handle);
+
+	if (cmd != 0x00c0 || (win->job_flag0 & WINFLG_WAITDISABLE) == 0) {
 		#if (defined(DEBUG))
 			unsigned char s[12];
 			s[8] = '\0';
@@ -988,9 +1053,10 @@ void job_closewin1(const int cmd, const int handle)
 		#endif
 		return;
 	}
-	if (--job_count)
-		return;
-	job_general1();
+	win->job_flag0 &= ~WINFLG_WAITDISABLE;
+	job_count--;
+	if (job_count == 0)
+		job_general1();
 	return;
 }
 
@@ -1002,16 +1068,6 @@ void job_closewin1(const int cmd, const int handle)
 // ウィンドウ移動の場合、移動元と重なっているものを全て"must-redraw"にしたあと
 // もといた場所を消し、あとは自動に任せる
 
-/*
-void job_general0(const int cmd, const int handle)
-{
-	jobfunc = &job_general0;
-	if (--job_count)
-		return;
-	job_general1();
-	return;
-}
-*/
 
 void job_general1()
 // condition.bit 0 ... 0:accessdisable 1:accessenable
@@ -1040,7 +1096,7 @@ void job_general1()
 		flag0 |=  0x01; // accessenable
 		flag0 &= ~0x0302; // not-input-active & no-waiting
 		if ((win0->condition & 0x01) == 0)
-			flag0 |= 0x01000000; // override-disabled
+			flag0 |= WINFLG_OVERRIDEDISABLED; // override-disabled
 		win0->job_flag0 = flag0;
 	} while ((win0 = win0->down) != top_);
 
@@ -1063,13 +1119,14 @@ void job_general1()
 	win0 = bottom = top_->up; // 一番上の上は、一番下
 	do {
 		flag0 = win0->job_flag0;
-		if (win0->condition != (flag0 & 0x03) || (flag0 & 0x01000001) == 0x01000001)
-			win0->job_flag0 = (flag0 |= 0x80000000);
-		if (flag0 & 0x80000000) {
+		if (win0->condition != (flag0 & 0x03) ||
+			(flag0 & (WINFLG_OVERRIDEDISABLED | 0x01) == (WINFLG_OVERRIDEDISABLED | 0x01)))
+			win0->job_flag0 = (flag0 |= WINFLG_MUSTREDRAW);
+		if (flag0 & WINFLG_MUSTREDRAW) {
 			for (win1 = win0->up; win1 != bottom; win1 = win1->up) {
-				if ((win1->job_flag0 & 0x80000000) == 0) { // このif文がなくても実行結果は変わらないが、高速化のため
+				if ((win1->job_flag0 & WINFLG_MUSTREDRAW) == 0) { /* このif文がなくても実行結果は変わらないが、高速化のため */
 					if (overrapwin(win0, win1))
-						win1->job_flag0 |= 0x80000000; // must-redraw
+						win1->job_flag0 |= WINFLG_MUSTREDRAW; // must-redraw
 				}
 			}
 		}
@@ -1081,16 +1138,18 @@ void job_general1()
 	jobfunc = &job_general2;
 	win0 = top_;
 	do {
-		if ((win0->job_flag0 & 0x81000000) == 0x80000000) {
+		if (win0->job_flag0 & WINFLG_MUSTREDRAW) {
 			for (win1 = win0->down; win1 != win0; win1 = win1->down) {
-				if (win1->job_flag0 & 0x80000000) {
+				if (win1->job_flag0 & WINFLG_MUSTREDRAW) {
 					if (overrapwin(win0, win1)) {
-						sgg_wm0s_accessdisable(&win0->sgg);
-						win0->job_flag0 |= 0x01000100;
-						job_count++;
-						if ((win1->job_flag0 & 0x81000000) == 0x80000000) {
+						if ((win0->job_flag0 & WINFLG_OVERRIDEDISABLED) == 0) {
+							sgg_wm0s_accessdisable(&win0->sgg);
+							win0->job_flag0 |= WINFLG_OVERRIDEDISABLED | WINFLG_WAITDISABLE;
+							job_count++;
+						}
+						if ((win1->job_flag0 & (WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED)) == WINFLG_MUSTREDRAW) {
 							sgg_wm0s_accessdisable(&win1->sgg);
-							win1->job_flag0 |= 0x01000100;
+							win1->job_flag0 |= WINFLG_OVERRIDEDISABLED | WINFLG_WAITDISABLE;
 							job_count++;
 						}
 					}
@@ -1112,8 +1171,8 @@ void job_general2(const int cmd, const int handle)
 	if (cmd != 0 || handle != 0) {
 		win = handle2window(handle);
 		if (cmd == 0x00c0 /* 更新停止受理シグナル */) {
-			if (win->job_flag0 & 0x00000100)
-				win->job_flag0 &= ~0x00000100;
+			if (win->job_flag0 & WINFLG_WAITDISABLE)
+				win->job_flag0 &= ~WINFLG_WAITDISABLE;
 			else {
 				#if (defined(DEBUG))
 					unsigned char s[12];
@@ -1127,8 +1186,8 @@ error:
 				return;
 			}
 		} else if (cmd == 0x00c4 /* 描画完了シグナル */) {
-			if (win->job_flag0 & 0x00000200)
-				win->job_flag0 &= ~0x00000200;
+			if (win->job_flag0 & WINFLG_WAITREDRAW)
+				win->job_flag0 &= ~WINFLG_WAITREDRAW;
 			else
 				goto error;
 		}
@@ -1150,20 +1209,20 @@ error:
 		win = win->up;
 		flag0 = win->job_flag0;
 		win->job_flag0 = 0;
-		if ((flag0 & 0x01000001) == 0x01000001 && x2 != 0)
+		if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == (WINFLG_OVERRIDEDISABLED | 0x01) && x2 != 0)
 			sgg_wm0s_accessenable(&win->sgg);
-	} while ((flag0 & 0x80000000) == 0);
+	} while ((flag0 & WINFLG_MUSTREDRAW) == 0);
 
 	job_win = win;
-	if ((flag0 & 0x01000001) == 0x00000000) {
+	if ((flag0 & (WINFLG_OVERRIDEDISABLED | 0x01)) == 0) {
 		sgg_wm0s_accessdisable(&win->sgg);
-		win->job_flag0 |= 0x00000100;
+		win->job_flag0 |= WINFLG_WAITDISABLE;
 		job_count = 1;
 	}
 	if ((flag0 & 0x03) != win->condition)
 		sgg_wm0s_setstatus(&win->sgg, win->condition = (flag0 & 0x03));
 	sgg_wm0s_redraw(&win->sgg);
-	win->job_flag0 |= 0x00000200;
+	win->job_flag0 |= WINFLG_WAITREDRAW;
 	job_count++;
 	return;
 }
@@ -1241,7 +1300,7 @@ void job_setvgamode0(const int mode)
 	jobfunc = &job_setvgamode1;
 	if (win = top) {
 		do {
-			win->job_flag0 = 0x81000000; // override-accessdisabled & must-redraw
+			win->job_flag0 = (WINFLG_MUSTREDRAW | WINFLG_OVERRIDEDISABLED); // override-accessdisabled & must-redraw
 			if ((win->condition & 0x01) != 0 && x2 != 0) {
 				job_count++; // disable
 				sgg_wm0s_accessdisable(&win->sgg);
@@ -1266,9 +1325,7 @@ void job_setvgamode1(const int cmd, const int handle)
 
 void job_setvgamode2()
 {
-	if (fromboot & 0x0001) {
-		// 普通の方法が使えない
-		// (仮想86モードでのVGAモード切り換えがうまく行かない)
+	#if (defined(TOWNS))
 		x2 = 640;
 		y2 = 480;
 		sgg_wm0_gapicmd_001c_0020(); // 画面モード設定(640x480)
@@ -1276,23 +1333,37 @@ void job_setvgamode2()
 		init_screen(x2, y2);
 		job_general1();
 		return;
-	}
+	#endif
 
-	int mode = job_int0;
-	switch (mode) {
-	case 0x0012:
-		x2 = 640;
-		y2 = 480;
-		break;
+	#if (defined(PCAT))
+		if (fromboot & 0x0001) {
+			// 普通の方法が使えない
+			// (仮想86モードでのVGAモード切り換えがうまく行かない)
+			x2 = 640;
+			y2 = 480;
+			sgg_wm0_gapicmd_001c_0020(); // 画面モード設定(640x480)
+			sgg_wm0_gapicmd_001c_0004(); // ハードウェア初期化
+			init_screen(x2, y2);
+			job_general1();
+			return;
+		}
 
-	case 0x0102:
-		x2 = 800;
-		y2 = 600;
+		int mode = job_int0;
+		switch (mode) {
+		case 0x0012:
+			x2 = 640;
+			y2 = 480;
+			break;
 
-	}
-	jobfunc = &job_setvgamode3;
-	sgg_wm0_setvideomode(mode, 0x0014);
-	return;
+		case 0x0102:
+			x2 = 800;
+			y2 = 600;
+
+		}
+		jobfunc = &job_setvgamode3;
+		sgg_wm0_setvideomode(mode, 0x0014);
+		return;
+	#endif
 }
 
 void job_setvgamode3(const int sig, const int result)
