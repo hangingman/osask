@@ -1,5 +1,5 @@
-;	"boot.nas" ver.2.6
-;	OSASK/NEC98用のブートプログラム
+;	"base.nas" ver.2.7
+;	OSASK用のブートプログラム
 ;	Copyright(C) 2003 H.Kawai (川合秀実)
 
 ;	TAB = 4
@@ -74,8 +74,6 @@ Entry:
 
 	RESB	8-$ ; MASMORG(0x0008)
 
-;	JMP		V86TaskEntry
-
 ; KHBIOS用スクリプト
 	DB		0x10,0x89,0x00,0xd8,0x00,0x00
 	DD		0x8000,36
@@ -88,50 +86,109 @@ Entry:
 	MOV		 AX, CS
 	ADD		 SI,16
 	CMP		 AX, SI
+	#if (defined(PCAT))
+		MOV		ECX,(640-4)*1024 ; for PCAT
+	#elif (defined(TOWNS))
+		MOV		ECX,(640+128)*1024 ; for TOWNS
+	#elif (defined(NEC98))
+		MOV		ECX,640*1024 ; for NEC98
+	#endif
 	JE		.fromdos
 	MOV		 BYTE [DiskCacheReady],3
 	MOV		 AX,4096/16
-;	SUB		AX,0x100
-;	SHL		EAX,4
-;	AND		EAX,0xff000	; 4KB単位にする
-;	MOV		DWORD [bootmalloc_fre0],EAX
 
 .fromdos:
 	SHL		EAX,4
 	ADD		EAX,0xfff;
 	AND		EAX,0xff000	; 4KB単位にする
 	MOV		DWORD [bootmalloc_adr1],EAX
-;	MOV		ECX,(640-4)*1024 ; for PCAT
-;	MOV		ECX,(640+128)*1024 ; for TOWNS
-	MOV		ECX,640*1024 ; for NEC98
 	SUB		ECX,EAX
 	MOV		DWORD [bootmalloc_fre1],ECX
 
-	MOV		CH,0xC0
-	MOV		AH,0x42
-	INT		0x18 ; 400ライングラフィックモード(BIOS)
-	MOV		AH,0x40
-	INT		0x18 ; グラフィック画面表示(BIOS)
-	MOV		AH,0x0d
-	INT		0x18 ; テキスト画面非表示(BIOS)
-	MOV		AL,0xff
-	OUT		0x0002,AL ; 割り込みマスク
-	MOV		AH,0x03
-	INT		0x18 ; キーボード初期化
+	#if (defined(PCAT))
+		MOV		 AH, 0x02
+		INT		0x16 ; keyboard BIOS
+		SHR		 AL,4
+		AND		 AL,0x07
+		MOV		BYTE [boot_keylock],AL
+	#elif (defined(NEC98))
+		MOV		CH,0xC0
+		MOV		AH,0x42
+		INT		0x18 ; 400ライングラフィックモード(BIOS)
+		MOV		AH,0x40
+		INT		0x18 ; グラフィック画面表示(BIOS)
+		MOV		AH,0x0d
+		INT		0x18 ; テキスト画面非表示(BIOS)
+		MOV		AL,0xff
+		OUT		0x0002,AL ; 割り込みマスク
+		MOV		AH,0x03
+		INT		0x18 ; キーボード初期化
+	#endif
+
 	MOV		AX,[CS:0x0002]
 	MOV		[CFport],AX
 
-;mov dx,03d4h
-;mov ax,3213h
-;out dx,ax
+	#if (defined(PCAT))
+		#if (defined(BOCHS))
+			mov	 ax, word ds:[VGA_mode]
+			int	10h
+		#else
+		;	mov	 ax, word ds:[VGA_mode]
+		;	int	10h
+		#endif
+	;mov dx,03d4h
+	;mov ax,3213h
+	;out dx,ax
+	#endif
 
-;	ここでA20を有効にする(TOWNSではなにもしなくてよい)
+;	ここでA20を有効にする
 
-	OUT		0xf2, AL
+	CLI
+
+	#if (defined(PCAT))
+		CALL	waitkbdout
+		MOV		 AL,0xae	; keyboard interface enable
+		OUT		0x64, AL
+		CALL	waitkbdout
+		MOV		 AL,0x60	; write mode command
+		OUT		0x64, AL
+		CALL	waitkbdout
+		MOV		 AL,0x47	; 下記参照
+		OUT		0x60, AL
+	;		// IRQ01 enable, IRQ12 enable, system flag on, keylock enable
+	;		// keyboard interface enable, mouse interface enable, scan code 1(PC format)
+		CALL	waitkbdout
+		MOV		 AL,0xd1	; 
+		OUT		0x64, AL
+		CALL	waitkbdout
+		MOV		 AL,0xdf	; enable A20
+		OUT		0x60, AL
+		CALL	waitkbdout
+		MOV		 AL,0xa8	; mouse interface enable
+		OUT		0x64, AL
+		CALL	waitkbdout
+
+	;.wait03:
+	;	MOV		ECX,0xaa55aa55
+	;	MOV		EDX,0x55aa55aa
+	;	MOV		 AX,0
+	;	MOV		 FS, AX
+	;	MOV		 AX,0xff00
+	;	MOV		 GS, AX
+	;	MOV		EAX,[FS:0]
+	;	MOV		[GS:0x1000],EDX
+	;	MOV		[FS:0],ECX
+	;	CMP		ECX,[GS:0x1000]
+	;	MOV		[FS:0],EAX
+	;	JE		.wait03
+
+	#elif (defined(NEC98))
+		OUT		0xf2, AL
+	#endif
 
 ;	AC = 1となるので、SPをdwordアラインしておくこと
 
-	CLI		; IDTが設定されるまで、割り込みを禁止する
+;	CLI		; IDTが設定されるまで、割り込みを禁止する
 
 	MOV		 AX,0xff00
 	MOV		 ES, AX
@@ -182,6 +239,15 @@ Entry:
 
 	JMP		FAR DWORD .boot32_sel:0
 
+#if (defined(PCAT))
+waitkbdout:
+	IN		 AL,0x64
+	TEST	 AL,0x02
+	IN		 AL,0x60 ; から読み(受信バッファが悪さをしないように)
+	JNZ		waitkbdout
+	RETN
+#endif
+
 BootSiz		EQU		$ - BootBgn
 
 			RESB	(16 - ($ % 16)) % 16
@@ -197,7 +263,11 @@ VESAPNP_2c		DD	0
 
 VGA_mode		DW	12h	; +0x10
 				DW	0
+#if (defined(BOCHS) | defined(VMWARE))
+to_winman0		DD	1 ; +0x14
+#else
 to_winman0		DD	0 ; +0x14
+#endif
 
 CFport			DD	0	; +0x18
 eflags			DD	0
@@ -216,18 +286,22 @@ modulelist:
 	DD	"pioneer0",0,BootMdl	;  8 * 16
 	DD	"winman0 ",0,BootMdl	;  9 * 16
 	DD	"pokon0  ",0,BootMdl	; 10 * 16
-	DD	"vesadrv0",0,BootMdl	; 11 * 16
+	DD	"vesa8   ",0,BootMdl	; 11 * 16
 	DD	"ankfont0",0,BootMdl	; 12 * 16 256バイトだけ必要
 	DD	"papi0   ",0,BootMdl	; 13 * 16
-	DD	"freeslot",0,BootMdl	; 14 * 16
-	DD	"freeslot",0,BootMdl	; 15 * 16
+	DD	"vesa16  ",0,BootMdl	; 14 * 16
+	DD	"vesa32  ",0,BootMdl	; 15 * 16
 	DD	"boot32  ",0,BootMdl	; 16 * 16 これは必ず非圧縮
 	DD	"fdimage ",0,BootMdl	; 17 * 16
 
 loaded_modules	EQU		($ - modulelist) / 16
 
 alloclist:
+#if (defined(PCAT))
+	DD	"pdepte  ",4096*70,-1	; 0
+#else
 	DD	"pdepte  ",4096*67,-1	; 0
+#endif
 	DD	"idtgdt  ",4096,-1	; 48+463entry
 	DD	"freeslot",0,0
 	DD	"stack   ",4096*4,-1

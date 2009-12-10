@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.3.1
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.3.2
     copyright(C) 2003 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -3562,7 +3562,7 @@ void near cmd114()
 	GRAPHBOX *gbox == DS:EDI;
 
 	EAX = cmd[ 4]; /* opt */
-	TEST(EAX, 0x4300);
+	TEST(EAX, 0x4300); /* b14, b9, b8 */
 	if (== 0)
 		INT(0x03);
 

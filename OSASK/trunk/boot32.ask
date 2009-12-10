@@ -1,4 +1,4 @@
-/* "boot32.ask" ver.0.1 copyright(C) 2003 H.Kawai(川合秀実) */
+/* "boot32.ask" ver.0.2 copyright(C) 2003 H.Kawai(川合秀実) */
 
 #include "osaskinc.ask"
 
@@ -31,13 +31,7 @@ void decode_tek0();
 
 void far boot32()
 {
-	int *eflags == DS:0x001c;
-	int *bootmalloc_fre1 == DS:0x0200, *bootmalloc_adr1 == DS:0x01fc;
-	int *bootmalloc_fre2 == DS:0x0210, *bootmalloc_adr2 == DS:0x020c;
-	int *bootmalloc_fre3 == DS:0x0218, *bootmalloc_adr3 == DS:0x0214;
-	int *bootlinear == DS:0x21c, *bootlinear_EDI == DS:0x220;
-	char *DiskCacheLength == DS:0x0230;
-	char *DiskCacheReady == DS:0x0206;
+	STR_SYSWORK *swork == DS:0;
 
 	ESP = 0x2000; /* 暫定スタックへ */
 
@@ -49,7 +43,7 @@ void far boot32()
 	POPFD();
 	PUSHFD();
 	POP(EDX);
-	*eflags = EDX;
+	swork->eflags = EDX;
 	EDX >>= 16;
 
 	TEST(DL, 0x04); /* bit18(AC) */
@@ -72,16 +66,16 @@ void far boot32()
 		EAX =  2 * 1024 * 1024;
 		testmemory();
 		ECX += 1024 * 1024;
-		*bootmalloc_fre2 = ECX;
+		swork->bootmalloc_fre2 = ECX;
 		if ((unsigned) ECX >= 14 * 1024 * 1024) {
 			EAX =   16 * 1024 * 1024;
 			EBX = 1024 * 1024 * 1024;
 			testmemory();
-			*bootmalloc_fre3 = ECX;
+			swork->bootmalloc_fre3 = ECX;
 		}
 		EAX = 160 * 9 * 1024; /* PCAT diskbuf */
-		*bootmalloc_adr2 += EAX;
-		*bootmalloc_fre2 -= EAX;
+		swork->bootmalloc_adr2 += EAX;
+		swork->bootmalloc_fre2 -= EAX;
 	//	if ((unsigned) <= 0)
 	//		INT(0x03);
 	#elif (defined(TOWNS))
@@ -93,16 +87,16 @@ void far boot32()
 		EAX =  2 * 1024 * 1024;
 		testmemory();
 		ECX += 1024 * 1024;
-		*bootmalloc_fre2 = ECX;
+		swork->bootmalloc_fre2 = ECX;
 		if ((unsigned) ECX >= 14 * 1024 * 1024) {
 			EAX =   16 * 1024 * 1024;
 			EBX = 1024 * 1024 * 1024;
 			testmemory();
-			*bootmalloc_fre3 = ECX;
+			swork->bootmalloc_fre3 = ECX;
 		}
 		EAX = 160 * 8 * 1024; /* TOWNS diskbuf */
-		*bootmalloc_adr2 += EAX;
-		*bootmalloc_fre2 -= EAX;
+		swork->bootmalloc_adr2 += EAX;
+		swork->bootmalloc_fre2 -= EAX;
 	//	if ((unsigned) <= 0)
 	//		INT(0x03);
 	#elif (defined(NEC98))
@@ -110,27 +104,24 @@ void far boot32()
 		EAX =  2 * 1024 * 1024;
 		testmemory();
 		ECX += 1024 * 1024;
-		*bootmalloc_fre2 = ECX;
+		swork->bootmalloc_fre2 = ECX;
 		if ((unsigned) ECX >= 14 * 1024 * 1024) {
 			EAX =   16 * 1024 * 1024;
 			EBX = 1024 * 1024 * 1024;
 			testmemory();
-			*bootmalloc_fre3 = ECX;
+			swork->bootmalloc_fre3 = ECX;
 		}
 		EAX = 160 * 8 * 1024; /* NEC98 diskbuf */
-		*bootmalloc_adr2 += EAX;
-		*bootmalloc_fre2 -= EAX;
+		swork->bootmalloc_adr2 += EAX;
+		swork->bootmalloc_fre2 -= EAX;
 	//	if ((unsigned) <= 0)
 	//		INT(0x03);
 	#endif
 
 	/* モジュール転送先確保 */
-	int *bmodule_size == DS:0x224, *bmodule_paddr == DS:0x228;
-	int *bmodule_laddr == DS:0x22c;
-
 	AL = 16;
 	ECX = 0;
-	ESI = 0x20; /* modulelist */
+	ESI = (offset) swork->modulelist;
 	do {
 		ECX += [DS:ESI + 8]; /* size */
 		ESI += 16;
@@ -141,13 +132,13 @@ void far boot32()
 
 	ECX += 0xfff;
 	ECX &= 0xfffff000;
-	*bmodule_size = ECX;
+	swork->bmodule_size = ECX;
 	bmalloc();
-	*bmodule_paddr = EAX;
+	swork->bmodule_paddr = EAX;
 
 	/* 各種ワークエリアの確保 */
 
-	ESI = 0x020;
+	ESI = (offset) swork->modulelist;
 	do {
 		ECX = [DS:ESI +  8]; /* size */
 		EAX = [DS:ESI + 12]; /* addr */
@@ -165,9 +156,9 @@ void far boot32()
 	/* もっとも、この後で0クリアルーチンを追加していけばもっと増やせるが */
 
 	EDI = 0x102c00; /* PTE 3MB-4MB */
-	EAX = [DS:0x140 /* pdepte_ent */ + 12];
+	EAX = swork->alloclist[ENT_PDEPTE + 12];
 	AL = 3;
-	ECX = [DS:0x140 /* pdepte_ent */ +  8];
+	ECX = swork->alloclist[ENT_PDEPTE +  8];
 	PUSH(ECX);
 	do {
 		STOSD();
@@ -188,7 +179,7 @@ void far boot32()
 	POP(EDI);
 
 	EAX =  8 * 1024;
-	EBX = [DS:0x140 /* pdepte_ent */ + 12];
+	EBX = swork->alloclist[ENT_PDEPTE + 12];
 	EBX += EAX;
 	BL = 0x07;
 	TEST(DL, 0x04);
@@ -249,7 +240,7 @@ fillpte:
 	#else
 		EDI = 0x306000 + 0x1200; /* 4.5MB */
 	#endif
-	EAX = [DS:0x140 /* pdepte_ent */ + 12];
+	EAX = swork->alloclist[ENT_PDEPTE + 12];
 	AL = 7;
 	PUSH(ECX);
 	do {
@@ -259,7 +250,7 @@ fillpte:
 	} while ((unsigned) > 0);
 	POP(ECX);
 
-	EAX = [DS:0x140 /* pdepte_ent */ + 12];
+	EAX = swork->alloclist[ENT_PDEPTE + 12];
 	EAX += 4096;
 	TEST(DL, 0x04);
 	if (!= 0)
@@ -267,12 +258,12 @@ fillpte:
 	CR3 = EAX;
 
 	EDI += 0x480000 - 0x300000;
-	*bootlinear_EDI = EDI;
-	*bootlinear += ECX;
+	swork->bootlinear_EDI = EDI;
+	swork->bootlinear += ECX;
 
 	/* idtgdtのマッピング */
-	ECX = [DS:0x150 /* idtgdt_ent */ +  8];
-	EAX = [DS:0x150 /* idtgdt_ent */ + 12];
+	ECX = swork->alloclist[ENT_IDTGDT +  8];
+	EAX = swork->alloclist[ENT_IDTGDT + 12];
 	bmap();
 	PUSH(ECX);
 	EDI = EDX;
@@ -293,16 +284,16 @@ fillpte:
 	POP(EAX);
 	POP(EDX);
 
-	ECX = [DS:0x140 /* pdepte_ent */ +  8];
+	ECX = swork->alloclist[ENT_PDEPTE +  8];
 	PUSH(EDX);
-	LEA(EBX, [EDX + 384 + 112]); /* pdepte_sel */
+	LEA(EBX, [EDX + 384 + SEL_PDEPTE]);
 	EDX = 0x480000;
 //	EAX = 0x4092;
 	set_modulesegment();
 
 	PUSH(0x017f0000);
 	LIDT([SS:ESP + 2]);
-	ECX = [DS:0x150 /* idtgdt_ent */ +  8];
+	ECX = swork->alloclist[ENT_IDTGDT +  8];
 	ECX -= 0x181;
 	[SS:ESP + 2] = CX;
 	(int) [SS:ESP + 4] += 0x180;
@@ -313,17 +304,17 @@ fillpte:
 /* pdepte = 0x480000 - 4c2ffff */
 /* GDTR.base = 0x4c3180 */
 
-	/* これで、all_sel, idtgdt_sel, pdepte_selは使える */
-	PUSH(120);
-	POP(GS); /* = idtgdt_sel */
-	PUSH(112);
-	POP(ES); /* = pdepte_sel */
-	*bootlinear_EDI -= 0x480000;
+	/* これで、SEL_ALL, SEL_IDTGDT, SEL_PDEPTEは使える */
+	PUSH(SEL_IDTGDT);
+	POP(GS); /* = SEL_IDTGDT */
+	PUSH(SEL_PDEPTE);
+	POP(ES); /* = SEL_PDEPTE */
+	swork->bootlinear_EDI -= 0x480000;
 
-	ECX = *bmodule_size;
-	EAX = *bmodule_paddr;
+	ECX = swork->bmodule_size;
+	EAX = swork->bmodule_paddr;
 	bmap();
-	*bmodule_laddr = EDX; /* 0x4c4000 */
+	swork->bmodule_laddr = EDX; /* 0x4c4000 */
 
 	/* 以下はinitがやるべきことかも */
 	/* いや、bmapを使いたいから、boot32でやるのが正しい */
@@ -342,10 +333,10 @@ fillpte:
 		set_modulesegment();
 	} while ((unsigned) (char) [CS:EDI] != 0);
 
-	EBX = 0x0110 /* modulelist (sysworkを最後にするため) */;
+	LEA(EBX, swork->modulelist[ENT_BOOT32 - 16]);
 	PUSH(8);
-	EBP = *bmodule_paddr;
-	EDI = *bmodule_laddr;
+	EBP = swork->bmodule_paddr;
+	EDI = swork->bmodule_laddr;
 	POP(FS);
 	do {
 		ECX = [DS:EBX +  8];
@@ -380,7 +371,7 @@ fillpte:
 			}
 		}
 		EBX -= 16;
-	} while (EBX >= 0x020); /* syswork */
+	} while (EBX >= (offset) swork->modulelist); /* syswork (0x0020) */
 
 	asmout("MOV EDI,.initsel1");
 	do {
@@ -388,10 +379,10 @@ fillpte:
 		EBX = (unsigned short) [CS:EDI + 4];
 		EDX = [DS:ESI + 12];
 		ECX = [DS:ESI +  8];
-		EDX -= *bmodule_paddr;
+		EDX -= swork->bmodule_paddr;
 		AX = [CS:EDI + 0];
 		EDI += 6;
-		EDX += *bmodule_laddr;
+		EDX += swork->bmodule_laddr;
 		set_modulesegment();
 	} while ((unsigned) (char) [CS:EDI] != 0);
 
@@ -401,17 +392,17 @@ fillpte:
 	SS = EAX;
 	ESP = /* (offset) stack_ESP0 */ 0xffffd000; /* スタックの初期化 */
 
-	EBP = [DS:0x0130 +  8]; /* fdimage */
+	EBP = swork->modulelist[ENT_FDIMAGE +  8];
 	PUSH(8);
 	EDI = 1024 * 1024;
 	POP(ES);
 	if (EBP != 0) {
-		ESI = (unsigned short) [DS:0x0130 + 12]; /* fdimage */
+		ESI = (unsigned short) swork->modulelist[ENT_FDIMAGE + 12];
 		ESI *= 16;
 		decode_tek0();
-		*DiskCacheLength = 160; /* 0-159トラック */
+		(char) swork->DiskCacheLength = 160; /* 0-159トラック */
 	} else {
-		TEST(*DiskCacheReady, 0x02);
+		TEST(swork->DiskCacheReady, 0x02);
 		if (!= 0) {
 			ESI = 0x1000;
 			#if (defined(PCAT))
@@ -422,7 +413,7 @@ fillpte:
 				ECX = 16 * 1024 / 4;
 			#endif
 			asmout("ES REP MOVSD");
-			*DiskCacheLength = 2; /* 0-1トラック */
+			(char) swork->DiskCacheLength = 2; /* 0-1トラック */
 		}
 	}
 
@@ -430,19 +421,14 @@ fillpte:
 
 	ALIGN(2);
 initsel0:
-asmout("alloclist EQU 0x140");
-//	asmout("DW 04092H, 2*16+alloclist,  7*8+384"); /* ankfont_ent, ankfont_sel */
-	asmout("DW 0C096H, 3*16+alloclist,  6*8+384"); /* stack_ent, stack_sel */
-	asmout("DW 04092H, 4*16+alloclist,  9*8+384"); /* keydata_ent, keydata_sel */
-	asmout("DW 04092H, 5*16+alloclist,  5*8+384"); /* gapidata_ent, gapidata_sel */
-	asmout("DW 04092H, 6*16+alloclist, 11*8+384"); /* timerdata_ent, timerdata_sel */
-	asmout("DW 04092H, 8*16+alloclist, 23*8+384"); /* decowork_ent, decowork_sel */
-	asmout("DW 04092H, 9*16+alloclist, 29*8+384"); /* fdcwork_ent, fdcwork_sel */
-	asmout("DW 04092H,10*16+alloclist, 19*8+384"); /* papiwork_ent, papiwork_sel */
+	DW(0xc096, SYSWORK_ALIST + ENT_STACK,     6 * 8 + 384); /* stack_ent, stack_sel */
+	DW(0x4092, SYSWORK_ALIST + ENT_KEYDATA,   9 * 8 + 384); /* keydata_ent, keydata_sel */
+	DW(0x4092, SYSWORK_ALIST + ENT_GAPIDATA,  5 * 8 + 384); /* gapidata_ent, gapidata_sel */
+	DW(0x4092, SYSWORK_ALIST + ENT_TIMERDAT, 11 * 8 + 384); /* timerdata_ent, timerdata_sel */
+	DW(0x4092, SYSWORK_ALIST + ENT_DECODATA, 23 * 8 + 384); /* decowork_ent, decowork_sel */
+	DW(0x4092, SYSWORK_ALIST + ENT_FDCWORK,  29 * 8 + 384); /* fdcwork_ent, fdcwork_sel */
+	DW(0x4092, SYSWORK_ALIST + ENT_PAPIWORK, 19 * 8 + 384); /* papiwork_ent, papiwork_sel */
 	DW(0);
-
-//	asmout("DW 04092H, 1*16+alloclist, 15*8"); /* IDTGDT_ent, idtgdt_sel */
-//	asmout("DW 04092H, 0*16+alloclist, 14*8"); /* PDEPTE_ent, pdepte_sel */
 
 initsel1:
 	DW(0x4092, 0x020,  3 * 8 + 384); /* syswork_sel */
@@ -517,26 +503,24 @@ skip:
 void bmalloc()
 /* ECXにサイズ > EAXに物理アドレス */
 {
-	unsigned int *bootmalloc_fre1 == DS:0x0200, *bootmalloc_adr1 == DS:0x01fc;
-	unsigned int *bootmalloc_fre2 == DS:0x0210, *bootmalloc_adr2 == DS:0x020c;
-	unsigned int *bootmalloc_fre3 == DS:0x0218, *bootmalloc_adr3 == DS:0x0214;
+	STR_SYSWORK *swork == DS:0;
 
-	if ((unsigned) ECX <= *bootmalloc_fre3) {
-		*bootmalloc_fre3 -= ECX;
-		EAX = *bootmalloc_adr3;
-		*bootmalloc_adr3 += ECX;
+	if ((unsigned) ECX <= swork->bootmalloc_fre3) {
+		swork->bootmalloc_fre3 -= ECX;
+		EAX = swork->bootmalloc_adr3;
+		swork->bootmalloc_adr3 += ECX;
 		return;
 	}
-	if ((unsigned) ECX <= *bootmalloc_fre2) {
-		*bootmalloc_fre2 -= ECX;
-		EAX = *bootmalloc_adr2;
-		*bootmalloc_adr2 += ECX;
+	if ((unsigned) ECX <= swork->bootmalloc_fre2) {
+		swork->bootmalloc_fre2 -= ECX;
+		EAX = swork->bootmalloc_adr2;
+		swork->bootmalloc_adr2 += ECX;
 		return;
 	}
-//	if ((unsigned) ECX <= *bootmalloc_fre1) {
-//		*bootmalloc_fre1 -= ECX;
-//		EAX = *bootmalloc_adr1;
-//		*bootmalloc_adr1 += ECX;
+//	if ((unsigned) ECX <= swork->bootmalloc_fre1) {
+//		swork->bootmalloc_fre1 -= ECX;
+//		EAX = swork->bootmalloc_adr1;
+//		swork->bootmalloc_adr1 += ECX;
 //		return;
 //	}
 }
@@ -550,20 +534,21 @@ void bmap()
 /* 簡易マッピングプログラム */
 /* EDXを返す */
 {
-	int *bootlinear == DS:0x21c, *bootlinear_EDI == DS:0x220;
+	STR_SYSWORK *swork == DS:0;
+
 	PUSH(EDI);
 	PUSH(ECX);
 	PUSH(EAX);
-	EDX = *bootlinear;
-	EDI = *bootlinear_EDI;
+	EDX = swork->bootlinear;
+	EDI = swork->bootlinear_EDI;
 	AL = 7;
 	do {
 		STOSD();
 		EAX += 4096;
-		*bootlinear += 4096;
+		swork->bootlinear += 4096;
 		ECX -= 4096;
 	} while ((unsigned) > 0);
-	*bootlinear_EDI = EDI;
+	swork->bootlinear_EDI = EDI;
 	POP(EAX);
 	POP(ECX);
 	POP(EDI);

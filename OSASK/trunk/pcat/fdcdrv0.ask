@@ -1,4 +1,4 @@
-// "fdcdrv0.ask" ver.2.3 copyright(C) 2003 H.Kawai(川合秀実)
+// "fdcdrv0.ask" ver.2.4 copyright(C) 2003 H.Kawai(川合秀実)
 
 #include "osaskinc.ask"
 
@@ -22,6 +22,8 @@ default(code == CODE);
 #define	TOTAL_CLUSTERS	2849		/* 1.44MBでは2849(=2880-31), 1.2MBでは1223(=1232-9) */
 #define	FAT_BYTES		4608		/* 1.44MBでは4608(=9*512), 1.2MBでは2048(=2*1024) */
 #define	TOTAL_SECTORS	2880		/* 1.44MBでは2880, 1.2MBでは1232 */
+
+#define	CARDBUS_POFF_TIMEOUT	4000000		/* 4GHzで2ms以上だろう */
 
 struct FDC_WORK {
 	int MC_ptr, MC_free, jmpvec_fdcint /* 0x0008 */;
@@ -54,7 +56,8 @@ struct FDC_WORK {
 
 	int CFIDE_name[12], CFport, CFbaseLBA;
 	char CFdev, CFerrflg, CFpower, CFdev2;
-	int readsecs, writesecs, formatsecs, loadfat, cardbus, [104]; /* test4, test6, test5 */
+	int readsecs, writesecs, formatsecs, loadfat, cardbus; /* test4, test6, test5 */
+	int PCCardDriveList[32], [72];
 
 	/* 0x0800～0xfff */
 	void [2048];
@@ -96,7 +99,6 @@ void CFIDE_atawrite();
 
 void far FDC_syscmd()
 {
-	unsigned int                         all_sel       ==  1 * 8;
 	FDC_WORK *work == DS:0;
 	int *cmd == FS:EBX;
 
@@ -478,11 +480,16 @@ cmd0194:
 		work->loadfat = EAX;
 		work->CFport = 0xd000;
 		work->CFerrflg = 0;
-		if ((unsigned) CL >= 9) {
+		if ((unsigned) CL >= 16)
+			CL = 15;
+		EAX = (unsigned char) CL;
+		AX = work->PCCardDriveList[EAX * 2];
+		if (AX == 0xffff) {
 			/* 強制パワーオフ */
 			/* CFしか使えるデバイスがない時にやる */
-			AL = 0x41; /* A:ユーザによるエラー */
-			AH = 0x07; /* とりあえずアクセス禁止 */
+			EAX = 0x0741;
+		//	AL = 0x41; /* A:ユーザによるエラー */
+		//	AH = 0x07; /* とりあえずアクセス禁止 */
 			errorfile();
 		} else {
 			open_cf();
@@ -1096,7 +1103,6 @@ void FDC_Init()
 // ワークエリアの初期化
 {
 	FDC_WORK *work == DS:0;
-	unsigned int tapi_sel == 12 * 8;
 	unsigned int fdc_control == 0x03f2; // bit7-4はmotor制御(1でON)、bit3はDMA許可、bit2はFDCリセット(0でリセット)、bit1-0はドライブ番号
 	unsigned short DMA_singlemask_master == 0x00c0, DMA_mode_master == 0x00d6, DMA_singlemask == 0x000a;
 
@@ -1197,45 +1203,105 @@ void FDC_Init()
 	MOV(EAX, SS);
 	EBX = ESP;
 	FS = AX;
-	DB(0x9a); DD(0); DW((short) tapi_sel);
+	DB(0x9a); DD(0); DW(SEL_TAPI);
 	POP(EAX);
 	POP(work->TAPI_sendsignalofs);
 	POP(work->TAPI_sendsignalsel);
 	POP(EAX);
 	POP(FS);
 
-	/* CardBusブリッジを探す */
+	/* CardBusブリッジを全て探す */
 	/* とりあえずこれでバス番号31までは探している */
 	/* バス番号255まで探しても遅くないだろうけど、
 		そんなハードウェア構成はまず無いと思うので
 		とりあえずケチってみた */
-	ECX = 0;
-	EDI = 0x80000000;
+	EAX = 0;
+	LEA(ECX, [EAX + 8]); /* ECX = 8; */	
+	EAX--;
+	do {
+		work->PCCardDriveList[ECX * 4 - 4] = EAX;
+		ECX--;
+	} while (!= 0);
+
+	LEA(ECX, work->PCCardDriveList[0]);
+	EBX = 0x80000000;
 	do {
 		EDX = 0x0cf8;
-		EAX = EDI;
+		EAX = EBX;
 		OUT(DX, EAX);
 		DL = 0xfc;
 		IN(EAX, DX);
-		if (EAX != 0xffffffff) {
+		EAX++;
+		if (EAX != 0) {
 			DL = 0xf8;
-			LEA(EAX, [EDI + 0x08]);
+			LEA(EAX, [EBX + 0x08]);
 			OUT(DX, EAX);
 			DL = 0xfc;
 			IN(EAX, DX);
 			AL = 0; /* リビジョンクリア */
 			if (EAX == 0x06070000) {
 				/* 見付けた */
-				ECX = EDI;
-				break;
+				ROR(EBX, 8);
+				[DS:ECX] = BX; /* 合計16個以上のデバイスがあると誤動作する */
+				ECX += 2;
+				ROL(EBX, 8);
 			}
+			TEST(BH, 0x07);
+			if (!= 0)
+				goto multifunc;
+
+			DL = 0xf8;
+			LEA(EAX, [EBX + 0x0c]);
+			OUT(DX, EAX);
+			DL = 0xfc;
+			IN(EAX, DX);
+			TEST(EAX, 0x00800000);
+			EAX = EDX; /* EAX != 0にする */
+			if (== 0)
+				EAX = 0; /* シングルファンクションデバイスではEAX == 0にする */
 		}
-		EDI += 0x00000800;
-	} while ((unsigned) EDI < 0x80200000);
-	DL = 0xf8;
-	EAX = 0;
-	OUT(DX, EAX);
-	work->cardbus = ECX;
+		TEST(BH, 0x07);
+		if (== 0) {
+			if (EAX == 0)
+				BH |= 0x07;
+		}
+multifunc:
+		EBX += 0x00000100;
+	} while ((unsigned) EBX < 0x80200000);
+//	DL = 0xf8;
+//	EAX = 0;
+//	OUT(DX, EAX);
+	PUSH(ECX);
+	close_all(); /* この時点までのリストに基づいて処理する(03e0を確実に切り離させるため) */
+	POP(EBX);
+
+	/* ISA接続PCカードスロットを探す */
+	EDX = 0x03e0;
+	CL = 0x00;
+	do {
+		AL = CL;
+		OUT(DX, AL); /* Identification and Revision */
+		EDX++;
+		IN(AL, DX);
+		EDX--;
+		if ((unsigned) AL < 0x82)
+			goto ISA_not_detected; /* 00-81:bad */
+		if ((unsigned) AL < 0x85)
+			goto ISA_detected; /* 82-84:good */
+		if ((unsigned) AL < 0x88)
+			goto ISA_not_detected; /* 85-87:bad */
+		if ((unsigned) AL < 0x8d)
+			goto ISA_detected; /* 88-8c:good */
+		goto ISA_not_detected; /* 8d-ff:bad */
+ISA_detected:
+		AL = CL;
+		(unsigned char) AL >>= 6;
+		EAX |= 0xfff8; /* ffffはターミネータなので、ffffにならないようにする */
+		[DS:EBX] = AX;
+		EBX += 2; /* 合計16個以上のデバイスがあると誤動作する */
+ISA_not_detected:
+		CL += 0x40;
+	} while (!= 0);
 	close_all();
 
 	/* DOSやBIOSがいい加減で、FDCのステータスがおかしくなっている事がある */
@@ -1542,7 +1608,6 @@ void FDC_MC_test4_cfide()
 // このバージョンではシークの必要があるときだけシークする
 {
 	FDC_WORK *work == DS:0;
-	unsigned int tapi_sel == 12 * 8;
 
 	PUSHAD();
 	EBX = EDX;
@@ -1602,7 +1667,6 @@ void FDC_MC_test6_cfide()
 // ECX:転送サイズ, EDX:物理アドレス, EDI:シグナル番号
 {
 	FDC_WORK *work == DS:0;
-	unsigned int tapi_sel == 12 * 8;
 
 	PUSHAD();
 	EBX = EDX;
@@ -1668,7 +1732,6 @@ void FDC_dosload()
 // EDX:完了のシグナル
 // GS:ESI ファイル名(11bytes)
 {
-	unsigned int tapi_sel == 12 * 8;
 	FDC_WORK *work == DS:0;
 
 	if (work->dosload_phase != 0) {
@@ -1792,7 +1855,7 @@ pass98:
 	PUSH(0x0114 /* コマンドシグナル直接 */);
 	FS = EAX;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW((short) tapi_sel);
+	DB(0x9a); DD(0); DW(SEL_TAPI);
 	ESP += 5 * 4;
 	POP(FS);
 pass99:
@@ -3973,52 +4036,6 @@ poweron_skip:
 				EAX = 0x3f15; CALL(ESI); /* Card Memory Offset Address High : fff30000, MEM */
 				EAX = 0x2106; CALL(ESI); /* Address Window Enable : only mem0 */
 
-#if 0
-				AL = CL;
-				AL |= 0x06; /* Address Window Enable */
-				OUT(DX, AL);
-				EDX++;
-				AL = 0x20; /* all off */
-				OUT(DX, AL);
-				EDX--;
-				AL = CL;
-				AL |= 0x15; /* Card Memory Offset Address High */
-				OUT(DX, AL);
-				EDX++;
-				AL = 0x7f; /* fff30000, REG */
-				OUT(DX, AL);
-				EDX--;
-				AL = CL;
-				AL |= 0x06; /* Address Window Enable */
-				OUT(DX, AL);
-				EDX++;
-				AL = 0x21; /* only mem0 */
-				OUT(DX, AL);
-				EDX--;
-				(char) [ES:0x000d0200] = 0x00; /* メモリマップトモード */
-				(char) [ES:0x000d0206] = 0x00; /* デバイス番号は0 */
-				AL = CL;
-				AL |= 0x06; /* Address Window Enable */
-				OUT(DX, AL);
-				EDX++;
-				AL = 0x20; /* all off */
-				OUT(DX, AL);
-				EDX--;
-				AL = CL;
-				AL |= 0x15; /* Card Memory Offset Address High */
-				OUT(DX, AL);
-				EDX++;
-				AL = 0x3f; /* fff30000, MEM */
-				OUT(DX, AL);
-				EDX--;
-				AL = CL;
-				AL |= 0x06; /* Address Window Enable */
-				OUT(DX, AL);
-				EDX++;
-				AL = 0x21; /* only mem0 */
-				OUT(DX, AL);
-				EDX--;
-#endif
 				work->CFerrflg &= 0xfe /* ~1 */;
 				work->CFpower = 1;
 			}
@@ -4056,10 +4073,17 @@ void poweroff()
 			EAX = 0;
 			(int) [ES:EDX + 16] = EAX; /* Vcc=off */
 			/* 電源切断完了を待つ */
+			PUSH(ECX);
+			ECX = CARDBUS_POFF_TIMEOUT;
 			do {
+				ECX--;
 				EAX = [ES:EDX + 8];
+				if (== 0)
+					break;
 				TEST(AL, 0x08);
 			} while (!= 0);
+		//	TEST(AL, 0x08);
+			POP(ECX);
 			POP(ES);
 		} else {
 			/* 16bit-PCIC */
@@ -4100,8 +4124,13 @@ void set_cardbus_base()
 	LEA(EAX, [EDI + 0x10]);
 	OUT(DX, EAX);
 	DL = 0xfc;
-	IN(EAX, DX);
 	EAX = 0x000d1000;
+	OUT(DX, EAX);
+	DL = 0xf8;
+	LEA(EAX, [EDI + 0x44]); /* 16bit-PCIC-compatible */
+	OUT(DX, EAX);
+	DL = 0xfc;
+	EAX = 0xfffffff0; /* fff0へすっ飛ばす */
 	OUT(DX, EAX);
 	EDI |= 0x1c;
 	do {
@@ -4139,7 +4168,7 @@ void set_cardbus_base()
 void close_cardbus()
 {
 	/* コマンド＆ステータス */
-	DL = 0xf8;
+	EDX = 0x0cf8;
 	LEA(EAX, [EDI + 0x04]);
 	OUT(DX, EAX);
 	DL = 0xfc;
@@ -4148,18 +4177,26 @@ void close_cardbus()
 	OUT(DX, EAX);
 	set_cardbus_base();
 	PUSH(DS);
-	PUSH(1 * 8);
+	PUSH(SEL_ALL);
 	POP(DS);
 	EDX = 0x000d1000;
 	EAX = 0;
 	(int) [DS:EDX +  4] = EAX; /* all IRQ mask */
 	(int) [DS:EDX + 16] = EAX; /* Vcc=off */
 	/* 電源切断完了を待つ */
+	PUSH(ECX);
+	ECX = CARDBUS_POFF_TIMEOUT; /* time-out, 4GHzで2ms以上 */
 	do {
+		ECX--;
 		EAX = [DS:EDX + 8];
+		if (== 0)
+			break;
 		TEST(AL, 0x08);
 	} while (!= 0);
+	POP(ECX);
 	POP(DS);
+	TEST(AL, 0x08);
+	PUSHFD();
 	EDX = 0x0cf8;
 	LEA(EAX, [EDI + 0x04]);
 	OUT(DX, EAX);
@@ -4167,112 +4204,50 @@ void close_cardbus()
 	IN(EAX, DX);
 	EAX &= 0xfffc; /* mem & I/O off */
 	OUT(DX, EAX);
+	POPFD();
 	return;
+	/* ZF == 1 : normal, ZF == 0 : timeout */
 }
 
 void close_all()
 {
 	FDC_WORK *work == DS:0;
 	PUSHAD();
-	EDI = work->cardbus;
-	if (EDI != 0) {
-		/* cardbusあり */
-		EDX = 0x0cf8;
-		close_cardbus();
-		DL = 0xf8;
-		LEA(EAX, [EDI + 0x0c]);
-		OUT(DX, EAX);
-		DL = 0xfc;
-		IN(EAX, DX);
-		TEST(EAX, 0x00800000);
-		if (!= 0) {
-			EDI += 0x0100;
-			do {
-				DL = 0xf8;
-				EAX = EDI;
-				OUT(DX, EAX);
-				DL = 0xfc;
-				IN(EAX, DX);
-				if (EAX != 0xffffffff)
-					close_cardbus();
-				EDI += 0x0100;
-				TEST(EDI, 0x0700);
-			} while (!= 0);
-		}
-		DL = 0xf8;
-		EAX = 0;
-		OUT(DX, EAX);
-		POPAD();
-		return;
-	}
-	/* cardbusなし */
-	EDX = 0x03e0;
-	CL = 0x00;
-	asmout("MOV ESI,PCIC_writereg");
-	do {
-		AL = CL;
-		OUT(DX, AL); /* Identification and Revision */
-		EDX++;
-		IN(AL, DX);
-		EDX--;
-		if (AL == 0x82)
-			goto pass00; /* i82365sl A step */
-		if (AL == 0x83)
-			goto pass00; /* i82365sl B step */
-		if (AL == 0x84)
-			goto pass00; /* VLSI 82C146 or i82365sl DF (1slotしかなければ82C146) */
-		if (AL == 0x88)
-			goto pass00; /* IBM clone type0 */
-		if (AL == 0x89)
-			goto pass00; /* IBM clone type1 */
-		if (AL == 0x8a)
-			goto pass00; /* IBM clone type2 */
-		if (AL == 0x8b)
-			goto pass00; /* i82365sl type unknown */
-		if (AL == 0x8c)
-			goto pass00; /* i82365sl type unknown */
-		goto pcic_notfonund;
-pass00:
-		EAX = 0x4003; CALL(ESI); /* Interrupt and General Control : mem-card */
-		EAX = 0x2006; CALL(ESI); /* Address Window Enable : all off */
-		EAX = 0x4002; CALL(ESI); /* Power and RESETDEV Control : off */
-		AL = 0x01;
-		AL |= CL;
-		OUT(DX, AL);
-		EDX++;
-		/* 電源切断完了を待つ */
+	LEA(EBX, work->PCCardDriveList[0]);
+	AX = [DS:EBX];
+	if (AX != 0xffff) {
 		do {
-			IN(AL, DX);
-			TEST(AL, 0x40);
-		} while (!= 0);
-
-#if 0
-		AL = 0x03;
-		AL |= CL;
-		OUT(DX, AL); /* Interrupt and General Control */
-		EDX++;
-		AL = 0x40; /* mem-card */
-		OUT(DX, AL);
-		EDX--;
-		AL = 0x06;
-		AL |= CL;
-		OUT(DX, AL); /* Address Window Enable */
-		EDX++;
-		AL = 0x20; /* all off */
-		OUT(DX, AL);
-		EDX--;
-		AL = 0x02;
-		AL |= CL;
-		OUT(DX, AL); /* Power and RESETDEV Control */
-		EDX++;
-		AL = 0x40; /* off */
-		OUT(DX, AL);
-		EDX--;
-#endif
-
-pcic_notfonund:
-		CL += 0x40;
-	} while ((signed) > 0);
+			EBX += 2;
+			if (AH != 0xff) {
+				EDI = EAX;
+				EDI <<= 8;
+				EDI |= 0x80000000;
+				EDI &= 0x80ffff00;
+				close_cardbus();
+				DL = 0xf8;
+				EAX = 0;
+				OUT(DX, EAX);
+			} else {
+				EDX = 0x03e0;
+				CL = AL;
+				CL <<= 6;
+				asmout("MOV ESI,PCIC_writereg");
+				EAX = 0x4003; CALL(ESI); /* Interrupt and General Control : mem-card */
+				EAX = 0x2006; CALL(ESI); /* Address Window Enable : all off */
+				EAX = 0x4002; CALL(ESI); /* Power and RESETDEV Control : off */
+				AL = 0x01;
+				AL |= CL;
+				OUT(DX, AL);
+				EDX++;
+				/* 電源切断完了を待つ */
+				do {
+					IN(AL, DX);
+					TEST(AL, 0x40);
+				} while (!= 0);
+			}
+			AX = [DS:EBX];
+		} while (AX != 0xffff);
+	}
 	POPAD();
 	return;
 }
@@ -4283,15 +4258,17 @@ void open_cf()
 	FDC_WORK *work == DS:0;
 	unsigned int all_sel == 1 * 8;
 	PUSHAD();
-	EDI = work->cardbus;
-	if (EDI != 0) {
+	ECX &= 0x7f;
+	AX = work->PCCardDriveList[ECX * 2];
+	if (AH != 0xff) {
 		/* cardbus */
-		ECX &= 0x07;
-		work->CFdev2 = CL;
-		ECX *= 256;
-		EDI += ECX;
+		EDI = EAX;
+		EDI <<= 8;
+		EDI |= 0x80000000;
+		EDI &= 0x80ffff00;
+		work->cardbus = EDI;
+		work->CFdev2 = 0; /* CardBusではこれは使ってない */
 		set_cardbus_base();
-
 		PUSH(DS);
 		PUSH(all_sel);
 		POP(DS);
@@ -4313,7 +4290,10 @@ void open_cf()
 		return;
 	}
 	/* 16bit-PCIC */
+	CL = AL;
+	EAX = 0;
 	CL &= 0x03;
+	work->cardbus = EAX;
 	work->CFdev2 = CL;
 	CL <<= 6;
 	EDX = 0x03e0;
@@ -4328,72 +4308,6 @@ void open_cf()
 	EAX = 0x3014; CALL(ESI); /* Card Memory Offset Address Low : fff30000 */
 	EAX = 0x3f15; CALL(ESI); /* Card Memory Offset Address High : fff30000, MEM */
 	EAX = 0x2106; CALL(ESI); /* Address Window Enable : only mem0 */
-
-#if 0
-	AL = 0x03;
-	AL |= CL;
-	OUT(DX, AL); /* Interrupt and General Control */
-	EDX++;
-	AL = 0x40; /* mem-card */
-	OUT(DX, AL);
-	EDX--;
-	AL = 0x06;
-	AL |= CL;
-	OUT(DX, AL); /* Address Window Enable */
-	EDX++;
-	AL = 0x20; /* all off */
-	OUT(DX, AL);
-	EDX--;
-	AL = 0x10;
-	AL |= CL;
-	OUT(DX, AL); /* System Memory Address Mapping Start Low */
-	EDX++;
-	AL = 0xd0; /* 000d0000 */
-	OUT(DX, AL);
-	EDX--;
-	AL = 0x11;
-	AL |= CL;
-	OUT(DX, AL); /* System Memory Address Mapping Start High */
-	EDX++;
-	AL = 0xc0; /* 000d0000 */
-	OUT(DX, AL);
-	EDX--;
-	AL = 0x12;
-	AL |= CL;
-	OUT(DX, AL); /* System Memory Address Mapping Stop Low */
-	EDX++;
-	AL = 0xd0; /* 000d0fff */
-	OUT(DX, AL);
-	EDX--;
-	AL = 0x13;
-	AL |= CL;
-	OUT(DX, AL); /* System Memory Address Mapping Stop High */
-	EDX++;
-	AL = 0x00; /* 000d0fff */
-	OUT(DX, AL);
-	EDX--;
-	AL = 0x14;
-	AL |= CL;
-	OUT(DX, AL); /* Card Memory Offset Address Low */
-	EDX++;
-	AL = 0x30; /* fff30000 */
-	OUT(DX, AL);
-	EDX--;
-	AL = 0x15;
-	AL |= CL;
-	OUT(DX, AL); /* Card Memory Offset Address High */
-	EDX++;
-	AL = 0x3f; /* fff30000, MEM */
-	OUT(DX, AL);
-	EDX--;
-	AL = 0x06;
-	AL |= CL;
-	OUT(DX, AL); /* Address Window Enable */
-	EDX++;
-	AL = 0x21; /* only mem0 */
-	OUT(DX, AL);
-	EDX--;
-#endif
 
 	POPAD();
 	return;
@@ -4535,4 +4449,3 @@ skip:
 	POPAD();
 	return;
 }
-

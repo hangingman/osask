@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.4.0
+/* "pokon0.c":アプリケーションラウンチャー  ver.4.1
      copyright(C) 2003 小柳雅明, 川合秀実
     stack:4k malloc:88k file:4096k */
 
@@ -54,7 +54,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon40"
+#define POKON_VERSION "pokon41"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.6\n    Copyright (C) 2003 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -87,7 +87,8 @@ static struct STR_VIEWER HELPLAY = { "HELO    BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER MMLPLAY = { "MMLPLAY BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER MCOPY   = { "MCOPYC1 BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER CMPTEK0 = { "CMPTEK0 BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER JPGVIEW = { "KJPEGLS BIN", 0, 0, 0, 0 };
+static struct STR_VIEWER JPGVIEW = { "PICTURE0BIN", 0, 0, 0, 0 };
+static struct STR_VIEWER WABA    = { "WABA    BIN", 0, 0, 0, 0 };
 
 struct STR_BANK *banklist;
 struct SGG_FILELIST *file;
@@ -2064,43 +2065,6 @@ listup:
 						/* ALLファイルモード */
 						runfile(fp, lp[cur].name);
 						break;
-
-#if 0
-						j = lp[cur].name[8] | lp[cur].name[9] << 8 | lp[cur].name[10] << 16;
-						if (j == ('B' | 'I' << 8 | 'N' << 16)) {
-							if ((bank = searchfrebank()) == NULL)
-								break;
-							for (i = 0; i < 11; i++)
-								bank->name[i] = lp[cur].name[i];
-							bank->name[11] = '\0';
-							if ((fbuf = searchfrefbuf()) == NULL)
-								break;
-							writejob_n(4, JOB_LOAD_FILE_AND_EXECUTE, (int) fp,
-								(int) fbuf, (int) bank);
-							break;
-						}
-						if (j == ('P' | 'S' << 8 | 'F' << 16)) {
-							writejob_n(4, JOB_LOAD_AND_EXEC_PSF,
-								lp[cur].name[0] | lp[cur].name[1] << 8 | lp[cur].name[2] << 16 | lp[cur].name[3] << 24,
-								lp[cur].name[4] | lp[cur].name[5] << 8 | lp[cur].name[6] << 16 | lp[cur].name[7] << 24,
-								'.' | 'P' << 8 | 'S' << 16 | 'F' << 24
-							);
-							break;
-						}
-						i = (int) &BINEDIT;
-						if (j == ('B' | 'M' << 8 | 'P' << 16))
-							i = (int) &PICEDIT;
-						if (j == ('T' | 'X' << 8 | 'T' << 16))
-							i = (int) &TXTEDIT;
-						if (j == ('H' | 'E' << 8 | 'L' << 16))
-							i = (int) &HELPLAY;
-						if (j == ('M' | 'M' << 8 | 'L' << 16))
-							i = (int) &MMLPLAY;
-						if (j == ('J' | 'P' << 8 | 'G' << 16))
-							i = (int) &JPGVIEW;
-						goto runviewer_ij;
-
-#endif
 					}
 
 					/* .EXEファイルモード */
@@ -3139,6 +3103,8 @@ void runfile(struct SGG_FILELIST *fp, char *name)
 		i = (int) &MMLPLAY;
 	if (j == ('J' | 'P' << 8 | 'G' << 16))
 		i = (int) &JPGVIEW;
+	if (j == ('W' | 'R' << 8 | 'P' << 16))
+		i = (int) &WABA;
 	run_viewer((void *) i, fp);
 ret:
 	return;

@@ -109,8 +109,11 @@ bootimg : $(BOOTIMAGE)
 $(BOOTIMAGE) : $(TARGET)
 	$(EXE2SYS) s $< $@ 2048
 
-#$(BASE) : $(BASE:.exe=.nas)
-#	$(NASK) $(NASK_FLAGS) $< $@ $*.lst 
+$(BASE) : $(BASE_NAS) makefile depend.mak
+	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) -o $(BASE:.exe=.nai) $<
+	$(NASK) $(NASK_FLAGS) $(BASE:.exe=.nai) $(BASE) $(BASE:.exe=.lst)
+
+
 
 pokon0.bim : pokon0.obj
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:$(POKON_STACK) $<
@@ -167,6 +170,10 @@ clean:
 	for %%i in ($(BOOT:.bin=.i)) do del %%i
 	for %%i in ($(BOOT:.bin=.3as)) do del %%i
 	for %%i in ($(BOOT:.bin=.nas)) do del %%i
+#	for %%i in ($(BASE:.exe=.obj)) do del %%i
+	for %%i in ($(BASE:.exe=.nai)) do del %%i
+	for %%i in ($(BASE:.exe=.lst)) do del %%i
+#	for %%i in ($(BASE:.exe=.map)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
@@ -196,6 +203,10 @@ dist_clean:
 	for %%i in ($(BOOT:.bin=.i)) do del %%i
 	for %%i in ($(BOOT:.bin=.3as)) do del %%i
 	for %%i in ($(BOOT:.bin=.nas)) do del %%i
+#	for %%i in ($(BASE:.exe=.obj)) do del %%i
+	for %%i in ($(BASE:.exe=.i)) do del %%i
+	for %%i in ($(BASE:.exe=.lst)) do del %%i
+#	for %%i in ($(BASE:.exe=.map)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i

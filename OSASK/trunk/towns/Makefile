@@ -12,7 +12,7 @@ C_OBJS =
 
 SUB_OBJS = 
 
-OBJS = $(BASE) $(SUB_OBJS) $(ASK_OBJS) $(C_OBJS)
+OBJS = $(SUB_OBJS) $(ASK_OBJS) $(C_OBJS)
 
 INCPATH = ../include
 LIBPATH = ../lib 
@@ -36,16 +36,16 @@ ALL : $(OBJS)
 #	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
 	copy $@ ..
 
-$(BASE) : $(BASE_NAS) makefile ..\depend.mak
-	$(NASK) $(NASK_FLAGS) $(BASE_NAS) $(BASE) $(BASE:.exe=.lst)
-	copy $@ ..
+#$(BASE) : $(BASE_NAS) makefile ..\depend.mak
+#	$(NASK) $(NASK_FLAGS) $(BASE_NAS) $(BASE) $(BASE:.exe=.lst)
+#	copy $@ ..
 
 clean:
-	del $(BASE)
+#	del $(BASE)
 #	for %%i in ($(BASE:.exe=.obj)) do del %%i
-	for %%i in ($(BASE:.exe=.lst)) do del %%i
+#	for %%i in ($(BASE:.exe=.lst)) do del %%i
 #	for %%i in ($(BASE:.exe=.map)) do del %%i
-	for %%i in ($(ASK_OBJS)) do del %%i
+#	for %%i in ($(ASK_OBJS)) do del %%i
 #	for %%i in ($(C_OBJS)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i

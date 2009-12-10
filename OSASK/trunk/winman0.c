@@ -3,7 +3,7 @@
     stack:8k malloc:4208k file:4096k */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
-#include "../kjpegls.h"
+#include "kjpegls.h"
 #if (defined(WIN31))
 	static int backcolors[5] = {8, 8, 0xc618, 0x00c0c0c0, 0x00c0c0c0};
 #else
@@ -174,7 +174,7 @@ struct {
 	int x, y;
 } windef[MAXWINDEF];
 int mouseaccel = 2;	/* これより大きいと加速度倍増 */
-int mousescale = 2; /* 加速スケールにしよう */
+int mousescale = 3; /* 加速スケールにしよう */
 struct SOUNDTRACK *sndtrk_buf, *sndtrk_active = NULL;
 struct DEFINESIGNAL *defsigbuf;
 struct MOSWINSIG *moswinsig;

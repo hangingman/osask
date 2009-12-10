@@ -1,34 +1,30 @@
-"src40"の使い方の説明                      2003/08/29 川合秀実
+"src41"の使い方の説明                      2003/10/10 川合秀実
 
 １．これは何か？
 
-  "src40"は、OSASK ver.4.0の「OSASK.EXE」を生成するのに必要なモジュールのソース
+  "src41"は、OSASK ver.4.1の「OSASK.EXE」を生成するのに必要なモジュールのソース
 プログラムのセットです。ただし、以前のバージョンのものをそのまま利用しているも
 のついては、このアーカイブに含まれていません。OSASK.EXEを生成するのに必要なモジ
 ュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    BASE.NAS     : ver.2.6
-    INIT.ASK     : ver.3.4
-    POKON0.C     : ver.4.0
-    WINMAN0.C    : ver.3.2
+    BASE.NAP     : ver.2.7
+    OSASKINC.ASK : ver.0.1
+    BOOT32.ASK   : ver.0.2
+    INIT.ASK     : ver.3.5
+    PIONEER0.ASK : ver.3.2
+    POKON0.C     : ver.4.1
+    WINMAN0.C    : ver.3.3
     PCAT/
-      FDCDRV0.BIN  : ver.2.3
-      VESA16.ASK   : ver.0.3
-      VESA32.ASK   : ver.0.2
-    TOWNS/
-      FDCDRV0.BIN  : ver.2.3
+      FDCDRV0.BIN  : ver.2.4
 
   (以前のバージョンのものを利用するもの)
 
-    BOOT32.ASK   : ver.0.1
-    OSASKINC.ASK : ver.0.0
     TAPI0.ASK    : ver.0.4
     PAPI0.ASK    : ver.0.6
     TIMERDRV.ASK : type-A ver.1.1
     DECODE0.ASK  : ver.1.0
-    PIONEER0.ASK : ver.3.1
     VGADRV0.ASK  : ver.1.9
     BMP2BETA.NAS : ver.0.1
     KJPEGLS2.C   : ver.0.0
@@ -38,9 +34,12 @@
     PCAT/
       OSALINK1.OPT : ver.0.1
       VESA8.ASK    : ver.0.1
+      VESA16.ASK   : ver.0.3
+      VESA32.ASK   : ver.0.2
     TOWNS/
       OSALINK1.OPT : ver.0.0
       KEYMOS0.BIN  : ver.0.4
+      FDCDRV0.BIN  : ver.2.3
     NEC98/
       OSALINK1.OPT : ver.0.0
       KEYMOS0.BIN  : ver.0.4
@@ -101,8 +100,8 @@ doc_link.txtでの説明を参照してください。
 
   BASE.EXEの生成は、以下のように行います。
 
->cpp0 -I. -P -DPCAT -DWIN9X -o base.i base.nas
->nask base.i base.exe base.lst
+>cpp0 -I. -P -DPCAT -DWIN9X -o base.nas base.nap
+>nask base.nas base.exe base.lst
 
   OSALINK1.OPTに書かれている全てのファイルが用意できたら、osalink1でそれらをま
 とめて、OSASK.EXEを生成できます。osalink1の使い方は、tolset05内のdoc_nask.txtを
@@ -138,14 +137,13 @@ doc_link.txtでの説明を参照してください。
 
 ４．謝辞
 
-  このアーカイブは、各著作者が川合堂ライセンス-01の適用に快く応じていただけたこ
-とで公開することができました。この場を借りて、心からお礼申し上げます。
+  このアーカイブは、各著作者がKL-01の適用に快く応じていただけたことで公開するこ
+とができました。この場を借りて、心からお礼申し上げます。
 
 ５．著作権
 
   著作権については、該当するOSASKの一般公開版に付属するCOPYRIGHT.TXTを参照して
-ください。このアーカイブないの全てのファイルに対して川合堂ライセンス-01を適用し
-ます。
+ください。このアーカイブないの全てのファイルに対してKL-01を適用します。
 
 ６．リンク
 
