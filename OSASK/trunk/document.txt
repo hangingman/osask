@@ -1,37 +1,33 @@
-"sb21"の使い方の説明                      2002/02/02 川合秀実
+"sb22"の使い方の説明                      2002/03/02 川合秀実
 
 １．これは何か？
 
-  "sb21"は、OSASK ver.2.1の「OSASK21.EXE」を生成するのに必要なモジュールのソー
+  "sb22"は、OSASK ver.2.2の「OSASK22.EXE」を生成するのに必要なモジュールのソー
 スプログラムとバイナリーファイルのセットです。ただし、以前のバージョンのものを
-そのまま利用しているものついては、このアーカイブに含まれていません。OSASK21.EXE
+そのまま利用しているものついては、このアーカイブに含まれていません。OSASK22.EXE
 を生成するのに必要なモジュールのバージョンを書いておきます。
 
   (このアーカイブ内に含まれているもの)
 
-    INIT.ASK     : ver.2.1
-    PAPI0.BIN    : ver.0.4
-    PIONEER0.BIN : ver.1.9
-    WINMAN0.BIN  : ver.1.5
-    POKON0.BIN   : ver.2.1
-    ANKFONT0.BIN : ver.0.2
+    INIT.ASK     : ver.2.2
+    PIONEER0.BIN : ver.2.0
+    WINMAN0.BIN  : ver.1.6
+    POKON0.BIN   : ver.2.2
     PCAT/
-      FDCDRV0.BIN  : ver.1.4
+      BASE.EXE   : ver.2.0
     TOWNS/
-      FDCDRV0.BIN  : ver.1.4
-      VGADRV0.BIN  : ver.1.1
+      BASE.EXE   : ver.2.0
 
   (以前のバージョンのものを利用するもの)
 
-    BASE.EXE     : ver.1.9
     OSALINK0.OPT : ver.1.9
+    PAPI0.BIN    : ver.0.4
     TAPI0.BIN    : ver.0.3
     TIMERDRV.BIN : type-A ver.0.9
     KEYMOS0.BIN  : ver.0.3
     DECODE0.BIN  : ver.0.9
     SYSGG00.LIB  : ver.0.7
-    PCAT/
-      VGADRV0.BIN  : ver.1.1
+    VGADRV0.BIN  : ver.1.1
 
   このバージョンナンバーは、完成度と比例しません。改定が行われるたびに増加して
 いるだけです。
@@ -45,15 +41,15 @@
 ・MASM version 6.14.8444
 ・Microsoft (R) Incremental Linker Version 5.12.8078
 ・lcc-win32 (LCC.EXEのタイムスタンプ2001/07/30、サイズ459,264バイト)
-・linkset1
+・linkset2
 ・gg00lib7
 ・stdlib4
 ・osalnk0p
 
 これらの入手先・使い方の説明は、大半がOSASKの開発者向けページにあり、その他のも
 のについては、masmcnv2、linkset1に付属のドキュメントを参照してください。C言語に
-よるアプリ開発入門セット"introa05"をダウンロードすれば、linkset1, gg00lib7, std
-lib4の3つをまとめて入手できます。
+よるアプリ開発入門セット"introa05"をダウンロードすれば、gg00lib7, stdlib4の2つ
+をまとめて入手できます。
 
   BASE.EXEの生成は、MAKEBASE.BATで行いました。MAKEBASE.BATを読んでアセンブル手
 順を把握してください。

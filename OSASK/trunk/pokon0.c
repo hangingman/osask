@@ -1,6 +1,6 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.2.1
+/* "pokon0.c":アプリケーションラウンチャー  ver.2.2
      copyright(C) 2001 小柳雅明, 川合秀実
-    stack:4k malloc:80k file:0 */
+    stack:4k malloc:92k file:0 */
 
 /* バーチャルモジュールを開放せよ！ */
 
@@ -12,7 +12,7 @@
 
 #include "pokon0.h"
 
-#define POKON_VERSION "pokon21"
+#define POKON_VERSION "pokon22"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.0\n    Copyright (C) 2002 H.Kawai(Kawaido)\n"
 #define POKO_PROMPT "\npoko>"
@@ -31,8 +31,8 @@ const static char *pokon_error_message[] = {
 
 static struct STR_JOBLIST job;
 static struct STR_VIEWER BINEDIT = { "BEDITC00BIN", 0, 0, 0, 0 };
-static struct STR_VIEWER TXTEDIT = { "TVIEWC05BIN", 2, 0x7f000001, 42, 0 };
-static struct STR_VIEWER PICEDIT = { "KBMPVC00BIN", 0, 0, 0, 0 };
+static struct STR_VIEWER TXTEDIT = { "TEDITC00BIN", 2, 0x7f000001, 42, 0 };
+static struct STR_VIEWER PICEDIT = { "BMPV06  BIN", 0, 0, 0, 0 };
 static struct STR_VIEWER RESIZER = { "RESIZER0BIN", 0, 0, 0, 0 };
 
 struct STR_BANK *banklist;
@@ -556,7 +556,7 @@ struct FILEBUF *check_wb_cache(struct FILEBUF *fbuf)
 	return NULL;
 }
 
-void main()
+void OsaskMain()
 {
 	struct FILESELWIN *win;
 	struct STR_JOBLIST *pjob = &job;

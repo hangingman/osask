@@ -14,7 +14,7 @@
 #define MAX_FILEBUF			64
 #define MAX_SELECTOR		5
 #define MAX_SELECTORWAIT	64
-#define MAX_VMREF			64
+#define MAX_VMREF			1024
 #define JOBLIST_SIZE		64
 #define MAX_ORDER			16	/* 256B */ //	256 /* 4KB */
 

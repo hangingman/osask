@@ -1,4 +1,4 @@
-/* "init.ask" ver.2.1 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "init.ask" ver.2.2 copyright(C) 2002 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
@@ -13,6 +13,7 @@ asmout("bootmalloc_fre1 = 01E0H");
 asmout("FD_motor_init = 01E4H");
 asmout("DiskCacheReady = 01E6H");
 asmout("V86TaskEntry = 0008H");
+asmout("boot_keylock = 001E7H");
 
 /* 64タスクまでの準備はできている */
 
@@ -99,8 +100,8 @@ struct GUIGUI_work { /* SS:0xffffd000; */
 	void [1024];
 	area_man_struct linear_man[1024];
 	area_man_struct dummy_man[1024];
-	void [ 764];
-	unsigned int root_Paddr;
+	void [ 760];
+	unsigned int timer_sec4, root_Paddr;
 	unsigned int dosload_phase, dosload_work[16];
 	unsigned int diskcache_Laddr, diskbuf_Paddr, diskbuf_Laddr;
 	unsigned int cacheflags[64 /* 2MB分 */];
@@ -923,8 +924,10 @@ void far Init()
 	EBX = ESP;
 	CALLFAR0(timerint_sel);
 	EAX = [SS:ESP + 36]; /* 割り込み周波数[Hz] */
+	ECX = [SS:ESP + 28]; /* 割り込み周期[2^-32sec] */
 	ESP += 44 - 4;
 	work->timer_freq = EAX;
+	work->timer_sec4 = ECX;
 
 //	PUSH((int) 0 /* eoc */);
 	PUSH((int) 0x0108 /* init */);
@@ -1599,7 +1602,10 @@ void far Init()
 					ESP += 16 - 4;
 
 				//	PUSH((int) 0); /* eoc */
-					PUSH((int) 0x00000000); /* NumLock off */
+					PUSH((int) syswork_sel);
+					POP(DS);
+					asmout("MOVZX EAX,BYTE PTR DS:[boot_keylock]");
+					PUSH(EAX); /* Lock Status */
 					PUSH((int) 0x0104 /* Keydecode_setlock */);
 					EBX = ESP;
 					CALLFAR0(decode_sel);
@@ -1796,33 +1802,33 @@ next0:
 	PUSH(work->root_Paddr);
 	PUSH(work->root_addr);
 	PUSH(work->root_size);
-	ECX = 128 * 1024; /* 128KB */
+	ECX = 512 * 1024; /* 512KB */
 	alloc_memory();
 	if (ZF == 1)
 		INT(0x03);
 	work->root_size = ECX;
 	work->root_addr = EDX;
 	work->root_Paddr = EAX;
-	EAX = idtgdt_sel;
+	PUSH((int) idtgdt_sel);
 	EBX = 384 /* IDTの分 */ + root_sel;
-	GS = AX;
+	POP(GS);
 	EAX = 0x4092; /* lv0, Read/Write, use32 */
 	CLI();
 	set_modulesegment();
-	EAX = all_sel;
 	ESI = [SS:ESP + 4];
 	EDI = work->root_addr;
 	EBP = [SS:ESP + 0];
-	DS = EAX;
+	PUSH((int) all_sel);
+	POP(DS);
 	memcopy16();
 	STI();
 	EAX = [SS:ESP + 0];
 	ECX = work->root_size;
 	ECX -= EAX;
 	if (!= 0) {
-		EDX = root_sel;
+		PUSH((int) root_sel);
 		ESI = 512;
-		DS = DX;
+		POP(DS);
 		free_area();
 	}
 	POP(ECX);
@@ -1839,15 +1845,15 @@ next0:
 	POP(EAX);
 	free_memory();
 
-	EAX = syswork_sel;
-	ECX = all_sel;
-	ES = EAX;
-	DS = ECX;
+	PUSH((int) syswork_sel);
+	POP(ES);
+	PUSH((int) all_sel);
+	POP(DS);
 
 #if 1
 	/* pdepte */
-	PUSH((int) syswork_sel);
-	POP(ES);
+//	PUSH((int) syswork_sel);
+//	POP(ES);
 	EDI = 32 + PDEPTE_ent;
 	PUSH((int) [ES:EDI + 0x0c]);
 	ECX = 4096 * 19; /* 76KB(64MB) 下も連動 */
@@ -1889,9 +1895,9 @@ next0:
 	EAX += 4096;
 	ECX &= 0xfff;
 	EAX |= ECX;
-	ECX = tapiwork_sel;
+	PUSH((int) tapiwork_sel);
 	CR3 = EAX;
-	DS = CX;
+	POP(DS);
 	[DS:0x101c /* init task CR3 */] = EAX;
 	[DS:0x201c /* idle task CR3 */] = EAX;
 	[DS:0x301c /* winman0 task CR3 */] = EAX;
@@ -1900,16 +1906,16 @@ next0:
 		[DS:0x501c /* V86 task CR3 */] = EAX;
 	#endif
 	STI();
-	AX = SS;
+	PUSH(SS);
 	/* ESI = (offset) work->linear_man; */ LEA(ESI, (int) work->linear_man);
-	DS = AX;
+	POP(DS);
 	EAX = 20 * 0x00100000; /* 20MB */
 	ECX = 44 * 0x00100000; /* (64- 20) * 1MB (上と連動) */
 	free_area();
-	EDX = all_sel;
 	POP(ECX);
 	POP(EAX);
-	DS = EDX;
+	PUSH((int) all_sel);
+	POP(DS);
 	free_memory();
 #endif
 
@@ -5039,6 +5045,12 @@ nextcmd:
 			goto cmd0318; // set timer message
 		if (EAX == 0x031c)
 			goto cmd031c; // set timer interval
+		if (EAX == 0x0320)
+			goto cmd0320; // set timer opt81
+		if (EAX == 0x0324)
+			goto cmd0324; // set timer opt82
+		if (EAX == 0x0328)
+			goto cmd0328; // get randseed
 		INT(0x03);
 	}
 	if ((unsigned) EAX < 0x0600) {
@@ -5601,8 +5613,8 @@ cmd0314:
 	PUSH(ECX);
 	PUSH(ECX);
 	PUSH((int) [DS:EDX    ]);
-	EAX = stack_sel;
-	ES = AX;
+	PUSH((int) stack_sel);
+	POP(ES);
 	PUSH((int) 0x0020 /* AddTimeNode */);
 	ECX = cmd0314_work->timer_freq; // 1193180;
 	EAX = cmd[ 8];
@@ -5733,6 +5745,120 @@ cmd031c:
 		}
 	}
 	(offset) cmd += 20;
+	goto nextcmd;
+
+cmd0320:
+	// set timer opt81
+	// cmd, slot0, slot1, time0, time1, time2
+	GUIGUI_work *cmd0320_work == ES:0xffffd000;
+	PUSH((int) stack_sel);
+	PUSH((int) 0x003c);
+	ECX = 0;
+	POP(DS); /* == 0x003c */
+	POP(ES); /* == stack_sel */
+	ESI = cmd[ 4];
+	EDI = cmd[ 8];
+	PUSH(ECX /* EOC */);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH((int) [DS:EDI]);
+	PUSH((int) [DS:ESI]);
+	PUSH((int) 0x0034 /* AddTimeNode2 */);
+	ECX = cmd0320_work->timer_freq; // 1193180;
+	EAX = cmd[12];
+	if (EAX != 0) {
+		MUL(ECX);
+		EAX <<= 1; // EAXのMSBをCFへ。
+	//	(int) [SS:ESP + 12] += EDX + CF;
+		ADC((int) [SS:ESP + 12], EDX);
+	}
+	EAX = cmd[16];
+	if (EAX != 0) {
+		MUL(ECX);
+		(int) [SS:ESP + 12] += EAX;
+	//	(int) [SS:ESP + 16] += EDX + CF;
+		ADC((int) [SS:ESP + 16], EDX);
+	}
+	EAX = cmd[20];
+	if (EAX != 0) {
+		MUL(ECX);
+		(int) [SS:ESP + 16] += EAX;
+	//	(int) [SS:ESP + 20] += EDX + CF;
+		ADC((int) [SS:ESP + 20], EDX);
+	}
+	EBX = ESP;
+	DB(0x9a); DD(0); DW((short) timerint_sel);
+//	if (CF == 1) {
+//		INT(0x03);
+//	}
+	ESP += 28;
+	(offset) cmd += 24;
+	goto nextcmd;
+
+cmd0324:
+	// set timer opt82
+	// cmd, slot0, slot1, time0, time1, time2
+	GUIGUI_work *cmd0324_work == ES:0xffffd000;
+	PUSH((int) stack_sel);
+	PUSH((int) 0x003c);
+	ECX = 0;
+	POP(DS); /* == 0x003c */
+	POP(ES); /* == stack_sel */
+	ESI = cmd[ 4];
+	EDI = cmd[ 8];
+	PUSH(ECX /* EOC */);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH((int) [DS:EDI]);
+	PUSH((int) [DS:ESI]);
+	PUSH((int) 0x0024 /* SubTimeNode */);
+	EBX = ESP;
+	DB(0x9a); DD(0); DW((short) timerint_sel);
+	ESP += 12;
+	EBX = cmd0324_work->timer_sec4;
+	POP(EAX);
+	MUL(EBX);
+	cmd[12] = EAX;
+	POP(EAX);
+	cmd[16] = EDX;
+	cmd[20] = ECX;
+	if (EAX != 0) {
+		MUL(EBX);
+		cmd[16] += EAX;
+		ADC(cmd[20], EDX);
+	}
+	POP(EAX);
+	if (EAX != 0) {
+		MUL(EBX);
+		cmd[20] += EAX;
+	}
+	POP(ECX);
+	(offset) cmd += 24;
+	goto nextcmd;
+
+cmd0328:
+	/* getrandseed */
+	/* TimerSC_SetNowTimeコマンドを使うのでタイマーはいらない */
+	ECX = 0;
+	PUSH(ECX /* EOC */);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH(ECX);
+	PUSH((int) 0x0018 /* TimerSC_SetNowTime */);
+	EBX = ESP;
+	DB(0x9a); DD(0); DW((short) timerint_sel);
+	POP(EBX);
+	POP(EAX);
+	POP(ECX);
+	XCHG(AH, AL); /* かき回し */
+	POP(EDX);
+	EAX ^= ECX;
+	POP(EBX);
+	EAX ^= EDX;
+	cmd[4] = EAX;
+	(offset) cmd += 8;
 	goto nextcmd;
 
 cmd0400:
@@ -6211,10 +6337,10 @@ cmd041c:
 	// points
 	/* cmd, opt, window, x0, y0, xsize, ysize, lines, ofs, sel */
 	GUIGUI_window_struct *cmd041c_win == DS:ESI;
-	EAX = 0x003c; // slot_sel
-	ECX = stack_sel;
-	ES = AX;
-	DS = CX;
+	PUSH((int) 0x003c); // slot_sel
+	PUSH((int) stack_sel);
+	POP(DS); /* == stack_sel */
+	POP(ES); /* == 0x003c */
 	PUSH((int) 0);
 	PUSH((int) 1); // opt(unlock/bitmode)
 	EBX = ESP;
@@ -6261,12 +6387,12 @@ cmd0510:
 	// define signal
 	// cmd, opt, default[12](dev, code, win), msgbox, len, signal[8], far *purpose
 	// 16 * 256 = 4KB(最大3dw)
+//	PUSH(SS);
+	PUSH((int) 0x003c /* slot_sel */);
 	EDX = cmd[16]; // win slot
-	EAX = 0x003c; // slot_sel
-	CX = SS;
-	ES = AX;
-	DS = CX;
-	EAX = (int) [ES:EDX + 8]; // win
+	POP(DS); /* == 0x003c */
+//	POP(DS); /* == SS */
+	EAX = (int) [DS:EDX + 8]; // win
 
 	// ウィンドウ連動デバイス指定(to winman0)
 	PUSH((int) 0);
@@ -6292,20 +6418,19 @@ cmd0600:
 	// サウンド初期化(トラックオープンコマンド送信)
 	// opt(track-no), reserve
 	// track-noはslotにする
-	EAX = 0x003c; // slot_sel
+	PUSH((int) 0x003c); // slot_sel
 	EDX = cmd[4];
-	ECX = tapiwork_sel;
-	DS = AX;
+	POP(DS);
 	TEST(DL, 0x01);
 	if (== 0) {
-		ES = CX;
+		PUSH((int) tapiwork_sel);
 		(int) [DS:EDX + 12] = 0x0110; /* sound track mark */
-		EAX = [ES:0x000c]; // tss
+		POP(ES);
 		PUSH((int) 0); // eoc
 		PUSH((int) 0); // reserve1
 		PUSH(cmd[8]); // reserve0
 		PUSH((int) 0x00c0); // signal-base
-		PUSH(EAX); // tss
+		PUSH((int) [ES:0x000c]); // tss
 		PUSH(EDX); // slot
 		PUSH((int) 0x0040); // command(open sound track)
 		PUSH((int) 0x7f000006);
@@ -6333,9 +6458,9 @@ cmd0600:
 cmd0604:
 	// サウンド終了(close sound)
 	// opt(track-no)
-	EAX = 0x003c; // slot_sel
+	PUSH((int) 0x003c); // slot_sel
 	EDX = cmd[4];
-	DS = AX;
+	POP(DS);
 	EDX = [DS:EDX + 8]; /* system-ID */
 	TEST(DL, 0x01);
 	if (!= 0) { /* 使用中だったら、消音する */
@@ -6371,10 +6496,10 @@ cmd0608:
 	// enable/disable sound track
 	// opt(track-no) : bit0 は enbale-bit
 	// track-noはslotにする
-	EAX = 0x003c; // slot_sel
+	PUSH((int) 0x003c); // slot_sel
 	EDX = cmd[4];
 	(offset) cmd += 8;
-	DS = AX;
+	POP(DS);
 	ECX = EDX;
 	EDX &= 0xfffffff0;
 	CL &= 0x01;
@@ -6392,9 +6517,9 @@ cmd060c:
 	/* 2e-32sec単位 */
 	/* 440.000014Hz (9761289) O4A */
 	/* opt(track-no), time */
-	EAX = 0x003c; /* slot_sel */
+	PUSH((int) 0x003c); /* slot_sel */
 	EDX = cmd[4];
-	DS = AX;
+	POP(DS);
 	EAX = cmd[8];
 	CL = [DS:EDX + 8];
 	(offset) cmd += 12;
@@ -6471,10 +6596,10 @@ cmd0608_enable:
 cmd0700:
 	/* ファイルハンドル初期化 */
 	/* cmd, opt, slot */
-	EAX = tapiwork_sel;
-	ECX = 0x003c; /* slot_sel */
-	DS = AX;
-	ES = CX;
+	PUSH((int) 0x003c); /* slot_sel */
+	PUSH((int) tapiwork_sel);
+	POP(DS);
+	POP(ES);
 	EAX = cmd[4];
 	EDX = cmd[8]; /* slot */
 	(offset) cmd += 12;
@@ -6486,11 +6611,14 @@ cmd0700:
 		goto nextcmd;
 	}
 	if (EAX == 12 /* マシンディレクトリ */) {
+cmd0700_machine:
 		EAX = 0;
 		EAX--;
 		[ES:EDX + 0] = EAX;
 		goto nextcmd;
 	}
+	if (EAX == 8 /* ユーザーディレクトリ */)
+		goto cmd0700_machine;
 	if (EAX == 64 /* ルート(仮) */) {
 		(int) [ES:EDX + 0] = 1024;
 		goto nextcmd;
@@ -6522,8 +6650,8 @@ cmd0700:
 cmd0708:
 	/* コピーハンドル */
 	/* cmd, opt, slot(dest), slot(src) */
-	EAX = 0x003c; /* slot_sel */
-	DS = AX;
+	PUSH((int) 0x003c); /* slot_sel */
+	POP(DS);
 	ECX = cmd[12];
 	EDX = cmd[ 8]; /* slot */
 	(offset) cmd += 16;
@@ -6536,8 +6664,8 @@ cmd070c:
 	/* cmd, opt, slot, bytes, ofs, sel */
 	/* 完了した場合も見付からない場合も、シグナルで知らせる */
 
-	EAX = tapiwork_sel;
-	DS = AX;
+	PUSH((int) tapiwork_sel);
+	POP(DS);
 
 	/* 0x7f000006, sig, task, slot, bytes, ofs, sel */
 	PUSH((int) 0);
@@ -6647,9 +6775,9 @@ cmd070c_next:
 cmd0710:
 	/* create new module */
 	/* cmd, opt, slot(dir), slot(module), tag-dir alloc-size, tag0, tag1, ..., -1 */
-	EAX = 0x003c; /* slot_sel */
 	ESP -= 512;
-	ES = AX;
+	PUSH((int) 0x003c); /* slot_sel */
+	POP(ES);
 	EAX = cmd[ 8]; /* slot(dir) */
 	ECX = cmd[12]; /* slot(module) */
 	EDX = cmd[16]; /* tagdir allocsize */
@@ -6685,17 +6813,17 @@ cmd0710:
 cmd0710_next:
 		EAX = [DS:ESI];
 	} while (EAX != 0xffffffff);
-	ECX = root_sel;
+	PUSH((int) root_sel);
 	[SS:EBP] = EAX;
-	DS = CX;
+	POP(DS);
 	[SS:EBP + 4] = EAX;
 	ECX = [SS:ESP + 504];
 	LEA(EBP, [ESI + 4]);
 	ESI = 512;
 	alloc_tagdir();
-	AX = SS;
 	EBX = ESP;
-	GS = AX;
+	PUSH(SS);
+	POP(GS);
 	add_tags();
 	GS = [SS:ESP + 508];
 	EDX = [SS:ESP + 500];
@@ -6721,9 +6849,9 @@ cmd0710_ffe00003:
 
 cmd0720:
 	/* map module */
-	EAX = tapiwork_sel;
+	PUSH((int) tapiwork_sel);
 	ECX = cmd[20]; /* opt(sel) */
-	DS = AX;
+	POP(DS);
 	ECX &= 0x0000fff8;
 	ESI = [DS:0x000c] /* tskptr */;
 	EAX = cmd[8]; /* slot */

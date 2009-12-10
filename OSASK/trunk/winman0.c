@@ -1,4 +1,4 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.5
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.1.6
 		copyright(C) 2002 川合秀実
     stack:4k malloc:92k file:768k */
 
@@ -17,7 +17,7 @@
 #define	MAX_SOUNDTRACK		  16		// 0.5KB
 #define	DEFSIGBUFSIZ		2048
 
-//#define TWVSW				1024
+#define TWVSW				1024
 
 #define WINFLG_MUSTREDRAW		0x80000000	/* bit31 */
 #define WINFLG_OVERRIDEDISABLED	0x01000000	/* bit24 */
@@ -115,7 +115,7 @@ static int tapisigvec[] = {
 	0x006c, 6 * 4, 0x011c /* cmd fot tapi */, 0, 0, 0x0000, 0x0000
 };
 
-void main()
+void OsaskMain()
 {
 	int *signal, *signal0, i, j;
 	struct WM0_WINDOW *win;
@@ -564,6 +564,43 @@ void main()
 
 void init_screen(const int x, const int y)
 {
+	struct STR_BGV {
+		int col, x0, y0, x1, y1;
+	};
+
+	static struct STR_BGV linedata[] = {
+		{  6,   0,   0,  -1, -29 },
+		{  8,   0, -28,  -1, -28 },
+		{ 15,   0, -27,  -1, -27 },
+		{  8,   0, -26,  -1,  -1 },
+		{ 15,   3, -24,  59, -24 },
+		{ 15,   2, -24,   2,  -4 },
+		{  7,   3,  -4,  59,  -4 },
+		{  7,  59, -23,  59,  -5 },
+		{  0,   2,  -3,  59,  -3 },
+		{  0,  60, -24,  60,  -3 },
+		{  7, -47, -24,  -4, -24 },
+		{  7, -47, -23, -47,  -4 },
+		{ 15, -47,  -3,  -4,  -3 },
+		{ 15,  -3, -24,  -3,  -3 },
+		{  0,   0,   0,   0,   0 }
+	};
+
+	struct STR_BGV *p;
+	int x0, y0, x1, y1;
+	for (p = linedata; p->y1; p++) {
+		if ((x0 = p->x0) < 0)
+			x0 += x;
+		if ((y0 = p->y0) < 0)
+			y0 += y;
+		if ((x1 = p->x1) < 0)
+			x1 += x;
+		if ((y1 = p->y1) < 0)
+			y1 += y;
+		lib_drawline(0x0020, (void *) -1, p->col, x0, y0, x1, y1);
+	}
+
+#if 0
 	lib_drawline(0x0020, (void *) -1,  6,      0,      0, x -  1, y - 29);
 	lib_drawline(0x0020, (void *) -1,  8,      0, y - 28, x -  1, y - 28);
 	lib_drawline(0x0020, (void *) -1, 15,      0, y - 27, x -  1, y - 27);
@@ -578,6 +615,8 @@ void init_screen(const int x, const int y)
 	lib_drawline(0x0020, (void *) -1,  7, x - 47, y - 23, x - 47, y -  4);
 	lib_drawline(0x0020, (void *) -1, 15, x - 47, y -  3, x -  4, y -  3);
 	lib_drawline(0x0020, (void *) -1, 15, x -  3, y - 24, x -  3, y -  3);
+#endif
+
 	sgg_wm0_putmouse(mx, my);
 	return;
 }
@@ -1151,22 +1190,21 @@ void job_movewin4m(int x, int y)
 	struct WM0_WINDOW *win0 = job_win;
 
 	#if (defined(TOWNS))
-		int x0 = job_movewin_x0 + (x - press_mx0) & ~3;
-		int y0 = job_movewin_y0 + y - press_my0;
-		int xsize = win0->x1 - win0->x0;
-		int ysize = win0->y1 - win0->y0;
+		#define	XALIGN	~3
 	#endif
 	#if (defined(PCAT))
-		int x0 = job_movewin_x0 + (x - press_mx0) & ~7;
-		int y0 = job_movewin_y0 + y - press_my0;
-		int xsize = win0->x1 - win0->x0;
-		int ysize = win0->y1 - win0->y0;
+		#define	XALIGN	~7
 	#endif
+
+	int x0 = job_movewin_x0 + (x - press_mx0) & XALIGN;
+	int y0 = job_movewin_y0 + y - press_my0;
+	int xsize = win0->x1 - win0->x0;
+	int ysize = win0->y1 - win0->y0;
 
 	if (x0 < 0)
 		x0 = 0;
 	if (x0 > x2 - xsize)
-		x0 = x2 - xsize;
+		x0 = (x2 - xsize) & XALIGN;
 	if (y0 < 0)
 		y0 = 0;
 	if (y0 > y2 - ysize - 28)

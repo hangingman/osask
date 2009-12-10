@@ -1,4 +1,4 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.1.9
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.0
     copyright(C) 2002 H.Kawai (川合秀実), I.Tak. */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
@@ -131,7 +131,7 @@ cmd_jumptable:
 	asmout("DD OFFSET cmd0e0,  OFFSET cmd0e4,  OFFSET cmd0e8,  OFFSET cmd0ec ");
 	asmout("DD OFFSET cmd0f0,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
 	asmout("DD OFFSET #cmderr, OFFSET #cmderr, OFFSET cmd108,  OFFSET cmd10c ");
-	asmout("DD OFFSET cmd050,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
+	asmout("DD OFFSET cmd050,  OFFSET #cmderr, OFFSET cmd118,  OFFSET #cmderr");
 	asmout("DD OFFSET cmd120,  OFFSET #cmderr, OFFSET #cmderr, OFFSET #cmderr");
 }
 
@@ -2109,12 +2109,47 @@ void near cmd078()
 	// 時刻やインターバルを設定
 	// シグナル定義時のdeviceは0x0010
 
-	EDI = cmd[4]; // optionフィールド
+	EAX = cmd[4]; // optionフィールド
 	EDX = cmd[8]; // slot
+	EBX = cmd[12]; /* slot1 */
 	(offset) cmd += 12;
 
-	TEST(EDI, 0x20); // bit5 : 現在時刻ロード
-	PUSH((int) 0);
+	ECX = 0;
+	CMP(AL, 0x81);
+	PUSH(ECX);
+	if (==) {
+		/* 時刻指定(含：時刻コピー) */
+		PUSH(cmd[12]); /* cmd[24] */
+		PUSH(cmd[ 8]); /* cmd[20] */
+		PUSH(cmd[ 4]); /* cmd[16] */
+		PUSH(EBX);
+		PUSH(EDX);
+		PUSH((int) 0x0320);
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		ESP += 28;
+		(offset) cmd += 16;
+		asmout("JMP nextcmd");
+	}
+	if (AL == 0x82) {
+		/* 時間差分算出 */
+		PUSH(ECX);
+		PUSH(ECX);
+		PUSH(ECX);
+		PUSH(EBX);
+		PUSH(EDX);
+		PUSH((int) 0x0324); // 現在時刻設定
+		EBX = ESP;
+		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		ESP += 12;
+		POP(cmd[ 4]); /* cmd[16] */
+		POP(cmd[ 8]); /* cmd[20] */
+		POP(cmd[12]); /* cmd[24] */
+		(offset) cmd += 16;
+		POP(ECX);
+		asmout("JMP nextcmd");
+	}
+	TEST(AL, 0x20); // bit5 : 現在時刻ロード
 	if (!= 0) {
 	//	PUSH((int) 0x0000);
 		PUSH(EDX);
@@ -2123,7 +2158,7 @@ void near cmd078()
 		DB(0x9a); DD(0); DW(0x0017); // shell-call
 		ESP += 12 - 4;
 	}
-	TEST(EDI, 0x10); // bit4 : 時刻加算(時刻フィールドを伴う)
+	TEST(AL, 0x10); // bit4 : 時刻加算(時刻フィールドを伴う)
 	if (!= 0) {
 	//	PUSH((int) 0);
 		PUSH(cmd[8]);
@@ -2136,7 +2171,7 @@ void near cmd078()
 		DB(0x9a); DD(0); DW(0x0017); // shell-call
 		ESP += 24 - 4;
 	}
-	TEST(EDI, 0x08); // bit3 : インターバル指定(インターバルフィールドを伴う)
+	TEST(AL, 0x08); // bit3 : インターバル指定(インターバルフィールドを伴う)
 	if (!= 0) {
 	//	PUSH((int) 0);
 		PUSH(cmd[8]);
@@ -2149,20 +2184,19 @@ void near cmd078()
 		DB(0x9a); DD(0); DW(0x0017); // shell-call
 		ESP += 24 - 4;
 	}
-	TEST(EDI, 0x04); // bit2 : インターバル解除(単発モード)
+	TEST(AL, 0x04); // bit2 : インターバル解除(単発モード)
 	if (!= 0) {
-		EAX = 0;
-	//	PUSH(EAX);
-		PUSH(EAX);
-		PUSH(EAX);
-		PUSH(EAX);
+	//	PUSH(ECX);
+		PUSH(ECX);
+		PUSH(ECX);
+		PUSH(ECX);
 		PUSH(EDX);
 		PUSH((int) 0x031c); // インターバル指定
 		EBX = ESP;
 		DB(0x9a); DD(0); DW(0x0017); // shell-call
 		ESP += 24 - 4;
 	}
-	TEST(EDI, 0x02); // bit1 : タイマー始動
+	TEST(AL, 0x02); // bit1 : タイマー始動
 	if (!= 0) {
 	//	PUSH((int) 0x0000);
 		PUSH(EDX);
@@ -2171,7 +2205,7 @@ void near cmd078()
 		DB(0x9a); DD(0); DW(0x0017); // shell-call
 		ESP += 12 - 4;
 	}
-	TEST(EDI, 0x01); // bit0 : タイマー停止
+	TEST(AL, 0x01); // bit0 : タイマー停止
 	if (!= 0) {
 	//	PUSH((int) 0x0000);
 		PUSH(EDX);
@@ -3290,6 +3324,24 @@ draw:
 	asmout("JMP nextcmd");
 }
 #endif
+
+void near cmd118()
+/* get randseed */
+/* cmd, opt, (seed) */
+{
+	int *cmd == DS:ESI;
+
+	PUSH((int) 0x0000);
+	PUSH(EAX);
+	PUSH((int) 0x0328);
+	EBX = ESP;
+	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	POP(EAX);
+	POP(cmd[8]);
+	POP(EAX);
+	(offset) cmd += 12;
+	asmout("JMP nextcmd");
+}
 
 void near cmd120()
 /* file resize */

@@ -36,6 +36,7 @@ DEFAULT_RULE_FILE = osask.rul
 # architecture dependency
 # for FM-TOWNS
 ifeq ($(ARCH),towns)
+BASE_ASM = base.asm
 PREPROCESSOR_FLAGS += -DTOWNS
 CFLAGS += -DTOWNS
 # enable 1-pixel scroll
@@ -54,6 +55,7 @@ endif
 endif
 # for PC/AT
 ifeq ($(ARCH),pcat)
+BASE_ASM = base.asm
 PREPROCESSOR_FLAGS += -DPCAT
 CFLAGS += -DPCAT
 ifeq ($(VMWARE),y)
@@ -61,10 +63,12 @@ PREPROCESSOR_FLAGS += -DVMWARE
 CFLAGS += -DVMWARE
 endif
 ifeq ($(BOCHS),13)
+BASE_ASM = base_bch.asm
 PREPROCESSOR_FLAGS += -DBOCHS
 CFLAGS += -DBOCHS
 endif
 ifeq ($(BOCHS),12)
+BASE_ASM = base_bch.asm
 PREPROCESSOR_FLAGS += -DBOCHS -DNOHLT
 CFLAGS += -DBOCHS -DNOHLT
 endif

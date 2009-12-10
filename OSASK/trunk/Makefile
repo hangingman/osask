@@ -23,9 +23,9 @@ ASK_OBJS =  init.bin tapi0.bin pioneer0.bin papi0.bin
 
 C_OBJS = winman0.bin pokon0.bin
 
-SUB_OBJS = $(BASE) $(ANKFONT)
+SUB_OBJS = $(ANKFONT)
 
-OBJS = $(SUB_OBJS) $(ASK_OBJS) $(C_OBJS) $(ARCH_OBJS)
+OBJS = $(BASE) $(SUB_OBJS) $(ASK_OBJS) $(C_OBJS) $(ARCH_OBJS)
 
 INCPATH = ./include
 LIBPATH = ./lib 
@@ -48,30 +48,30 @@ $(OSALINK_OPT) : makefile
 $(ANKFONT) :
 
 pcat : FORCE
-	copy /y base.as base.asm
+#	copy /y base.as base.asm
 	echo ARCH = pcat> depend.mak
 	$(MAKE)
 
 vmware : FORCE
-	copy /y base.as base.asm
+#	copy /y base.as base.asm
 	echo ARCH = pcat> depend.mak
 	echo VMWARE = y>> depend.mak
 	$(MAKE)
 
 bochs : FORCE
-	copy /y base.bch base.asm
+#	copy /y base.bch base.asm
 	echo ARCH = pcat> depend.mak
 	echo BOCHS = 13>> depend.mak
 	$(MAKE)
 
 bochs12 : FORCE
-	copy /y base.bch base.asm
+#	copy /y base.bch base.asm
 	echo ARCH = pcat> depend.mak
 	echo BOCHS = 12>> depend.mak
 	$(MAKE)
 
 towns : FORCE 
-	copy /y base.as base.asm
+#	copy /y base.as base.asm
 	echo ARCH = towns> depend.mak
 	echo TWSCRL1 = n>> depend.mak
 	echo TWVSW = 1024>> depend.mak
@@ -79,14 +79,14 @@ towns : FORCE
 
 FORCE:
 
-$(BASE) : $(BASE:.exe=.obj)
+#$(BASE) : $(BASE:.exe=.obj)
 
 pokon0.bim : pokon0.obj
 	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
 	$(OBJ2BIM) @$(DEFAULT_RULE_FILE) out:$@ stack:4k $<
 
 pokon0.bin : pokon0.bim
-	$(BIM2BIN) malloc:80k file:0 input:$< output:$@
+	$(BIM2BIN) malloc:92k file:0 input:$< output:$@
 
 winman0.bim : winman0.obj
 	$(OBJ2BIM) -fixobj $< $(OBJ2BIM_ALIGN_FLAGS)
@@ -121,9 +121,6 @@ clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i clean
 	del $(TARGET)
 	for %%i in ($(OBJS)) do del %%i
-	for %%i in ($(BASE:.exe=.obj)) do del %%i
-	for %%i in ($(BASE:.exe=.lst)) do del %%i
-	for %%i in ($(BASE:.exe=.map)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
@@ -138,9 +135,6 @@ dist_clean:
 	for %%i in ($(SUBDIRS)) do $(MAKE) -i -C %%i dist_clean
 #	del $(TARGET)
 	for %%i in ($(OBJS)) do del %%i
-	for %%i in ($(BASE:.exe=.obj)) do del %%i
-	for %%i in ($(BASE:.exe=.lst)) do del %%i
-	for %%i in ($(BASE:.exe=.map)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
