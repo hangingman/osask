@@ -1,11 +1,13 @@
 /*	"timerdrv.aska"
-	OSASK/AT用のタイマールーチン(type-A ver. 1.0)
+	OSASK/AT用のタイマールーチン(type-A ver. 1.1)
 	Copyright(C) 2002 川合秀実(川合堂)		*/
 
 //	古いチップセットには対応していない。なぜなら、連続アクセスの際にウェイトが入っていないから。
 
-segment TimerMdl(USE32, PARA);
-default(code == TimerMdl);
+#include "osaskinc.ask"
+
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 #define	DEBUG		1
 
@@ -51,14 +53,12 @@ struct TimerWork {
 void far TimerSysCmd()
 // FS:EBXからコマンド
 {
-	asmout("include ../inc.asm");
-	segment TimerMdl == CS;
 	PUSH(DS);
 	ESP -= 24;
 	[SS:ESP +  0] = EAX;
-	AX = CS;
+	MOV(EAX, CS);
 	[SS:ESP +  4] = ECX;
-	AX += 8;
+	EAX += 8;
 	[SS:ESP +  8] = EDX;
 	DS = AX;
 	EAX = [FS:EBX]; // 4の倍数
@@ -77,8 +77,8 @@ void far TimerInt()
 
 	PUSH(DS);
 	PUSH(EAX);
-	AX = CS;
-	AX += 8;
+	MOV(EAX, CS);
+	EAX += 8;
 	DS = AX;
 
 	// 例外なく、割り込みはすぐに終了
@@ -263,7 +263,7 @@ check_nesting:
 
 call_clicall:
 //	PUSHAD();
-	/* (ss0->clicall)() */ asmout("CALL FWORD PTR SS:[0FFFFFFC0H+038H]");
+	/* (ss0->clicall)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
 //	POPAD();
 	POPAD();
 	POP(EAX);
@@ -273,7 +273,7 @@ call_clicall:
 	IRETD();
 
 call_ring0call:
-	/* (ss0->ring0call)() */ asmout("jmp_system_count0");
+	/* (ss0->ring0call)() */ jmp_system_count0();
 //	IRETD();
 
 exec3: // フライングタイムアウト用合流地点
@@ -295,7 +295,7 @@ exec3: // フライングタイムアウト用合流地点
 	work->timeout.next = (offset) tnext;
 	/* tnext->back = (offset) &(work->timeout) */ asmout("MOV DWORD PTR DS:[EDI+#TN_back],#work_timeout");
 //	STI(); // 2000/05/24 割り込み処理中は一貫してCLIしておくことになった。
-	asmout("CALL FWORD PTR DS:[ESI][#TN_call_vector]");
+	asmout("CALL FAR DWORD DS:[ESI+#TN_call_vector]");
 //	CLI();
 	if (CF == 1 /* 連続割込み要求 */) {
 		// CFを1にするなら、ESIを壊してはいけない
@@ -746,7 +746,7 @@ void near TimerSC_SetTimer()
 	/* (false) */ if (== 0) {
 		PUSH(DS);
 	//	PUSHAD();
-		/* (ss0->clicall)() */ asmout("CALL FWORD PTR SS:[0FFFFFFC0H+038H]");
+		/* (ss0->clicall)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
 	//	POPAD();
 		POP(DS);
 	}

@@ -1,0 +1,72 @@
+/* "execcmd.ask" */
+
+#define	TEXT_ALIGN		0x10	/* align 1 */
+#define	DATA_ALIGN		0x30	/* align 4 */
+
+/* 0x10:align1, 0x20:align2, 0x30:align4, 0x40:align8, 0x50:align16 */
+
+#include "coffhead.ask"
+
+void COFF_section_text() {} /* begin .text */
+
+/* void sgg_execcmd(void *EBX); */
+
+void _sgg_execcmd()
+{
+	PUSH(EBX);
+	EBX = [SS:ESP+8];
+	CALL(0xcf,0);
+	POP(EBX);
+	return;
+}
+
+void COFF_section_data() {} /* begin .data */
+
+/* no data */
+
+void COFF_reloctab_text()
+{
+
+	/* nothing */
+
+}
+
+void COFF_reloctab_data()
+{
+
+	/* nothing */
+
+}
+
+void COFF_symboltable()
+{
+	asmout("DD '.file'");
+	DD(0); DW(-2); DW(0); DB(103); DB(1);
+	asmout("DB 'execcmd.ask'");
+	asmout("RESB COFF_symboltable+18*2-$");
+
+	asmout("DD '.text'");
+	DD(0); DW(1); DW(0); DB(3); DB(1);
+	asmout("DD COFF_section_data - COFF_section_text"); /* size */
+	asmout("DW (COFF_reloctab_data-COFF_reloctab_text)/10"); /* reloc. entries */
+	DW(0); /* line-num. entries */
+	RESB(10);
+
+	asmout("DD '.data'");
+	DD(0); DW(2); DW(0); DB(3); DB(1);
+	asmout("DD COFF_reloctab_text - COFF_section_data"); /* size */
+	asmout("DW (COFF_symboltable-COFF_reloctab_data)/10"); /* reloc. entries */
+	DW(0); /* line-num. entries */
+	RESB(10);
+
+	asmout("DD 0, COFF_stringtable.str000+4-COFF_stringtable");
+	asmout("DD _sgg_execcmd-COFF_section_text"); /* value */
+	DW(1 /* section */); DW(0x20 /* function */); DB(2 /* global */); DB(0);
+}
+
+void COFF_stringtable()
+{
+
+str000:	asmout("DB ..$-$,0,0,0,'_sgg_execcmd',0");
+
+}

@@ -1,8 +1,9 @@
-// "fdcdrv0.ask" for TOWNS ver.1.4 copyright(C) 2002 H.Kawai(川合秀実)
+// "fdcdrv0.ask" for TOWNS ver.1.6 copyright(C) 2002 H.Kawai(川合秀実)
 
-segment FDC_Mdl(USE32, PARA);
+#include "osaskinc.ask"
 
-default(code == FDC_Mdl);
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 #define	ROOT_ENTRY0		0x101400	/* 1.44MBでは0x102600, 1.2MBでは0x101400 */
 #define	ROOT_ENTRY1		0x102c00	/* 1.44MBでは0x104200, 1.2MBでは0x102c00 */
@@ -76,16 +77,14 @@ void near save_dosname2();
 
 void far FDC_syscmd()
 {
-	asmout("include ../inc.asm");
-
 	unsigned int                         all_sel       ==  1 * 8;
 	FDC_WORK *work == DS:0;
 	int *cmd == FS:EBX;
 
 	PUSHAD();
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
+	EAX += 8;
 	DS = AX;
 nextcmd:
 	EAX = *cmd;
@@ -224,7 +223,7 @@ cmd0118:
 	// FDC_dosload
 	PUSH(GS);
 	PUSH((offset) cmd);
-	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); // ディレクトリエントリ
+	asmout("LGS ESI,DWORD FS:[EBX+4]"); // ディレクトリエントリ
 	EAX = cmd[12]; // ロードアドレス（４バイトアライン）
 	EDX = cmd[16]; // 完了シグナル
 	ECX = cmd[20]; // 作業中のシグナル
@@ -303,7 +302,7 @@ cmd0134:
 	// FDC_doswrite
 	PUSH(GS);
 	PUSH((offset) cmd);
-	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); // ディレクトリエントリ
+	asmout("LGS ESI,DWORD FS:[EBX+4]"); // ディレクトリエントリ
 	EAX = cmd[12]; // ライトバック内容アドレス（４バイトアライン）
 	FDC_doswrite();
 	POP((offset) cmd);
@@ -334,7 +333,7 @@ cmd0140:
 cmd0180: /* create file */
 	PUSH(GS);
 	PUSH((offset) cmd);
-	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); // ディレクトリエントリ
+	asmout("LGS ESI,DWORD FS:[EBX+4]"); // ディレクトリエントリ
 	EDX = cmd[12]; // 完了シグナル
 	ECX = cmd[16]; // 作業中のシグナル
 	FDC_createfile();
@@ -347,7 +346,7 @@ cmd0180: /* create file */
 cmd0184: /* delete file */
 	PUSH(GS);
 	PUSH((offset) cmd);
-	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); // ディレクトリエントリ
+	asmout("LGS ESI,DWORD FS:[EBX+4]"); // ディレクトリエントリ
 	EDX = cmd[12]; // 完了シグナル
 	ECX = cmd[16]; // 作業中のシグナル
 	FDC_deletefile();
@@ -359,7 +358,7 @@ cmd0184: /* delete file */
 cmd0188: /* rename file */
 	PUSH(GS);
 	PUSH((offset) cmd);
-	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); // ディレクトリエントリ
+	asmout("LGS ESI,DWORD FS:[EBX+4]"); // ディレクトリエントリ
 	EDX = cmd[12]; // 完了シグナル
 	ECX = cmd[16]; // 作業中のシグナル
 	FDC_renamefile();
@@ -371,7 +370,7 @@ cmd0188: /* rename file */
 cmd018c: /* resize file */
 	PUSH(GS);
 	PUSH((offset) cmd);
-	asmout("LGS ESI,FWORD PTR FS:[EBX+4]"); // ディレクトリエントリ
+	asmout("LGS ESI,DWORD FS:[EBX+4]"); // ディレクトリエントリ
 	EAX = cmd[12]; /* 新サイズ */
 	EDX = cmd[16]; // 完了シグナル
 	ECX = cmd[20]; // 作業中のシグナル
@@ -411,9 +410,9 @@ void far FDC_int()
 	unsigned short PIC_mastar_OCW2 == 0x0000;
 
 	PUSHAD();
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
+	EAX += 8;
 	asmout("INC BYTE PTR SS:[0FFFFFFE0H]");
 	DS = AX;	
 	asmout("INC BYTE PTR SS:[0FFFFFFF0H]");
@@ -437,13 +436,13 @@ void far FDC_int()
 
 	asmout("DEC BYTE PTR SS:[0FFFFFFF0H]");
 	if (== 0) {
-		asmout("CALL FWORD PTR SS:[0FFFFFFF8H]");
+		asmout("CALL FAR DWORD SS:[0FFFFFFF8H]");
 	}
 	POP(DS);
 	POPAD();
 	asmout("DEC BYTE PTR SS:[0FFFFFFE0H]");
 	if (== 0) {
-		asmout("jmp_system_count0");
+		jmp_system_count0();
 	}
 	IRETD();
 }
@@ -479,7 +478,7 @@ void near FDC_MC_DriveReady()
 		OUT(DX, AL);
 
 		// タイマーを使ってwaitする。本当は、ドライブごとにタイマーを使いたいので４本必要。
-		AX = DS;
+		MOV(EAX, DS);
 		PUSH(FS);
 		FS = AX;
 		PUSH(EBX);
@@ -491,7 +490,7 @@ void near FDC_MC_DriveReady()
 		work->time_add8 = EDX;
 		/* work->jmpvec_timer_EIP = */ asmout("MOV DWORD PTR DS:[004CH],OFFSET #timer_int"); 
 		EBX = /* (offset) &work->timer_cmd1 */ 0x0028;
-		asmout("CALL FWORD PTR DS:[0010H]"); // (work->TimerCmd)();
+		asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
 		POP(EBX);
 		POP(FS);
 		return; // リターン先で、cmdやcmd_freeを書き戻してくれる。rewindは、コマンドライト時にチェックする
@@ -501,12 +500,12 @@ void near FDC_MC_DriveReady()
 	if (work->motor2 != 0) {
 		// タイマーのキャンセル
 		work->motor2 = 0; // 指定bitを0にする
-		AX = DS;
+		MOV(EAX, DS);
 		PUSH(FS);
 		FS = AX;
 		PUSH(EBX);
 		EBX = /* (offset) &work->timer_cmd6 */ 0x0060;
-		asmout("CALL FWORD PTR DS:[0010H]"); // (work->TimerCmd)();
+		asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
 		POP(EBX);
 		POP(FS);
 	}
@@ -516,9 +515,9 @@ void near FDC_MC_DriveReady()
 	asmout("JMP DWORD PTR DS:[EBX]");
 
 timer_int:
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
+	EAX += 8;
 	DS = AX;
 	EDX = 0x0202;
 	AL = work->trackreg[0];
@@ -537,7 +536,7 @@ timer_int:
 
 	POP(DS);
 	CLC();
-	asmout("DB 0CBH"); // (far) return;
+	RETF(); // (far) return;
 
 	asmout("FDC_MC_drive_table DB 010H, 020H, 040H, 080H");
 }
@@ -554,7 +553,7 @@ void near FDC_MC_DriveOff()
 	cmd_free += 2;
 	work->motor2 = 1; // 待機中
 	/* work->timer_msg */ [DS:0x0024] = AL;
-	AX = DS;
+	MOV(EAX, DS);
 	PUSH(FS);
 	FS = AX;
 	PUSH(EBX);
@@ -566,16 +565,16 @@ void near FDC_MC_DriveOff()
 	work->time_add8 = EDX;
 	/* work->jmpvec_timer_EIP = */ asmout("MOV DWORD PTR DS:[004CH],OFFSET #timer_int"); 
 	EBX = /* (offset) &work->timer_cmd0 */ 0x0018;
-	asmout("CALL FWORD PTR DS:[0010H]"); // (work->TimerCmd)();
+	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
 	POP(EBX);
 	POP(FS);
 	asmout("JMP DWORD PTR DS:[EBX]");
 
 timer_int:
 	AL = [DS:ESI];
-	CX = CS;
+	MOV(ECX, CS);
 	PUSH(DS);
-	CX += 8;
+	ECX += 8;
 	DS = CX;
 	work->motor2 = 0; // 待機終了
 
@@ -594,7 +593,7 @@ timer_int:
 	OUT(DX, AL);
 	POP(DS);
 	CLC();
-	asmout("DB 0CBH"); // (far) return;
+	RETF(); // (far) return;
 }
 
 void near FDC_MC_MakeSignal()
@@ -608,7 +607,7 @@ void near FDC_MC_MakeSignal()
 	/* cmd_free += 4 + ECX */ asmout("LEA EBP,[EBP+ECX+4]");
 	PUSH(EAX);
 	PUSH(cmd_free);
-	asmout("CALL FWORD PTR DS:[EBX+8]");
+	asmout("CALL FAR DWORD DS:[EBX+8]");
 	POP(cmd_free);
 	POP((offset) cmd);
 	asmout("JMP DWORD PTR DS:[EBX]");
@@ -881,11 +880,11 @@ void near FDC_Init()
 	work->timer_cmd6 = 2 * 4 /* GetNode */;
 	work->timer_cmd7 = 0;
 
-	AX = DS;
+	MOV(EAX, DS);
 	PUSH(FS);
 	FS = AX;
 	EBX = /* (offset) &work->timer_cmd6 */ 0x0060;
-	asmout("CALL FWORD PTR DS:[0010H]"); // (work->TimerCmd)();
+	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
 	EAX = work->timer_node5;
 	work->timer_cmd0 = 11 * 4 /* メッセージセット */;
 	work->timer_node0 = EAX;
@@ -903,14 +902,14 @@ void near FDC_Init()
 	work->timer_cmd5 = 0;
 	work->timer_cmd6 = 5 * 4 /*タイマー取り消し */;
 	EAX = 0;
-	CX = SS;
+	MOV(ECX, SS);
 	FS = CX;
 	PUSH(0 /* eoc */);
 	ESP -= 32;
 	PUSH(4 /* 一般情報要求 */);
 	PUSH(4);
 	EBX = ESP;
-	asmout("CALL FWORD PTR DS:[0010H]"); // (work->TimerCmd)();
+	asmout("CALL FAR DWORD DS:[0010H]"); // (work->TimerCmd)();
 	ECX = [SS:ESP + 36]; // 割り込み周波数[Hz]
 	ESP += 44;
 	POP(FS);
@@ -936,7 +935,7 @@ void near FDC_Init()
 	MOV(EAX, SS);
 	EBX = ESP;
 	FS = EAX;
-	DB(0x9a); DD(0); DW((short) tapi_sel);
+	CALL(tapi_sel, 0);
 	POP(EAX);
 	POP(work->TAPI_sendsignalofs);
 	POP(work->TAPI_sendsignalsel);
@@ -1786,7 +1785,7 @@ void near FDC_writeIPL2()
 
 	asmout("MOV EAX,#subphase");
 
-	asmout("FDC_writeIPL0:");
+	asmout("FDC_writeIPL0: EQU $");
 
 	// 依頼された値をworkに保存しておく
 	work->dosload_size1 = EAX;
@@ -2069,7 +2068,7 @@ void near check_WBF()
 			PUSH(0x0128 /* コマンドシグナル直接(with wait) */);
 			FS = EAX;
 			EBX = ESP;
-			DB(0x9a); DD(0); DW((short) tapi_sel);
+			CALL(tapi_sel, 0);
 			ESP += 6 * 4;
 			POP(FS);
 		}

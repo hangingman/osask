@@ -9,10 +9,16 @@ MAKE = $(BIN_PATH)make
 ASKA = $(BIN_PATH)aska
 PREPROCESSOR = $(BIN_PATH)lcc -EP
 PREPROCESSOR_FLAGS =
-ASM = $(BIN_PATH)ml
-ASM_FLAGS = /c /Sa /Zm
-MASMCNV = $(BIN_PATH)masmcnv2
-MASMCNV_FLAGS = -l -s
+#ASM = $(BIN_PATH)ml
+#ASM_FLAGS = /c /Sa /Zm
+#MASMCNV = $(BIN_PATH)masmcnv2
+#MASMCNV_FLAGS = -l -s
+
+NASK = $(BIN_PATH)nask
+NASK_FLAGS =
+NASKCNV = $(BIN_PATH)naskcnv0
+NASKCNV_FLAGS = -l -s
+
 LINK = $(BIN_PATH)link
 
 LCCLIB = $(BIN_PATH)lcclib
@@ -36,7 +42,8 @@ DEFAULT_RULE_FILE = osask.rul
 # architecture dependency
 # for FM-TOWNS
 ifeq ($(ARCH),towns)
-BASE_ASM = base.asm
+#BASE_ASM = base.asm
+BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DTOWNS
 CFLAGS += -DTOWNS
 # enable 1-pixel scroll
@@ -55,7 +62,8 @@ endif
 endif
 # for PC/AT
 ifeq ($(ARCH),pcat)
-BASE_ASM = base.asm
+#BASE_ASM = base.asm
+BASE_NAS = base.nas
 PREPROCESSOR_FLAGS += -DPCAT
 CFLAGS += -DPCAT
 ifeq ($(VMWARE),y)
@@ -63,31 +71,34 @@ PREPROCESSOR_FLAGS += -DVMWARE
 CFLAGS += -DVMWARE
 endif
 ifeq ($(BOCHS),13)
-BASE_ASM = base_bch.asm
+#BASE_ASM = base_bch.asm
+BASE_NAS = base_bch.nas
 PREPROCESSOR_FLAGS += -DBOCHS
 CFLAGS += -DBOCHS
 endif
 ifeq ($(BOCHS),12)
-BASE_ASM = base_bch.asm
+#BASE_ASM = base_bch.asm
+BASE_NAS = base_bch.nas
 PREPROCESSOR_FLAGS += -DBOCHS -DNOHLT
 CFLAGS += -DBOCHS -DNOHLT
 endif
 endif
 # design $(DESIGN)
-ifeq ($(WIN9X),y)
-DESIGN = WIN9X
+MMI = WIN9X
+ifeq ($(DESIGN),WIN9X)
+MMI = WIN9X
 endif
-ifeq ($(TMENU),y)
-DESIGN = TMENU
+ifeq ($(DESIGN),WIN31)
+MMI = WIN31
 endif
-ifeq ($(CHO_OSASK),y)
-DESIGN = CHO_OSASK
+ifeq ($(DESIGN),TMENU)
+MMI = TMENU
 endif
-ifeq ($(NEWSTYLE),y)
-DESIGN = NEWSTYLE
+ifeq ($(DESIGN),CHO_OSASK)
+MMI = CHO_OSASK
 endif
-ifeq ($(DESIGN),)
-DESIGN = WIN9X
+ifeq ($(DESIGN),NEWSTYLE)
+MMI = NEWSTYLE
 endif
-PREPROCESSOR_FLAGS += -D$(DESIGN)
-CFLAGS += -D$(DESIGN)
+PREPROCESSOR_FLAGS += -D$(MMI)
+CFLAGS += -D$(MMI)

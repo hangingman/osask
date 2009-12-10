@@ -1,4 +1,4 @@
-/* "pokon0.c":アプリケーションラウンチャー  ver.2.6
+/* "pokon0.c":アプリケーションラウンチャー  ver.2.7
      copyright(C) 2002 小柳雅明, 川合秀実
     stack:4k malloc:84k file:1024k */
 
@@ -8,9 +8,9 @@
    仕様もかなり流動的 */
 #include <stdlib.h>
 
-#include "pokon0.h"
+#include "../pokon0.h"
 
-#define POKON_VERSION "pokon26"
+#define POKON_VERSION "pokon27"
 
 #define POKO_VERSION "Heppoko-shell \"poko\" version 2.1\n    Copyright (C) 2002 OSASK Project\n"
 #define POKO_PROMPT "\npoko>"
@@ -556,8 +556,13 @@ void job_create_sysdisk0(int cond)
 	struct STR_JOBLIST *pjob = &job;
 	struct FILEBUF *fbuf = pjob->fbuf;
 	pjob->fp = searchfid1("OSASKBS3BIN");
-	if (cond == 0 || pjob->fp == NULL) { /* error */
-	//	fbuf->linkcount = 0; /* 開放 */
+	if (cond == 0)
+		goto err;
+	if (pjob->fp == NULL) { /* error */
+		unlinkfbuf(pjob->fbuf);
+err:
+		*pfmode = STATUS_MAKE_PLAIN_BOOT_DISK;
+		lib_putstring_ASCII(0x0000, 0, 0, &selwin0[0].subtitle.tbox, 0, 0, "< Load Systemimage >");
 		pjob->now = 0;
 	} else {
 		pjob->param[0] = (int) fbuf; /* キャッシュヒットかもしれないから更新 */
@@ -577,6 +582,8 @@ void job_create_sysdisk1(int cond)
 	if (cond == 0) { /* error */
 	//	pjob->fbuf->linkcount = 0; /* 開放 */
 		unlinkfbuf((struct FILEBUF *) pjob->param[0]);
+		*pfmode = STATUS_MAKE_PLAIN_BOOT_DISK;
+		lib_putstring_ASCII(0x0000, 0, 0, &selwin0[0].subtitle.tbox, 0, 0, "< Load Systemimage >");
 		pjob->now = 0;
 	} else {
 		pjob->param[1] = (int) pjob->fbuf; /* キャッシュヒットかもしれないから更新 */

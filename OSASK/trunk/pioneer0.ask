@@ -1,5 +1,5 @@
-/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.3
-    copyright(C) 2002 H.Kawai (川合秀実), I.Tak. */
+/* "pioneer0":ぐいぐいの標準ライブラリ ver.2.4b
+    copyright(C) 2002 H.Kawai (川合秀実), I.Tak., KIYOTO */
 
 /* これは、アプリケーションを書きやすくするための各種サービスを提供するプログラム。
    結局のところ、処理をshellcallに取り次いでいるだけ。
@@ -7,8 +7,10 @@
 
 /* スタックは1KBくらいあれば問題は無いだろう。 */
 
-segment PioneerMdl(USE32, PARA);
-default(code == PioneerMdl);
+#include "osaskinc.ask"
+
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 #if (defined(WIN9X))
 	#define	DEFAULT_TBOX_BCOL	8
@@ -21,6 +23,9 @@ default(code == PioneerMdl);
 
 #elif (defined(NEWSTYLE))
 	#define DEFAULT_TBOX_BCOL	8
+
+#elif (defined(WIN31))
+	#define	DEFAULT_TBOX_BCOL	15
 
 #endif
 
@@ -85,7 +90,6 @@ void far pioneer0()
 {
 	WORK *work == SS:EBP;
 	int *cmd == DS:ESI;
-	segment PioneerMdl == CS;
 
 	PUSHAD();
 	(offset) cmd = EBX;
@@ -95,17 +99,17 @@ void far pioneer0()
 		EBX = 0xffffffff;
 		EAX = 0x0004; /* read user-slot command */
 		ECX = 0x01f0; /* スロット番号(pioneerワークスロット) */
-		DB(0x9a); DD(0); DW(0x0017); /* shell-call */
+		CALL(0x0017,0); /* shell-call */
 		(offset) work = EDX;
 
 		/* softint禁止 */
 		LEA(EBX, work->softint_mask_buf[0]); /* add_nest */
 	//	work->softint_mask_buf[ 8] = 0xff80; /* (Llv変更しない) */
 		(int) [DS:EBX + 8] = 0xff80;
-		DB(0x9a); DD(0); DW(0x0017); /* shell-call(softint抑制) */
+		CALL(0x0017,0); /* shell-call(softint抑制) */
 	}
 
-asmout("nextcmd:");
+asmout("nextcmd: equ $");
 	EAX = cmd[0];
 	if ((unsigned) EAX < 0x0130) {
 		TEST(EAX, 0x03);
@@ -119,7 +123,7 @@ asmout("nextcmd:");
 
 cmderr:
 	LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更しない) */
-	DB(0x9a); DD(0); DW(0x0017); /* shell-call(softint許可) */
+	CALL(0x0017,0); /* shell-call(softint許可) */
 	(int) [SS:ESP + 16 /* EBX */] = (offset) cmd;
 INT(0x03); /* コマンドエラーは許さない */
 //	TEST(ESP, ESP); // ZF = 0
@@ -222,7 +226,7 @@ void far cmd000()
 			LEA(EBX, work->softint_ret_buf[0]);
 			work->softint_ret_buf[ 4] = 0;
 			work->softint_ret_buf[ 8] = 0x0080; /* 割り込み抑制解除 */
-			DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+			CALL(0x0017,0); /* GUIGUI統合shellcall */
 			INT(0x03); /* エラーが無い限り、ここにはこない */
 		}
 	}
@@ -240,13 +244,13 @@ void far cmd000()
 		LEA(EBX, work->softint_ret_buf[0]);
 		work->softint_ret_buf[ 4] = 0;
 		work->softint_ret_buf[ 8] = 0x0080; /* 割り込み抑制解除 */
-		DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+		CALL(0x0017,0); /* GUIGUI統合shellcall */
 		INT(0x03); /* エラーが無い限り、ここにはこない */
 	}
 
 	/* 何もないので、普通の正常終了 */
 	LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更しない) */
-	DB(0x9a); DD(0); DW(0x0017); /* shell-call */
+	CALL(0x0017,0); /* shell-call */
 //	(int) [SS:ESP + 16 /* EBX */] = (offset) cmd;
 	CMP(EAX, EAX); /* ZF = 1, CF = 0 */
 	POPAD();
@@ -300,7 +304,7 @@ void far cmd004()
 	PUSH(CS);
 	POP(FS);
 	asmout("MOV EBX,OFFSET #cmd0004_cmd");
-	DB(0x9a); DD(0); DW(0x0017); /* shell-call */
+	CALL(0x0017,0); /* shell-call */
 	POP(FS);
 	/* slot 0x01f0に(offset) workを書き込み */
 	PUSH((int) 0);
@@ -310,7 +314,7 @@ void far cmd004()
 	PUSH((int) 0x0080); /* write user-slot */
 	EBX = ESP;
 	/* ユーザー割り込み抑制 */
-	DB(0x9a); DD(0); DW(0x0017); /* shell-call */
+	CALL(0x0017,0); /* shell-call */
 	ESP += 24;
 	asmout("JMP nextcmd");
 
@@ -370,7 +374,7 @@ cmd0004_cmd:
 	asmout("DD 0200H, OFFSET pioneer_softint, 010000C7H, 0201H"); /* softint_vector */
 	asmout("DD 0204H, 0, 0281H"); /* to Llv2(nestを80に) */
 	asmout("DD 0300H, 01C0H"); /* 獲得(この時、インターバルモードが解除される) */
-asmout("cmd004_cmd2:");
+asmout("cmd004_cmd2: equ $");
 	asmout("DD 0310H, 01C0H"); /* 現在時刻設定 */
 	asmout("DD 0318H, 01C0H, 0140H, 1, 0080H"); /* メッセージ設定 */
 	DD(0x0000);
@@ -586,8 +590,8 @@ void near cmd0004_decode2()
 	cmd0004_getb();
 	if (CF != 0) {
 	//	EAX = (offset) &cmd0004_getl1b;
-	//	asmout("ADD EAX,cmd0004_getl1b-cmd0004_getl1a");
-		DB(0x83, 0xc0); asmout("DB cmd0004_getl1b-cmd0004_getl1a");
+		asmout("ADD EAX,cmd0004_getl1b-cmd0004_getl1a");
+	//	DB(0x83, 0xc0); asmout("DB cmd0004_getl1b-cmd0004_getl1a");
 	}
 	PUSH(EAX); /* mode */
 	LEA(EDX, [ECX + 2]); /* EDX = 2; */
@@ -595,7 +599,7 @@ void near cmd0004_decode2()
 		EAX = 0;
 		CL = 2;
 		cmd0004_getbECX(); /* 2bit入力 */
-		asmout("MOVSX EAX,BYTE PTR CS:[#table][EAX]");
+		asmout("MOVSX EAX,BYTE PTR CS:[#table+EAX]");
 		PUSH(EAX); /* z0, z1 */
 		EDX--;
 	} while (!= 0);
@@ -669,7 +673,7 @@ void near cmd008()
 	PUSH((int) 0x0001); // opt(close all handle)
 	PUSH((int) 0x0040); /* タスク終了 */
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	CALL(0x0017,0); /* GUIGUI統合shellcall */
 	AL = [SS:ESP + 6];
 	ESP += 12 - 4;
 	AL += work->ending_count;
@@ -680,14 +684,14 @@ void near cmd008()
 		LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更する) */
 	//	work->softint_mask_buf[ 8] = 0x0080;
 		(int) [DS:EBX + 8] = 0x0080;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		INT(0x03);
 	}
 //	PUSH((int) 0);
 	PUSH((int) 0x0002); // opt(close task)
 	PUSH((int) 0x0040); /* タスク終了 */
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	CALL(0x0017,0); /* GUIGUI統合shellcall */
 	INT(0x03);
 }
 
@@ -753,7 +757,7 @@ void near cmd018()
 			PUSH((int) 0); // signals
 			PUSH((int) 0x0204); // add nest
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+			CALL(0x0017,0); /* GUIGUI統合shellcall */
 			ESP += 16 - 4;
 		}
 	}
@@ -781,7 +785,7 @@ void near cmd018()
 		PUSH((int) /* 0x01c0 */ slot);
 		PUSH((int) 0x0310); /* 現在時刻設定 */
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); /* shell-call */
+		CALL(0x0017,0); /* shell-call */
 		ESP += 12 - 4;
 	}
 
@@ -797,7 +801,7 @@ void near cmd018()
 		PUSH((int) /* 0x01c0 */ slot);
 		PUSH((int) 0x0314); /* 時刻加算 */
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 24 - 4;
 	}
 
@@ -810,7 +814,7 @@ void near cmd018()
 			PUSH((int) /* 0x01c0 */ slot);
 			PUSH((int) 0x0308); /* タイマー登録 */
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // shell-call
+			CALL(0x0017,0); // shell-call
 			ESP += 12 - 4;
 		}
 		TEST(DL, 0x01);
@@ -818,12 +822,12 @@ void near cmd018()
 			/* sleep */
 			LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更する) */
 			work->softint_mask_buf[ 8] = 0x0080;
-			DB(0x9a); DD(0); DW(0x0017); // shell-call
+			CALL(0x0017,0); // shell-call
 
 			LEA(EBX, work->softint_mask_buf[0]); /* add_nest(Llv変更しない) */
 			work->softint_mask_buf[ 8] = 0xff80;
 				/* ライブラリルーチン内に再入したので、割り込みマスク */
-			DB(0x9a); DD(0); DW(0x0017); // shell-call
+			CALL(0x0017,0); // shell-call
 		}
 		TEST(DL, 0x02);
 		if (!= 0) {
@@ -832,7 +836,7 @@ void near cmd018()
 			PUSH((int) /* 0x01c0 */ slot);
 			PUSH((int) 0x030c); // タイマー解約
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // shell-call
+			CALL(0x0017,0); // shell-call
 			ESP += 12 - 4;
 		}
 	}
@@ -930,7 +934,7 @@ void near cmd020()
 	PUSH(EAX /* slot-no */);
 	PUSH((int) 0x0100 /* cmd-no */);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 32;
 	asmout("JMP nextcmd");
 }
@@ -949,7 +953,7 @@ void near cmd024()
 	PUSH(cmd0024_win->slot);
 	PUSH((int) 0x0104 /* cmd-no */);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 12;
 	work->ending_count++;
 	asmout("JMP nextcmd");
@@ -1095,7 +1099,7 @@ void near cmd02c()
 		PUSH((int) 0x0020 /* boxfill */);
 		PUSH((int) 0x0400 /* line cmd */);
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 36;
 	}
 	asmout("JMP nextcmd");
@@ -1233,7 +1237,7 @@ void near cmd030()
 			PUSH(graphbox->mode);
 			PUSH((int) 0x0414);
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+			CALL(0x0017,0); // GUIGUI統合shellcall
 			ESP += 44;
 		}
 	}
@@ -1396,7 +1400,7 @@ skip2:
 		ESI = EDI;
 	POP(EDI);
 	if (win->draw_enable != 0) {
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 	}
 	ESP += 4 + 52;
 	POP(EBP);
@@ -1428,15 +1432,17 @@ blank_b:
 	goto skip2;
 
 	ALIGN(2);
-	asmout("wintitle_colortable:");
+	asmout("wintitle_colortable: equ $");
 	#if (defined(WIN9X))
-		DW(0x0008, 0x0708, 0, 0x040F);
+		DW(0x0008, 0x0708, 0, 0x040f);
 	#elif (defined(TMENU))
 		DW(0x0f07, 0x0800, 0, 0x000f);
 	#elif (defined(CHO_OSASK))
 		DW(0x0700, 0x0708, 0, 0x070f);
 	#elif (defined(NEWSTYLE))
-		DW(0x0008, 0x0708, 0, 0x040F);
+		DW(0x0008, 0x0708, 0, 0x040f);
+	#elif (defined(WIN31))
+		DW(0x0800, 0x0f00, 0, 0x040f);
 	#endif
 }
 
@@ -1493,7 +1499,7 @@ void near cmd044()
 	(int) [SS:EBP + 24] = ECX; // y1
 //	(int) [SS:EBP + 32] = 0; // eoc
 	EBX = EBP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	ESP += 36;
 	POP(EBP);
 	asmout("JMP nextcmd");
@@ -1555,7 +1561,7 @@ void near cmd048()
 	(int) [SS:EBP + 48] = EAX; /* eoc */
 	LEA(ESI, [ESI + ECX * 4]);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	ESP += 52;
 	POP(EBP);
 	asmout("JMP nextcmd");
@@ -1599,7 +1605,7 @@ draw:
 		PUSH(EAX);
 		PUSH((int) 0x0414);
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 44;
 	}
 	(offset) cmd += 40;
@@ -1653,7 +1659,7 @@ draw:
 		PUSH(EAX); /* opt */
 		PUSH(EBX); /* cmd */
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 44;
 	}
 	POP(EBP);
@@ -1744,7 +1750,7 @@ void near cmd054()
 				PUSH(cmd[ 4]); /* opt */
 				PUSH((int) 0x0418); /* linear dots */
 				EBX = ESP;
-				DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+				CALL(0x0017,0); // GUIGUI統合shellcall
 				ESP += 44;
 			}
 		}
@@ -1846,7 +1852,7 @@ void near cmd058()
 			PUSH((int) 0x0011);
 			PUSH((int) 0x0414);
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+			CALL(0x0017,0); // GUIGUI統合shellcall
 			ESP += 48;
 		}
 		(offset) cmd += 36;
@@ -1878,7 +1884,7 @@ void near cmd058()
 			PUSH((int) 0x0001);
 			PUSH((int) 0x0414);
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+			CALL(0x0017,0); // GUIGUI統合shellcall
 			ESP += 44;
 		}
 		(offset) cmd += 24;
@@ -2003,7 +2009,7 @@ void near cmd05c()
 			PUSH(EAX); /* opt */
 			PUSH((int) 0x041c); /* points */
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+			CALL(0x0017,0); // GUIGUI統合shellcall
 			ESP += 44;
 		}
 	}
@@ -2028,7 +2034,7 @@ void near cmd060()
 		PUSH((int) 0); // signals
 		PUSH((int) 0x0204); // add nest
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 16;
 	}
 
@@ -2080,7 +2086,7 @@ void near cmd068()
 			PUSH(cmd[12]); // timer slot-no
 			PUSH((int) 0x0318);
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // shell-call
+			CALL(0x0017,0); // shell-call
 			ESP += 28;
 		} else if (EAX == 0x0100) {
 			WINDOW *cmd0068_win == DS:EDX;
@@ -2103,7 +2109,7 @@ void near cmd068()
 			PUSH(cmd[ 4]); // opt
 			PUSH((int) 0x0510); // signal設定
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // shell-call
+			CALL(0x0017,0); // shell-call
 			ESP += 48;
 		}
 		(offset) cmd += 28;
@@ -2138,7 +2144,7 @@ cmd074_intervaloff:
 		PUSH(EDX);
 		PUSH((int) 0x031c); // インターバル指定
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 24;
 		asmout("JMP nextcmd");
 	}
@@ -2146,7 +2152,7 @@ cmd074_intervaloff:
 	PUSH(EDX);
 	PUSH((int) 0x0300); // タイマーノード取得
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 12;
 	asmout("JMP nextcmd");
 asmout("cmd074_intervaloff EQU #cmd074_intervaloff");
@@ -2168,7 +2174,7 @@ void near cmd074()
 		PUSH(FS);
 		FS = AX;
 		asmout("MOV EBX,OFFSET cmd004_cmd2");
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		POP(FS);
 		asmout("JMP cmd074_intervaloff");
 	}
@@ -2176,7 +2182,7 @@ void near cmd074()
 	PUSH(EDX);
 	PUSH((int) 0x0304); // タイマーノード返却
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 12;
 	asmout("JMP nextcmd");
 }
@@ -2208,7 +2214,7 @@ void near cmd078()
 		PUSH(EDX);
 		PUSH((int) 0x0320);
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 28;
 		(offset) cmd += 16;
 		asmout("JMP nextcmd");
@@ -2222,7 +2228,7 @@ void near cmd078()
 		PUSH(EDX);
 		PUSH((int) 0x0324); // 現在時刻設定
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 12;
 		POP(cmd[ 4]); /* cmd[16] */
 		POP(cmd[ 8]); /* cmd[20] */
@@ -2237,7 +2243,7 @@ void near cmd078()
 		PUSH(EDX);
 		PUSH((int) 0x0310); // 現在時刻設定
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 12 - 4;
 	}
 	TEST(AL, 0x10); // bit4 : 時刻加算(時刻フィールドを伴う)
@@ -2250,7 +2256,7 @@ void near cmd078()
 		PUSH(EDX);
 		PUSH((int) 0x0314); // 時刻加算
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 24 - 4;
 	}
 	TEST(AL, 0x08); // bit3 : インターバル指定(インターバルフィールドを伴う)
@@ -2263,7 +2269,7 @@ void near cmd078()
 		PUSH(EDX);
 		PUSH((int) 0x031c); // インターバル指定
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 24 - 4;
 	}
 	TEST(AL, 0x04); // bit2 : インターバル解除(単発モード)
@@ -2275,7 +2281,7 @@ void near cmd078()
 		PUSH(EDX);
 		PUSH((int) 0x031c); // インターバル指定
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 24 - 4;
 	}
 	TEST(AL, 0x02); // bit1 : タイマー始動
@@ -2284,7 +2290,7 @@ void near cmd078()
 		PUSH(EDX);
 		PUSH((int) 0x0308); // タイマー登録
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 12 - 4;
 	}
 	TEST(AL, 0x01); // bit0 : タイマー停止
@@ -2293,7 +2299,7 @@ void near cmd078()
 		PUSH(EDX);
 		PUSH((int) 0x030c); // タイマー解除
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 12 - 4;
 	}
 	POP(EAX);
@@ -2311,20 +2317,20 @@ void near cmd080()
 	PUSH((int) 0x0600);
 	(offset) cmd += 12;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 16;
 
 	// sleep
 	LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更する)
 //	work->softint_mask_buf[ 8] = 0x0080;
 	(int) [DS:EBX + 8] = 0x0080;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 
 	LEA(EBX, work->softint_mask_buf[0]); // add_nest(Llv変更しない)
 //	work->softint_mask_buf[ 8] = 0xff80;
 	(int) [DS:EBX + 8] = 0xff80;
 		// ライブラリルーチン内に再入したので、割り込みマスク
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 
 	asmout("JMP nextcmd");
 }
@@ -2339,7 +2345,7 @@ void near cmd084()
 	PUSH((int) 0x0604);
 	(offset) cmd += 8;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 12;
 	work->ending_count++;
 	asmout("JMP nextcmd");
@@ -2356,7 +2362,7 @@ void near cmd08c()
 	PUSH((int) 0x060c);
 	(offset) cmd += 12;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 16;
 	asmout("JMP nextcmd");
 }
@@ -2386,7 +2392,7 @@ void near cmd03c()
 		PUSH(win->slot);
 		PUSH((int) 0x0140);
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 12;
 	}
 	TEST(AH, 0x02);
@@ -2395,7 +2401,7 @@ void near cmd03c()
 		PUSH(win->slot);
 		PUSH((int) 0x0144);
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 12;
 	}
 	(offset) cmd += 12;
@@ -2414,7 +2420,7 @@ void near cmd0a0()
 		PUSH((int) 0x0700);
 		(offset) cmd += 12;
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 16;
 		asmout("JMP nextcmd");
 	}
@@ -2428,7 +2434,7 @@ void near cmd0a0()
 	PUSH((int) 0x0700);
 	(offset) cmd += 24;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 28;
 	asmout("JMP nextcmd");
 }
@@ -2445,7 +2451,7 @@ void near cmd0a8()
 	PUSH((int) 0x0708);
 	(offset) cmd += 16;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 20;
 	asmout("JMP nextcmd");
 }
@@ -2464,7 +2470,7 @@ void near cmd0ac()
 	(offset) cmd += 24;
 	PUSH((int) 0x070c);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 28;
 	asmout("JMP nextcmd");
 }
@@ -2511,7 +2517,7 @@ void near cmd0b0()
 	(int) [SS:EBP    ] = EAX;
 	(int) [SS:EBP + 4] = 0;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	EBP = [SS:ESP + 508];
 	ESP += 512;
 	asmout("JMP nextcmd");
@@ -2531,7 +2537,7 @@ void near cmd0c0()
 	PUSH((int) 0x0720);
 	(offset) cmd += 28;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 32;
 	asmout("JMP nextcmd");
 }
@@ -2548,7 +2554,7 @@ void near cmd0c4()
 //	PUSH((int) 0x0720);
 	(offset) cmd += 20;
 //	EBX = ESP;
-//	DB(0x9a); DD(0); DW(0x0017); // shell-call
+//	CALL(0x0017,0); // shell-call
 //	ESP += 28;
 	asmout("JMP nextcmd");
 }
@@ -2570,7 +2576,7 @@ void near cmd0c8()
 	PUSH((int) 0x0728);
 	(offset) cmd += 24;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 28;
 	asmout("JMP nextcmd");
 }
@@ -2589,7 +2595,7 @@ void near cmd0d0()
 	PUSH((int) 0x0730);
 	(offset) cmd += 20;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 28;
 	asmout("JMP nextcmd");
 }
@@ -2611,7 +2617,7 @@ void near cmd0e0()
 		PUSH((int) 0x0408);
 		(offset) cmd += 24;
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 28;
 		asmout("JMP nextcmd");
 	}
@@ -2626,7 +2632,7 @@ void near cmd0e0()
 		EBX = ESP;
 		if (EAX == 0xc0ffffff)
 			work->ending_count++;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 24;
 		asmout("JMP nextcmd");
 	}
@@ -2637,7 +2643,7 @@ void near cmd0e0()
 		PUSH((int) 0x0408);
 		(offset) cmd += 12;
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // shell-call
+		CALL(0x0017,0); // shell-call
 		ESP += 16;
 		asmout("JMP nextcmd");
 	}
@@ -2655,7 +2661,7 @@ void near cmd0e4()
 	PUSH((int) 0x040c);
 	(offset) cmd += 12;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 16;
 	asmout("JMP nextcmd");
 }
@@ -2675,7 +2681,7 @@ void near cmd0e8()
 	PUSH((int) 0x0410);
 	(offset) cmd += 28;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 32;
 	asmout("JMP nextcmd");
 }
@@ -2870,7 +2876,7 @@ void near cmd0f0()
 	PUSH((int) 0x0240);
 	(offset) cmd += 28;
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	ESP += 32;
 	asmout("JMP nextcmd");
 }
@@ -3303,7 +3309,7 @@ void near cmd108()
 			PUSH(EAX); /* opt */
 			PUSH((int) 0x0418); /* linear dots */
 			EBX = ESP;
-			DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+			CALL(0x0017,0); // GUIGUI統合shellcall
 			ESP += 44;
 		}
 	}
@@ -3398,7 +3404,7 @@ draw:
 		PUSH(EAX); /* opt */
 		PUSH((int) 0x0418); /* linear dots */
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 44;
 	}
 	(offset) cmd += 40;
@@ -3417,7 +3423,7 @@ void near cmd118()
 	PUSH(EAX);
 	PUSH((int) 0x0328);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	POP(EAX);
 	POP(cmd[8]);
 	POP(EAX);
@@ -3439,7 +3445,7 @@ void near cmd120()
 	PUSH(cmd[ 4]); /* opt */
 	PUSH((int) 0x0740);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	ESP += 28;
 	(offset) cmd += 24;
 	asmout("JMP nextcmd");
@@ -3522,7 +3528,7 @@ void far pioneer_softint()
 	EBX = 0xffffffff;
 	EAX = 0x0004; // リードユーザースロットコマンド
 	ECX = 0x01f0;
-	DB(0x9a); DD(0); DW(0x0017); // shell-call
+	CALL(0x0017,0); // shell-call
 	(offset) work = EDX;
 
 	(offset) signal = work->read_ptr;
@@ -3606,7 +3612,7 @@ usersigboxfull:
 	LEA(EBX, work->softint_ret_buf[0]);
 	work->softint_ret_buf[ 4] /* (int) [DS:EBX + 4] */ = EAX;
 	work->softint_ret_buf[ 8] /* (int) [DS:EBX + 8] */ = 0x00ff; // さらに1引く
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	// 割り込みから復帰してしまう
 
 sig0080:
@@ -3629,7 +3635,7 @@ sig00c0:
 	PUSH(EDX);
 	PUSH((int) 0x0600);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	ESP += 16;
 	goto nextsignal;
 
@@ -3643,7 +3649,7 @@ sig00c8:
 	PUSH(EDX);
 	PUSH((int) 0x0608);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	ESP += 12;
 	goto nextsignal;
 
@@ -3781,7 +3787,7 @@ sig0043:
 	PUSH((int) 0x0001); // opt(close all handle)
 	PUSH((int) 0x0040); /* タスク終了 */
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	CALL(0x0017,0); /* GUIGUI統合shellcall */
 	AL = [SS:ESP + 6];
 	ESP += 12;
 	AL += work->ending_count;
@@ -3795,7 +3801,7 @@ sig0043:
 	PUSH((int) 0x0002); // opt(close task)
 	PUSH((int) 0x0040); /* タスク終了 */
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shellcall */
+	CALL(0x0017,0); /* GUIGUI統合shellcall */
 	INT(0x03);
 
 sig0044:
@@ -3828,7 +3834,7 @@ sig0044:
 		PUSH(sig0044_win->slot);
 		PUSH((int) 0x0140);
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 12;
 	}
 	(offset) signal += 8;
@@ -3877,7 +3883,7 @@ sig00cc:
 	PUSH((int) 0x0002); // opt(close task)
 	PUSH((int) 0x0040); // タスク終了
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	INT(0x03);
 
 sig0048:
@@ -3913,7 +3919,7 @@ sig0048:
 		PUSH(sig0048_win2->slot);
 		PUSH((int) 0x0144);
 		EBX = ESP;
-		DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+		CALL(0x0017,0); // GUIGUI統合shellcall
 		ESP += 12;
 	}
 	(offset) signal += 8;
@@ -3957,7 +3963,7 @@ nextsignal:
 			}
 		}
 	}
-	DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+	CALL(0x0017,0); // GUIGUI統合shellcall
 	// エラーがない限り、ここには来ない
 	INT(0x03);
 //	ALIGN(4);
@@ -4008,6 +4014,12 @@ void near drawwindow()
 	PushDrawBlock(wslot, 4,4, 16,16, 0, EAX,CS);
 #elif (defined(NEWSTYLE))
 	/* nothing */
+#elif (defined(WIN31))
+	asmout("mov eax, offset #closebutton");
+	//width -= 21;
+	//PushDrawBlock(wslot, EDX,5, 16,14, 0, EAX,CS);
+	PushDrawBlock(wslot, 3,3, 18,18, 2, EAX,CS);
+	//width += 21;
 #endif
 	t = (int) windat->col_disabled; /* t = *(int *) &windat->col_disabled; */
 	do {
@@ -4047,7 +4059,7 @@ void near drawwindow()
 	PUSH(SS);
 	POP(DS);
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shell-call */
+	CALL(0x0017,0); /* GUIGUI統合shell-call */
 	LEA(ESP, [EBX + 4]);
 
 	POP(EBP);
@@ -4158,6 +4170,37 @@ windatarray:
 		DB( 0, 0, 0, 0,  0, 1,   0,-2);	/* frame leftside line */
 		DB( 0, 0, 0, 0,  0, 0,  -1, 0);	/* frame upside line */
 		DB( 0, 0,-1, 0);				/* End of data */
+	#elif (defined(WIN31))
+		DB( 8, 0, 0, 4,  0,-1,  -1,-1);	/* frame downside line 0 */
+		DB(15,15, 0, 4,  1,-2,  -2,-2);	/* frame downside line 1 */
+		DB( 8,15, 0, 4,  3, 3,  -4,20);	/* title bar */
+		DB(15,15, 0,15,  2, 2,  -3,-3);	/* window */
+		DB( 8, 0, 0, 4, -1, 0,  -1,-1);	/* frame rightside line 0 */
+		DB(15,15, 0, 4, -2, 1,  -2,-2);	/* frame rightside line 1 */
+		DB(15,15, 0, 4,  1, 1,   1,-2);	/* frame leftside line 1 */
+		DB( 8, 0, 0, 4,  0, 0,   0,-1);	/* frame leftside line 0 */
+		DB(15,15, 0, 4,  1, 1,  -2, 1);	/* frame upside line 1 */
+		DB(15, 0, 0, 4,  0, 0,  -1, 0);	/* frame upside line 0 */
+	/*	DB( 0, 0,-1, 0);	*/			/* End of data */
+	closebutton:
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008); 	/* ControlBox */
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x00000808, 0x00000000, 0x00000000, 0x08080000, 0x08080008);
+		DD(0x0f000808, 0x0f0f0f0f, 0x0f0f0f0f, 0x0807000f, 0x08000008);
+		DD(0x00000808, 0x00000000, 0x00000000, 0x08070000, 0x08080008);
+		DD(0x07080808, 0x07070707, 0x07070707, 0x08070707, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x08080808, 0x08080808, 0x08080808, 0x08080808, 0x08080008);
+		DD(0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000);
 	#endif
 }
 
@@ -4252,7 +4295,7 @@ void near drawcomponent()
 							(int) [DS:EBX + 36] = ESI; /* length */
 							if (== 0)
 								(char) [DS:EBX + 4] /* opt */ |= 0x02;
-							DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+							CALL(0x0017,0); // GUIGUI統合shellcall
 							POP(EBX);
 							(char) [DS:EBX + 4] /* opt */ &= 0xfd;
 						} while (EBP != 0);
@@ -4291,7 +4334,7 @@ void near drawcomponent()
 					LEA(EAX, [ESI + 64]);
 					(int) [DS:EBX + 36] = ECX; /* length */
 					(int) [DS:EBX + 40] = EAX; /* ptr */
-					DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+					CALL(0x0017,0); // GUIGUI統合shellcall
 				}
 			} else if (EAX == 0x50415247 /* GRAP */) {
 				/* 本当は、モードでさらに分類する */
@@ -4312,7 +4355,7 @@ void near drawcomponent()
 				PUSH((int) 0x0001);
 				PUSH((int) 0x0414);
 				EBX = ESP;
-				DB(0x9a); DD(0); DW(0x0017); // GUIGUI統合shellcall
+				CALL(0x0017,0); // GUIGUI統合shellcall
 				ESP += 44;
 			} else {
 				INT(0x03);
@@ -4402,7 +4445,7 @@ void near textbox_drawback()
 	} while (AL != 255);
 
 	EBX = ESP;
-	DB(0x9a); DD(0); DW(0x0017); /* GUIGUI統合shell-call */
+	CALL(0x0017,0); /* GUIGUI統合shell-call */
 	LEA(ESP, [EBX + 4]);
 	return;
 

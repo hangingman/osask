@@ -1,4 +1,4 @@
-/* "VGADRV0.ASK" for TOWNS ver.1.4 copyright(C) 2002 川合秀実, I.Tak. */
+/* "VGADRV0.ASK" for TOWNS ver.1.5 copyright(C) 2002 川合秀実, I.Tak. */
 
 /* TWVSW is... TOWNS Vertial Screen Width! */
 #if (!defined(TWVSW))
@@ -15,9 +15,10 @@
 	#define CRTC28	0x800f
 #endif
 
-segment GapiMdl(USE32, PARA);
+#include "osaskinc.ask"
 
-default(code == GapiMdl);
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 struct WORK_SUB {
 	unsigned int scr_x0, scr_width, scr_y0, scr_height;
@@ -45,12 +46,14 @@ void far GAPI_entry()
 /* 必ず、EFLAGS.IF == 1で呼ぶこと */
 {
 	goto syscmd;
-	ORG(0x0008);
-	ORG(0x0010);
+//	ORG(0x0008);
+//	ORG(0x0010);
+	asmout("RESB 0x10-$");
 	asmout("DD OFFSET #syscmd, 0, 0, 0");
 	DD(4096); /* 初期化時に必要なワークエリアサイズ */
 	DD(0); /* 最大ローカルスタック消費量 */
-	ORG(0x0040);
+//	ORG(0x0040);
+	asmout("RESB 0x40-$");
 syscmd:
 	GAPI_WORK *work == ES:0x0000;
 
@@ -78,7 +81,7 @@ syscmd:
 	ECX += 8;
 	ES = ECX;
 
-asmout("next_command:");
+asmout("next_command: EQU $");
 
 	EAX = cmd[0];
 	if (EAX == 0x0184)
@@ -118,7 +121,7 @@ asmout("next_command:");
 fontload:
 	/* cmd, opt, type, len, to, from */
 	PUSH(DS);
-	asmout("LDS ESI,FWORD PTR FS:[EBX+20]");
+	asmout("LDS ESI,DWORD FS:[EBX+20]");
 	EAX = cmd[ 8]; /* type */
 	ECX = cmd[12]; /* len */
 	EDI = cmd[16]; /* to */
@@ -176,7 +179,7 @@ fontload:
 font_attr:
 	/* cmd, opt, type, (param0), (param1), (param2), (param3) */
 	EAX = cmd[ 8]; /* type */
-	asmout("MOV AL,BYTE PTR CS:[#font_attr_table][EAX-1]");
+	asmout("MOV AL,BYTE PTR CS:[#font_attr_table+EAX-1]");
 	(char) cmd[12] = AL;
 	(offset) cmd += 28;
 	asmout("JMP next_command");
@@ -1289,7 +1292,7 @@ void near GAPI_putbox()
 
 	PUSH(ES);
 	PUSH(EBP);
-	asmout("LES EDI,FWORD PTR FS:[EBX+28]");
+	asmout("LES EDI,DWORD FS:[EBX+28]");
 	ESI = cmd[12]; /* y */
 	EBP = TWVSW;
 	IMUL_TWVSW(ESI);
@@ -1694,7 +1697,7 @@ void near GAPI_lineardots()
 	ECX = cmd[ 4];
 	EBP = cmd[24];
 	ECX >>= 6;
-	asmout("LES EAX,FWORD PTR FS:[EBX+28]");
+	asmout("LES EAX,DWORD FS:[EBX+28]");
 	PUSH((offset) cmd);
 	ESI = cmd[ 8];
 	EDI = cmd[12];
@@ -1830,7 +1833,7 @@ void near GAPI_points()
 	PUSH(ES);
 	EAX = cmd[ 4];
 	ECX = cmd[24];
-	asmout("LES EDX,FWORD PTR FS:[EBX+28]");
+	asmout("LES EDX,DWORD FS:[EBX+28]");
 	ESI = cmd[ 8];
 	EDI = cmd[12];
 	(offset) cmd += 36;
@@ -1995,45 +1998,45 @@ void near init_mousecursor()
 		DL = cursor0[ 0];
 		DL |= cursor0[32];
 		EDX >>= 4;
-		asmout("MOV EAX,DWORD PTR CS:[#table][EDX*4]");
+		asmout("MOV EAX,DWORD PTR CS:[#table+EDX*4]");
 		DL = cursor0[32];
 		EAX =~ EAX;
 		EDX >>= 4;
 		cursor_buf[  0] = EAX;
-		asmout("MOV EAX,DWORD PTR CS:[#table][EDX*4]");
+		asmout("MOV EAX,DWORD PTR CS:[#table+EDX*4]");
 		DL = cursor0[ 0];
 		EAX &= 0x0f0f0f0f;
 		DL |= cursor0[32];
 		cursor_buf[  4] = EAX;
 		EDX &= 0x0f;
-		asmout("MOV EAX,DWORD PTR CS:[#table][EDX*4]");
+		asmout("MOV EAX,DWORD PTR CS:[#table+EDX*4]");
 		DL = cursor0[32];
 		EAX =~ EAX;
 		EDX &= 0x0f;
 		cursor_buf[128] = EAX;
-		asmout("MOV EAX,DWORD PTR CS:[#table][EDX*4]");
+		asmout("MOV EAX,DWORD PTR CS:[#table+EDX*4]");
 		DL = cursor0[ 1];
 		EAX &= 0x0f0f0f0f;
 		DL |= cursor0[33];
 		cursor_buf[132] = EAX;
 		EDX >>= 4;
-		asmout("MOV EAX,DWORD PTR CS:[#table][EDX*4]");
+		asmout("MOV EAX,DWORD PTR CS:[#table+EDX*4]");
 		DL = cursor0[33];
 		EAX =~ EAX;
 		EDX >>= 4;
 		cursor_buf[256] = EAX;
-		asmout("MOV EAX,DWORD PTR CS:[#table][EDX*4]");
+		asmout("MOV EAX,DWORD PTR CS:[#table+EDX*4]");
 		DL = cursor0[ 1];
 		EAX &= 0x0f0f0f0f;
 		DL |= cursor0[33];
 		cursor_buf[260] = EAX;
 		EDX &= 0x0f;
-		asmout("MOV EAX,DWORD PTR CS:[#table][EDX*4]");
+		asmout("MOV EAX,DWORD PTR CS:[#table+EDX*4]");
 		DL = cursor0[33];
 		EAX =~ EAX;
 		EDX &= 0x0f;
 		cursor_buf[384] = EAX;
-		asmout("MOV EAX,DWORD PTR CS:[#table][EDX*4]");
+		asmout("MOV EAX,DWORD PTR CS:[#table+EDX*4]");
 		cursor_buf[512] = 0xffffffff;
 		EAX &= 0x0f0f0f0f;
 		(offset) cursor0 += 2;

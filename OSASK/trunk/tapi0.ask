@@ -1,10 +1,11 @@
-// "tapi0.ask" ver.0.3 copyright(C) 2001 H.Kawai(川合秀実)
+// "tapi0.ask" ver.0.4 copyright(C) 2002 H.Kawai(川合秀実)
 
 /* "for DEBUG"を検索すれば、デバッグのために追加された部分を見つけられる */
 
-segment TapiMdl(USE32, PARA);
+#include "osaskinc.ask"
 
-default(code == TapiMdl);
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 struct TAPI_TSS386 {  // 全てTL-0
 	short BackLink, [2];
@@ -140,9 +141,9 @@ void far TAPI_syscmd()
 	// なお、send_messageへのポインタは、このコマンドで質問してくれれば、教えます。
 
 	PUSHAD();
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
+	EAX += 8;
 	DS = AX;
 nextcmd:
 	EAX = *cmd;
@@ -264,7 +265,7 @@ cmd0110:
 
 cmd0114:
 	// コマンドシグナル
-	AX = FS;
+	MOV(EAX, FS);
 	PUSH(ES);
 	ES = AX;
 	LEA(EBP, [(offset) cmd + 4]);
@@ -278,7 +279,7 @@ cmd0118:
 	PUSH(ES);
 	PUSH((offset) cmd);
 //	LES(EBP, cmd[4]);
-	asmout("LES EBP,FWORD PTR FS:[EBX+4]");
+	asmout("LES EBP,DWORD PTR FS:[EBX+4]");
 	TAPI_SignalMessage();
 	POP((offset) cmd);
 	POP(ES);
@@ -318,7 +319,7 @@ cmd0018:
 
 cmd0128:
 	// コマンドシグナル(with wait)
-	AX = FS;
+	MOV(EAX, FS);
 	PUSH(ES);
 	ES = AX;
 	LEA(EBP, [(offset) cmd + 4]);
@@ -332,7 +333,7 @@ cmd012c:
 	PUSH(ES);
 	PUSH((offset) cmd);
 //	LES(EBP, cmd[4]);
-	asmout("LES EBP,FWORD PTR FS:[EBX+4]");
+	asmout("LES EBP,DWORD PTR FS:[EBX+4]");
 	TAPI_SignalMessage2();
 	POP((offset) cmd);
 	POP(ES);
@@ -348,7 +349,7 @@ cmd0130:
 	TapiFixTsk();
 	(char) [SS:0xfffffff0]--;
 	/* ここは必ず0。そうじゃないなら、TapiChangeTskなんか呼ぶな */
-	asmout("CALL FWORD PTR SS:[0FFFFFFF8H]"); /* DSおよびreg32を破壊 */
+	asmout("CALL FAR DWORD PTR SS:[0FFFFFFF8H]"); /* DSおよびreg32を破壊 */
 	POPFD();
 	POP((offset) cmd);
 	(offset) cmd += 8;
@@ -376,7 +377,7 @@ void near TAPI_Init()
 //	asmout("#TS_short_run EQU 0F0H");
 
 //	PUSH(DS);
-	AX = DS;
+	MOV(EAX, DS);
 
 	// 現在時刻、ノードを取得
 
@@ -394,7 +395,7 @@ void near TAPI_Init()
 	work->TimerCommand_EOC3 = EDI;
 //	/* EBX = &(work->TimerNode2) */ EBX = 0x0050;
 	LEA(EBX, work->TimerNode2);
-	asmout("CALL FWORD PTR DS:[#work_TimerSysCmd]");
+	asmout("CALL FAR DWORD PTR DS:[#work_TimerSysCmd]");
 	ESI = work->TimerCommand_EOC2;
 	work->TimerCommand_Regist = 4 * 4 /* SetTimer */;
 	work->TimerNode1 = ESI;
@@ -453,7 +454,7 @@ void near TAPI_Init()
 //	EAX = 0xff80;
 //	/* (int) */ [SS:0xffffffe0] = EAX;
 //	/* (int) */ [SS:0xfffffff0] = EAX;
-	AX = CS;
+	MOV(EAX, CS);
 	asmout("MOV DWORD PTR SS:[0FFFFFFE8H],OFFSET TAPI_SysCntZero");
 	(int) [SS:0xffffffec] = EAX;
 	asmout("MOV DWORD PTR SS:[0FFFFFFF8H],OFFSET TAPI_TskChgTimer2");
@@ -474,9 +475,9 @@ void far TAPI_TskChgTimer()    /* far-callで呼ばれる */
 
 	asmout("#work_NowTimeCT EQU 05CH");
 
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8; DS = AX; /* DSのセット */
+	EAX += 8; DS = AX; /* DSのセット */
 
 	// タイムアウトbitを調べる。もし、既にタイムアウトしていれば、重複である。
 	// こうなるとぬけられないので、タイマーをキャンセルし、Fixを要求する。
@@ -538,7 +539,7 @@ void far TAPI_TskChgTimer2()    /* これは、far-callで入ってくる */
 //	asmout("#TS_short_run EQU 0F0H");
 
 	(char) [SS:0xfffffff0] |= 0x80;
-	AX = CS; AX += 8; DS = AX; /* DSのセット */
+	MOV(EAX, CS); EAX += 8; DS = AX; /* DSのセット */
 
 	// Fixチェック
 //	asmout("TEST BYTE PTR SS:[0FFFFFFF1H],02H");
@@ -580,7 +581,7 @@ void far TAPI_TskChgTimer2()    /* これは、far-callで入ってくる */
 		ADC(work->TskStart[4], ECX);
 		ADC(work->TskStart[8], EDX);
 		// goto *((void far *()) next->Tr[-4]);   /* タスク切り替え */
-		asmout("JMP FWORD PTR DS:[ESI][128+8]");
+		asmout("JMP FAR DWORD PTR DS:[ESI+128+8]");
 	}
 
 // ----------------------------------------------------------------- TAPI Layer-2
@@ -636,9 +637,9 @@ void far TAPI_SysCntZero()
 		(int) [SS:ESP + 40] = EDX;
 	}
 //	CLI(); // ここでフラグが変わるとややこしいから
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
+	EAX += 8;
 	TEST((char) [SS:ESP + 40 /* CS */], 0x03);
 //	asmout("TEST BYTE PTR SS:[ESP+40],03H");
 	DS = AX;
@@ -742,10 +743,10 @@ reentry:
 		if (CL != DL /* Llv変化 */) {
 			if (CL != 0xff) {
 				MOVZX(EDI, CL);
-				AX = CS;
+				MOV(EAX, CS);
 				// また起きるかもしれないから、システムの中にいることを示しておく
 				(char) [SS:0xffffffe0] = 0x81;
-				AX += 8;
+				EAX += 8;
 				DS = AX;
 				TapiChgLlv();
 				TapiFixTsk();
@@ -798,9 +799,9 @@ void far TAPI_SoftInt1_lv0()
 	PUSHFD();
 	ESP -= 8;
 	PUSHAD();
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
+	EAX += 8;
 	DS = AX;
 	(offset) tss = work->TskPointer;
 	EAX = tss->softint_oldEIP;
@@ -971,10 +972,10 @@ cli_call2:
 	return;
 cli_call:
 	PUSH(EBP);
-	asmout("CALL FWORD PTR SS:[0FFFFFFF8H]"); /* DSおよびreg32を破壊 */
-	AX = CS;
+	asmout("CALL FAR DWORD PTR SS:[0FFFFFFF8H]"); /* DSおよびreg32を破壊 */
+	MOV(EAX, CS);
 	POP(EBP);
-	AX += 8;
+	EAX += 8;
 	POPFD();
 	DS = AX;
 	return;
@@ -1056,10 +1057,10 @@ retry:
 			TapiFixTsk();
 			(char) [SS:0xfffffff0]--;
 			/* ここは必ず0。そうじゃないなら、TAPI_SignalMessage2なんか呼ぶな */
-			asmout("CALL FWORD PTR SS:[0FFFFFFF8H]"); /* DSおよびreg32を破壊 */
-			AX = CS;
+			asmout("CALL FAR DWORD PTR SS:[0FFFFFFF8H]"); /* DSおよびreg32を破壊 */
+			MOV(EAX, CS);
 			POP(EBP);
-			AX += 8;
+			EAX += 8;
 			EBP -= 4;
 			DS = AX;
 			goto retry;
@@ -1134,10 +1135,10 @@ cli_call2:
 	return;
 cli_call:
 	PUSH(EBP);
-	asmout("CALL FWORD PTR SS:[0FFFFFFF8H]"); /* DSおよびreg32を破壊 */
-	AX = CS;
+	asmout("CALL FAR DWORD PTR SS:[0FFFFFFF8H]"); /* DSおよびreg32を破壊 */
+	MOV(EAX, CS);
 	POP(EBP);
-	AX += 8;
+	EAX += 8;
 	POPFD();
 	DS = AX;
 	return;
@@ -1154,11 +1155,11 @@ void far TAPI_SignalMessageTimer()
 {
 	// このアドレスは、システムからしか呼ばれない。ゲートは通らない。
 
-	CX = DS;
+	MOV(ECX, DS);
 	PUSH(ES);
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(ECX);
-	AX += 8;
+	EAX += 8;
 	PUSH(ESI);
 	DS = AX;
 	ES = CX;
@@ -1408,13 +1409,13 @@ void near TapiFixOn()
 	asmout("#work_TimerSysCmd EQU 030H");
 
 	(char) [SS:0xfffffff1] &= 0xfd;
-	AX = DS;
+	MOV(EAX, DS);
 	PUSH(FS);
 	FS = AX;
 	if ((unsigned) (char) work->NowTimeCT[11] == 0) {
 	//	EBX = (offset) &(work->TimerCommand_GetTime);
 		LEA(EBX, work->TimerCommand_GetTime);
-		asmout("CALL FWORD PTR DS:[#work_TimerSysCmd]");
+		asmout("CALL FAR DWORD PTR DS:[#work_TimerSysCmd]");
 /*
 EDX = work->NowTimeCT[8];
 if (EDX == 0)
@@ -1424,7 +1425,7 @@ if (EDX == 0)
 	if (work->TskTimerMode != 0 /* 独占モードではない */) {
 	//	EBX = (offset) &(work->TimerCommand_Cancel); // タスク制御で使っているタイマーをキャンセル
 		LEA(EBX, work->TimerCommand_Cancel);
-		asmout("CALL FWORD PTR DS:[#work_TimerSysCmd]");
+		asmout("CALL FAR DWORD PTR DS:[#work_TimerSysCmd]");
 		work->TskTimerMode = 0;
 	}
 	POP(FS);
@@ -1471,7 +1472,7 @@ void near TapiFixGlv()
 		FS = AX;
 	//	EBX = (offset) &(work->TimerCommand_GetTime);
 		asmout("MOV EBX,#work_TimerCommand_GetTime");
-		asmout("CALL FWORD PTR DS:[#work_TimerSysCmd]");
+		asmout("CALL FAR DWORD PTR DS:[#work_TimerSysCmd]");
 		POP(FS);
 	}
 */	(offset) NowGlv = work->GlvNow;
@@ -1517,7 +1518,7 @@ void near TapiFixTsk()
 	        return;
 	}
 
-asmout("TAPI_FixMain:");
+asmout("TAPI_FixMain: EQU $");
 FixMain:
 //if ((unsigned) (char) work->NowTimeCT[11] == 0)
 //	INT(0x03);
@@ -1558,7 +1559,7 @@ FixMain:
 			PUSH(FS);
 			work->TskTimerMode = 1;
 		//	TskTimer = work->TimerNodeTimePtr;
-			asmout("LFS EDI,FWORD PTR DS:[#work_TimerNodeTimePtr]");
+			asmout("LFS EDI,DWORD PTR DS:[#work_TimerNodeTimePtr]");
 			EAX += NextTss->set[0]; // 割り込みを起こす時刻を設定
 			ADC(ECX, NextTss->set[4]);
 			ADC(EDX, NextTss->set[8]);
@@ -1574,21 +1575,21 @@ FixMain:
 			TskTimer[0] = EAX;
 			TskTimer[4] = ECX;
 			TskTimer[8] = EDX;
-			AX = DS;
+			MOV(EAX, DS);
 		//	EBX = (offset) &(work->TimerCommand_Regist); // タスク制御で使っているタイマーをキャンセル
 		//	asmout("MOV EBX,#work_TimerCommand_Regist");
 			LEA(EBX, work->TimerCommand_Regist);
 			FS = AX;
 
 			/* これを呼ぶ前に、work->TskPointerを更新しなければいけない。 */
-			asmout("CALL FWORD PTR DS:[#work_TimerSysCmd]");
+			asmout("CALL FAR DWORD PTR DS:[#work_TimerSysCmd]");
 			(offset) NextTss = work->TskPointer;
 			POP(FS);
 		}
 	}
 	if ((unsigned) (offset) NextTss != EBP) {
 	//	goto *((void far *()) NextTss->Tr[-4]);   /* タスク切り替え */
-		asmout("JMP FWORD PTR DS:[EBX][128+8]");
+		asmout("JMP FAR DWORD PTR DS:[EBX+128+8]");
 	}
 	return;
 }
@@ -1731,7 +1732,7 @@ void near TAPI_AddNestSleep()
 		//	}
 		//	(char) [SS:0xfffffff0]--;
 		//	if (== 0) {
-		//		asmout("CALL FWORD PTR SS:[0FFFFFFF8H]");
+		//		asmout("CALL FAR DWORD PTR SS:[0FFFFFFF8H]");
 		//	}
 		//	(char) [SS:0xffffffe0]--;
 		//	if (== 0) {
@@ -1806,9 +1807,9 @@ void far TAPI_INT07()
 	TAPI_TSS *tss == DS:EAX;
 
 	PUSH(EAX);
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
+	EAX += 8;
 	PUSH(ECX);
 	DS = AX;
 	(offset) tss = work->TskPointer;

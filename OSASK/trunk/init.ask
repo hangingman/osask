@@ -1,27 +1,27 @@
-/* "init.ask" ver.2.2 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "init.ask" ver.2.5 copyright(C) 2002 H.Kawai(川合秀実) */
 
 /* プリプロセッサのオプションで、-DPCATか-DTOWNSを指定すること */
 
 #define	MAXWINDOW		80	/* 1024/32 */
-#define	CALLFAR0(sel)	DB(0x9a); DD(0); DW((short) sel);
+#define	CALLFAR0(sel)	CALL(sel, 0)
 
-asmout("include ./inc.asm");
-asmout("modulelist = 0020H");
-asmout("alloclist  = 0120H");
-asmout("bootmalloc_adr1 = 01DCH");
-asmout("bootmalloc_fre1 = 01E0H");
-asmout("FD_motor_init = 01E4H");
-asmout("DiskCacheReady = 01E6H");
-asmout("V86TaskEntry = 0008H");
-asmout("boot_keylock = 001E7H");
+asmout("modulelist EQU 0020H");
+asmout("alloclist  EQU 0120H");
+asmout("bootmalloc_adr1 EQU 01DCH");
+asmout("bootmalloc_fre1 EQU 01E0H");
+asmout("FD_motor_init EQU 01E4H");
+asmout("DiskCacheReady EQU 01E6H");
+asmout("V86TaskEntry EQU 0008H");
+asmout("boot_keylock EQU 001E7H");
 
 /* 64タスクまでの準備はできている */
 
 //	#define	CHECK_TSKPTR	1
 
-segment InitMdl(USE32, PARA);
+#include "osaskinc.ask"
 
-default(code == InitMdl);
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 struct LINE_CMD {
 	unsigned int cmd_no /* 0x0100 */;
@@ -247,7 +247,6 @@ void far Init()
 /* 進入条件：
    DS == syswork_seg, GS == IDT&GDT_seg (どちらもセレクタではないことに注意が必要) */
 {
-	segment InitMdl == CS;
 	/* セレクタ番号 */
 	unsigned int                         all_sel       ==  1 * 8;
 	unsigned int init_sel     ==  2 * 8, syswork_sel   ==  3 * 8;
@@ -2045,11 +2044,11 @@ POP(EDI);
 //			EDI -= 4096;
 //			PUSH(EDI);
 //			PUSH(383 * 0x10000);
-//			asmout("LIDT FWORD PTR SS:[ESP][2]");
+//			asmout("LIDT SS:[ESP+2]");
 //			EDI += 384;
 //			(int) [SS:ESP] = 4095 - 384;
 //			[SS:ESP + 4] = EDI;
-//			asmout("LGDT FWORD PTR SS:[ESP][2]");
+//			asmout("LGDT SS:[ESP+2]");
 //			ESP += 8;
 //		}
 	//	AX = DS;
@@ -2817,7 +2816,7 @@ EDX = 0x00300000; /* 3MB */
 						PUSH((int) 0);
 						PUSH((int) msg[8]);
 						PUSH((int) msg[4]);
-						AX = SS;
+						MOV(EAX, SS);
 						EBX = ESP;
 						ES = AX;
 						create_task();
@@ -5194,7 +5193,7 @@ dec_lv0cnt_ret:
 	PUSHFD();
 //	(int) [SS:ESP] |= 0x0200; // IF = 1, ZF == 0
 	(char) [SS:ESP + 1] |= 0x02; // IF = 1, ZF == 0
-	asmout("jmp_system_count0");
+	jmp_system_count0();
 
 cmd0040:
 	// close task
@@ -5388,7 +5387,7 @@ get_free_win_slot:
 //	DEC((char) [SS:0xfffffff0]); // タスク切り替え抑制解除
 //	if (== 0) {
 //		PUSH((offset) cmd);
-//		asmout("CALL FWORD PTR SS:[0FFFFFFF8H]");
+//		asmout("CALL FAR DWORD SS:[0FFFFFFF8H]");
 //		EAX = stack_sel;
 //		POP((offset) cmd);
 //		DS = AX;
@@ -6982,7 +6981,7 @@ cmd0710:
 	TEST(ECX, ECX);
 	EAX = [ES:EAX + 0];
 	[SS:ESP + 496] = EAX;
-	AX = GS;
+	MOV(EAX, GS);
 	[SS:ESP + 500] = ECX;
 	[SS:ESP + 504] = EDX;
 	[SS:ESP + 508] = EAX;
@@ -7195,7 +7194,7 @@ cmd0728:
 	ES = AX;
 	DS = CX;
 	ESI = [ES:EDX + 0];
-	asmout("LES EDI,FWORD PTR GS:[EBP+16]");
+	asmout("LES EDI,DWORD GS:[EBP+16]");
 	ESI += 16;
 	(offset) cmd += 24;
 	if (EBX == 0xffffff03) {
@@ -7243,7 +7242,7 @@ cmd0730:
 	EBX = [DS:ESI + 16];
 	EBX += 16;
 	ESI = [DS:EBX];
-	asmout("LES EDI,FWORD PTR GS:[EBP+16]");
+	asmout("LES EDI,DWORD GS:[EBP+16]");
 	(offset) cmd += 24;
 	if (ESI != 0xffffffff) {
 		do {
@@ -7435,7 +7434,7 @@ dec_lv0cnt_ret:
 	TEST(ESP, ESP); // ZF = 0
 	PUSHFD();
 	(int) [SS:ESP] |= 0x0200; // IF = 1, ZF == 0
-	asmout("jmp_system_count0");
+	jmp_system_count0();
 
 cmd0010:
 	// システムオープン
@@ -7453,11 +7452,11 @@ cmd0020:
 	PUSH(FS);
 	PUSH((offset) cmd);
 	PUSH((int) 0x0118 /* コマンドシグナル間接 */);
-	AX = SS;
+	MOV(EAX, SS);
 	EBX = ESP;
 	FS = AX;
 	CALLFAR0(tapi_sel);
-//	asmout("LFS EBX,FWORD PTR SS:[ESP+4]");
+//	asmout("LFS EBX,DWORD SS:[ESP+4]");
 	LFS(EBX, [SS:ESP + 4]);
 	ESP += 16;
 	ECX = cmd[-4];
@@ -8000,14 +7999,14 @@ void near ui32toa()
 void far int10()
 {
 	PUSHAD();
-	ESI = InitMdl::"INT 0x0A Invalid TSS\0";
+	ESI = CODE::"INT 0x0A Invalid TSS\0";
 	goto put_int_status_ec;
 }
 
 void far int12()
 {
 	PUSHAD();
-	ESI = InitMdl::"INT 0x0C Stack Protect\0";
+	ESI = CODE::"INT 0x0C Stack Protect\0";
 	goto put_int_status_ec;
 }
 
@@ -8015,7 +8014,7 @@ void far int02()
 {
 	PUSH(EAX); // ダミーのエラーコード
 	PUSHAD();
-	ESI = InitMdl::"INT 0x02 Non Maskable Interrupt\0";
+	ESI = CODE::"INT 0x02 Non Maskable Interrupt\0";
 	#if (defined(TOWNS))
 		EDX = 0x0602;
 		AL = 0xb2; /* NMI ACK */
@@ -8032,7 +8031,7 @@ void far int13()
 	EAX = [SS:ESP + 32 + 4 + 8] /* EFLAGS */;
 	TEST(EAX, 0x00020000);
 	if (== 0) {
-		ESI = InitMdl::"INT 0x0D General Protect\0";
+		ESI = CODE::"INT 0x0D General Protect\0";
 		goto put_int_status_ec;
 	}
 
@@ -8282,7 +8281,7 @@ op_inbDX:
 	}
 
 	ESP -= 80;
-	AX = SS;
+	MOV(EAX, SS);
 	DS = AX;
 	GS = AX;
 	ESI = ESP;
@@ -8323,7 +8322,7 @@ op_inwDX:
 	// 必要なら、ここでlogをとる
 #if 0
 	ESP -= 80;
-	AX = SS;
+	MOV(EAX, SS);
 	DS = AX;
 	GS = AX;
 	ESI = ESP;
@@ -8364,7 +8363,7 @@ op_indDX:
 	// 必要なら、ここでlogをとる
 #if 0
 	ESP -= 80;
-	AX = SS;
+	MOV(EAX, SS);
 	DS = AX;
 	GS = AX;
 	ESI = ESP;
@@ -8461,7 +8460,7 @@ op_inbIb:
 #if 0
 	PUSH(EDX);
 	ESP -= 80;
-	AX = SS;
+	MOV(EAX, SS);
 	DS = AX;
 	GS = AX;
 	ESI = ESP;
@@ -8503,7 +8502,7 @@ op_inwIb:
 #if 0
 	PUSH(EDX);
 	ESP -= 80;
-	AX = SS;
+	MOV(EAX, SS);
 	DS = AX;
 	GS = AX;
 	ESI = ESP;
@@ -8545,7 +8544,7 @@ op_indIb:
 #if 0
 	PUSH(EDX);
 	ESP -= 80;
-	AX = SS;
+	MOV(EAX, SS);
 	DS = AX;
 	GS = AX;
 	ESI = ESP;
@@ -8822,7 +8821,7 @@ op_rep_ES_outsw:
 void far int14()
 {
 	PUSHAD();
-	ESI = InitMdl::"INT 0x0E Page Protect\0";
+	ESI = CODE::"INT 0x0E Page Protect\0";
 }
 */
 
@@ -8846,26 +8845,26 @@ void near put_int_status_ec()
 	POP(GS);
 	ESP -= 84;
 	EBP = ESP;
-	asmout("MOV DWORD PTR SS:[EBP][00],'C'+'S'*100h+':'*10000h+'E'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][04],'I'+'P'*100h+' '*10000h+'='*1000000h");
-	asmout("MOV BYTE PTR SS:[EBP][08],' '");
+	asmout("MOV DWORD PTR SS:[EBP+00],'C'+'S'*100h+':'*10000h+'E'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+04],'I'+'P'*100h+' '*10000h+'='*1000000h");
+	asmout("MOV BYTE PTR SS:[EBP+08],' '");
 	EAX = /* (int) */ [SS:EBP + 84 + 8 + 32 + 4 + 4];
 	// ESI = EBP + 9;
 	LEA(ESI, [EBP + 9]);
 	ui16toa();
-	asmout("MOV BYTE PTR SS:[EBP][13],':'");
+	asmout("MOV BYTE PTR SS:[EBP+13],':'");
 	EAX = /* (int) */ [SS:EBP + 84 + 8 + 32 + 4];
 	// ESI = EBP + 14;
 	LEA(ESI, [EBP+14]);
 	ui32toa();
-	asmout("MOV WORD PTR SS:[EBP][22],' '+' '*100h");
-	asmout("MOV DWORD PTR SS:[EBP][24],' '+' '*100h+' '*10000h+'E'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][28],'C'+' '*100h+'='*10000h+' '*1000000h");
+	asmout("MOV WORD PTR SS:[EBP+22],' '+' '*100h");
+	asmout("MOV DWORD PTR SS:[EBP+24],' '+' '*100h+' '*10000h+'E'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+28],'C'+' '*100h+'='*10000h+' '*1000000h");
 	EAX = /* (int) */ [SS:EBP + 84 + 8 + 32];
 	// ESI = EBP + 32;
 	LEA(ESI,[EBP+32]);
 	ui32toa();
-	asmout("MOV BYTE PTR SS:[EBP][40],0");
+	asmout("MOV BYTE PTR SS:[EBP+40],0");
 	// CS:EIP, ECを表示したあとにput_int_status2へ
 }
 
@@ -8880,24 +8879,24 @@ void near put_int_status2()
 	EDX = 0x000f;
 	output_string();
 
-	asmout("MOV DWORD PTR SS:[EBP][00],'E'+'A'*100h+'X'*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][16],' '+' '*100h+' '*10000h+'E'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][20],'C'+'X'*100h+' '*10000h+'='*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][36],' '+' '*100h+'E'*10000h+'D'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][40],'X'+' '*100h+'='*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][52],' '+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][56],' '+'E'*100h+'B'*10000h+'X'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+00],'E'+'A'*100h+'X'*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+04],'='+' '*100h+'0'*10000h+'1'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+12],'6'+'7'*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+16],' '+' '*100h+' '*10000h+'E'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+20],'C'+'X'*100h+' '*10000h+'='*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+32],'7'+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+36],' '+' '*100h+'E'*10000h+'D'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+40],'X'+' '*100h+'='*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+52],' '+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+56],' '+'E'*100h+'B'*10000h+'X'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+60],' '+'='*100h+' '*10000h+'0'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+68],'5'+'6'*100h+'7'*10000h+000*1000000h");
 	EAX = /* (int) */ [SS:EBP + 84 + 8 + 28];
 	// ESI = EBP +  6;
 	asmout("LEA ESI,[EBP+6]");
@@ -8920,24 +8919,24 @@ void near put_int_status2()
 	EDX = 0x000f;
 	output_string();
 
-	asmout("MOV DWORD PTR SS:[EBP][00],'E'+'S'*100h+'P'*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][16],' '+' '*100h+' '*10000h+'E'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][20],'B'+'P'*100h+' '*10000h+'='*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][36],' '+' '*100h+'E'*10000h+'S'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][40],'I'+' '*100h+'='*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][52],' '+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][56],' '+'E'*100h+'D'*10000h+'I'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+00],'E'+'S'*100h+'P'*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+04],'='+' '*100h+'0'*10000h+'1'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+12],'6'+'7'*100h+' '*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+16],' '+' '*100h+' '*10000h+'E'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+20],'B'+'P'*100h+' '*10000h+'='*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+32],'7'+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+36],' '+' '*100h+'E'*10000h+'S'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+40],'I'+' '*100h+'='*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+52],' '+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+56],' '+'E'*100h+'D'*10000h+'I'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+60],' '+'='*100h+' '*10000h+'0'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+68],'5'+'6'*100h+'7'*10000h+000*1000000h");
 	// EAX = EBP + 84 + 8 + 32 + 16;
 	asmout("LEA EAX,[EBP+84+8+32+16]");
 	// ESI = EBP +  6;
@@ -8961,24 +8960,24 @@ void near put_int_status2()
 	EDX = 0x000f;
 	output_string();
 
-	asmout("MOV DWORD PTR SS:[EBP][00],'t'+'s'*100h+'s'*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][04],'='+' '*100h+'0'*10000h+'1'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][12],'6'+'7'*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][16],' '+' '*100h+' '*10000h+'T'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][20],'R'+' '*100h+' '*10000h+'='*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][32],'7'+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][36],' '+' '*100h+'E'*10000h+'S'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][40],'I'+' '*100h+'='*10000h+' '*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][52],' '+' '*100h+' '*10000h+' '*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][56],' '+'E'*100h+'D'*10000h+'I'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][60],' '+'='*100h+' '*10000h+'0'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
-//	asmout("MOV DWORD PTR SS:[EBP][68],'5'+'6'*100h+'7'*10000h+000*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+00],'t'+'s'*100h+'s'*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+04],'='+' '*100h+'0'*10000h+'1'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+08],'2'+'3'*100h+'4'*10000h+'5'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+12],'6'+'7'*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+16],' '+' '*100h+' '*10000h+'T'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+20],'R'+' '*100h+' '*10000h+'='*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+24],' '+'0'*100h+'1'*10000h+'2'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+28],'3'+'4'*100h+'5'*10000h+'6'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+32],'7'+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+36],' '+' '*100h+'E'*10000h+'S'*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+40],'I'+' '*100h+'='*10000h+' '*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+44],'0'+'1'*100h+'2'*10000h+'3'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+48],'4'+'5'*100h+'6'*10000h+'7'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+52],' '+' '*100h+' '*10000h+' '*1000000h");
+	asmout("MOV DWORD PTR SS:[EBP+56],' '+'E'*100h+'D'*10000h+'I'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+60],' '+'='*100h+' '*10000h+'0'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+64],'1'+'2'*100h+'3'*10000h+'4'*1000000h");
+//	asmout("MOV DWORD PTR SS:[EBP+68],'5'+'6'*100h+'7'*10000h+000*1000000h");
 	PUSH(DS);
 	EAX = tapiwork_sel;
 	DS = AX;
@@ -9104,7 +9103,7 @@ void far int01()
 		}
 	#endif
 trap:
-	ESI = InitMdl::"INT 0x01 Debug Fault\0";
+	ESI = CODE::"INT 0x01 Debug Fault\0";
 	asmout("JMP put_int_status");
 no_trap:
 	POPAD();
@@ -9164,7 +9163,7 @@ asmout("MOV EDX,DR0");
 [SS:ESP + 28] = ESI;
 [SS:ESP + 24] = EDX;
 #endif
-		ESI = InitMdl::"INT 0x03 Break Point\0";
+		ESI = CODE::"INT 0x03 Break Point\0";
 		goto put_int_status;
 	}
 
@@ -9217,7 +9216,7 @@ void far int06()
 {
 	PUSH(EAX); // ダミーのエラーコード
 	PUSHAD();
-	ESI = InitMdl::"INT 0x06 Invalid Opecode\0";
+	ESI = CODE::"INT 0x06 Invalid Opecode\0";
 }
 
 void near put_int_status()
@@ -9235,23 +9234,23 @@ void near put_int_status()
 	// 12345678901234567890123
 	// CS:EIP = 1234:56789ABC
 	ESP -= 84;
-	AX = SS;
+	MOV(EAX, SS);
 	EBP = ESP;
 	DS = AX;
 	GS = AX;
-	asmout("MOV DWORD PTR SS:[EBP][00],'C'+'S'*100h+':'*10000h+'E'*1000000h");
-	asmout("MOV DWORD PTR SS:[EBP][04],'I'+'P'*100h+' '*10000h+'='*1000000h");
-	asmout("MOV BYTE PTR SS:[EBP][08],' '");
+	asmout("MOV DWORD PTR SS:[EBP+00],'CS:E'");
+	asmout("MOV DWORD PTR SS:[EBP+04],'IP ='");
+	asmout("MOV BYTE PTR SS:[EBP+08],' '");
 	EAX = /* (int) */ [SS:EBP + 84 + 8 + 32 + 4 + 4];
 	// ESI = EBP + 9;
 	asmout("LEA ESI,[EBP+9]");
 	ui16toa();
-	asmout("MOV BYTE PTR SS:[EBP][13],':'");
+	asmout("MOV BYTE PTR SS:[EBP+13],':'");
 	EAX = /* (int) */ [SS:EBP + 84 + 8 + 32 + 4];
 	// ESI = EBP + 14;
 	asmout("LEA ESI,[EBP+14]");
 	ui32toa();
-	asmout("MOV BYTE PTR SS:[EBP][22],0");
+	asmout("MOV BYTE PTR SS:[EBP+22],0");
 //	ESI = EBP;
 //	EAX = 0;
 //	ECX = 16;
@@ -9290,7 +9289,7 @@ void far int39()
 	PUSH(EAX); /* ダミーのエラーコード */
 	PUSHAD();
 	EAX = 0;
-	ESI = InitMdl::"INT 0x27 IRQ7\0";
+	ESI = CODE::"INT 0x27 IRQ7\0";
 	IN(AL, 0x0020);
 	(int) [SS:ESP + 32] = EAX;
 	asmout("JMP put_int_status_ec");
@@ -9375,8 +9374,8 @@ void near set_modulesegment()
 	DT->limit2_access_right2 = CL /* size */;
 	DT->base3 = DH /* base */;
 //	ESP -= 8;
-//	asmout("SGDT FWORD PTR SS:[ESP]");
-//	asmout("LGDT FWORD PTR SS:[ESP]");
+//	asmout("SGDT SS:[ESP]");
+//	asmout("LGDT SS:[ESP]");
 //	ESP += 8;
 	return;
 }
@@ -9421,8 +9420,8 @@ void near set_modulesegment()
 	DT->limit2_access_right2 = CL /* size */;
 	DT->base3 = DH /* base */;
 //	ESP -= 8;
-//	asmout("SGDT FWORD PTR SS:[ESP]");
-//	asmout("LGDT FWORD PTR SS:[ESP]");
+//	asmout("SGDT SS:[ESP]");
+//	asmout("LGDT SS:[ESP]");
 //	ESP += 8;
 	return;
 }

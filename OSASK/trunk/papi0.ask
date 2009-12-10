@@ -1,9 +1,10 @@
-/* "papi0.ask" ver.0.5 copyright(C) 2002 H.Kawai(川合秀実) */
+/* "papi0.ask" ver.0.6 copyright(C) 2002 H.Kawai(川合秀実) */
 /* 64bitタイプ */
 
-segment PapiMdl(USE32, PARA);
+#include "osaskinc.ask"
 
-default(code == PapiMdl);
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 #define	DEBUG		0
 #define	DEBUG1		0
@@ -185,7 +186,7 @@ cmd0108:
 	}
 	if (cmd[32] == 0) {
 		PUSH(DS);
-		PUSH((int) pdepte_sel);
+		PUSH(pdepte_sel);
 		POP(DS);
 		ECX = cmd[ 8]; /* size */
 		EDX = cmd[12]; /* linear */
@@ -246,7 +247,7 @@ cmd0108:
 //	if (ECX != 0) {
 		AAC_regist();
 		PUSH(DS);
-		PUSH((int) pdepte_sel);
+		PUSH(pdepte_sel);
 		POP(DS);
 		ECX = cmd[ 8]; /* size */
 		EDX = cmd[12]; /* linear */
@@ -1393,6 +1394,8 @@ void far PageFaultHandler()
 			EAX = CR2;
 			ECX = [SS:ESP + 40]; /* EIP */
 			EDX = [SS:ESP + 44]; /* CS */
+
+ESI = [SS:ESP + 4]; /* ESI */
 			INT(0x03); /* mapしてないのに参照された */
 		}
 		LEA(EAX, [EDX + 1]);

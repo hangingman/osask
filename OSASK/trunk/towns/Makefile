@@ -18,6 +18,8 @@ INCPATH = ../include
 LIBPATH = ../lib 
 LIBS = guigui00.lib stdlib.lib $(SYSGGLIB)
 
+PREPROCESSOR_FLAGS += -I..
+
 DISTDIR = ..
 
 ALL : $(OBJS)
@@ -27,47 +29,46 @@ ALL : $(OBJS)
 %.bin : %.ask makefile ..\depend.mak
 	$(PREPROCESSOR) $(PREPROCESSOR_FLAGS) $<
 	$(ASKA) $*.i $*.3as
-	$(MASMCNV) $(MASMCNV_FLAGS) $*.3as $*.asm
-	$(ASM) $(ASM_FLAGS) /Fl$*.lst $*.asm
-	$(LINK) $*,$*,$*,nul,nul
-	$(BIM2BIN) input:$*.exe output:$@ $(BIM2BIN_FLAGS_ASK)
+	$(NASKCNV) $(NASKCNV_FLAGS) $*.3as $*.nas
+	$(NASK) $(NASK_FLAGS) $*.nas $*.bin $*.lst
+#	$(LINK) $*,$*,$*,nul,nul
+#	$(BIM2BIN) input:$*.exe output:$@ $(BIM2BIN_FLAGS_ASK)
 #	$(EXE2BIN) $*.exe $@ $(EXE2BIN_FLAGS_ASK)
 	copy $@ ..
 
-%.exe : %.obj makefile ..\depend.mak
-	$(LINK) $*,$*,$*,nul,nul
+$(BASE) : $(BASE_NAS) makefile ..\depend.mak
+	$(NASK) $(NASK_FLAGS) $(BASE_NAS) $(BASE) $(BASE:.exe=.lst)
 	copy $@ ..
-
-$(BASE_OBJ) : $(BASE_ASM) makefile ..\depend.mak
-	$(ASM) $(ASM_FLAGS) /Fo$(BASE_OBJ) /Fl$(BASE:.exe=.lst) $(BASE_ASM)
 
 clean:
 	del $(BASE)
-	for %%i in ($(BASE:.exe=.obj)) do del %%i
+#	for %%i in ($(BASE:.exe=.obj)) do del %%i
 	for %%i in ($(BASE:.exe=.lst)) do del %%i
-	for %%i in ($(BASE:.exe=.map)) do del %%i
+#	for %%i in ($(BASE:.exe=.map)) do del %%i
 	for %%i in ($(ASK_OBJS)) do del %%i
 #	for %%i in ($(C_OBJS)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
+#	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
+	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
+#	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.lst)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
+#	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
+#	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
 
 dist_clean:
-	for %%i in ($(BASE:.exe=.obj)) do del %%i
+#	for %%i in ($(BASE:.exe=.obj)) do del %%i
 	for %%i in ($(BASE:.exe=.lst)) do del %%i
-	for %%i in ($(BASE:.exe=.map)) do del %%i
+#	for %%i in ($(BASE:.exe=.map)) do del %%i
 #	for %%i in ($(ASK_OBJS)) do del %%i
 #	for %%i in ($(C_OBJS)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.i)) do del %%i
 	for %%i in ($(ASK_OBJS:.bin=.3as)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
+	for %%i in ($(ASK_OBJS:.bin=.nas)) do del %%i
+#	for %%i in ($(ASK_OBJS:.bin=.asm)) do del %%i
+#	for %%i in ($(ASK_OBJS:.bin=.obj)) do del %%i
 #	for %%i in ($(ASK_OBJS:.bin=.lst)) do del %%i
 #	for %%i in ($(ASK_OBJS:.bin=.map)) do del %%i
-	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
+#	for %%i in ($(ASK_OBJS:.bin=.exe)) do del %%i
 
 

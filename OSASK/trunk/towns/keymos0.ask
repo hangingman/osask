@@ -1,10 +1,11 @@
-// "keymos0.ask" for TOWNS ver.0.3 copyright(C) 2001 H.Kawai(川合秀実)
+// "keymos0.ask" for TOWNS ver.0.4 copyright(C) 2002 H.Kawai(川合秀実)
 
 // このバージョンもOTASK版と同じく、キーを押しながら抜くとフェーズが狂う
 
-segment KeyboardMdl(USE32, PARA);
+#include "osaskinc.ask"
 
-default(code == KeyboardMdl);
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 struct keyboarddata {
 	int send_buf[64]; // 0x00
@@ -42,14 +43,12 @@ void near KeyIntDrv_Normal();
 
 void far keyboard_syscmd()
 {
-	asmout("include ../inc.asm");
-
 	int *cmd == FS:EBX;
 
 	PUSHAD();
-	AX = CS;
+	MOV(EAX, CS);
 	PUSH(DS);
-	AX += 8;
+	EAX += 8;
 	DS = AX;
 nextcmd:
 	EAX = *cmd;
@@ -129,8 +128,7 @@ cmd0108:
 	POP(FS);
 	(offset) cmd += 8;
 	goto nextcmd;
-#endif
-#if 0
+
 cmd010c:
 	// KeyResetCPU
 	PUSH(FS);
@@ -179,7 +177,7 @@ cmd0110:
 
 cmd0114:
 	// SetFinishSignal
-	AX = SS;
+	MOV(EAX, SS);
 	PUSH(FS);
 	PUSH((offset) cmd);
 	PUSH((int) 0);
@@ -240,8 +238,7 @@ cmd0118_cmdline:
 // Bit 2  Reserved                  1
 // Bit 1  Gate A20                  1
 // Bit 0  System Reset              1
-#endif
-#if 0
+
 cmd011c:
 	// MouseReset
 	AX = CS;
@@ -314,6 +311,7 @@ cmd0120_cmdline:
 
 	DD(0);
 #endif
+
 cmd0124:
 	// KeyboardIntDrvのベクタ提供
 	asmout("MOV DWORD PTR FS:[EBX+4],OFFSET KeyboardIntDrv");
@@ -321,12 +319,16 @@ cmd0124:
 	(offset) cmd += 12;
 	goto nextcmd;
 
+#if 0
+
 cmd0128:
 	// MouseIntDrvのベクタ提供
 	asmout("MOV DWORD PTR FS:[EBX+4],OFFSET MouseIntDrv");
 	(short) cmd[8] = CS;
 	(offset) cmd += 12;
 	goto nextcmd;
+
+#endif
 
 cmd0018:
 	// バージョン要求
@@ -361,7 +363,6 @@ void near keyboardInit()
 	asmout("work_mouse_send_buf equ 01C0H");
 	asmout("work_err_send_buf EQU 0200H");
 
-	segment KeyboardMdl == CS;
 //	PUSH(DS); // あらかじめ、mallocしてGDTに割り当てておく
 //	PUSH(EAX);
 //	PUSH(ECX);
@@ -390,7 +391,7 @@ void near keyboardInit()
 	work->queue_write_ptr = /* (offset) work->queue_buf */ 0x80;
 	work->queue_exec_ptr  = /* (offset) work->queue_buf */ 0x80;
 
-	/* work->mousejmp = MouseIntDrv_Phase0; */ asmout("MOV DWORD PTR DS:[018CH],OFFSET MouseIntDrv_Phase0");
+//	/* work->mousejmp = MouseIntDrv_Phase0; */ asmout("MOV DWORD PTR DS:[018CH],OFFSET MouseIntDrv_Phase0");
 
 	PUSH(FS);
 //	PUSH(EBX);
@@ -463,12 +464,13 @@ void far KeyboardIntDrv()
 		/* void * */ int [4], cli_call[6], [2];
 	};
 #endif
+
 	SS0_struct *ss0 == /* SS:(- sizeof (SS0_struct)) */ SS:0xffffffc0;
 
 	PUSH(DS);
 	PUSH(EAX);
 	PUSH(EDX);
-	AX = CS; AX += 8; DS = AX; // 特定のDSに依存しないための手続き
+	MOV(EAX, CS); EAX += 8; DS = AX; // 特定のDSに依存しないための手続き
 	ss0->ring0_count++; // 割り込みルーチンの基本
 	ss0->cli_count++;
 }
@@ -514,10 +516,11 @@ if (AL == 0x01 /* ESC */) { // !!!
 	INT(0x03);
 }
 #endif
+
 	AL = AH;
 
 send_keycode_AL:
-	asmout("KeyIntDrv_send_keycode_AL:");
+	asmout("KeyIntDrv_send_keycode_AL: EQU $");
 	AH = work->firstbyte;
 	(unsigned char) AH >>= 4;
 	if (AH != 0x0f) {
@@ -531,7 +534,7 @@ send_keycode_AL:
 	}
 send_keycode:
 	/* make/breakの場合は、remakeやoverbreakのチェックもする */
-	asmout("KeyIntDrv_send_keycode:");
+	asmout("KeyIntDrv_send_keycode: EQU $");
 	PUSHAD();
 #if 0
 	if (keycode < 0x02000000) {
@@ -551,10 +554,11 @@ send_keycode:
 		keycode |= keycode3;
 	}
 #endif
+
 	/* work->send_buf[8] */ [work + 0x08] = keycode;
 	// make/remake/break/overbreakのいずれでも、送信する
 	ESI = /* &work->send_buf */ 0x00;
-	/* (work->keysignal)() */ asmout("CALL FWORD PTR DS:[0180H]"); 
+	/* (work->keysignal)() */ asmout("CALL FAR DWORD DS:[0180H]"); 
 	// ESIも含め、汎用レジスタはすべて破壊される
 	POPAD();
 fin:
@@ -585,7 +589,7 @@ void near KeyIntDrv_Ret()
 
 call_clicall:
 	PUSHAD();
-	/* (ss0->clicall)() */ asmout("CALL FWORD PTR SS:[0FFFFFFC0H+038H]");
+	/* (ss0->clicall)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
 	POPAD();
 	POP(DS);
 	ss0->ring0_count--;
@@ -593,7 +597,7 @@ call_clicall:
 	IRETD();
 
 call_ring0call:
-	/* (ss0->ring0call)() */ asmout("jmp_system_count0");
+	/* (ss0->ring0call)() */ jmp_system_count0();
 //	IRETD();
 }
 
@@ -622,6 +626,7 @@ if (AL == 0x5d /* SYSREQ */) { // !!!
 	INT(0x03);
 }
 #endif
+
 	goto sendkeycode_AL;
 }
 
@@ -742,7 +747,7 @@ buf_full_err:
 		return;
 	}
 	PUSH(DS);
-	/* (ss0->cli_call)() */ asmout("CALL FWORD PTR SS:[0FFFFFFC0H+038H]");
+	/* (ss0->cli_call)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
 	POP(DS);
 	POPFD();
 	CLC();
@@ -1004,7 +1009,7 @@ void near KeyQueCmd_MakeFinishSignal()
 	PUSH(EBP);
 	/* work->err_send_buf[8] = 0 */ asmout("MOV DWORD PTR DS:[work_err_send_buf+8],0");
 	/* ESI = work->err_send_buf */ asmout("MOV ESI,work_err_send_buf");
-	asmout("CALL FWORD PTR DS:[work_keyerr_signal]");
+	asmout("CALL FAR DWORD DS:[work_keyerr_signal]");
 	POP(EBP);
 	POP(EBX);
 	EBX += 4;
@@ -1012,6 +1017,7 @@ void near KeyQueCmd_MakeFinishSignal()
 	/* goto [(void near *) DS:EBX] */ asmout("JMP DWORD PTR DS:[EBX]");
 }
 
+#if 0
 
 void far MouseIntDrv()
 // キーボードとよく似た構成
@@ -1020,7 +1026,7 @@ void far MouseIntDrv()
 
 	PUSH(DS);
 	PUSH(EAX);
-	AX = CS; AX += 8; DS = AX; // 特定のDSに依存しないための手続き
+	MOV(EAX, CS); EAX += 8; DS = AX; // 特定のDSに依存しないための手続き
 	ss0->ring0_count++; // 割り込みルーチンの基本
 	ss0->cli_count++;
 }
@@ -1087,7 +1093,7 @@ void near MouseIntDrv_Ret()
 
 call_clicall:
 	PUSHAD();
-	/* (ss0->clicall)() */ asmout("CALL FWORD PTR SS:[0FFFFFFC0H+038H]");
+	/* (ss0->clicall)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
 	POPAD();
 	POP(DS);
 	ss0->ring0_count--;
@@ -1095,7 +1101,7 @@ call_clicall:
 	IRETD();
 
 call_ring0call:
-	/* (ss0->ring0call)() */ asmout("jmp_system_count0");
+	/* (ss0->ring0call)() */ jmp_system_count0();
 //	IRETD();
 }
 
@@ -1128,7 +1134,7 @@ send_mousecode:
 	asmout("send_mousecode:");
 	PUSHAD();
 	ESI = /* work->mouse_send_buf */ 0x1c0;
-	/* (work->mousesignal)() */ asmout("CALL FWORD PTR DS:[work_mousesignal]"); 
+	/* (work->mousesignal)() */ asmout("CALL FAR DWORD DS:[work_mousesignal]"); 
 	// ESIも含め、汎用レジスタはすべて破壊される
 	POPAD();
 	/* goto MouseIntDrv_Ret */ asmout("JMP MouseIntDrv_Ret");
@@ -1217,7 +1223,7 @@ buf_full_err:
 		return;
 	}
 	PUSH(DS);
-	/* (ss0->cli_call)() */ asmout("CALL FWORD PTR SS:[0FFFFFFC0H+038H]");
+	/* (ss0->cli_call)() */ asmout("CALL FAR DWORD SS:[0FFFFFFC0H+038H]");
 	POP(DS);
 	POPFD();
 	CLC();
@@ -1251,8 +1257,6 @@ mouse_quecmd_restore:
 	EBP -= EAX;
 	/* goto [(void near *) work->mouse_queue_buf] */ asmout("JMP DWORD PTR DS:[0100H]");
 }
-
-void near putmouse();
 
 void near MouQueCmd_RecieveCheck()
 // 1バイト受信＆チェック
@@ -1322,6 +1326,8 @@ intack:
 
 	return; // どちらでもないキャラクターが来たら、無視して0x00(完了)かNACKを待ち続ける
 }
+
+#endif
 
 /*
 

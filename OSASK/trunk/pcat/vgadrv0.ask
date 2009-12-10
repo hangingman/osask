@@ -1,8 +1,9 @@
-/* "VGADRV0.ASK" ver.1.4 copyright(C) 2001 川合秀実, I.Tak., ODP */
+/* "VGADRV0.ASK" ver.1.5 copyright(C) 2002 川合秀実, I.Tak., ODP */
 
-segment GapiMdl(USE32, PARA);
+#include "osaskinc.ask"
 
-default(code == GapiMdl);
+segment CODE(USE32, PARA);
+default(code == CODE);
 
 #if (defined(BOCHS))
 	#define XBYTES		 80		/* 640ドット/ライン */
@@ -57,12 +58,14 @@ void far GAPI_entry()
 // 必ず、EFLAGS.IF == 1で呼ぶこと
 {
 	goto syscmd;
-	ORG(0x0008);
-	ORG(0x0010);
+//	ORG(0x0008);
+//	ORG(0x0010);
+	asmout("RESB 0x10-$");
 	asmout("DD OFFSET #syscmd, 0, 0, 0");
 	DD(4096); // 初期化時に必要なワークエリアサイズ
 	DD(0); // 最大ローカルスタック消費量
-	ORG(0x0040);
+//	ORG(0x0040);
+	asmout("RESB 0x40-$");
 syscmd:
 	GAPI_WORK *work == ES:0x0000;
 
@@ -112,7 +115,7 @@ syscmd:
 	STI();
 */
 
-asmout("next_command:");
+asmout("next_command: EQU $");
 
 	EAX = cmd[0];
 	if (EAX == 0x0184)
@@ -152,7 +155,7 @@ asmout("next_command:");
 fontload:
 	/* cmd, opt, type, len, to, from */
 	PUSH(DS);
-	asmout("LDS ESI,FWORD PTR FS:[EBX+20]");
+	asmout("LDS ESI,DWORD FS:[EBX+20]");
 	EAX = cmd[ 8]; /* type */
 	ECX = cmd[12]; /* len */
 	EDI = cmd[16]; /* to */
@@ -258,7 +261,7 @@ fontload:
 font_attr:
 	/* cmd, opt, type, (param0), (param1), (param2), (param3) */
 	EAX = cmd[ 8]; /* type */
-	asmout("MOV AL,BYTE PTR CS:[#font_attr_table][EAX-1]");
+	asmout("MOV AL,BYTE PTR CS:[#font_attr_table+EAX-1]");
 	(char) cmd[12] = AL;
 	(offset) cmd += 28;
 	asmout("JMP next_command");
@@ -1461,7 +1464,7 @@ void near GAPI_lineardots()
 	EDI = cmd[12];
 	AL = 0x03;
 	PUSH(EAX);
-	asmout("LES EBX,FWORD PTR FS:[EBX+28]");
+	asmout("LES EBX,DWORD PTR FS:[EBX+28]");
 	do {
 		EDX = 0x03ce;
 		EAX = 0x0305;
@@ -1534,7 +1537,7 @@ void near GAPI_points()
 	EAX = cmd[ 4];
 	PUSH(EBP);
 	EBP = cmd[24];
-	asmout("LES EDI,FWORD PTR FS:[EBX+28]");
+	asmout("LES EDI,DWORD PTR FS:[EBX+28]");
 	PUSH(cmd[12]);
 	PUSH(cmd[ 8]);
 	(offset) cmd += 36;
@@ -1999,7 +2002,7 @@ void near GAPI_VGA640()
 	char *param == DS:ESI;
 	asmout("MOV ESI,OFFSET #param640");
 
-	AX = CS;
+	MOV(EAX, CS);
 	DS = AX;
 
 	EDX = 0x03c4;

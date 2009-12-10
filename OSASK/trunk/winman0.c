@@ -1,5 +1,5 @@
-/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.0
-		copyright(C) 2002 川合秀実, I.Tak., 小柳雅明
+/* "winman0.c":ぐいぐい仕様ウィンドウマネージャー ver.2.1
+		copyright(C) 2002 川合秀実, I.Tak., 小柳雅明, KIYOTO
     stack:4k malloc:620k file:768k */
 
 #define WALLPAPERMAXSIZE	(512 * 1024)
@@ -30,7 +30,7 @@
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		  28
 #elif (defined(TMENU))
-	#define	RESERVELINE0		   0
+	#define	RESERVELINE0		  20
 	#define	RESERVELINE1		  28
 #elif (defined(CHO_OSASK))
 	#define	RESERVELINE0		   0
@@ -38,9 +38,12 @@
 #elif (defined(NEWSTYLE))
 	#define	RESERVELINE0		   0
 	#define	RESERVELINE1		   0
+#elif (defined(WIN31))
+	#define	RESERVELINE0		   0
+	#define	RESERVELINE1		   0
 #endif
 
-#if (defined(PCAT))
+#if (defined(PCAT) || defined(NEC98))
 	#define	MOVEUNIT			   8
 #endif
 #if (defined(TOWNS))
@@ -579,6 +582,10 @@ void init_screen(const int x, const int y)
 		static struct STR_BGV linedata[] = {
 			{ -1,   0,   0,  -1,  -1 }		/* for wallpaper */
 		};
+	#elif (defined(WIN31))
+		static struct STR_BGV linedata[] = {
+			{ -1,   0,   0,  -1,  -1 }		/* for wallpaper */
+		};
 	#endif
 
 	struct STR_BGV *p;
@@ -814,7 +821,7 @@ void mousesignal(const unsigned int header, int dx, int dy)
 		found_window:
 					if (win == top) {
 						// アクティブなウィンドウの中にマウスがある
-						#if (!defined(TMENU))
+						#if (defined(WIN9X) || defined(CHO_OSASK) || defined(NEWSTYLE))
 							if (win->x1 - 21 <= _mx && _mx < win->x1 - 5 && win->y0 + 5 <= _my && _my < win->y0 + 19) {
 								// close buttonをプレスした
 								press->win = win;
@@ -830,7 +837,7 @@ void mousesignal(const unsigned int header, int dx, int dy)
 									writejob_n(2, 0x0028 /* move */, (int) win);
 								}
 							}
-						#else
+						#elif (defined(TMENU) || defined(WIN31))
 							if (win->x0 + 2 <= _mx && _mx < win->x0 + 20 && win->y0 + 3 <= _my && _my < win->y0 + 21) {
 								// close buttonをプレスした
 								press->win = win;
@@ -855,13 +862,13 @@ void mousesignal(const unsigned int header, int dx, int dy)
 				/* 左ボタンがはなされた */
 				switch (press->pos) {
 				case CLOSE_BUTTON:
-					#if (!defined(TMENU))
+					#if (defined(WIN9X) || defined(CHO_OSASK) || defined(NEWSTYLE))
 						if (press->win->x1 - 21 <= _mx && _mx < press->win->x1 - 5 &&
 							press->win->y0 + 5 <= _my && _my < press->win->y0 + 19) {
 							if (press->win != pokon0)
 								sgg_wm0s_close(&press->win->sgg);
 						}
-					#else
+					#elif (defined(TMENU) || defined(WIN31))
 						if (press->win->x0 + 2 <= _mx && _mx < press->win->x0 + 20 &&
 							press->win->y0 + 3 <= _my && _my < press->win->y0 + 21) {
 							if (press->win != pokon0)
@@ -1743,6 +1750,54 @@ void job_openvgadriver(const int drv)
 			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ O _,
 			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _
 #endif
+		#elif (defined(WIN31))
+			/* 改造済みマウスカーソルパターン(16x16, mono) by 聖人 */
+			/* 少しはWin3.1の雰囲気出るかなーなんて… */
+			/* 16進に変換するの面倒くさい。今までのほうがよかった… */
+			0xc0, 0x00, 0xa0, 0x00, 0x90, 0x00, 0x88, 0x00,
+			0x84, 0x00, 0x82, 0x00, 0x81, 0x00, 0x80, 0x80,
+			0x80, 0x40, 0x83, 0xc0, 0x99, 0x00, 0xa9, 0x00,
+			0x44, 0x80, 0x04, 0x80, 0x03, 0x80, 0x00, 0x00,
+
+			0x00, 0x00, 0x40, 0x00, 0x60, 0x00, 0x70, 0x00,
+			0x78, 0x00, 0x7c, 0x00, 0x7e, 0x00, 0x7f, 0x00,
+			0x7f, 0x80, 0x7c, 0x00, 0x66, 0x00, 0x46, 0x00,
+			0x03, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00
+#if 0
+			S 0 0 _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S 0 _ 0 _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S 0 _ _ 0 _ _ _ _ T _ _ _ _ _ _ _ _,
+			S 0 _ _ _ 0 _ _ _ T _ _ _ _ _ _ _ _,
+			S 0 _ _ _ _ 0 _ _ T _ _ _ _ _ _ _ _,
+			S 0 _ _ _ _ _ 0 _ T _ _ _ _ _ _ _ _,
+			S 0 _ _ _ _ _ _ 0 T _ _ _ _ _ _ _ _,
+			S 0 _ _ _ _ _ _ _ T 0 _ _ _ _ _ _ _,
+			S 0 _ _ _ _ _ _ _ T _ 0 _ _ _ _ _ _,
+			S 0 _ _ _ _ _ 0 0 T 0 0 _ _ _ _ _ _,
+			S 0 _ _ 0 0 _ _ 0 T _ _ _ _ _ _ _ _,
+			S 0 _ 0 _ 0 _ _ 0 T _ _ _ _ _ _ _ _,
+			S _ 0 _ _ _ 0 _ _ T 0 _ _ _ _ _ _ _,
+			S _ _ _ _ _ 0 _ _ T 0 _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ 0 0 T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
+
+			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S _ 0 _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S _ 0 0 _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S _ 0 0 0 _ _ _ _ T _ _ _ _ _ _ _ _,
+			S _ 0 0 0 0 _ _ _ T _ _ _ _ _ _ _ _,
+			S _ 0 0 0 0 0 _ _ T _ _ _ _ _ _ _ _,
+			S _ 0 0 0 0 0 0 _ T _ _ _ _ _ _ _ _,
+			S _ 0 0 0 0 0 0 0 T _ _ _ _ _ _ _ _,
+			S _ 0 0 0 0 0 0 0 T 0 _ _ _ _ _ _ _,
+			S _ 0 0 0 0 0 _ _ T _ _ _ _ _ _ _ _,
+			S _ 0 0 _ _ 0 0 _ T _ _ _ _ _ _ _ _,
+			S _ 0 _ _ _ 0 0 _ T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ 0 0 T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ 0 0 T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _,
+			S _ _ _ _ _ _ _ _ T _ _ _ _ _ _ _ _
+#endif
 		#endif
 	};
 
@@ -2568,6 +2623,235 @@ void sgg_wm0_definesignal3sub(const int keycode)
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfe' */,
 			{ 0xff, 0xff,    0xff, 0xff    } /* '\xff' */
 		#endif
+		#if (defined(NEC98))
+/* TOWNSのをそのまま持ってきただけで、直してない */
+			{ 0x35, IGSHIFT, 0xff, 0xff    } /* ' ' */,
+			{ 0x02, SHIFT,   0xff, 0xff    } /* '!' */,
+			{ 0x03, SHIFT,   0x34, NOSHIFT } /* '\x22' */,
+			{ 0x04, SHIFT,   0xff, 0xff    } /* '#' */,
+			{ 0x05, SHIFT,   0xff, 0xff    } /* '%' */,
+			{ 0x06, SHIFT,   0xff, 0xff    } /* '$' */,
+			{ 0x07, SHIFT,   0xff, 0xff    } /* '&' */,
+			{ 0x08, SHIFT,   0xff, 0xff    } /* '\x27' */,
+			{ 0x09, SHIFT,   0xff, 0xff    } /* '(' */,
+			{ 0x0a, SHIFT,   0xff, 0xff    } /* ')' */,
+			{ 0x28, SHIFT,   0x36, NOSHIFT } /* '*' */,
+			{ 0x27, SHIFT,   0x38, NOSHIFT } /* '+' */,
+			{ 0x31, NOSHIFT, 0xff, 0xff    } /* ',' */,
+			{ 0x0c, NOSHIFT, 0x39, NOSHIFT } /* '-' */,
+			{ 0x32, NOSHIFT, 0x47, NOSHIFT } /* '.' */,
+			{ 0x33, NOSHIFT, 0x37, NOSHIFT } /* '/' */,
+			{ 0x0b, NOSHIFT, 0x46, NOSHIFT } /* '0' */,
+			{ 0x02, NOSHIFT, 0x42, NOSHIFT } /* '1' */,
+			{ 0x03, NOSHIFT, 0x43, NOSHIFT } /* '2' */,
+			{ 0x04, NOSHIFT, 0x44, NOSHIFT } /* '3' */,
+			{ 0x05, NOSHIFT, 0x3e, NOSHIFT } /* '4' */,
+			{ 0x06, NOSHIFT, 0x3f, NOSHIFT } /* '5' */,
+			{ 0x07, NOSHIFT, 0x40, NOSHIFT } /* '6' */,
+			{ 0x08, NOSHIFT, 0x3a, NOSHIFT } /* '7' */,
+			{ 0x09, NOSHIFT, 0x3b, NOSHIFT } /* '8' */,
+			{ 0x0a, NOSHIFT, 0x3c, NOSHIFT } /* '9' */,
+			{ 0x28, NOSHIFT, 0xff, 0xff    } /* ':' */,
+			{ 0x27, NOSHIFT, 0xff, 0xff    } /* ';' */,
+			{ 0x31, SHIFT,   0xff, 0xff    } /* '<' */,
+			{ 0x0c, SHIFT,   0x3d, NOSHIFT } /* '=' */,
+			{ 0x32, SHIFT,   0xff, 0xff    } /* '>' */,
+			{ 0x33, SHIFT,   0xff, 0xff    } /* '?' */,
+			{ 0x1b, NOSHIFT, 0xff, 0xff    } /* '@' */,
+			{ 0x1e, CAPLKON, 0xff, 0xff    } /* 'A' */,
+			{ 0x2e, CAPLKON, 0xff, 0xff    } /* 'B' */,
+			{ 0x2c, CAPLKON, 0xff, 0xff    } /* 'C' */,
+			{ 0x20, CAPLKON, 0xff, 0xff    } /* 'D' */,
+			{ 0x13, CAPLKON, 0xff, 0xff    } /* 'E' */,
+			{ 0x21, CAPLKON, 0xff, 0xff    } /* 'F' */,
+			{ 0x22, CAPLKON, 0xff, 0xff    } /* 'G' */,
+			{ 0x23, CAPLKON, 0xff, 0xff    } /* 'H' */,
+			{ 0x18, CAPLKON, 0xff, 0xff    } /* 'I' */,
+			{ 0x24, CAPLKON, 0xff, 0xff    } /* 'J' */,
+			{ 0x25, CAPLKON, 0xff, 0xff    } /* 'K' */,
+			{ 0x26, CAPLKON, 0xff, 0xff    } /* 'L' */,
+			{ 0x30, CAPLKON, 0xff, 0xff    } /* 'M' */,
+			{ 0x2f, CAPLKON, 0xff, 0xff    } /* 'N' */,
+			{ 0x19, CAPLKON, 0xff, 0xff    } /* 'O' */,
+			{ 0x1a, CAPLKON, 0xff, 0xff    } /* 'P' */,
+			{ 0x11, CAPLKON, 0xff, 0xff    } /* 'Q' */,
+			{ 0x14, CAPLKON, 0xff, 0xff    } /* 'R' */,
+			{ 0x1f, CAPLKON, 0xff, 0xff    } /* 'S' */,
+			{ 0x15, CAPLKON, 0xff, 0xff    } /* 'T' */,
+			{ 0x17, CAPLKON, 0xff, 0xff    } /* 'U' */,
+			{ 0x2d, CAPLKON, 0xff, 0xff    } /* 'V' */,
+			{ 0x12, CAPLKON, 0xff, 0xff    } /* 'W' */,
+			{ 0x2b, CAPLKON, 0xff, 0xff    } /* 'X' */,
+			{ 0x16, CAPLKON, 0xff, 0xff    } /* 'Y' */,
+			{ 0x2a, CAPLKON, 0xff, 0xff    } /* 'Z' */,
+			{ 0x1c, NOSHIFT, 0xff, 0xff    } /* '[' */,
+			{ 0x0e, NOSHIFT, 0xff, 0xff    } /* '\' */,
+			{ 0x29, NOSHIFT, 0xff, 0xff    } /* ']' */,
+			{ 0x0d, NOSHIFT, 0xff, 0xff    } /* '^' */,
+			{ 0x34, SHIFT,   0xff, 0xff    } /* '_' */,
+			{ 0x1b, SHIFT,   0xff, 0xff    } /* '`' */,
+			{ 0x1e, CAPLKOF, 0xff, 0xff    } /* 'a' */,
+			{ 0x2e, CAPLKOF, 0xff, 0xff    } /* 'b' */,
+			{ 0x2c, CAPLKOF, 0xff, 0xff    } /* 'c' */,
+			{ 0x20, CAPLKOF, 0xff, 0xff    } /* 'd' */,
+			{ 0x13, CAPLKOF, 0xff, 0xff    } /* 'e' */,
+			{ 0x21, CAPLKOF, 0xff, 0xff    } /* 'f' */,
+			{ 0x22, CAPLKOF, 0xff, 0xff    } /* 'g' */,
+			{ 0x23, CAPLKOF, 0xff, 0xff    } /* 'h' */,
+			{ 0x18, CAPLKOF, 0xff, 0xff    } /* 'i' */,
+			{ 0x24, CAPLKOF, 0xff, 0xff    } /* 'j' */,
+			{ 0x25, CAPLKOF, 0xff, 0xff    } /* 'k' */,
+			{ 0x26, CAPLKOF, 0xff, 0xff    } /* 'l' */,
+			{ 0x30, CAPLKOF, 0xff, 0xff    } /* 'm' */,
+			{ 0x2f, CAPLKOF, 0xff, 0xff    } /* 'n' */,
+			{ 0x19, CAPLKOF, 0xff, 0xff    } /* 'o' */,
+			{ 0x1a, CAPLKOF, 0xff, 0xff    } /* 'p' */,
+			{ 0x11, CAPLKOF, 0xff, 0xff    } /* 'q' */,
+			{ 0x14, CAPLKOF, 0xff, 0xff    } /* 'r' */,
+			{ 0x1f, CAPLKOF, 0xff, 0xff    } /* 's' */,
+			{ 0x15, CAPLKOF, 0xff, 0xff    } /* 't' */,
+			{ 0x17, CAPLKOF, 0xff, 0xff    } /* 'u' */,
+			{ 0x2d, CAPLKOF, 0xff, 0xff    } /* 'v' */,
+			{ 0x12, CAPLKOF, 0xff, 0xff    } /* 'w' */,
+			{ 0x2b, CAPLKOF, 0xff, 0xff    } /* 'x' */,
+			{ 0x16, CAPLKOF, 0xff, 0xff    } /* 'y' */,
+			{ 0x2a, CAPLKOF, 0xff, 0xff    } /* 'z' */,
+			{ 0x1c, SHIFT,   0xff, 0xff    } /* '{' */,
+			{ 0x0e, SHIFT,   0xff, 0xff    } /* '|' */,
+			{ 0x29, SHIFT,   0xff, 0xff    } /* '}' */,
+			{ 0x0d, SHIFT,   0xff, 0xff    } /* '~' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x7f' */,
+			{ 0x01, NOSHIFT, 0xff, 0xff    } /* Esc */,
+			{ 0x5d, NOSHIFT, 0xff, 0xff    } /* F1 */,
+			{ 0x5e, NOSHIFT, 0xff, 0xff    } /* F2 */,
+			{ 0x5f, NOSHIFT, 0xff, 0xff    } /* F3 */,
+			{ 0x60, NOSHIFT, 0xff, 0xff    } /* F4 */,
+			{ 0x61, NOSHIFT, 0xff, 0xff    } /* F5 */,
+			{ 0x62, NOSHIFT, 0xff, 0xff    } /* F6 */,
+			{ 0x63, NOSHIFT, 0xff, 0xff    } /* F7 */,
+			{ 0x64, NOSHIFT, 0xff, 0xff    } /* F8 */,
+			{ 0x65, NOSHIFT, 0xff, 0xff    } /* F9 */,
+			{ 0x66, NOSHIFT, 0xff, 0xff    } /* F10 */,
+			{ 0x69, NOSHIFT, 0xff, 0xff    } /* F11 */,
+			{ 0x5b, NOSHIFT, 0xff, 0xff    } /* F12 */,
+			{ 0x74, NOSHIFT, 0xff, 0xff    } /* F13 */,
+			{ 0x75, NOSHIFT, 0xff, 0xff    } /* F14 */,
+			{ 0x76, NOSHIFT, 0xff, 0xff    } /* F15 */,
+			{ 0x77, NOSHIFT, 0xff, 0xff    } /* F16 */,
+			{ 0x78, NOSHIFT, 0xff, 0xff    } /* F17 */,
+			{ 0x79, NOSHIFT, 0xff, 0xff    } /* F18 */,
+			{ 0x7a, NOSHIFT, 0xff, 0xff    } /* F19 */,
+			{ 0x7b, NOSHIFT, 0xff, 0xff    } /* F20 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x95' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x96' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x97' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x98' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x99' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9a' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9b' */,
+			{ 0xf4, NOSHIFT, 0xff, 0xff    } /* EXT1(F28) */,
+			{ 0xf8, NOSHIFT, 0xff, 0xff    } /* EXT2(F29) */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9e' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\x9f' */,
+			{ 0x1d, IGSHIFT, 0x45, IGSHIFT } /* Enter */,
+			{ 0x0f, IGSHIFT, 0xff, 0xff    } /* BackSpace */,
+			{ 0x10, NOSHIFT, 0xff, 0xff    } /* Tab */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xa3' */,
+			{ 0x48, NOSHIFT, 0xff, 0xff    } /* Insert */,
+			{ 0x4b, NOSHIFT, 0xff, 0xff    } /* Delete */,
+			{ 0x4e, NOSHIFT, 0xe1, NOSHIFT } /* Home */,
+			{ 0xe2, NOSHIFT, 0xff, 0xff    } /* End */,
+			{ 0x6e, NOSHIFT, 0xff, 0xff    } /* PageUp */,
+			{ 0x70, NOSHIFT, 0xff, 0xff    } /* PageDown */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xaa' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xab' */,
+			{ 0x4f, NOSHIFT, 0xff, 0xff    } /* Left */,
+			{ 0x51, NOSHIFT, 0xff, 0xff    } /* Right */,
+			{ 0x4d, NOSHIFT, 0xff, 0xff    } /* Up */,
+			{ 0x50, NOSHIFT, 0xff, 0xff    } /* Down */,
+			{ 0xe0, NOSHIFT, 0xff, 0xff    } /* ScrollLock */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* NumLock */,
+			{ 0x55, NOSHIFT, 0xff, 0xff    } /* CapsLock */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xb3' */,
+			{ 0x53, 0xfe,    0xff, 0xff    } /* Shift */,
+			{ 0x52, 0xfe,    0xff, 0xff    } /* Ctrl */,
+			{ 0x5c, 0xfe,    0x72, 0xfe    } /* Alt */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xb7' */,
+			{ 0x7d, NOSHIFT, 0xff, 0xff    } /* COPY(PrintScreen) */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Pause */,
+			{ 0x7c, NOSHIFT, 0xff, 0xff    } /* Break */,
+			{ 0xdd, NOSHIFT, 0xff, 0xff    } /* SysRq */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbe' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xbf' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Windows */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Menu */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Power */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Sleep */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* Wake */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc7' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc8' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xc9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xca' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xce' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xcf' */,
+			{ 0x71, NOSHIFT, 0xff, 0xff    } /* Zenkaku */,
+			{ 0x57, NOSHIFT, 0xff, 0xff    } /* Muhenkan */,
+			{ 0x58, NOSHIFT, 0xff, 0xff    } /* Henkan */,
+			{ 0x56, NOSHIFT, 0xff, 0xff    } /* Hiragana */,
+			{ 0x5a, NOSHIFT, 0xff, 0xff    } /* Katakana */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd7' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd8' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xd9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xda' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xde' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xdf' */,
+/* e0～f7は、割り当てるのが面倒になった機種固有のマイナーキー */
+			{ 0x72, NOSHIFT, 0xff, 0xff    } /* 取消 */,
+			{ 0x73, NOSHIFT, 0xff, 0xff    } /* 実行 */,
+			{ 0x59, NOSHIFT, 0xff, 0xff    } /* かな漢字 */,
+			{ 0x4a, NOSHIFT, 0xff, 0xff    } /* 000 */,
+			{ 0x6b, NOSHIFT, 0xff, 0xff    } /* 漢字辞書 */,
+			{ 0x6c, NOSHIFT, 0xff, 0xff    } /* 単語抹消 */,
+			{ 0x6d, NOSHIFT, 0xff, 0xff    } /* 単語登録 */,
+			{ 0x6a, NOSHIFT, 0xff, 0xff    } /* 英字 */,
+			{ 0x6f, NOSHIFT, 0xff, 0xff    } /* カタカナ/英小文字 */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xe9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xea' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xeb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xec' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xed' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xee' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xef' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf0' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf1' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf2' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf3' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf4' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf5' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf6' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf7' */,
+/* f8～ffは、マイナーシフトキー */
+			{ 0x67, NOSHIFT, 0x68, NOSHIFT } /* 親指シフト('\xf8') */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xf9' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfa' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfb' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfc' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfd' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xfe' */,
+			{ 0xff, 0xff,    0xff, 0xff    } /* '\xff' */
+		#endif
 	};
 
 	if ((keycode & 0xfffff000) == 0) {
@@ -2801,6 +3085,91 @@ void sgg_wm0_definesignal3com()
 		};
 	#endif
 	#if (defined(TOWNS))
+		static struct {
+			int cmd, length;
+			int deccmd[6 * 10 + 3];
+			int eoc;
+		} command = {
+			0x0068, 65 * 4, {
+				0x0110     /* clear */,
+				0          /* opt */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x55       /* rawcode(CapsLock) */,
+				0x0000c070 /* shiftmap */,
+				0x0004     /* xor bit */,
+				0x00060000 /* cmd(xor) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x53       /* rawcode(Shift) */,
+				0x0000c000 /* shiftmap */,
+				0x0010     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x53       /* rawcode(Shift) */,
+				0x4000c000 /* shiftmap */,
+				~0x0010    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x52       /* rawcode(Ctrl) */,
+				0x0000c000 /* shiftmap */,
+				0x0020     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x52       /* rawcode(Ctrl) */,
+				0x4000c000 /* shiftmap */,
+				~0x0020    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x5c       /* rawcode(Alt) */,
+				0x0000c000 /* shiftmap */,
+				0x0040     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x5c       /* rawcode(Alt) */,
+				0x4000c000 /* shiftmap */,
+				~0x0040    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x72       /* rawcode(取消) */,
+				0x0000c000 /* shiftmap */,
+				0x0040     /* or bit */,
+				0x00040000 /* cmd(or) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x72       /* rawcode(取消) */,
+				0x4000c000 /* shiftmap */,
+				~0x0040    /* and bit */,
+				0x00050000 /* cmd(and) */,
+
+				0x010c     /* define */,
+				4          /* opt(len) */,
+				0x4b       /* rawcode(Deletele) */,
+				0x0060c070 /* shiftmap */,
+				0          /* reserve */,
+				0x00380000 /* cmd(reset) */,
+
+				0x0000 /* EOC */
+			}, 0x0000 /* EOC */
+		};
+	#endif
+	#if (defined(NEC98))
+/* TOWNSのをもってきただけ */
 		static struct {
 			int cmd, length;
 			int deccmd[6 * 10 + 3];
