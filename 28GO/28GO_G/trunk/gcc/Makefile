@@ -44,7 +44,8 @@ CXX_C_OBJS = attribs.o c-common.o c-format.o c-pragma.o c-semantics.o c-lex.o
 LIBS = $(INTLLIBS) $(LIBIBERTY) $(GOLIB)
 
 all :
-	$(MAKER) cpp0.exe cc1.exe cc1plus.exe
+#	$(MAKER) cpp0.exe cc1.exe cc1plus.exe
+	$(MAKER) cpp0.exe cc1.exe
 
 clean :
 	-$(DEL) *.exe
