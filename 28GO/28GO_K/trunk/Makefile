@@ -9,6 +9,9 @@ all:
 	$(TOOLPATH)make -C doscmd
 	$(TOOLPATH)make -C makefont
 	$(TOOLPATH)make -C hrblib0a
+	$(TOOLPATH)make -C obj2bin
+	$(TOOLPATH)make -C bim2hrb
+	$(TOOLPATH)make -C imgtol
 
 
 clean :
