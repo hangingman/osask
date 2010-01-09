@@ -6,7 +6,7 @@ CC1 = $(TOOLPATH)cc1.exe
 MAKE = $(TOOLPATH)make.exe
 GAS2NASK = $(TOOLPATH)gas2nask.exe
 NASK = $(TOOLPATH)nask.exe
-LIBRARIAN = $(TOOLPATH)golib00w.exe
+LIBRARIAN = $(TOOLPATH)golib00.exe
 LD = $(TOOLPATH)ld.exe
 DEL = del
 
@@ -16,7 +16,7 @@ NASKCNV = naskcnv0.exe
 MAKER = $(MAKE) -r
 MAKEC = $(MAKE) -C
 LINK = $(LD) -s -Bdynamic
-LINK_ADDLIB = $(TOOLPATH)w32clibc/libmingw.lib
+LINK_ADDLIB = $(TOOLPATH)win32/libmingw.lib
 
 GODRV = ../drv_w32/drv_w32.obj
 GODRVDIR = ../drv_w32
