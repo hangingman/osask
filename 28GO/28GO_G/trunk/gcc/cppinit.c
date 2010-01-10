@@ -1807,7 +1807,7 @@ cpp_post_options (pfile)
     {
       //      fprintf (stderr, _("GNU CPP version %s (cpplib)"), version_string);
       /*-------------- hideyosi ---------------------------*/
-      fprintf (stderr, _("28GO CPP version 1.0"), "");
+      fprintf (stderr, _("28GO CPP version 1.1"), "");
 
 #ifdef TARGET_VERSION
       TARGET_VERSION;
