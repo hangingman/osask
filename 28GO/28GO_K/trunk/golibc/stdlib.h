@@ -27,9 +27,11 @@ double strtod(const char *s, const char **endp);
 long strtol(const char *s, const char **endp, int base);
 unsigned long strtoul(const char *s, const char **endp, int base);
 
-/* for strdup() */
 void *malloc(unsigned int nbytes);
 void free(void *ap);
+void exit(int status);
+#define abort()		exit(EXIT_FAILURE)
+int system(const char *s);
 
 #if (defined(__cplusplus))
 	}
