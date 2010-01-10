@@ -1,13 +1,13 @@
 include ../include/rules.mak
 
 all :
-	$(MAKER) golib00w.exe sjisconv.exe gas2nask.exe nask.exe naskcnv0.exe
+	$(MAKER) golib00.exe sjisconv.exe gas2nask.exe nask.exe naskcnv0.exe
 
 golib :
 	$(MAKER) golib00w.exe
 
-golib00w.exe : golib00.o Makefile ../include/rules.mak
-	$(LINK) --stack 0x2000000 -o golib00w.exe golib00.o $(LINK_ADDLIB)
+golib00.exe : golib00.o Makefile ../include/rules.mak
+	$(LINK) --stack 0x2000000 -o golib00.exe golib00.o $(LINK_ADDLIB)
 #		16MB(apl) + 16MB(sys)
 
 sjisconv.exe : sjisconv.o Makefile ../include/rules.mak
