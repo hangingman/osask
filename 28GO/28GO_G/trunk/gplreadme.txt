@@ -1,4 +1,4 @@
-28GO_G 0030                                                       by  hideyosi
+28GO_G 0031                                                       by  hideyosi
 
 ・これは何か？
 
@@ -92,4 +92,4 @@
 　なにかしらの返答が期待できるかもしれませんので是非ご活用ください。
 
 
-　　　　　　　　　　　　　　2010.1.8  hideyosi  http://osask.net/w/502.html
+　　　　　　　　　　　　　　2010.1.10  hideyosi  http://osask.net/w/502.html
