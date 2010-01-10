@@ -4,6 +4,7 @@ all:
 #	$(TOOLPATH)make -C gcc
 	$(TOOLPATH)make -C toolw32
 	$(TOOLPATH)golib00.exe out:w32clibc/libmingw.lib libmingw/libmingw_o/_chkstk.o libmingw/libmingw_o/dt.o libmingw/libmingw_o/dh.o libmingw/libmingw_o/ds00027.o libmingw/libmingw_o/ds00053.o libmingw/libmingw_o/ds00130.o libmingw/libmingw_o/ds00207.o libmingw/libmingw_o/ds00277.o libmingw/libmingw_o/ds00342.o libmingw/libmingw_o/ds00535.o libmingw/libmingw_o/ds00724.o libmingw/libmingw_o/ds00323.o libmingw/libmingw_o/ds00415.o libmingw/libmingw_o/ds00421.o libmingw/libmingw_o/ds00424.o libmingw/libmingw_o/ds00175.o libmingw/libmingw_o/ds00611.o libmingw/libmingw_o/ds00088.o libmingw/libmingw_o/ds00070.o libmingw/libmingw_o/ds00272.o libmingw/libmingw_o/ds00727.o
+	$(TOOLPATH)make -C w32clibc
 	$(TOOLPATH)make -C akusA
 	$(TOOLPATH)make -C bin2obj
 	$(TOOLPATH)make -C doscmd
@@ -28,3 +29,11 @@ clean :
 	$(TOOLPATH)make -C drv_osa   clean
 	$(TOOLPATH)make -C golibc    clean
 	$(TOOLPATH)make -C w32clibc  clean
+	$(TOOLPATH)make -C akusA   clean
+	$(TOOLPATH)make -C bin2obj   clean
+	$(TOOLPATH)make -C doscmd   clean
+	$(TOOLPATH)make -C makefont   clean
+	$(TOOLPATH)make -C hrblib0a   clean
+	$(TOOLPATH)make -C obj2bin  clean
+	$(TOOLPATH)make -C bim2hrb  clean
+	$(TOOLPATH)make -C imgtol  clean
