@@ -24,7 +24,7 @@ BIM2BIN  = $(TOOLPATH)bim2bin3
 CPP0     = $(TOOLPATH)cpp0 -P -I$(INCPATH)
 ASKA     = $(TOOLPATH)aska
 NASKCNV  = $(TOOLPATH)naskcnv0 -l -s -w
-GOLIB    = $(TOOLPATH)golib00w
+GOLIB    = $(TOOLPATH)golib00
 DELE     = del
 
 # 以上の項目はあなたのディレクトリ構成にあわせて書き換える
