@@ -1,8 +1,10 @@
 /* "gas2nask"
 
-	usage : >gas2nask [-a] input-file output-file
+
+	usage : >gas2nask [-a] [-e] input-file output-file
 
 	-a:.text‚Ìbalign2‚ðíœ
+	-e:execcmdŒn‚ÌƒCƒ“ƒ‰ƒCƒ““WŠJ
 */
 
 #include "../drv_w32/windows.h"
@@ -19,6 +21,7 @@ static UCHAR *dest0_, *dest1_;
 #define FLAG_D		4
 #define FLAG_B		5
 #define FLAG_a		6
+#define FLAG_e		7
 
 #define	NL			"\r\n"
 #define	LEN_NL		2
@@ -72,6 +75,8 @@ void mainCRTStartup(void)
 				p0++;
 				if (*p0 == 'a')
 					flags.opt[FLAG_a] = 1;
+				if (*p0 == 'e')
+					flags.opt[FLAG_e] = 1;
 				if (*p0 == 'd') {
 					j = FLAG_d;
 	getparam:
@@ -117,8 +122,8 @@ void mainCRTStartup(void)
 		i++;
 	}
 	if (i != 2) {
-		errout("gas2nask hideyosi version 1.0" NL
-			"\tusage : >gas2nask [-a] input-file output-file" NL
+		errout("gas2nask hideyosi version 1.1" NL
+			"\tusage : >gas2nask [-a] [-e] input-file output-file" NL
 		);
 	}
 	src1 = convmain(pwork->ibuf, src1, pwork->obuf, pwork->obuf + sizeof (pwork->obuf), flags);

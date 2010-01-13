@@ -1,5 +1,5 @@
 /* それぞれのgas2naskにインクルードされる */
-/*		Copyright(C) 2003 H.Kawai   (KL-01) */
+/*		Copyright(C) 2004 H.Kawai   (KL-01) */
 
 static UCHAR *checkparam(UCHAR *p);
 static void convparam(UCHAR *p, int i);
@@ -29,6 +29,34 @@ static UCHAR *seek_token_end(UCHAR *s)
 	return s;
 }
 
+static UCHAR *opcmp(UCHAR *q, UCHAR *s)
+{
+	int i;
+	for (i = 0; i < 8; i++) {
+		if (q[i] == ' ' && (s[i] <= ' ' || s[i] == ';'))
+			goto match;
+		if (q[i] != s[i])
+			goto mismatch;
+	}
+	if (s[i] <= ' ' || s[i] == ';')
+		goto match;
+mismatch:
+	return NULL;
+match:
+	return skipspace(&s[i]);
+}
+
+static char my_strcmp(const char *s, const char *t)
+{
+	while (*s == *t) {
+		s++;
+		t++;
+		if (*t == '\0' && (*s <= ' ' || *s == ';'))
+			return 1;
+	}
+	return 0;
+}
+
 static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR_FLAGS flags)
 {
 	UCHAR *p, *q, *r, *s, *t;
@@ -47,6 +75,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"fldz    FLDZ",
 		"fsin    FSIN",
 		"fsqrt   FSQRT",
+		"fucom   FUCOM",
 		"fucomp  FUCOMP",
 		"fucompp FUCOMPP",
 		"leave   LEAVE",
@@ -76,9 +105,12 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"4fdivs   FDIV",
 		"8fdivrl  FDIVR",
 		"4fdivrs  FDIVR",
+		"4fidivl  FIDIV",
+		"4fidivrl FIDIVR",
 		"2filds   FILD",
 		"4fildl   FILD",
 		"8fildq   FILD",
+		"4fimull  FIMUL",
 		"2fistps  FISTP",
 		"4fistpl  FISTP",
 		"8fistpq  FISTP",
@@ -96,10 +128,12 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"3fstp    FSTP",
 		"8fstpl   FSTP",
 		"4fstps   FSTP",
+		"4fsts    FST",
 		"8fsubl   FSUB",
 		"8fsubrl  FSUBR",
 		"4fsubrs  FSUBR",
 		"3fucom   FUCOM",
+		"3fucomp  FUCOMP",
 		"3fxch    FXCH",
 		"1idivb   IDIV",
 		"4idivl   IDIV",
@@ -125,6 +159,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"0jns     JNS",
 		"0jp      JP",
 		"0js      JS",
+		"0loop    LOOP",
 		"1mulb    MUL",
 		"4mull    MUL",
 		"2mulw    MUL",
@@ -204,7 +239,9 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"1outb    OUT",
 		"4outl    OUT",
 		"2outw    OUT",
+		"1rolb    ROL",
 		"4roll    ROL",
+		"2rolw    ROL",
 		"1salb    SAL",
 		"4sall    SAL",
 		"2salw    SAL",
@@ -221,6 +258,9 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"1testb   TEST",
 		"4testl   TEST",
 		"2testw   TEST",
+		"1xchgb   XCHG",
+		"4xchgl   XCHG",
+		"2xchgw   XCHG",
 		"1xorb    XOR",
 		"4xorl    XOR",
 		"2xorw    XOR",
@@ -230,6 +270,8 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 	static UCHAR three_params[][16] = {
 		"4imull   IMUL",
 		"2imulw   IMUL",
+		"4shldl   SHLD",
+		"4shrdl   SHRD",
 		"\0"
 	};
 
@@ -664,7 +706,7 @@ retry:
 		p = src0;
 		do {
 			p++;
-		} while (*p > ' ');
+		} while (*p > ' ' && *p != ';');
 		if (p[-1] == ':') {
 			/* ラベル定義 */
 			output(p - src0, src0);
@@ -673,177 +715,170 @@ retry:
 		}
 		output(1, "\t");
 
+		if (p - src0 > 8)
+			goto unknown;
+
 		/* パラメータなし命令 */
-		if (p - src0 <= 7 && (*p == '\r' || *p == '\n' || *p == ';')) {
-			for (i = 0; q = no_params[i], q[0] != '\0'; i++) {
-				for (j = 0; ; j++) {
-					if (&src0[j] == p && q[j] == ' ') {
-						output(strlen(&q[8]), &q[8]);
-						output(LEN_NL, NL);
-						goto skip;
-					}
-					if (&src0[j] >= p)
-						break;
-					if (src0[j] != q[j])
-						break; 
+		for (i = 0; q = &no_params[i][0], *q != '\0'; i++) {
+			if (r = opcmp(&q[0], src0)) {
+				if (*r == '\n' || *r == ';') { /* パラメータがあればスルー */
+					output(strlen(&q[8]), &q[8]);
+					output(LEN_NL, NL);
+					goto skip;
+				}
+			}
+		}
+
+		if (flags.opt[FLAG_e]) {
+			if (r = opcmp("call ", src0)) {
+				if (my_strcmp(r, "_lib_execcmd0")) {
+					output(41 + LEN_NL * 4,
+						"PUSH EBX" NL "LEA EBX,[ESP+4]" NL "CALL 0xc7:0" NL "POP EBX" NL
+					);
+					goto skip;
+				}
+				if (my_strcmp(r, "_lib_execcmd1")) {
+					output(78 + LEN_NL * 7,
+						"POP EAX" NL "PUSH EBX" NL "LEA EBX,[ESP+4]" NL "CALL 0xc7:0" NL
+						"POP EBX" NL "PUSH EAX" NL "MOV EAX,[SS:ESP+EAX-8]" NL
+					);
+					goto skip;
+				}
+				if (my_strcmp(r, "_lib_execcmd2")) {
+					output(76 + LEN_NL * 7,
+						"POP EAX" NL "PUSH EBX" NL "LEA EBX,[ESP+4]" NL "CALL 0xc7:0" NL
+						"POP EBX" NL "PUSH EAX" NL "MOV EAX,[SS:ESP+EAX]" NL
+					);
+					goto skip;
 				}
 			}
 		}
 
 		/* パラメータ1つ命令 */
-		if (p - src0 <= 8) {
-			for (i = 0; q = &one_param[i][1], q[-1] != '\0'; i++) {
-				for (j = 0; ; j++) {
-					if (&src0[j] == p && q[j] == ' ') {
-						r = checkparam(p); /* コンマかセミコロン、\nまで読み飛ばす */
-						if (r == NULL)
-							break;
-						if (*r == ',')
-							break;
-						output(strlen(&q[8]), &q[8]);
-						output(1, "\t");
-						convparam(p, q[-1] - '0');
-						output(LEN_NL, NL);
-						goto skip;
-					}
-					if (&src0[j] >= p)
+		for (i = 0; q = &one_param[i][0], *q != '\0'; i++) {
+			if (r = opcmp(&q[1], src0)) {
+				if (*r != '\n' && *r != ';') { /* パラメータがなければスルー */
+					r = checkparam(r); /* コンマかセミコロン、\nまで読み飛ばす */
+					if (r == NULL)
 						break;
-					if (src0[j] != q[j])
-						break; 
+					if (*r == ',')
+						break;
+					output(strlen(&q[9]), &q[9]);
+					output(1, "\t");
+					convparam(p, *q - '0');
+					output(LEN_NL, NL);
+					goto skip;
 				}
 			}
 		}
 
 		/* シフト系パラメータ1つ命令 */
-		if (p - src0 <= 8) {
-			for (i = 0; q = &one_shifts[i][1], q[-1] != '\0'; i++) {
-				for (j = 0; ; j++) {
-					if (&src0[j] == p && q[j] == ' ') {
-						r = checkparam(p); /* コンマかセミコロン、\nまで読み飛ばす */
-						if (r == NULL)
-							break;
-						if (*r == ',')
-							break;
-						output(strlen(&q[8]), &q[8]);
-						output(1, "\t");
-						convparam(p, q[-1] - '0');
-						output(2 + LEN_NL, ",1" NL);
-						goto skip;
-					}
-					if (&src0[j] >= p)
+		for (i = 0; q = &one_shifts[i][0], *q != '\0'; i++) {
+			if (r = opcmp(&q[1], src0)) {
+				if (*r != '\n' && *r != ';') { /* パラメータがなければスルー */
+					r = checkparam(r); /* コンマかセミコロン、\nまで読み飛ばす */
+					if (r == NULL)
 						break;
-					if (src0[j] != q[j])
-						break; 
+					if (*r == ',')
+						break;
+					output(strlen(&q[9]), &q[9]);
+					output(1, "\t");
+					convparam(p, *q - '0');
+					output(2 + LEN_NL, ",1" NL);
+					goto skip;
 				}
 			}
 		}
 
 		/* パラメータ2つ命令(交換タイプ) */
-		if (p - src0 <= 8) {
-			for (i = 0; q = &two_params[i][1], q[-1] != '\0'; i++) {
-				for (j = 0; ; j++) {
-					if (&src0[j] == p && q[j] == ' ') {
-						r = checkparam(p);
-						if (r == NULL)
-							break;
-						if (*r != ',')
-							break;
-						s = checkparam(r + 1);
-						if (s == NULL)
-							break;
-						if (*s == ',')
-							break;
-						output(strlen(&q[8]), &q[8]);
-						output(1, "\t");
-						convparam(r + 1, q[-1] - '0');
-						output(1, ",");
-						convparam(p, q[-1] - '0');
-						output(LEN_NL, NL);
-						goto skip;
-					}
-					if (&src0[j] >= p)
+		for (i = 0; q = &two_params[i][0], *q != '\0'; i++) {
+			if (r = opcmp(&q[1], src0)) {
+				if (*r != '\n' && *r != ';') { /* パラメータがなければスルー */
+					r = checkparam(p);
+					if (r == NULL)
 						break;
-					if (src0[j] != q[j])
-						break; 
+					if (*r != ',')
+						break;
+					s = checkparam(r + 1);
+					if (s == NULL)
+						break;
+					if (*s == ',')
+						break;
+					output(strlen(&q[9]), &q[9]);
+					output(1, "\t");
+					convparam(r + 1, *q - '0');
+					output(1, ",");
+					convparam(p, *q - '0');
+					output(LEN_NL, NL);
+					goto skip;
 				}
 			}
 		}
 
 		/* パラメータ3つ命令(逆順タイプ) */
-		if (p - src0 <= 8) {
-			for (i = 0; q = &three_params[i][1], q[-1] != '\0'; i++) {
-				for (j = 0; ; j++) {
-					if (&src0[j] == p && q[j] == ' ') {
-						r = checkparam(p);
-						if (r == NULL)
-							break;
-						if (*r != ',')
-							break;
-						s = checkparam(r + 1);
-						if (s == NULL)
-							break;
-						if (*s != ',')
-							break;
-						t = checkparam(s + 1);
-						if (t == NULL)
-							break;
-						if (*t == ',')
-							break;
-						output(strlen(&q[8]), &q[8]);
-						output(1, "\t");
-						convparam(s + 1, q[-1] - '0');
-						output(1, ",");
-						convparam(r + 1, q[-1] - '0');
-						output(1, ",");
-						convparam(p, q[-1] - '0');
-						output(LEN_NL, NL);
-						goto skip;
-					}
-					if (&src0[j] >= p)
+		for (i = 0; q = &three_params[i][0], *q != '\0'; i++) {
+			if (r = opcmp(&q[1], src0)) {
+				if (*r != '\n' && *r != ';') { /* パラメータがなければスルー */
+					r = checkparam(r);
+					if (r == NULL)
 						break;
-					if (src0[j] != q[j])
-						break; 
+					if (*r != ',')
+						break;
+					s = checkparam(r + 1);
+					if (s == NULL)
+						break;
+					if (*s != ',')
+						break;
+					t = checkparam(s + 1);
+					if (t == NULL)
+						break;
+					if (*t == ',')
+						break;
+					output(strlen(&q[9]), &q[9]);
+					output(1, "\t");
+					convparam(s + 1, *q - '0');
+					output(1, ",");
+					convparam(r + 1, *q - '0');
+					output(1, ",");
+					convparam(p, *q - '0');
+					output(LEN_NL, NL);
+					goto skip;
 				}
 			}
 		}
 
 		/* パラメータ2つ命令(交換タイプ, FDIV/FSUB専用) */
-		if (p - src0 <= 8) {
-			for (i = 0; q = &fdivfsub[i][1], q[-1] != '\0'; i++) {
-				for (j = 0; ; j++) {
-					if (&src0[j] == p && q[j] == ' ') {
-						r = checkparam(p);
-						if (r == NULL)
-							break;
-						if (*r != ',')
-							break;
-						s = checkparam(r + 1);
-						if (s == NULL)
-							break;
-						if (*s == ',')
-							break;
-						t = skipspace(p);
-						c = '0';
-						output(strlen(&q[8]), &q[8]);
-						if (t[0] == '%' && t[1] == 's' && t[2] == 't' && t[3] != '(')
-							c = '1';
-						if (c == q[-1])
-							output(1, "R");
-						output(1, "\t");
-						convparam(r + 1, 3);
-						output(1, ",");
-						convparam(p, 3);
-						output(LEN_NL, NL);
-						goto skip;
-					}
-					if (&src0[j] >= p)
+		for (i = 0; q = &fdivfsub[i][0], *q != '\0'; i++) {
+			if (r = opcmp(&q[1], src0)) {
+				if (*r != '\n' && *r != ';') { /* パラメータがなければスルー */
+					r = checkparam(r);
+					if (r == NULL)
 						break;
-					if (src0[j] != q[j])
-						break; 
+					if (*r != ',')
+						break;
+					s = checkparam(r + 1);
+					if (s == NULL)
+						break;
+					if (*s == ',')
+						break;
+					t = skipspace(p);
+					c = '0';
+					output(strlen(&q[9]), &q[9]);
+					if (t[0] == '%' && t[1] == 's' && t[2] == 't' && t[3] != '(')
+						c = '1';
+					if (c == *q)
+						output(1, "R");
+					output(1, "\t");
+					convparam(r + 1, 3);
+					output(1, ",");
+					convparam(p, 3);
+					output(LEN_NL, NL);
+					goto skip;
 				}
 			}
 		}
 
+unknown:
 		/* 該当なし */
 		output(LEN_NL, NL);
 		goto err_skip;
