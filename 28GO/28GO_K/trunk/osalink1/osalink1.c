@@ -1,14 +1,21 @@
-/* "osalink1.c":OSASK LINKプログラム version 1.0
+/* "osalink1.c":OSASK LINKプログラム version 2.0
 
 	最初がBASE.EXE、その後は各種.BIN(.TEK)を想定している */
 
+
+
 #include <stdio.h>
-#include <ctype.h>
-#include <string.h>
+#include <stdlib.h>
 
 #define	OPTIONFILE	"OSALINK1.OPT"
 #define	OUTPUTFILE	"OSASK.EXE"
 #define	BUFSIZE		2 * 1024 * 1024
+
+
+//関数のプロトタイプ宣言
+char tolower_hide(char moto);
+const int script(char *opt, char *inp, char *out, char *helmes_buf);
+
 
 void wordstore(char *p, const int w)
 {
@@ -36,20 +43,31 @@ const int dwordload(const unsigned char *p)
 	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
 }
 
-const int script(char *opt, char *inp, char *out);
-
-static unsigned char buf0[BUFSIZE];
 
 const int main(int argc, char **argv)
 {
+  //バージョン表記
+  if ( argc == 2 ){
+    if ( strcmp(argv[1],"-v") == 0 ){
+      fprintf(stderr, "osalink1 hideyosi version 1.1\n");
+      return 0;
+    }
+  }
+
 	FILE *fp0, *fp1;
-	int i, j, k, size, totalsize = 0;
+	int i, i2,j, k, size, totalsize = 0;
 	unsigned char fname[32], name[8], c;
+	unsigned char fname2[32];
+
+
+	unsigned char buf0[2*1024*1024];
+
 	unsigned char *buf = buf0, *buf1, *buf2, *buf3;
+
 	unsigned char *optfile = OPTIONFILE, *outfile = OUTPUTFILE;
 
 	if (argc == 4)
-		return script(argv[1], argv[2], argv[3]);
+		return script(argv[1], argv[2], argv[3], buf0);
 	if (argc >= 2)
 		optfile = argv[1];
 	if (argc >= 3)
@@ -61,14 +79,27 @@ const int main(int argc, char **argv)
 		fprintf(stderr, "Can't open \"%s\".\n", optfile);
 		return 1;
 	}
-	for (i = 0; fscanf(fp0, " %s", fname) == 1; i++) {
-		fp1 = fopen(fname, "rb");
+
+	for (i = 0; fgets(fname,32,fp0) != NULL; i++) {
+
+	  //改行コードの引っこ抜き
+	  for ( i2 = 31; i2 != 0; i2--){
+	    if ( fname[i2] == 0x0a ) fname[i2] = 0x0;
+	    if ( fname[i2] == 0x0d ) fname[i2] = 0x0;
+	  }
+
+	  //わっからん・・・こうやってコピーするとうまくいく・・・
+	  strcpy (fname2,fname);
+
+		fp1 = fopen(fname2, "rb");
 		if (fp1 == NULL) {
 err1:
 			fclose(fp0);
-			fprintf(stderr, "Can't open \"%s\".\n", fname);
+			fprintf(stderr, "Can't open \"%s\".\n", fname2);
 			return 1;
 		}
+			fprintf(stderr, "reading %s \n", fname2);
+
 		buf1 = buf + totalsize;
 		size = fread(buf + totalsize, 1, BUFSIZE - totalsize, fp1);
 		fclose(fp1);
@@ -84,7 +115,7 @@ err1:
 		for (j = 0; j < 8; j++)
 			name[j] = ' ';
 		for (j = 0; j < 8 && fname[j] != '.'; j++)
-			name[j] = tolower(fname[j]);
+			name[j] = tolower_hide(fname[j]);
 		for (buf3 = buf2; *buf3; buf3 += 16) {
 			c = 0;
 			for (j = 0; j < 8; j++)
@@ -192,12 +223,12 @@ int getnum(char *s, char *s1)
 	int i = 0, base = 10, c;
 	if (s >= s1)
 		goto err;
-	if (s + 2 < s1 && *s == '0' && tolower(*(s + 1)) == 'x') {
+	if (s + 2 < s1 && *s == '0' && tolower_hide(*(s + 1)) == 'x') {
 		s += 2;
 		base = 16;
 	}
 	do {
-		c = tolower(*s++);
+		c = tolower_hide(*s++);
 		if (c < '0')
 			goto err;
 		c -= '0';
@@ -300,10 +331,10 @@ err:
 	return NULL;
 }
 
-const int script(char *opt, char *inp, char *out)
+const int script(char *opt, char *inp, char *out, char *helmes_buf)
 /* スクリプトが4KBを超えたら死にます */
 {
-	unsigned char *buf = buf0 + 4 * 1024, *scr0 = buf0, *scr1, *s, *s1;
+	unsigned char *buf = helmes_buf + 4 * 1024, *scr0 = helmes_buf, *scr1, *s, *s1;
 	FILE *fp;
 	int size, memofs, filofs;
 
@@ -378,4 +409,16 @@ err:
 		return 1;
 	}
 	return 0;
+}
+
+
+
+
+char tolower_hide(char moto){
+    if ( (moto > 0x41) && (moto < 0x5a ) ){
+        return moto + 0x20;
+    }
+    else{
+       return moto;
+    }
 }
