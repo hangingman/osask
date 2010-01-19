@@ -1,6 +1,6 @@
 /* "obj2bim4" */
 //	usage(1) : obj2bim -fixobj (.obj file) [text_align:#] [data_align:#] [bss_align:#]
-//	usage(2) : obj2bim @(rule file) out:(file) [map:(file)] [stack:#] [(.obj/.lib file) ...]
+//	usage(2) : obj2bim @(rule file) out:(file) [map:(file)] [rlm:(file)] [stack:#] [(.obj/.lib file) ...]
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +14,8 @@
 #define	LABELSTRSIZ		(256 * 1024)
 #define	OBJFILESTRSIZ	(64 * 1024)
 #define	LINKSTRSIZ		(LABELSTRSIZ * 8)
-#define	MAXSECTION		16	/* 1つの.objファイルあたりの最大セクション数 */
+#define	MAXSECTION		64	/* 1つの.objファイルあたりの最大セクション数 */
+#define RLMBUFSIZ		(4 * 64 * 1024)		/* 256KB */
 
 #define NO_WARN			1	/* 警告消し用の無駄コードの有効化 */
 
@@ -66,8 +67,8 @@ struct LINKSTR {
 };
 
 UCHAR *skipspace(unsigned char *p);
-int loadlib(unsigned char *p);
-int loadobj(unsigned char *p);
+int loadlib(unsigned char *p, UCHAR redef);
+int loadobj(unsigned char *p, UCHAR redef);
 int getnum(unsigned char **pp);
 struct LABELSTR *symbolconv0(unsigned char *s, struct OBJFILESTR *obj);
 struct LABELSTR *symbolconv(unsigned char *p, unsigned char *s, struct OBJFILESTR *obj);
@@ -94,14 +95,15 @@ static int alignconv(int align)
 int main(int argc, UCHAR **argv)
 {
 	FILE *fp;
-	UCHAR *filebuf, *p, *filename, *mapname;
-	UCHAR *s, *ps, *t;
+	UCHAR *filebuf, *p, *filename, *mapname, *rlmname;
+	UCHAR *s, *ps, *t, redef = 1, werr = 1;
 	struct LABELSTR *labelbuf[16];
 	int filesize, i, j, labelbufptr = 0, warns = 0;
 	int section_param[12]; /* 最初の4つがコード、次の4つはデーター */
 	struct LABELSTR *label;
 	struct OBJFILESTR *obj;
 	struct LINKSTR *ls;
+	unsigned int *rlmbuf = (unsigned int *) malloc(RLMBUFSIZ), rlmsiz = 0;
 
 	#if (defined(NO_WARN))
 		filesize = 0;
@@ -109,8 +111,8 @@ int main(int argc, UCHAR **argv)
 
 	if (argc <= 2) {
 		fprintf(stdout,
-			"obj2bim hideyosi version 1.0\nflexible linker for COFF\n"
-			"\tusage (2 cases) : \n"
+			"obj2bim hideyosi version 1.1\nflexible linker for COFF \n"
+			"usage (2 cases) : \n"
 			">obj2bim -fixobj (.obj file) [text_align:#] [data_align:#] [bss_align:#]\n"
 			">obj2bim @(rule file) out:(file) [map:(file)] [stack:#] [(.obj/.lib file) ...]\n"
 		);
@@ -287,6 +289,7 @@ err_rule_format1:
 
 	filename = NULL;
 	mapname = NULL;
+	rlmname = NULL;
 
 	for (i = 2; i < argc; i++) {
 		ps = s;
@@ -299,6 +302,10 @@ err_rule_format1:
 			mapname = t + 4;
 			continue;
 		}
+		if (strncmp(t, "rlm:", 4) == 0) {
+			rlmname = t + 4;
+			continue;
+		}
 		if (strncmp(t, "stack:", 6) == 0) {
 			t += 6;
 			j = getnum(&t);
@@ -306,6 +313,18 @@ err_rule_format1:
 				section_param[1 /* logic */ + 0 /* code */] = j;
 			if (section_param[1 /* logic */ + 4 /* data */] == -4 /* stack_end */)
 				section_param[1 /* logic */ + 4 /* data */] = j;
+			continue;
+		}
+		if (strncmp(t, "wredef:", 7) == 0) {
+			/* wredef:0	redefineの警告を隠すモードになる */
+			t += 7;
+			redef = getnum(&t);
+			continue;
+		}
+		if (strncmp(t, "werr:", 5) == 0) {
+			/* werr:0	警告はエラー扱いしない */
+			t += 5;
+			werr = getnum(&t);
 			continue;
 		}
 
@@ -324,9 +343,9 @@ err_rule_format1:
 		fclose(fp);
 
 		if (strncmp(t, "!<arch>\x0a/               ", 24) == 0 && ((t[0x42] ^ 0x60) | (t[0x43] ^ 0x0a)) == 0)
-			warns += loadlib(t);
+			warns += loadlib(t, redef);
 		else if (((t[0] ^ 0x4c) | (t[1] ^ 0x01)) == 0)
-			warns += loadobj(t);
+			warns += loadobj(t, redef);
 		else {
 			fprintf(stderr, "Command line error : unknown file format : %s\n", ps);
 			free(filebuf);
@@ -381,9 +400,9 @@ err_rule_format1:
 					autodecomp_tek0(FILEBUFSIZ - 65536, t, j);
 			}
 			if (strncmp(t, "!<arch>\x0a/               ", 24) == 0 && ((t[0x42] ^ 0x60) | (t[0x43] ^ 0x0a)) == 0)
-				warns += loadlib(t);
+				warns += loadlib(t, redef);
 			else if (((t[0] ^ 0x4c) | (t[1] ^ 0x01)) == 0)
-				warns += loadobj(t);
+				warns += loadobj(t, redef);
 			else {
 				fprintf(stderr, "Rule file error : unknown file format : %s\n", ps);
 				free(filebuf);
@@ -590,6 +609,24 @@ err_rule_label:
 				p[1] = (value >>  8) & 0xff;
 				p[2] = (value >> 16) & 0xff;
 				p[3] = (value >> 24) & 0xff;
+				if (ls->type != 0x14 && rlmname != NULL) {
+					unsigned int uval;
+					int k, l;
+					if ((obj->section[i].sectype | (label->sec - 1)) > 1) {
+						fprintf(stderr, "Warning : rlm section number over\n");
+						warns++;
+					}
+					if (rlmsiz >= RLMBUFSIZ / 4) {
+						fprintf(stderr, "error : rlmbuf over\n");
+						return 13;
+					}
+					uval = obj->section[i].sectype << 31 | (label->sec - 1) << 30 | ((p - p0) + obj->section[i].addr);
+					for (k = rlmsiz; k > 0 && rlmbuf[k - 1] > uval; k--);
+					for (l = rlmsiz; l > k; l--)
+						rlmbuf[l] = rlmbuf[l - 1];
+					rlmbuf[k] = uval;
+					rlmsiz++;
+				}
 			}
 		}
 	}
@@ -667,9 +704,45 @@ err_rule_label:
 		fprintf(stderr, "Can't open output file\n");
 		return 12;
 	}
-	fwrite(objbuf0, 1, filesize, fp);
+	if (filesize > fwrite(objbuf0, 1, filesize, fp)) {
+		fprintf(stderr, "fwrite error\n");
+		warns++;
+	}
+	fclose(fp);
 
-	if (warns > 0) {
+	if (rlmname) {
+		fp = fopen(rlmname, "wb");
+		if (fp == NULL) {
+			fprintf(stderr, "Can't open rlm file\n");
+			return 14;
+		}
+		i &= 0;
+		for (filesize = 0; filesize < 4; filesize++) {
+			fprintf(fp, "relocation(%d, %d) {", (filesize >> 1) & 1, filesize & 1);
+			j = 9;
+			p = 0;
+			while (i < rlmsiz && (rlmbuf[i] >> 30) == filesize) {
+				if (p != 0)
+					fprintf(fp, ",");
+				if (j >= 6) {
+					j &= 0;
+					fprintf(fp, "\n\t");
+				} else
+					fprintf(fp, " ");
+				fprintf(fp, "0x%08x", rlmbuf[i++] & 0x3fffffff);
+				j++;
+				p++;
+			}
+			if (p != 0)
+				fprintf(fp, "\n}\n");
+			else
+				fprintf(fp, " }\n");
+		}
+		fclose(fp);
+	}
+
+	if (warns > 0 && werr != 0) {
+		remove(filename);
 		return 1;
 	}
 	return 0;
@@ -733,7 +806,7 @@ int getdec(unsigned char *p)
 	return i;
 }
 
-int loadlib(unsigned char *p)
+int loadlib(unsigned char *p, UCHAR redef)
 {
 	unsigned char *t;
 	int i, j, warns = 0;
@@ -745,12 +818,12 @@ int loadlib(unsigned char *p)
 	t = &p[i + 0x3c];
 	for (j = *t; j > 0; j--) {
 		t += 4;
-		warns += loadobj(p + get32l(t) + 0x3c);
+		warns += loadobj(p + get32l(t) + 0x3c, redef);
 	}
 	return warns;
 }
 
-int loadobj(unsigned char *p)
+int loadobj(unsigned char *p, UCHAR redef)
 {
 	static struct OBJFILESTR *next_objstr = NULL;
 	static unsigned char *next_objbuf;
@@ -903,7 +976,7 @@ int loadobj(unsigned char *p)
 				value = sec_size;
 				objstr->section[sec0 - 1].size = sec_size + k;
 			}
-			if (label->def_obj) {
+			if (label->def_obj != NULL && redef != 0) {
 				fprintf(stderr, "Warning : redefine %s\n", label->name);
 				warns++;
 			}
@@ -1377,3 +1450,5 @@ void autodecomp_tek0(int bsiz, UCHAR *b, int csiz)
 		}
 	}
 }
+
+/* 2006.11.07	baysideさんのアドバイスにより、MAXSECTIONを16から64に増加 */
