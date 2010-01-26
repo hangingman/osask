@@ -1,38 +1,29 @@
-#include <stdio.h>
+#include <guigui01.h>
 
-int main(int argc, char **argv)
+void G01Main()
 {
-	FILE *fp0, *fp1;
-	if (argc < 3) {
-		puts("makefont hideyosi version 1.0\n\tusage>makefont source.txt font.bin");
-		return 1;
-	}
-	fp0 = fopen(argv[1], "rb");
-	fp1 = fopen(argv[2], "wb");
-	if (fp0 == NULL) {
-		puts("can't open input file.");
-		return 2;
-	}
-	if (fp1 == NULL) {
-		puts("can't open output file.");
-		return 3;
-	}
-	do {
-		char s[12];
-		int i;
-		if (fgets(s, 12, fp0) != NULL && (s[0] == ' ' || s[0] == '*' || s[0] == '.')) {
-			i  = (s[0] == '*') << 7;
-			i |= (s[1] == '*') << 6;
-			i |= (s[2] == '*') << 5;
-			i |= (s[3] == '*') << 4;
-			i |= (s[4] == '*') << 3;
-			i |= (s[5] == '*') << 2;
-			i |= (s[6] == '*') << 1;
-			i |= (s[7] == '*')     ;
-			fputc(i, fp1);
+	static unsigned char cmdlin[] = {
+		0x86, 0x50, 0x88, 0x8c, 0x40
+	};
+	char s[8];
+	int i, j, c;
+
+	g01_setcmdlin(cmdlin);
+	g01_getcmdlin_fopen_s_0_4(0);
+	g01_getcmdlin_fopen_s_3_5(1);
+	for (;;) {
+		j = 0;
+		do {
+			if (jg01_fread1_4(1, &c) == 0)
+				return;
+			if (j < 8)
+				s[j] = c;
+			j++;
+		} while (c != '\n');
+		if (s[0] == ' ' || s[0] == '*' || s[0] == '.') {
+			for (i = j = 0; j < 8; j++)
+				i |= (s[j] == '*') << (7 - j);
+			jg01_fwrite1f_5(1, &i);
 		}
-	} while (!feof(fp0));
-	fclose(fp0);
-	fclose(fp1);
-	return 0;
+	}
 }

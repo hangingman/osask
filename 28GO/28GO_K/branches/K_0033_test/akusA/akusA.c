@@ -25,6 +25,9 @@ static unsigned char cmdusg[] = {
 	0x40
 };
 
+
+
+
 void G01Main()
 {
 	UCHAR *fbuf0, *sbuf, *fbuf1, *p, *spbuf;

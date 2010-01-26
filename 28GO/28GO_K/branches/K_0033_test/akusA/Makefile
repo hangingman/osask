@@ -1,4 +1,4 @@
-TARGET     = aksuA
+TARGET     = akusA
 MODE       = g01
 OBJS       = $(TARGET).obj
 
