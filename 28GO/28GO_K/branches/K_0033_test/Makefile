@@ -35,13 +35,10 @@ all:
 
 clean :
 	$(TOOLPATH)make -C gcc       clean
-	$(TOOLPATH)make -C toolstdc  clean
-	$(TOOLPATH)make -C toolw32   clean
 	$(TOOLPATH)make -C nasklib   clean
 	$(TOOLPATH)make -C go_lib    clean
 	$(TOOLPATH)make -C libiberty clean
 	$(TOOLPATH)make -C intl      clean
-	$(TOOLPATH)make -C cp        clean
 	$(TOOLPATH)make -C drv_w32   clean
 	$(TOOLPATH)make -C drv_stdc  clean
 	$(TOOLPATH)make -C drv_osa   clean
@@ -53,7 +50,7 @@ clean :
 	$(TOOLPATH)make -C makefont   clean
 	$(TOOLPATH)make -C Nasuka clean
 	$(TOOLPATH)make -C hrblib0a   clean
-	$(TOOLPATH)make -C obj2bin  clean
+	$(TOOLPATH)make -C obj2bim  clean
 	$(TOOLPATH)make -C bim2hrb  clean
 	$(TOOLPATH)make -C imgtol  clean
 	$(TOOLPATH)make -C osalink1 clean

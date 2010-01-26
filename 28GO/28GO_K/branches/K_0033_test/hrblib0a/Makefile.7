@@ -8,7 +8,7 @@ EFG      = $(TOOPLATH)efg01.exe
 INCPATH  = ../z_tools/haribote/
 
 SJISCONV = $(EFG) $(TOOLPATH)sjisconv sjis
-CC1      = $(TOOLPATH)28GOcc1.exe -I$(INCPATH) -Os -Wall -quiet
+CC1      = $(TOOLPATH)cc1.exe -I$(INCPATH) -Os -Wall -quiet
 GAS2NASK = $(EFG) $(TOOLPATH)gas2nask -a
 NASK     = $(EFG) $(TOOLPATH)nask
 GOLIB    = $(EFG) $(TOOLPATH)golib00

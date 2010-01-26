@@ -1,18 +1,17 @@
 TOOLPATH = ../z_tools/
-EFG = $(TARGET)efg01
 
-CPP0 = $(TOOLPATH)28GOcpp0
-CC1 = $(TOOLPATH)28GOcc1
+CPP0 = $(TOOLPATH)cpp0.exe
+CC1 = $(TOOLPATH)cc1.exe
 
 MAKE = $(TOOLPATH)make.exe
-GAS2NASK = $(EFG) $(TOOLPATH)gas2nask
-NASK = $(EFG) $(TOOLPATH)nask
-LIBRARIAN = $(EFG) $(TOOLPATH)golib00
+GAS2NASK = $(TOOLPATH)gas2nask.exe
+NASK = $(TOOLPATH)nask.exe
+LIBRARIAN = $(TOOLPATH)golib00.exe
 LD = $(TOOLPATH)ld.exe
 DEL = del
 
 ASKA = aska.exe
-NASKCNV = $(EFG) $(TOOLPATH)naskcnv0
+NASKCNV = naskcnv0.exe
 
 MAKER = $(MAKE) -r
 MAKEC = $(MAKE) -C
