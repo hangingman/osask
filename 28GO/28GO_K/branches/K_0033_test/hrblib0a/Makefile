@@ -4,13 +4,14 @@ TARGET   = harilibc.lib
 OBJS     = startup.obj
 
 TOOLPATH = ../z_tools/
+EFG      = $(TOOPLATH)efg01.exe
 INCPATH  = ../z_tools/haribote/
 
-SJISCONV = $(TOOLPATH)sjisconv.exe -s
+SJISCONV = $(EFG) $(TOOLPATH)sjisconv sjis
 CC1      = $(TOOLPATH)cc1.exe -I$(INCPATH) -Os -Wall -quiet
-GAS2NASK = $(TOOLPATH)gas2nask.exe -a
-NASK     = $(TOOLPATH)nask.exe
-GOLIB    = $(TOOLPATH)golib00.exe
+GAS2NASK = $(EFG) $(TOOLPATH)gas2nask -a
+NASK     = $(EFG) $(TOOLPATH)nask
+GOLIB    = $(EFG) $(TOOLPATH)golib00
 MAKE     = $(TOOLPATH)make.exe -r
 DELE     = del
 
@@ -18,7 +19,7 @@ ALL :
 	$(MAKE) $(TARGET)
 
 %.ca : %.c Makefile
-	$(SJISCONV) $*.c $*.ca
+	$(SJISCONV) in:$*.c out:$*.ca
 
 %.gas : %.ca Makefile
 	$(CC1) -o $*.gas $*.ca

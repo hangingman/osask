@@ -7,12 +7,13 @@ INCPATH    = ../z_tools/win32/
 CC1OPT     =
 
 TOOLPATH = ../z_tools/
+EFG = $(TOOLPATH)efg01
 RULEFILE = ../z_tools/guigui00/guigui00.rul
 MAKE     = $(TOOLPATH)make.exe -r
-SJISCONV = $(TOOLPATH)sjisconv.exe -s
+SJISCONV = $(EFG) $(TOOLPATH)sjisconv sjis
 CC1      = $(TOOLPATH)cc1.exe -I$(INCPATH) $(CC1OPT) -Os -Wall -quiet
-GAS2NASK = $(TOOLPATH)gas2nask.exe -a
-NASK     = $(TOOLPATH)nask.exe
+GAS2NASK = $(EFG) $(TOOLPATH)gas2nask -a
+NASK     = $(EFG) $(TOOLPATH)nask
 OBJ2BIM  = $(TOOLPATH)obj2bim.exe
 BIM2BIN  = $(TOOLPATH)bim2bin.exe
 CPP0     = $(TOOLPATH)cpp0.exe -P -I$(INCPATH)
@@ -34,7 +35,7 @@ ALL:
 	$(MAKE) $(TARGET).$(MODE)
 
 %.ca : %.c Makefile
-	$(SJISCONV) $*.c $*.ca
+	$(SJISCONV) in:$*.c out:$*.ca
 
 %.gas : %.ca Makefile
 	$(CC1) -o $*.gas $*.ca

@@ -1,17 +1,20 @@
+TOOLPATH = ../z_tools/
+EFG = $(TOOLPATH)efg01
+
 all:
 	make imgtol.com
 
 %.ias : %.ask
-	cpp0 -P -I. -o $*.ias $*.ask
+	$(TOOLPATH)cpp0 -P -I. -o $*.ias $*.ask
 
 %.3as : %.ias
-	aska $*.ias $*.3as
+	$(TOOLPATH)aska $*.ias $*.3as
 
 %.nas : %.3as
-	naskcnv0 -l -s $*.3as $*.nas
+	$(EFG) $(TOOLPATH)naskcnv0 -l -s $*.3as $*.nas
 
 %.com : %.nas
-	nask $*.nas $*.org $*.lst
+	$(EFG) $(TOOLPATH)nask $*.nas $*.org $*.lst
 	bim2bin -osacmp -l2d3 in:$*.org out:$*.ld3
 	comcom $*.ld3 $*.com
 

@@ -11,20 +11,21 @@ OBJS       = abs.obj atof.obj atoi.obj errno.obj frexp.obj ldexp.obj \
 # 以上5つはソースごとに書き換える
 # OBJSを書き換えると分割コンパイル対応
  
-TOOLPATH =
+TOOLPATH = ../z_tools/
 INCPATH  = .
 RULEFILE =
 MAKE     = $(TOOLPATH)make -r
-SJISCONV = $(TOOLPATH)sjisconv -s
+EFG 	 = $(TOOLPATH)efg01
+SJISCONV = $(EFG) $(TOOLPATH)sjisconv sjis
 CC1      = $(TOOLPATH)cc1 -I$(INCPATH) -Os -quiet -W -Wall -Werror
-GAS2NASK = $(TOOLPATH)gas2nask -a
-NASK     = $(TOOLPATH)nask
+GAS2NASK = $(EFG) $(TOOLPATH)gas2nask -a
+NASK     = $(EFG) $(TOOLPATH)nask
 OBJ2BIM  = $(TOOLPATH)obj2bim3
 BIM2BIN  = $(TOOLPATH)bim2bin3
 CPP0     = $(TOOLPATH)cpp0 -P -I$(INCPATH)
 ASKA     = $(TOOLPATH)aska
 NASKCNV  = $(TOOLPATH)naskcnv0 -l -s -w
-GOLIB    = $(TOOLPATH)golib00
+GOLIB    = $(EFG) $(TOOLPATH)golib00
 DELE     = del
 
 # 以上の項目はあなたのディレクトリ構成にあわせて書き換える
@@ -33,7 +34,7 @@ ALL :
 	$(MAKE) $(TARGET).lib
 
 %.ca : %.c Makefile
-	$(SJISCONV) $*.c $*.ca
+	$(SJISCONV) in:$*.c out:$*.ca
 
 %.gas : %.ca Makefile
 	$(CC1) -o $*.gas $*.ca
