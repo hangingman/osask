@@ -39,13 +39,13 @@ CXX_OBJS = ../cp/call.o ../cp/decl.o ../cp/expr.o ../cp/pt.o ../cp/typeck2.o \
 	../cp/semantics.o ../cp/tree.o ../cp/repo.o ../cp/dump.o ../cp/optimize.o \
 	../cp/mangle.o ../cp/cp-lang.o
 
-CXX_C_OBJS = attribs.o c-common.o c-format.o c-pragma.o c-semantics.o c-lex.o
+#CXX_C_OBJS = attribs.o c-common.o c-format.o c-pragma.o c-semantics.o c-lex.o
 
 LIBS = $(INTLLIBS) $(LIBIBERTY) $(GOLIB)
 
 all :
 #	$(MAKER) cpp0.exe cc1.exe cc1plus.exe
-	$(MAKER) cpp0.exe cc1.exe
+	$(MAKER) 28GOcpp0.exe 28GOcc1.exe
 
 clean :
 	-$(DEL) *.exe
@@ -55,6 +55,8 @@ clean :
 	-$(DEL) osaskgo.org
 	-$(DEL) osaskgo.bim
 	-$(DEL) osaskgo.bin
+	-$(MAKER) -C ../libiberty clean
+	-$(MAKER) -C ../intl clean
 
 libcpp.lib : $(LIBCPP_OBJS) Makefile ../include/rules.mak
 	$(LIBRARIAN) out:$@ $(LIBCPP_OBJS)
@@ -62,7 +64,7 @@ libcpp.lib : $(LIBCPP_OBJS) Makefile ../include/rules.mak
 libbackend.lib : $(OBJS)
 	$(LIBRARIAN) out:$@ $(OBJS)
 
-cpp0.exe : cppmain.o intl.o libcpp.lib hashtable.o version.o \
+28GOcpp0.exe : cppmain.o intl.o libcpp.lib hashtable.o version.o \
 		Makefile ../include/rules.mak
 	$(MAKEC) ../libiberty
 	$(MAKEC) ../intl
@@ -71,7 +73,7 @@ cpp0.exe : cppmain.o intl.o libcpp.lib hashtable.o version.o \
 	$(LINK) -o $@ $(LINKOPT_CPP0) $(GODRVDIR)/cpp0main.obj cppmain.o intl.o \
 		libcpp.lib hashtable.o version.o $(LIBS) $(GODRV) $(LINK_ADDLIB)
 
-cc1.exe : $(C_OBJS) $(BACKEND) Makefile ../include/rules.mak
+28GOcc1.exe : $(C_OBJS) $(BACKEND) Makefile ../include/rules.mak
 	$(MAKEC) ../libiberty
 	$(MAKEC) ../intl
 	$(MAKEC) ../go_lib
@@ -79,42 +81,42 @@ cc1.exe : $(C_OBJS) $(BACKEND) Makefile ../include/rules.mak
 	$(LINK) -o $@ $(LINKOPT_CC1) $(GODRVDIR)/cc1main.obj $(C_OBJS) $(BACKEND) \
 		$(LIBS) $(GODRV) $(LINK_ADDLIB)
 
-cc1plus.exe : $(CXX_OBJS) $(CXX_C_OBJS) $(BACKEND) libcpp.lib \
-		Makefile ../include/rules.mak
-	$(MAKEC) ../libiberty
-	$(MAKEC) ../intl
-	$(MAKEC) ../go_lib
-	$(MAKEC) $(GODRVDIR)
-	$(LINK) -o $@ $(LINKOPT_CC1P) $(GODRVDIR)/cc1pmain.obj $(CXX_OBJS) \
-		$(CXX_C_OBJS) $(BACKEND) libcpp.lib $(LIBS) $(GODRV) $(LINK_ADDLIB)
+#cc1plus.exe : $(CXX_OBJS) $(CXX_C_OBJS) $(BACKEND) libcpp.lib \
+#		Makefile ../include/rules.mak
+#	$(MAKEC) ../libiberty
+#	$(MAKEC) ../intl
+#	$(MAKEC) ../go_lib
+#	$(MAKEC) $(GODRVDIR)
+#	$(LINK) -o $@ $(LINKOPT_CC1P) $(GODRVDIR)/cc1pmain.obj $(CXX_OBJS) \
+#		$(CXX_C_OBJS) $(BACKEND) libcpp.lib $(LIBS) $(GODRV) $(LINK_ADDLIB)
 
-OBJ2BIM  = obj2bim3
-BIM2BIN  = bim2bin3
-RULEFILE = f:/osask/inclib/guigui00.rul
+#OBJ2BIM  = obj2bim3
+#BIM2BIN  = bim2bin3
+#RULEFILE = f:/osask/inclib/guigui00.rul
 
-STACKSIZE = 128k
-MALLOCSIZE = 6016k
-MMAREA = 520k
+#STACKSIZE = 128k
+#MALLOCSIZE = 6016k
+#MMAREA = 520k
 
-OSADRV = ../drv_osa/drv_osa.lib
+#OSADRV = ../drv_osa/drv_osa.lib
 
-osaskgo.org : $(C_OBJS) $(BACKEND) Makefile ../include/rules.mak
-	$(MAKEC) ../libiberty
-	$(MAKEC) ../intl
-	$(MAKEC) ../go_lib
-	$(MAKEC) ../drv_osa
-	$(MAKEC) ../nasklib
-	$(OBJ2BIM) @$(RULEFILE) out:osaskgo.bim stack:$(STACKSIZE) map:osaskgo.map \
-		$(OSADRV) $(C_OBJS) $(BACKEND) $(LIBS) ../nasklib/nasklib.lib
-	$(BIM2BIN) in:osaskgo.bim out:osaskgo.org malloc:$(MALLOCSIZE) mmarea:$(MMAREA)
+#osaskgo.org : $(C_OBJS) $(BACKEND) Makefile ../include/rules.mak
+#	$(MAKEC) ../libiberty
+#	$(MAKEC) ../intl
+#	$(MAKEC) ../go_lib
+#	$(MAKEC) ../drv_osa
+#	$(MAKEC) ../nasklib
+#	$(OBJ2BIM) @$(RULEFILE) out:osaskgo.bim stack:$(STACKSIZE) map:osaskgo.map \
+#		$(OSADRV) $(C_OBJS) $(BACKEND) $(LIBS) ../nasklib/nasklib.lib
+#	$(BIM2BIN) in:osaskgo.bim out:osaskgo.org malloc:$(MALLOCSIZE) mmarea:$(MMAREA)
 
-osaskgo.bin : $(C_OBJS) $(BACKEND) Makefile ../include/rules.mak
-	$(MAKEC) ../libiberty
-	$(MAKEC) ../intl
-	$(MAKEC) ../go_lib
-	$(MAKEC) ../drv_osa
-	$(MAKEC) ../nasklib
-	$(OBJ2BIM) @$(RULEFILE) out:osaskgo.bim stack:$(STACKSIZE) map:osaskgo.map \
-		$(OSADRV) $(C_OBJS) $(BACKEND) $(LIBS) ../nasklib/nasklib.lib
-	$(BIM2BIN) in:osaskgo.bim out:osaskgo.org malloc:$(MALLOCSIZE) mmarea:$(MMAREA)
-	$(BIM2BIN) -osacmp in:osaskgo.org out:osaskgo.bin
+#osaskgo.bin : $(C_OBJS) $(BACKEND) Makefile ../include/rules.mak
+#	$(MAKEC) ../libiberty
+#	$(MAKEC) ../intl
+#	$(MAKEC) ../go_lib
+#	$(MAKEC) ../drv_osa
+#	$(MAKEC) ../nasklib
+#	$(OBJ2BIM) @$(RULEFILE) out:osaskgo.bim stack:$(STACKSIZE) map:osaskgo.map \
+#		$(OSADRV) $(C_OBJS) $(BACKEND) $(LIBS) ../nasklib/nasklib.lib
+#	$(BIM2BIN) in:osaskgo.bim out:osaskgo.org malloc:$(MALLOCSIZE) mmarea:$(MMAREA)
+#	$(BIM2BIN) -osacmp in:osaskgo.org out:osaskgo.bin
