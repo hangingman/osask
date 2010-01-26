@@ -16,4 +16,4 @@ clean :
 	-$(DEL) *.o
 
 $(TARGETLIB) : $(OBJS) Makefile ../include/rules.mak
-	$(LIBRARIAN) out=$@ $(OBJS)
+	$(LIBRARIAN) out:$@ $(OBJS)

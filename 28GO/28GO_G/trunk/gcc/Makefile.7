@@ -59,10 +59,10 @@ clean :
 	-$(MAKER) -C ../intl clean
 
 libcpp.lib : $(LIBCPP_OBJS) Makefile ../include/rules.mak
-	$(LIBRARIAN) out=$@ $(LIBCPP_OBJS)
+	$(LIBRARIAN) out:$@ $(LIBCPP_OBJS)
 
 libbackend.lib : $(OBJS)
-	$(LIBRARIAN) out=$@ $(OBJS)
+	$(LIBRARIAN) out:$@ $(OBJS)
 
 28GOcpp0.exe : cppmain.o intl.o libcpp.lib hashtable.o version.o \
 		Makefile ../include/rules.mak
