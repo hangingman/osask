@@ -1,9 +1,10 @@
-/* "obj2bim4" */
-//	usage(1) : obj2bim -fixobj (.obj file) [text_align:#] [data_align:#] [bss_align:#]
-//	usage(2) : obj2bim @(rule file) out:(file) [map:(file)] [rlm:(file)] [stack:#] [(.obj/.lib file) ...]
+/* "obj2bim5" */
+//	Copyright(C) 2009 H.Kawai
+//	usage(1) : obj2bim in:obj-file out:obj-file [text_align:#] [data_align:#] [bss_align:#]
+//	usage(2) : obj2bim rul:rule-file out:(file) [map:(file)] [rlm:(file)] [stack:#] [(.obj/.lib file) ...]
 
+#include <guigui01.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 /* FILEBUFは、1ファイルあたりの制限サイズ */
@@ -21,15 +22,39 @@
 
 typedef unsigned char UCHAR;
 
-int get32b(const UCHAR *p)
-{
-	return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
-}
+int get32b(const UCHAR *p);
+int get32l(const UCHAR *p);
 
-int get32l(const UCHAR *p)
-{
-	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-}
+#define	CMDLIN_IN		0
+#define	CMDLIN_OUT		1
+#define CMDLIN_FIXOBJ	2
+#define CMDLIN_TXTALN	3
+#define CMDLIN_DATALN	4
+#define CMDLIN_BSSALN	5
+#define CMDLIN_RUL		6
+#define CMDLIN_MAP		7
+#define CMDLIN_RLM		8
+#define CMDLIN_STK		9
+#define CMDLIN_WREDEF	10
+#define CMDLIN_WERR		11
+
+static UCHAR cmdusg[] = {
+	0x86, 0x50,
+		0x8a, 0x8c, 0x87,
+		0x1c, 0x05, 'f', 'i', 'x', 'o', 'b', 'j', 0x20,
+		0x1c, 0x09, 't', 'e', 'x', 't', '_', 'a', 'l', 'i', 'g', 'n', 0x11, '#',
+		0x1c, 0x09, 'd', 'a', 't', 'a', '_', 'a', 'l', 'i', 'g', 'n', 0x11, '#',
+		0x1c, 0x08, 'b', 's', 's', '_', 'a', 'l', 'i', 'g', 'n', 0x11, '#',
+		0x87,
+		0x12, 'r', 'u', 'l', 0x04, 0x01, 'e', '-', 0x02,
+		0x12, 'm', 'a', 'p', 0x03, 0x01, '-', 0x02,
+		0x12, 'r', 'l', 'm', 0x03, 0x01, '-', 0x02,
+		0x14, 's', 't', 'a', 'c', 'k', 0x11, '#',
+		0x87,
+		0x1c, 0x05, 'w', 'r', 'e', 'd', 'e', 'f', 0x11, '#',
+		0x1c, 0x03, 'w', 'e', 'r', 'r', 0x11, '#',
+	0x40
+};
 
 struct LABELSTR {
 	UCHAR type, sec, flags, align;
@@ -80,145 +105,89 @@ static struct LABELSTR *label0 = NULL;
 static struct OBJFILESTR *objstr0;
 static unsigned char *objbuf0;
 
-static int alignconv(int align)
-{
-	/* アラインが2のべきになっているかどうかは、面倒なので確認していない */
-	int i; 
-	if ((i = align) >= 1) {
-		align = 1;
-		while (i >>= 1);
-			align++;
-	}
-	return align;
-}
+static int alignconv(int align);
 
-int main(int argc, UCHAR **argv)
+void G01Main()
 {
-	FILE *fp;
-	UCHAR *filebuf, *p, *filename, *mapname, *rlmname;
-	UCHAR *s, *ps, *t, redef = 1, werr = 1;
+	UCHAR *filebuf, *p /* , *filename, *mapname, *rlmname */;
+	UCHAR *s, *ps, *t, redef, werr;
+//	int argc = 0;
+	UCHAR /* **argv = jg01_malloc(4 * 64), *cmdlin = jg01_malloc(64 * 1024), */ *sprintfbuf = jg01_malloc(256);
 	struct LABELSTR *labelbuf[16];
 	int filesize, i, j, labelbufptr = 0, warns = 0;
 	int section_param[12]; /* 最初の4つがコード、次の4つはデーター */
 	struct LABELSTR *label;
 	struct OBJFILESTR *obj;
 	struct LINKSTR *ls;
-	unsigned int *rlmbuf = (unsigned int *) malloc(RLMBUFSIZ), rlmsiz = 0;
+	unsigned int *rlmbuf = jg01_malloc(RLMBUFSIZ), rlmsiz = 0;
 
 	#if (defined(NO_WARN))
 		filesize = 0;
 	#endif
 
-	if (argc <= 2) {
-		fprintf(stdout,
-			"obj2bim hideyosi version 1.1\nflexible linker for COFF \n"
-			"usage (2 cases) : \n"
-			">obj2bim -fixobj (.obj file) [text_align:#] [data_align:#] [bss_align:#]\n"
-			">obj2bim @(rule file) out:(file) [map:(file)] [stack:#] [(.obj/.lib file) ...]\n"
-		);
-		return 1;
-	}
+	g01_setcmdlin(cmdusg);
 
 	/* オブジェクトファイル加工(アライン指定) */
-
-	if (strcmp(argv[1], "-fixobj") == 0) {
+	if (g01_getcmdlin_flag_s(CMDLIN_FIXOBJ)) {
 		/* 一度に複数のファイルを指定しないこと */
 		/* 複数ファイルの加工には対応していない */
-		int text_align = -1, data_align = -1, bss_align = -1;
-		filebuf = (unsigned char *) malloc(FILEBUFSIZ);
-		filename = NULL;
-		for (i = 2; i < argc; i++) {
-			p = argv[i] + 11;
-			if (strncmp(argv[i], "text_align:", 11) == 0) {
-			//	p = argv[i] + 11;
-				text_align = alignconv(getnum(&p));
-			} else if (strncmp(argv[i], "data_align:", 11) == 0) {
-			//	p = argv[i] + 11;
-				data_align = alignconv(getnum(&p));
-			} else if (strncmp(argv[i], "bss_align:", 10) == 0) {
-			//	p = argv[i] + 10;
-				p--;
-				bss_align = alignconv(getnum(&p));
-			} else if (filename == NULL && (fp = fopen(filename = argv[i], "rb")) != NULL) {
-				filesize = fread(filebuf, 1, FILEBUFSIZ, fp);
-				fclose(fp);
-			} else {
-				fprintf(stderr, "Command line error : %s\n", argv[i]);
-				free(filebuf);
-				return 1;
-			}
-		}
+		filebuf = jg01_malloc(FILEBUFSIZ);
+	//	filename = NULL;
+		g01_getcmdlin_fopen_m_0_4(CMDLIN_IN, 0);
+		jg01_fread1f_4(FILEBUFSIZ, filebuf);
 
 		if ((filebuf[0x00] ^ 0x4c) | (filebuf[0x01] ^ 0x01) | filebuf[0x03] | filebuf[0x10] | filebuf[0x11]) {
-			free(filebuf);
-			fprintf(stderr, "Unknown .obj file format\n");
-			return 2;
+		//	jg01_mfree(FILEBUFSIZ, filebuf);
+			g01_putstr0_exit1("Unknown .obj file format");
 		}
 		for (i = 0; i < filebuf[0x02]; i++) {
 			p = &filebuf[0x14 + i * 0x28];
 			j = -1;
 			if (p[0x24] == 0x20) {
 				/* text section */
-				j = text_align;
+				j = g01_getcmdlin_int_o(CMDLIN_TXTALN, -1);
 			} else if (p[0x24] == 0x40) {
 				/* data section */
-				j = data_align;
+				j = g01_getcmdlin_int_o(CMDLIN_DATALN, -1);
 			} else if (p[0x24] == 0x80) {
 				/* bss section */
-				j = bss_align;
+				j = g01_getcmdlin_int_o(CMDLIN_BSSALN, -1);
 			}
 			if (j >= 0) {
 				p[0x26] &= 0x0f;
-				p[0x26] |= j << 4;
+				p[0x26] |= alignconv(j) << 4;
 			}
 		}
-
-		fp = fopen(filename, "wb");
-		fwrite(filebuf, 1, filesize, fp);
-		fclose(fp);
-		free(filebuf);
-		return 0;
+		g01_getcmdlin_fopen_s_3_5(CMDLIN_OUT);
+		jg01_fwrite1f_5(filesize, filebuf);
+	//	jg01_fclose(5);
+	//	jg01_mfree(FILEBUFSIZ, filebuf);
+		return;
 	}
 
 	/* 汎用リンカー */
 
-	s = (unsigned char *) malloc(1024);
+	s = jg01_malloc(1024);
 
-	if (argv[1][0] != '@') {
-		fprintf(stderr, "The argv[1] must be a rule file : %s\n", argv[1]);
-		return 1;
-	}
+	if (g01_getcmdlin_fopen_o_0_4(CMDLIN_RUL) == 0)
+		g01_putstr0_exit1("No rule file");
 
-	if ((fp = fopen(argv[1] + 1, "r")) == NULL) {
-		fprintf(stderr, "Can't open rule file\n");
-		return 2;
-	}
-
-	p = filebuf = (unsigned char *) malloc(FILEBUFSIZ);
-	filesize = fread(filebuf, 1, FILEBUFSIZ, fp);
-	fclose(fp);
-	filebuf[filesize] = '\0'; /* EOF mark */
+	p = filebuf = jg01_malloc(FILEBUFSIZ);
+	jg01_fread0f_4(FILEBUFSIZ, filebuf);
 
 	/* (format section) */
 
 	p = skipspace(p);
 	if (strncmp(p, "format", 6)) {
 err_rule_format0:
-		fprintf(stderr, "Rule file error : can't find format section\n");
-		free(filebuf);
-		return 2;
+	//	jg01_mfree(FILEBUFSIZ, filebuf);
+		g01_putstr0_exit1("Rule file error : can't find format section");
 	}
 	p = skipspace(p + 6);
 	if (*p != ':')
 		goto err_rule_format0;
 	p = skipspace(p + 1);
 
-//	section_param[0 /* align */ + 0 /* code */] = -1;
-//	section_param[1 /* logic */ + 0 /* code */] = -1;
-//	section_param[2 /* file */  + 0 /* code */] = -1;
-//	section_param[0 /* align */ + 4 /* data */] = -1;
-//	section_param[1 /* logic */ + 4 /* data */] = -1;
-//	section_param[2 /* file */  + 4 /* data */] = -1;
 	for (i = 0; i < 12; i++)
 		section_param[i] = -1;
 
@@ -279,77 +248,32 @@ err_rule_format0:
 			p = skipspace(p + 1);
 		} else {
 err_rule_format1:
-			fprintf(stderr, "Rule file error : syntax error in format section\n");
-			free(filebuf);
-			return 3;
+		//	jg01_mfree(FILEBUFSIZ, filebuf);
+			g01_putstr0_exit1("Rule file error : syntax error in format section");
 		}
 	}
 
 	/* (command line file) */
 
-	filename = NULL;
-	mapname = NULL;
-	rlmname = NULL;
-
-	for (i = 2; i < argc; i++) {
-		ps = s;
-		t = argv[i];
-		if (strncmp(t, "out:", 4) == 0) {
-			filename = t + 4;
-			continue;
-		}
-		if (strncmp(t, "map:", 4) == 0) {
-			mapname = t + 4;
-			continue;
-		}
-		if (strncmp(t, "rlm:", 4) == 0) {
-			rlmname = t + 4;
-			continue;
-		}
-		if (strncmp(t, "stack:", 6) == 0) {
-			t += 6;
-			j = getnum(&t);
-			if (section_param[1 /* logic */ + 0 /* code */] == -4 /* stack_end */)
-				section_param[1 /* logic */ + 0 /* code */] = j;
-			if (section_param[1 /* logic */ + 4 /* data */] == -4 /* stack_end */)
-				section_param[1 /* logic */ + 4 /* data */] = j;
-			continue;
-		}
-		if (strncmp(t, "wredef:", 7) == 0) {
-			/* wredef:0	redefineの警告を隠すモードになる */
-			t += 7;
-			redef = getnum(&t);
-			continue;
-		}
-		if (strncmp(t, "werr:", 5) == 0) {
-			/* werr:0	警告はエラー扱いしない */
-			t += 5;
-			werr = getnum(&t);
-			continue;
-		}
-
-		while ((*ps++ = *t++) != '\0');
-		if (ps[-2] == 0x22 && *s == 0x22) {
-			ps[-2] = '\0';
-			ps = s + 1;
-		} else
-			ps = s;
-		if ((fp = fopen(ps, "rb"))== NULL) {
-			fprintf(stderr, "Command line error : can't open file : %s\n", ps);
-			free(filebuf);
-			return 8;
-		}
-		fread(t = filebuf + 65536, 1, FILEBUFSIZ - 65536, fp);
-		fclose(fp);
-
+	redef = g01_getcmdlin_int_o(CMDLIN_WREDEF, 1);
+	werr  = g01_getcmdlin_int_o(CMDLIN_WERR,   1);
+	if (g01_getcmdlin_argc(CMDLIN_STK)) {
+		j = g01_getcmdlin_int_o(CMDLIN_STK, 0);
+		if (section_param[1 /* logic */ + 0 /* code */] == -4 /* stack_end */)
+			section_param[1 /* logic */ + 0 /* code */] = j;
+		if (section_param[1 /* logic */ + 4 /* data */] == -4 /* stack_end */)
+			section_param[1 /* logic */ + 4 /* data */] = j;
+	}
+	for (i &= 0; g01_getcmdlin_fopen_m_0_4(CMDLIN_IN, i) != 0; i++) {
+		jg01_fread1f_4(FILEBUFSIZ - 65536, t = filebuf + 65536);
 		if (strncmp(t, "!<arch>\x0a/               ", 24) == 0 && ((t[0x42] ^ 0x60) | (t[0x43] ^ 0x0a)) == 0)
 			warns += loadlib(t, redef);
 		else if (((t[0] ^ 0x4c) | (t[1] ^ 0x01)) == 0)
 			warns += loadobj(t, redef);
 		else {
-			fprintf(stderr, "Command line error : unknown file format : %s\n", ps);
-			free(filebuf);
-			return 9;
+		//	jg01_mfree(FILEBUFSIZ, filebuf);
+			g01_putstr0("Command line error : unknown file format : ");
+			g01_getcmdlin_put1_m_exit1(CMDLIN_IN, i);
 		}
 	}
 
@@ -359,9 +283,8 @@ err_rule_format1:
 		p = skipspace(p + 4);
 		if (*p != ':') {
 //err_rule_illsec:
-			fprintf(stderr, "Rule file error : found a unknown section\n");
-			free(filebuf);
-			return 4;
+		//	jg01_mfree(FILEBUFSIZ, filebuf);
+			g01_putstr0_exit1("Rule file error : found a unknown section");
 		}
 
 		/* ファイルをどんどん読み込んで、解釈して、バッファへ溜め込む */
@@ -377,26 +300,17 @@ err_rule_format1:
 			*ps = '\0';
 			p = skipspace(p);
 			if (*p != ';') {
-				fprintf(stderr, "Rule file error : syntax error in file section\n");
-				free(filebuf);
-				return 5;
+			//	jg01_mfree(FILEBUFSIZ, filebuf);
+				g01_putstr0_exit1("Rule file error : syntax error in file section");
 			}
 			if (ps[-1] == 0x22 && *s == 0x22) {
 				ps[-1] = '\0';
 				ps = s + 1;
 			} else
 				ps = s;
-			if ((fp = fopen(ps, "rb")) == NULL) {
-				fprintf(stderr, "Rule file error : can't open file : %s\n", ps);
-				free(filebuf);
-				return 6;
-			}
-			j = fread(t = filebuf + 65536, 1, FILEBUFSIZ - 65536, fp);
-			fclose(fp);
+			j = jg01_fopen01_4_fread1f_4(ps, FILEBUFSIZ - 65536, t = filebuf + 65536);
 			if (strncmp(&t[1], "\xff\xff\xff\x01\x00\x00\x00OSASKCMP", 15) == 0) {
-				if (*t != 0x82)
-					autodecomp(FILEBUFSIZ - 65536, t, j);
-				else
+				if (*t == 0x82)
 					autodecomp_tek0(FILEBUFSIZ - 65536, t, j);
 			}
 			if (strncmp(t, "!<arch>\x0a/               ", 24) == 0 && ((t[0x42] ^ 0x60) | (t[0x43] ^ 0x0a)) == 0)
@@ -404,9 +318,9 @@ err_rule_format1:
 			else if (((t[0] ^ 0x4c) | (t[1] ^ 0x01)) == 0)
 				warns += loadobj(t, redef);
 			else {
-				fprintf(stderr, "Rule file error : unknown file format : %s\n", ps);
-				free(filebuf);
-				return 7;
+			//	jg01_mfree(FILEBUFSIZ, filebuf);
+				g01_putstr0("Rule file error : unknown file format : ");
+				g01_putstr0_exit1(ps);
 			}
 		}
 	}
@@ -415,9 +329,8 @@ err_rule_format1:
 
 	if (strncmp(p, "label", 5) != 0) {
 err_rule_label:
-		fprintf(stderr, "Rule file error : can't find label section\n");
-		free(filebuf);
-		return 10;
+	//	jg01_mfree(FILEBUFSIZ, filebuf);
+		g01_putstr0_exit1("Rule file error : can't find label section");
 	}
 	p = skipspace(p + 5);
 	if (*p != ':')
@@ -438,14 +351,15 @@ err_rule_label:
 		if (label->def_obj)
 			label->flags |= 0x01; /* used */
 		else {
-			fprintf(stderr, "Warning : can't link %s\n", label->name);
+			g01_putstr0("Warning : can't link ");
+			g01_putstr0((char *) label->name);
+			g01_putc('\n');
 			warns++;
 		}
 		p = skipspace(p);
 		if (*p != ';') {
-			fprintf(stderr, "Rule file error : syntax error in label section\n");
-			free(filebuf);
-			return 11;
+		//	jg01_mfree(FILEBUFSIZ, filebuf);
+			g01_putstr0_exit1("Rule file error : syntax error in label section");
 		}
 	}
 
@@ -481,7 +395,7 @@ err_rule_label:
 	}
 
 	if (objstr0 == NULL)
-		return 99;
+		g01_exit_failure_int32(99);
 
 	/* デフォルト値の適用 */
 	for (i = 0; i < 12; i++) {
@@ -525,56 +439,55 @@ err_rule_label:
 	}
 
 	/* mapfileへの出力 */
-	if (mapname) {
-		if ((fp = fopen(mapname, "w")) == NULL) {
-			fprintf(stderr, "Warning : can't open mapfile\n");
-			warns++;
-		} else {
-			i = section_param[3 /* logic+size */ + 0 /* code */] - section_param[1 /* logic */ + 0 /* code */];
-			fprintf(fp, "text size : %6d(0x%05X)\n", i, i);
-			i = section_param[3 /* logic+size */ + 4 /* data */] - section_param[1 /* logic */ + 4 /* data */];
-			fprintf(fp, "data size : %6d(0x%05X)\n", i, i);
-			i = section_param[3 /* logic+size */ + 8 /* bss  */] - section_param[1 /* logic */ + 8 /* bss  */];
-			fprintf(fp, "bss  size : %6d(0x%05X)\n\n", i, i);
+	if (g01_getcmdlin_fopen_o_3_5(CMDLIN_MAP) != 0) {
+		i = section_param[3 /* logic+size */ + 0 /* code */] - section_param[1 /* logic */ + 0 /* code */];
+		sprintf(sprintfbuf, "text size : %6d(0x%05X)\n", i, i);
+		jg01_fwrite0f_5(sprintfbuf);
+		i = section_param[3 /* logic+size */ + 4 /* data */] - section_param[1 /* logic */ + 4 /* data */];
+		sprintf(sprintfbuf, "data size : %6d(0x%05X)\n", i, i);
+		jg01_fwrite0f_5(sprintfbuf);
+		i = section_param[3 /* logic+size */ + 8 /* bss  */] - section_param[1 /* logic */ + 8 /* bss  */];
+		sprintf(sprintfbuf, "bss  size : %6d(0x%05X)\n\n", i, i);
+		jg01_fwrite0f_5(sprintfbuf);
 
-			/* 以下はちゃんとしたソートを書くのが面倒なので手抜きをしている */
-			for (i = 0; i < 3; i++) {
-				unsigned int value = 0, min;
-				for (;;) {
-					min = 0xffffffff;
-					for (label = label0; label->type != 0xff; label++) {
-						if ((label->flags & 0x03 /* used | linked */) == 0)
-							continue;
-						if (label->def_obj == NULL /* || label->name_obj != NULL */)
-							continue;
-						if (label->def_obj->section[label->sec - 1].sectype != i || label->type != 0x01)
-							continue;
-						if (label->offset < value)
-							continue;
-						if (min > label->offset)
-							min = label->offset;
-					}
-					if (min == 0xffffffff)
-						break;
-					for (label = label0; label->type != 0xff; label++) {
-						if ((label->flags & 0x03 /* used | linked */) == 0)
-							continue;
-						if (label->def_obj == NULL /* || label->name_obj != NULL */)
-							continue;
-						if (label->def_obj->section[label->sec - 1].sectype != i || label->type != 0x01)
-							continue;
-						if (label->offset != min)
-							continue;
-						if (label->name_obj)
-							fprintf(fp, "0x%08X : (%s)\n", label->offset, label->name);
-						else
-							fprintf(fp, "0x%08X : %s\n", label->offset, label->name);
-					}
-					value = min + 1;
+		/* 以下はちゃんとしたソートを書くのが面倒なので手抜きをしている */
+		for (i = 0; i < 3; i++) {
+			unsigned int value = 0, min;
+			for (;;) {
+				min = 0xffffffff;
+				for (label = label0; label->type != 0xff; label++) {
+					if ((label->flags & 0x03 /* used | linked */) == 0)
+						continue;
+					if (label->def_obj == NULL /* || label->name_obj != NULL */)
+						continue;
+					if (label->def_obj->section[label->sec - 1].sectype != i || label->type != 0x01)
+						continue;
+					if (label->offset < value)
+						continue;
+					if (min > label->offset)
+						min = label->offset;
 				}
+				if (min == 0xffffffff)
+					break;
+				for (label = label0; label->type != 0xff; label++) {
+					if ((label->flags & 0x03 /* used | linked */) == 0)
+						continue;
+					if (label->def_obj == NULL /* || label->name_obj != NULL */)
+						continue;
+					if (label->def_obj->section[label->sec - 1].sectype != i || label->type != 0x01)
+						continue;
+					if (label->offset != min)
+						continue;
+					if (label->name_obj)
+						sprintf(sprintfbuf, "0x%08X : (%s)\n", label->offset, label->name);
+					else
+						sprintf(sprintfbuf, "0x%08X : %s\n", label->offset, label->name);
+					jg01_fwrite0f_5(sprintfbuf);
+				}
+				value = min + 1;
 			}
-			fclose(fp);
 		}
+	//	jg01_fclose(5);
 	}
 
 	/* linking */
@@ -595,7 +508,9 @@ err_rule_label:
 				label = ls->label;
 				p = p0 + ls->offset;
 				if (label->def_obj == NULL && (label->flags & 0x01) != 0) {
-					fprintf(stderr, "Warning : can't link %s\n", label->name);
+					g01_putstr0("Warning : can't link ");
+					g01_putstr0((char *) label->name);
+					g01_putc('\n');
 					warns++;
 					label->flags &= 0xfe;
 				}
@@ -609,16 +524,15 @@ err_rule_label:
 				p[1] = (value >>  8) & 0xff;
 				p[2] = (value >> 16) & 0xff;
 				p[3] = (value >> 24) & 0xff;
-				if (ls->type != 0x14 && rlmname != NULL) {
+				if (ls->type != 0x14 && g01_getcmdlin_argc(CMDLIN_RLM) != 0) {
 					unsigned int uval;
 					int k, l;
 					if ((obj->section[i].sectype | (label->sec - 1)) > 1) {
-						fprintf(stderr, "Warning : rlm section number over\n");
+						g01_putstr0("Warning : rlm section number over\n");
 						warns++;
 					}
 					if (rlmsiz >= RLMBUFSIZ / 4) {
-						fprintf(stderr, "error : rlmbuf over\n");
-						return 13;
+						g01_putstr0_exit1("error : rlmbuf over");
 					}
 					uval = obj->section[i].sectype << 31 | (label->sec - 1) << 30 | ((p - p0) + obj->section[i].addr);
 					for (k = rlmsiz; k > 0 && rlmbuf[k - 1] > uval; k--);
@@ -696,56 +610,66 @@ err_rule_label:
 	for (i = 0; i < labelbufptr; i++, t += 4)
 		*((int *) t) = labelbuf[i]->offset;
 
-	free(filebuf);
-	fp = NULL;
-	if (filename)
-		fp = fopen(filename, "wb");
-	if (fp == NULL) {
-		fprintf(stderr, "Can't open output file\n");
-		return 12;
-	}
-	if (filesize > fwrite(objbuf0, 1, filesize, fp)) {
-		fprintf(stderr, "fwrite error\n");
-		warns++;
-	}
-	fclose(fp);
+//	jg01_mfree(FILEBUFSIZ, filebuf);
+	g01_getcmdlin_fopen_s_3_5(CMDLIN_OUT);
+	jg01_fwrite1f_5(filesize, objbuf0);
 
-	if (rlmname) {
-		fp = fopen(rlmname, "wb");
-		if (fp == NULL) {
-			fprintf(stderr, "Can't open rlm file\n");
-			return 14;
-		}
+	if (g01_getcmdlin_fopen_o_3_5(CMDLIN_RLM) != 0) {
 		i &= 0;
 		for (filesize = 0; filesize < 4; filesize++) {
-			fprintf(fp, "relocation(%d, %d) {", (filesize >> 1) & 1, filesize & 1);
+			sprintf(sprintfbuf, "relocation(%d, %d) {", (filesize >> 1) & 1, filesize & 1);
+			jg01_fwrite0f_5(sprintfbuf);
 			j = 9;
 			p = 0;
 			while (i < rlmsiz && (rlmbuf[i] >> 30) == filesize) {
 				if (p != 0)
-					fprintf(fp, ",");
+					jg01_fwrite0f_5(",");
 				if (j >= 6) {
 					j &= 0;
-					fprintf(fp, "\n\t");
+					jg01_fwrite0f_5("\n\t");
 				} else
-					fprintf(fp, " ");
-				fprintf(fp, "0x%08x", rlmbuf[i++] & 0x3fffffff);
+					jg01_fwrite0f_5(" ");
+				sprintf(sprintfbuf, "0x%08x", rlmbuf[i++] & 0x3fffffff);
+				jg01_fwrite0f_5(sprintfbuf);
 				j++;
 				p++;
 			}
 			if (p != 0)
-				fprintf(fp, "\n}\n");
+				jg01_fwrite0f_5("\n}\n");
 			else
-				fprintf(fp, " }\n");
+				jg01_fwrite0f_5(" }\n");
 		}
-		fclose(fp);
 	}
 
 	if (warns > 0 && werr != 0) {
-		remove(filename);
-		return 1;
+	//	remove(filename);
+		g01_getcmdlin_fopen_o_3_5(CMDLIN_OUT);	/* removeに相当するAPIがまだないので空にする */
+	//	jg01_fclose(4);
+		g01_exit_failure_int32(1);
 	}
-	return 0;
+	return;
+}
+
+int get32b(const UCHAR *p)
+{
+	return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+}
+
+int get32l(const UCHAR *p)
+{
+	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+}
+
+static int alignconv(int align)
+{
+	/* アラインが2のべきになっているかどうかは、面倒なので確認していない */
+	int i; 
+	if ((i = align) >= 1) {
+		align = 1;
+		while (i >>= 1);
+			align++;
+	}
+	return align;
 }
 
 unsigned char *skipspace(unsigned char *p)
@@ -770,32 +694,6 @@ reloop:
 	return p;
 }
 
-#if 0
-
-void loadlib(unsigned char *p)
-{
-	int *obj, i, j;
-	unsigned char *t = &p[0x48];
-	obj = malloc(1024 * sizeof (int));
-	obj[0] = 0;
-	for (j = get32b(&p[0x44]); j > 0; j--) {
-		int objofs = get32b(t);
-		for (i = 0; obj[i]; i++) {
-			if (obj[i] == objofs)
-				goto skip;
-		}
-		obj[i] = objofs;
-		obj[i + 1] = 0;
-		loadobj(p + objofs + 0x3c);
-skip:
-		t += 4;
-	}
-	free(obj);
-	return;
-}
-
-#endif
-
 int getdec(unsigned char *p)
 {
 	int i = 0;
@@ -812,7 +710,7 @@ int loadlib(unsigned char *p, UCHAR redef)
 	int i, j, warns = 0;
 	i = getdec(&p[0x38]) + 0x44;
 	if (strncmp(&p[i], "/       ", 8) != 0) {
-		fprintf(stderr, "Internal error : loadlib(1)\n");
+		g01_putstr0("Internal error : loadlib(1)\n");
 		return warns + 1;
 	}
 	t = &p[i + 0x3c];
@@ -832,16 +730,20 @@ int loadobj(unsigned char *p, UCHAR redef)
 	unsigned char *q;
 	struct LABELSTR *label;
 	struct OBJFILESTR *objstr;
+	char sprintfbuf[24];
 
 	if (next_objstr == NULL) {
-		objstr0 = next_objstr = malloc(OBJFILESTRSIZ * sizeof (struct OBJFILESTR));
-		objbuf0 = next_objbuf = malloc(OBJBUFSIZ);
-		next_linkstr = malloc(LINKSTRSIZ * sizeof (struct LINKSTR));
+		objstr0 = next_objstr = jg01_malloc(OBJFILESTRSIZ * sizeof (struct OBJFILESTR));
+		objbuf0 = next_objbuf = jg01_malloc(OBJBUFSIZ);
+		next_linkstr = jg01_malloc(LINKSTRSIZ * sizeof (struct LINKSTR));
 	}
 
 	/* ヘッダチェック */
 	if ((p[0x00] ^ 0x4c) | (p[0x01] ^ 0x01)) {
-		fprintf(stderr, "Internal error : loadobj(1) %16.16s\n", &p[-0x3c]);
+		g01_putstr0("Internal error : loadobj(1) ");
+		sprintf(sprintfbuf, "%16.16s", &p[-0x3c]);
+		g01_putstr0(sprintfbuf);
+		g01_putc('\n');
 		return 1;
 	}
 
@@ -855,7 +757,8 @@ int loadobj(unsigned char *p, UCHAR redef)
 	objstr->flags = 0x00;
 	if ((p[0x02] | p[0x03] << 8) > MAXSECTION) {
 		/* section数が多すぎる */
-		fprintf(stderr, "Internal error : loadobj(2)\n");
+		g01_putstr0("Internal error : loadobj(2)");
+		g01_putc('\n');
 		return 1;
 	}
 	for (i = 0; i < (p[0x02] | p[0x03] << 8); i++) {
@@ -912,7 +815,10 @@ int loadobj(unsigned char *p, UCHAR redef)
 					ls->type = t[0x08];
 					ls++;
 				} else {
-					fprintf(stderr, "Found a unknown reloc_type 0x%02X. Skipped\n", t[0x08]);
+					g01_putstr0("Found a unknown reloc_type 0x");
+					sprintf(sprintfbuf, "%02X", t[0x08]);
+					g01_putstr0(sprintfbuf);
+					g01_putstr0(". Skipped\n");
 //link_skip:
 					objstr->section[i].links--;
 				}
@@ -977,7 +883,9 @@ int loadobj(unsigned char *p, UCHAR redef)
 				objstr->section[sec0 - 1].size = sec_size + k;
 			}
 			if (label->def_obj != NULL && redef != 0) {
-				fprintf(stderr, "Warning : redefine %s\n", label->name);
+				g01_putstr0("Warning : redefine ");
+				g01_putstr0((char *) label->name);
+				g01_putc('\n');
 				warns++;
 			}
 			label->offset = value;
@@ -990,7 +898,10 @@ int loadobj(unsigned char *p, UCHAR redef)
 			break; /* 無視して捨てる */
 
 		default:
-			fprintf(stderr, "unknown storage class : %02X\n", q[0x10]);
+			g01_putstr0("unknown storage class : ");
+			sprintf(sprintfbuf, "%02X", q[0x10]);
+			g01_putstr0(sprintfbuf);
+			g01_putc('\n');
 		}
 	}
 
@@ -1049,12 +960,10 @@ struct LABELSTR *symbolconv0(unsigned char *s, struct OBJFILESTR *obj)
 {
 	unsigned char *n;
 	struct LABELSTR *label;
-	int i, *name;
-
-	name = malloc((128 / 4 - 4) * sizeof (int));
+	int i, name[128 / 4 - 4];
 
 	if (label0 == NULL) {
-		label0 = malloc(LABELSTRSIZ * sizeof (struct LABELSTR));
+		label0 = jg01_malloc(LABELSTRSIZ * sizeof (struct LABELSTR));
 		label0->type = 0xff;
 	}
 
@@ -1089,7 +998,6 @@ next_label:
 		label->name[i] = name[i];
 	label[1].type = 0xff;
 fin:
-	free(name);
 	return label;
 }
 
@@ -1111,69 +1019,6 @@ struct LABELSTR *symbolconv(unsigned char *p, unsigned char *s, struct OBJFILEST
 
 	return symbolconv0(n, obj);
 }
-
-/* 横着版 */
-#if 0
-
-struct LABELSTR *symbolconv0(unsigned char *s, struct OBJFILESTR *obj)
-{
-	unsigned char *n;
-	struct LABELSTR *label;
-	int i, *name;
-
-	name = malloc((128 / 4 - 4) * sizeof (int));
-
-	if (label0 == NULL) {
-		label0 = malloc(LABELSTRSIZ * sizeof (struct LABELSTR));
-		label0->type = 0xff;
-	}
-
-	for (i = 0; i < 128 / 4 - 4; i++)
-		name[i] = 0;
-	n = (unsigned char *) name;
-	while (*n++ = *s++);
-
-	for (label = label0; label->type != 0xff; label++) {
-		int cmp = obj - label->name_obj;
-		for (i = 0; i < 128 / 4 - 4; i++)
-			cmp |= name[i] - label->name[i];
-		if (cmp == 0)
-			goto fin;
-	}
-	label->type = 0x00;
-	label->name_obj = obj;
-	label->flags = 0x00;
-	label->def_obj = NULL;
-	label->offset = 0;
-	for (i = 0; i < 128 / 4 - 4; i++)
-		label->name[i] = name[i];
-	label[1].type = 0xff;
-fin:
-	free(name);
-	return label;
-}
-
-struct LABELSTR *symbolconv(unsigned char *p, unsigned char *s, struct OBJFILESTR *obj)
-{
-	unsigned char tmp[12], *n;
-
-	if (s[0x10] == 0x02)
-		obj = NULL;	/* external */
-
-	if (s[0x00] | s[0x01] | s[0x02] | s[0x03]) {
-		int i;
-		for (i = 0; i < 8; i++)
-			tmp[i] = s[i];
-		tmp[8] = '\0';
-		n = tmp;
-	} else
-		n = p + get32l(&p[0x08]) + get32l(&p[0x0c]) * 0x12 + get32l(&s[0x04]);
-
-	return symbolconv0(n, obj);
-}
-
-#endif
-/* 横着版終わり */
 
 int link0(const int sectype, int *secparam, unsigned char *image)
 /* .objの各セクションの論理アドレスを確定させる */
@@ -1195,7 +1040,9 @@ int link0(const int sectype, int *secparam, unsigned char *image)
 				i = secparam[0 /* align */] - 1;
 				if (i < 0) {
 					static char *secname[3] = { "code", "data", "data" };
-					fprintf(stderr, "Warning : please set align for %s\n", secname[sectype]);
+					g01_putstr0("Warning : please set align for ");
+					g01_putstr0(secname[sectype]);
+					g01_putc('\n');
 					warns++;
 					i = 0;
 				}
@@ -1257,51 +1104,6 @@ int getbc0(int bits, int ret)
 	} while (--bits);
 	return ret;
 }
-
-#if 0
-void decode_l2d3(int k, const UCHAR *src, UCHAR *dest)
-{
-	int len, distance, j, i;
-	getbc_count = 8;
-	getbc_ptr = src;
-
-	for (i = 0; i < k; ) {
-		j = getbc(1);
-		if (j > 0) {
-			j = getbc(8);
-			dest[i++] = j;
-			continue;
-		}
-		/* len */
-		j = getbc(2);
-		len = j;
-		if (j == 0) {
-			j = getbc(4);
-			len = j + 3;
-			if (j == 0) {
-				j = getbc(8);
-				len = j + 18;
-				if (j == 0) {
-					j = getbc(16);
-					len = j;
-					if (j <= 127)
-						len = getbc0(j, 1); /* 最初のbitは1に決まっているから */
-				}
-			}
-		}
-		distance = -1;
-		do {
-			distance = getbc0(3, distance);
-			j = getbc(1);
-		} while (j);
-		do {
-			dest[i] = dest[i + distance];
-			i++;
-		} while (--len);
-	}
-	return;
-}
-#endif
 
 int getnum_l1a()
 {

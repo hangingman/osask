@@ -1,6 +1,6 @@
-TARGET = obj2bim
+TARGET = mtek2org
 MODE   = g01
-OBJS   = $(TARGET).obj
+OBJS   = mtek2org.obj
 
 INCPATH    = ../z_tools/guigui01/
 include ../z_tools/com_mak.txt

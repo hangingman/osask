@@ -1,4 +1,4 @@
-TARGET = obj2bim
+TARGET = bin2ucc
 MODE   = g01
 OBJS   = $(TARGET).obj
 

@@ -1,4 +1,4 @@
-TARGET = obj2bim
+TARGET = cpyc
 MODE   = g01
 OBJS   = $(TARGET).obj
 

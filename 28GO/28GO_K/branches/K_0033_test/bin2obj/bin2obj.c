@@ -1,15 +1,35 @@
 typedef unsigned char UCHAR;
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <guigui01.h>
 
-#define MAXSIZ	32 * 1024 * 1024 + 310
+#define MAXSIZ	8 * 1024 * 1024 + 310
 
-int main(int argc, UCHAR **argv)
+void put32(UCHAR *p, int i)
 {
-	FILE *fp;
-	UCHAR *buf = malloc(MAXSIZ), *l;
-	int i, j = 0, k;
+	p[0] =  i        & 0xff;
+	p[1] = (i >>  8) & 0xff;
+	p[2] = (i >> 16) & 0xff;
+	p[3] = (i >> 24) & 0xff;
+	return;
+}
+
+#define CMDLIN_FLG_H	0
+#define	CMDLIN_IN		1
+#define	CMDLIN_OUT		2
+#define CMDLIN_LABEL	3
+
+static unsigned char cmdusg[] = {
+	0x86, 0x51,
+		0x11, '-', 'h', 0x20,
+		0x88, 0x8c,
+		0x04, 'l', 'a', 'b', 'e', 'l', 0x31, 0x01,
+	0x40
+};
+
+void G01Main()
+{
+	UCHAR *buf, l[12];
+	int i, j, k;
 	static UCHAR head[0x8c] = {
 		0x4c, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, /* +08(d) : g = h + 0x8c */
@@ -53,31 +73,16 @@ int main(int argc, UCHAR **argv)
 		0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
 		0x02, 0x00, 0x04, 0x00, 0x00, 0x00
 	};
-	if (argc < 4) {
-		puts("bin2obj hideyosi version 1.0\n\tusage>bin2obj binfile objfile [-]label");
-		return 1;
-	}
-	l = argv[3];
-	if (*l == '-') {
-		l++;
-		j += 4;
-	}
-	fp = fopen(argv[1], "rb");
-	if (fp == NULL) {
-		puts("binfile open error.");
-		return 1;
-	}
-	i = fread(buf + 0x8c + j, 1, MAXSIZ - 310, fp);
-	fclose(fp);
-	if (i >= MAXSIZ - 310) {
-		puts("binfile size error.");
-		return 1;
-	}
+
+	g01_setcmdlin(cmdusg);
+	buf = jg01_malloc(MAXSIZ);
+	g01_getcmdlin_str_s0(CMDLIN_LABEL, 12, l);
+	j = g01_getcmdlin_flag_o(CMDLIN_FLG_H) << 2;
+
+	g01_getcmdlin_fopen_s_0_4(CMDLIN_IN);
+	i = jg01_fread1f_4(MAXSIZ - 310, buf + 0x8c + j);
 	if (j) {
-		buf[0x8c] =  i        & 0xff;
-		buf[0x8d] = (i >>  8) & 0xff;
-		buf[0x8e] = (i >> 16) & 0xff;
-		buf[0x8f] = (i >> 24) & 0xff;
+		put32(&buf[0x8c], i);
 		i += 4;
 	}
 	for (k = 0; k < 0x8c; k++)
@@ -85,47 +90,24 @@ int main(int argc, UCHAR **argv)
 	for (k = 0; k < 0xa6; k++)
 		buf[0x8c + i + k] = foot[k];
 	k = i + 0x8c;
-	buf[0x08] =  k        & 0xff;
-	buf[0x09] = (k >>  8) & 0xff;
-	buf[0x0a] = (k >> 16) & 0xff;
-	buf[0x0b] = (k >> 24) & 0xff;
-	buf[0x4c] =  i        & 0xff;
-	buf[0x4d] = (i >>  8) & 0xff;
-	buf[0x4e] = (i >> 16) & 0xff;
-	buf[0x4f] = (i >> 24) & 0xff;
-	buf[0x54] =  k        & 0xff;
-	buf[0x55] = (k >>  8) & 0xff;
-	buf[0x56] = (k >> 16) & 0xff;
-	buf[0x57] = (k >> 24) & 0xff;
-	buf[0x8c + i + 0x5a] =  i        & 0xff;
-	buf[0x8c + i + 0x5b] = (i >>  8) & 0xff;
-	buf[0x8c + i + 0x5c] = (i >> 16) & 0xff;
-	buf[0x8c + i + 0x5d] = (i >> 24) & 0xff;
+	put32(&buf[0x08], k);
+	put32(&buf[0x4c], i);
+	put32(&buf[0x54], k);
+	put32(&buf[0x8c + 0x5a + i], i);
+
 	k = 0;
-	if (*l == '\0') {
-		puts("label error.");
-		return 1;
-	}
+	if (*l == '\0')
+		g01_putstr0_exit1("label error.");
 	for (;;) {
-		buf[0x8c + i + 0x90 + k] = l[k];
+		buf[0x8c + 0x90 + i + k] = l[k];
 		k++;
 		if (l[k] == '\0')
 			break;
-		if (k == 8) {
-			puts("label too long.");
-			return 1;
-		}
+		if (k == 8)
+			g01_putstr0_exit1("label too long.");
 	}
-	fp = fopen(argv[2], "wb");
-	if (fp == NULL) {
-		puts("objfile open error.");
-		return 1;
-	}
-	j = fwrite(buf, 1, i + 306, fp);
-	fclose(fp);
-	if (j < i + 306) {
-		puts("objfile output error.");
-		return 1;
-	}
-	return 0;
+
+	g01_getcmdlin_fopen_s_3_5(CMDLIN_OUT);
+	jg01_fwrite1f_5(i + 306, buf);
+	return;
 }

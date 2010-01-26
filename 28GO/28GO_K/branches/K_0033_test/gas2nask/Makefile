@@ -1,4 +1,4 @@
-TARGET = obj2bim
+TARGET = gas2nask
 MODE   = g01
 OBJS   = $(TARGET).obj
 
