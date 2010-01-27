@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET = rjcg01
 MODE   = g01
 OBJS   = rjcg01.obj

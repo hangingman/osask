@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET = bim2g01
 MODE   = g01
 OBJS   = $(TARGET).obj

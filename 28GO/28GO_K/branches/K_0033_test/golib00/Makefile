@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET = golib00
 MODE   = g01
 OBJS   = $(TARGET).obj

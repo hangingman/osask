@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET = gas2nask
 MODE   = g01
 OBJS   = $(TARGET).obj

@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET = tekmin1
 MODE   = g01
 OBJS   = tekmin1.obj

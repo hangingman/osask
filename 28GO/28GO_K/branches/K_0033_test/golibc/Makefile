@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET     = golibc
 STACKSIZE  =
 MALLOCSIZE =
@@ -7,26 +9,12 @@ OBJS       = abs.obj atof.obj atoi.obj errno.obj frexp.obj ldexp.obj \
 	sprintf.obj strcat.obj strcmp.obj strcpy.obj strcspn.obj strdup.obj \
 	strlen.obj strncat.obj strncmp.obj strncpy.obj strpbrk.obj strrchr.obj \
 	strspn.obj strstr.obj strtol.obj strtoul.obj strtoul0.obj vsprintf.obj
- 
+
 # 以上5つはソースごとに書き換える
 # OBJSを書き換えると分割コンパイル対応
- 
-TOOLPATH = ../z_tools/
+
 INCPATH  = .
-RULEFILE =
-MAKE     = $(TOOLPATH)make -r
-EFG 	 = $(TOOLPATH)efg01
-SJISCONV = $(EFG) $(TOOLPATH)sjisconv sjis
-CC1      = $(TOOLPATH)28GOcc1 -I$(INCPATH) -Os -quiet -W -Wall -Werror
-GAS2NASK = $(EFG) $(TOOLPATH)gas2nask -a
-NASK     = $(EFG) $(TOOLPATH)nask
-OBJ2BIM  = $(TOOLPATH)obj2bim3
-BIM2BIN  = $(TOOLPATH)bim2bin3
-CPP0     = $(TOOLPATH)28GOcpp0 -P -I$(INCPATH)
-ASKA     = $(TOOLPATH)aska
-NASKCNV  = $(TOOLPATH)naskcnv0 -l -s -w
-GOLIB    = $(EFG) $(TOOLPATH)golib00
-DELE     = del
+
 
 # 以上の項目はあなたのディレクトリ構成にあわせて書き換える
 
@@ -37,7 +25,7 @@ ALL :
 	$(SJISCONV) in:$*.c out:$*.ca
 
 %.gas : %.ca Makefile
-	$(CC1) -o $*.gas $*.ca
+	$(CC1)  -I$(INCPATH) -Os -quiet -W -Wall -Werror -o $*.gas $*.ca
 
 %.nas : %.gas Makefile
 	$(GAS2NASK) $*.gas $*.nas
@@ -65,7 +53,7 @@ $(TARGET).bim : $(OBJS) Makefile
 	$(BIM2BIN) in:$*.org out:$*.bin -osacmp -tek0
 
 $(TARGET).lib : $(OBJS) Makefile
-	$(GOLIB) out:$@ $(OBJS)
+	$(GOLIB) out=$@ $(OBJS)
 
 clean :
 	-$(DELE) *.obj

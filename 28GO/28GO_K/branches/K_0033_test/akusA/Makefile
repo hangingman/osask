@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET     = akusA
 MODE       = g01
 OBJS       = $(TARGET).obj

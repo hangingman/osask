@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET = mtek2org
 MODE   = g01
 OBJS   = mtek2org.obj

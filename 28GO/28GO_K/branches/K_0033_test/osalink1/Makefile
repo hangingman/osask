@@ -1,7 +1,4 @@
-#//include ../include/rules.mak
-
-TOOLPATH = ../z_tools/
-EFG = $(TOOLPATH)efg01
+include ../z_tools/command.txt
 
 INCPATH = $(TOOLPATH)win32/
 
@@ -10,10 +7,7 @@ MODE = exe
 
 
 LD = $(TOOLPATH)ld.exe
-NASK = $(EFG) $(TOOLPATH)nask
-GAS2NASK = $(EFG) $(TOOLPATH)gas2nask
-CC1 = $(TOOLPATH)28GOcc1.exe
-SJISCONV = $(EFG) $(TOOLPATH)sjisconv sjis
+
 DEL = del
 
 

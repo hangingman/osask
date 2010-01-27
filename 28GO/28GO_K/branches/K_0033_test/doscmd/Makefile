@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET     = doscmd
 MODE       = exe
 OBJS       = $(TARGET).obj
@@ -6,25 +8,7 @@ STACKSIZE  = 0x1000000 # 16MB (default)
 INCPATH    = ../z_tools/win32/
 CC1OPT     =
 
-TOOLPATH = ../z_tools/
-EFG = $(TOOLPATH)efg01
 RULEFILE = ../z_tools/guigui00/guigui00.rul
-MAKE     = $(TOOLPATH)make.exe -r
-SJISCONV = $(EFG) $(TOOLPATH)sjisconv sjis
-CC1      = $(TOOLPATH)28GOcc1.exe -I$(INCPATH) $(CC1OPT) -Os -Wall -quiet
-GAS2NASK = $(EFG) $(TOOLPATH)gas2nask -a
-NASK     = $(EFG) $(TOOLPATH)nask
-OBJ2BIM  = $(TOOLPATH)obj2bim.exe
-BIM2BIN  = $(TOOLPATH)bim2bin.exe
-CPP0     = $(TOOLPATH)28GOcpp0.exe -P -I$(INCPATH)
-ASKA     = $(TOOLPATH)aska.exe
-NASKCNV  = $(TOOLPATH)naskcnv0.exe -l -s -w
-GOLIB    = $(TOOLPATH)golib00.exe
-LINK     = $(TOOLPATH)ld.exe -s -Bdynamic --stack $(STACKSIZE)
-EDIMG    = $(TOOLPATH)edimg.exe$(TOOLPATH)
-SARTOL   = sartol.exe
-DELE     = del
-COPY     = copy
 
 LIBPATH  = $(INCPATH)
 LIBS     = $(LIBPATH)libmingw.lib
@@ -38,7 +22,7 @@ ALL:
 	$(SJISCONV) in:$*.c out:$*.ca
 
 %.gas : %.ca Makefile
-	$(CC1) -o $*.gas $*.ca
+	$(CC1) -I$(INCPATH) $(CC1OPT) -Os -Wall -quiet -o $*.gas $*.ca
 
 %.nas : %.gas Makefile
 	$(GAS2NASK) $*.gas $*.nas

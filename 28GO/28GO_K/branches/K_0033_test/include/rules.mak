@@ -6,7 +6,7 @@ CC1 = $(TOOLPATH)28GOcc1
 
 MAKE = $(TOOLPATH)make.exe
 GAS2NASK = $(EFG) $(TOOLPATH)gas2nask
-NASK = $(EFG) $(TOOLPATH)nask
+NASK = $(EFG) $(TOOLPATH)Nasuka
 LIBRARIAN = $(EFG) $(TOOLPATH)golib00
 LD = $(TOOLPATH)ld.exe
 DEL = del

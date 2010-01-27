@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET = bin2ucc
 MODE   = g01
 OBJS   = $(TARGET).obj
