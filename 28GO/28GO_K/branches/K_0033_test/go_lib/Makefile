@@ -22,4 +22,4 @@ clean :
 	-$(DEL) $(TARGETLIB)
 
 $(TARGETLIB) : $(OBJS) Makefile ../include/rules.mak
-	$(LIBRARIAN) out:$@ $(OBJS)
+	$(GOLIB) out=$@ $(OBJS)
