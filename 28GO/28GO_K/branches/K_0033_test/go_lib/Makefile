@@ -18,8 +18,8 @@ all :
 	$(MAKER) $(TARGETLIB) stdin.o
 
 clean :
-	-$(DEL) *.o
-	-$(DEL) $(TARGETLIB)
+	-$(DELE) *.o
+	-$(DELE) $(TARGETLIB)
 
 $(TARGETLIB) : $(OBJS) Makefile ../include/rules.mak
 	$(GOLIB) out=$@ $(OBJS)
