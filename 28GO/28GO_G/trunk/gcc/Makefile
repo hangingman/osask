@@ -3,7 +3,7 @@ include ../include/rules.mak
 
 LIBIBERTY = ../libiberty/libiberty.lib
 INTLLIBS = ../intl/libintl.lib
-GOLIB = ../go_lib/go_lib.lib ../go_lib/stdin.o
+GO_LIB = ../go_lib/go_lib.lib ../go_lib/stdin.o
 
 LIBCPP_OBJS = cpplib.o cpplex.o cppmacro.o cppexp.o cppfiles.o cpphash.o \
 	cpperror.o cppinit.o cppdefault.o line-map.o mkdeps.o prefix.o mbchar.o
@@ -41,28 +41,28 @@ CXX_OBJS = ../cp/call.o ../cp/decl.o ../cp/expr.o ../cp/pt.o ../cp/typeck2.o \
 
 #CXX_C_OBJS = attribs.o c-common.o c-format.o c-pragma.o c-semantics.o c-lex.o
 
-LIBS = $(INTLLIBS) $(LIBIBERTY) $(GOLIB)
+LIBS = $(INTLLIBS) $(LIBIBERTY) $(GO_LIB)
 
 all :
 #	$(MAKER) cpp0.exe cc1.exe cc1plus.exe
 	$(MAKER) 28GOcpp0.exe 28GOcc1.exe
 
 clean :
-	-$(DEL) *.exe
-	-$(DEL) *.lib
-	-$(DEL) *.o
-	-$(DEL) osaskgo.map
-	-$(DEL) osaskgo.org
-	-$(DEL) osaskgo.bim
-	-$(DEL) osaskgo.bin
+	-$(DELE) *.exe
+	-$(DELE) *.lib
+	-$(DELE) *.o
+	-$(DELE) osaskgo.map
+	-$(DELE) osaskgo.org
+	-$(DELE) osaskgo.bim
+	-$(DELE) osaskgo.bin
 	-$(MAKER) -C ../libiberty clean
 	-$(MAKER) -C ../intl clean
 
 libcpp.lib : $(LIBCPP_OBJS) Makefile ../include/rules.mak
-	$(LIBRARIAN) out=$@ $(LIBCPP_OBJS)
+	$(GOLIB) out=$@ $(LIBCPP_OBJS)
 
 libbackend.lib : $(OBJS)
-	$(LIBRARIAN) out=$@ $(OBJS)
+	$(GOLIB) out=$@ $(OBJS)
 
 28GOcpp0.exe : cppmain.o intl.o libcpp.lib hashtable.o version.o \
 		Makefile ../include/rules.mak

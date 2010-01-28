@@ -12,8 +12,8 @@ all :
 	$(MAKER) $(TARGETLIB)
 
 clean :
-	-$(DEL) $(TARGETLIB)
-	-$(DEL) *.o
+	-$(DELE) $(TARGETLIB)
+	-$(DELE) *.o
 
 $(TARGETLIB) : $(OBJS) Makefile ../include/rules.mak
-	$(LIBRARIAN) out=$@ $(OBJS)
+	$(GOLIB) out=$@ $(OBJS)
