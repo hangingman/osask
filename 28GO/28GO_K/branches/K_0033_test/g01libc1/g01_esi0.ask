@@ -1,0 +1,8 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'g01_esi0.ask']");
+asmout("GLOBAL _g01_esi0");
+
+asmout("[SECTION .data align=4]");
+asmout("_g01_esi0 DD 0");

@@ -31,6 +31,8 @@ all:
 	$(TOOLPATH)make -C mtek2org
 	$(TOOLPATH)make -C tekmin0
 	$(TOOLPATH)make -C tekmin1
+	$(TOOLPATH)make -C g01libc0
+	$(TOOLPATH)make -C g01libc1
 
 
 
@@ -68,3 +70,6 @@ clean :
 	$(TOOLPATH)make -C mtek2org clean
 	$(TOOLPATH)make -C tekmin0 clean
 	$(TOOLPATH)make -C tekmin1 clean
+	$(TOOLPATH)make -C g01libc0 clean
+	$(TOOLPATH)make -C g01libc1 clean
+
