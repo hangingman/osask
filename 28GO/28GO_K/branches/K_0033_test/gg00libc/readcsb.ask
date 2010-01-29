@@ -1,0 +1,14 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'readcsb.ask']");
+asmout("GLOBAL _lib_readCSb");
+
+/* int _lib_readCSb(int ofs) */
+
+void _lib_readCSb()
+{
+	EAX = [SS:ESP + 4];
+	EAX = (unsigned char) [CS:EAX];
+	return;
+}

@@ -33,7 +33,8 @@ all:
 
 	$(TOOLPATH)make -C bim2bin
 	$(TOOLPATH)make -C edimg
-	$(TOOLPATH)make -C sartol
+	$(TOOLPATH)make -C src_sartol
+	$(TOOLPATH)make -C src_wce
 
 
 
@@ -73,4 +74,10 @@ clean :
 	$(TOOLPATH)make -C tekmin1 clean
 	$(TOOLPATH)make -C g01libc0 clean
 	$(TOOLPATH)make -C g01libc1 clean
+
+	$(TOOLPATH)make -C bim2bin clean
+	$(TOOLPATH)make -C edimg clean
+	$(TOOLPATH)make -C src_sartol clean
+	$(TOOLPATH)make -C src_wce clean
+
 

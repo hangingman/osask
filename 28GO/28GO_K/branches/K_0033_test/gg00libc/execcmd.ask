@@ -1,0 +1,16 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'execcmd.ask']");
+asmout("GLOBAL _lib_execcmd");
+
+/* void lib_execcmd(void *EBX); */
+
+void _lib_execcmd()
+{
+	PUSH(EBX);
+	EBX = [SS:ESP + 8];
+	CALL(0xc7, 0);
+	POP(EBX);
+	return;
+}
