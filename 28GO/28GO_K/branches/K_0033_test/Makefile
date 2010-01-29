@@ -1,8 +1,5 @@
 TOOLPATH = ./z_tools/
 
-include $(TOOLPATH)command.txt
-
-
 all:
 #	$(TOOLPATH)make -C gcc
 	$(TOOLPATH)make -C golib00
@@ -31,8 +28,12 @@ all:
 	$(TOOLPATH)make -C mtek2org
 	$(TOOLPATH)make -C tekmin0
 	$(TOOLPATH)make -C tekmin1
-	$(TOOLPATH)make -C g01libc0
+#	$(TOOLPATH)make -C g01libc0
 	$(TOOLPATH)make -C g01libc1
+
+	$(TOOLPATH)make -C bim2bin
+	$(TOOLPATH)make -C edimg
+	$(TOOLPATH)make -C sartol
 
 
 

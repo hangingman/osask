@@ -320,6 +320,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"1addb    ADD",
 		"4addl    ADD",
 		"2addw    ADD",
+		"4adcl    ADC",
 		"1andb    AND",
 		"4andl    AND",
 		"2andw    AND",
