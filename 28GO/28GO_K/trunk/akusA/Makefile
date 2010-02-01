@@ -1,8 +1,8 @@
-TARGET     = aksa
-MODE       = exe
-OBJS       = $(TARGET).obj
-STACKSIZE  = 0x1000000 # 16MB (default)
+include ../z_tools/command.txt
 
-INCPATH    = ../z_tools/win32/
-CC1OPT     = -Dmain=main0
+TARGET     = akusA
+MODE       = g01
+OBJS       = $(TARGET).obj
+
+INCPATH    = ../z_tools/guigui01/
 include ../z_tools/com_mak.txt

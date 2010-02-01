@@ -1,0 +1,20 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'imul.ask']");
+asmout("GLOBAL _lib_imul");
+
+/* int lib_imul(signed int a, signed int b, int *h) */
+
+void _lib_imul()
+{
+	PUSH(EDX);
+	PUSH(ECX);
+	ECX = [SS:ESP + 20]; /* h */
+	EAX = [SS:ESP + 12]; /* a */
+	IMUL((int) [SS:ESP + 16]); /* b */
+	[DS:ECX] = EDX;
+	POP(ECX);
+	POP(EDX);
+	return;
+}

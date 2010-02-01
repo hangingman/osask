@@ -1,17 +1,5 @@
-TOOLPATH = ../z_tools/
+include ../z_tools/command.txt
 
-CPP0 = $(TOOLPATH)cpp0.exe
-CC1 = $(TOOLPATH)cc1.exe
-
-MAKE = $(TOOLPATH)make.exe
-GAS2NASK = $(TOOLPATH)gas2nask.exe
-NASK = $(TOOLPATH)nask.exe
-LIBRARIAN = $(TOOLPATH)golib00.exe
-LD = $(TOOLPATH)ld.exe
-DEL = del
-
-ASKA = aska.exe
-NASKCNV = naskcnv0.exe
 
 MAKER = $(MAKE) -r
 MAKEC = $(MAKE) -C

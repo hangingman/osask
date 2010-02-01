@@ -1,0 +1,25 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'startup.ask']");
+asmout("GLOBAL startup, _g01_execcmd0, _g01_execcmd");
+asmout("EXTERN _G01Main, _g01_esi0");
+
+/* void g01_execcmd(void *EBX); */
+
+void startup()
+{
+	asmout("MOV [_g01_esi0],ESI");
+	asmout("JMP _G01Main");
+}
+
+void _g01_execcmd0()
+{
+	EDI = 0;
+}
+
+void _g01_execcmd()
+{
+	asmout("MOV ESI,[_g01_esi0]");
+	asmout("JMP [ESI]");
+}

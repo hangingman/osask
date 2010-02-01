@@ -1,6 +1,4 @@
-#//include ../include/rules.mak
-
-TOOLPATH = ../z_tools/
+include ../z_tools/command.txt
 
 INCPATH = $(TOOLPATH)win32/
 
@@ -9,10 +7,7 @@ MODE = exe
 
 
 LD = $(TOOLPATH)ld.exe
-NASK = $(TOOLPATH)nask.exe
-GAS2NASK = $(TOOLPATH)gas2nask.exe
-CC1 = $(TOOLPATH)cc1.exe
-SJISCONV = $(TOOLPATH)sjisconv.exe
+
 DEL = del
 
 
@@ -43,7 +38,7 @@ $(TARGET).gas : $(TARGET).ca
 
 
 $(TARGET).ca : $(TARGET).c
-	$(SJISCONV) -s $< $@
+	$(SJISCONV) in:$< out:$@
 
 
 

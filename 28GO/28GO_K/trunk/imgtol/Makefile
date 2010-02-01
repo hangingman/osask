@@ -1,22 +1,25 @@
+include ../z_tools/command.txt
+
+
 all:
-	make imgtol.com
+	$(MAKE) imgtol.com
 
 %.ias : %.ask
-	cpp0 -P -I. -o $*.ias $*.ask
+	$(TOOLPATH)28GOcpp0 -P -I. -o $*.ias $*.ask
 
 %.3as : %.ias
-	aska $*.ias $*.3as
+	$(ASKA) $*.ias $*.3as
 
 %.nas : %.3as
-	naskcnv0 -l -s $*.3as $*.nas
+	$(NASKCNV) -l -s $*.3as $*.nas
 
 %.com : %.nas
-	nask $*.nas $*.org $*.lst
-	bim2bin -osacmp -l2d3 in:$*.org out:$*.ld3
+	$(NASK) $*.nas $*.org $*.lst
+	$(BIM2BIN) -osacmp -l2d3 in:$*.org out:$*.ld3
 	comcom $*.ld3 $*.com
 
 
 clean:
-	del *.lst
-	del *.ld3
-	del *.org
+	$(DELE) *.lst
+	$(DELE) *.ld3
+	$(DELE) *.org

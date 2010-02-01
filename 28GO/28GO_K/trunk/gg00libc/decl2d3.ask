@@ -1,0 +1,32 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'decl2d3.ask']");
+asmout("GLOBAL _lib_decodel2d3");
+
+/* int lib_decodel2d3(int size, int src_ofs, int src_sel, int dest_ofs, int dest_sel) */
+
+void _lib_decodel2d3()
+{
+	PUSH(ES);
+	PUSH(EDI);
+	PUSH(EBP);
+	PUSH(EBX);
+	EBP = ESP;
+	PUSH(0xffffffff);
+	LEA(EDI, [EBP + 12]);
+	PUSH((int) [SS:EBP + 8 + 20]);
+	PUSH((int) [SS:EBP + 4 + 20]);
+	PUSH((int) [SS:EBP + 0 + 20]);
+	PUSH(0xffffff81);
+	PUSH(0x00000004);
+	EBX = ESP;
+	CALL(0x00c7, 0);
+	ESP += 24;
+	EAX = EDI;
+	POP(EBX);
+	POP(EBP);
+	POP(EDI);
+	POP(ES);
+	return;
+}

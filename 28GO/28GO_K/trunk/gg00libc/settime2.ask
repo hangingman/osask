@@ -1,0 +1,33 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'settime2.ask']");
+asmout("GLOBAL _lib_settimertime2");
+
+/* void _lib_settimertime2(int opt, int slot0, int slot1, unsigned int *time) */
+
+void _lib_settimertime2()
+{
+	PUSH(EBX); /* +4 */
+	PUSH(EDX); /* +0 */
+	EBX = ESP;
+	EDX = [DS:EBX + 24]; /* time */
+	PUSH(0);
+	PUSH((int) [DS:EDX + 8]);
+	PUSH((int) [DS:EDX + 4]);
+	PUSH((int) [DS:EDX + 0]);
+	PUSH((int) [DS:EBX + 20]); /* slot1 */
+	PUSH((int) [DS:EBX + 16]); /* slot0 */
+	PUSH((int) [DS:EBX + 12]); /* opt */
+	PUSH(0x0078);
+	EBX = ESP;
+	CALL(0x00c7, 0);
+	ESP += 16;
+	POP((int) [DS:EDX + 0]);
+	POP((int) [DS:EDX + 4]);
+	POP((int) [DS:EDX + 8]);
+	POP(EBX);
+	POP(EDX);
+	POP(EBX);
+	return;
+}

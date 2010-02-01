@@ -1,0 +1,21 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'idiv.ask']");
+asmout("GLOBAL _lib_idiv");
+
+/* int const int lib_idiv(signed int a, signed int b, int *r) */
+
+void _lib_idiv()
+{
+	PUSH(EDX);
+	PUSH(ECX);
+	EAX = [SS:ESP + 12]; /* a */
+	ECX = [SS:ESP + 20]; /* r */
+	CDQ();
+	IDIV((int) [SS:ESP + 16]); /* b */
+	[DS:ECX] = EDX;
+	POP(ECX);
+	POP(EDX);
+	return;
+}

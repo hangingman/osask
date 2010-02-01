@@ -1,0 +1,18 @@
+/* "alloca.ask"    copyright(C) 2003 H.Kawai(êÏçáèGé¿) */
+
+segment CODE(USE32, PARA);
+default(code == CODE);
+asmout("[FILE 'alloca.ask']");
+
+asmout("GLOBAL __alloca");
+
+void __alloca()
+{
+	PUSH(ECX);
+	EAX =- EAX;
+	LEA(ECX, [SS:ESP + EAX + 8]);
+	EAX = ESP;
+	ESP = ECX;
+	ECX = [DS:EAX];
+	JMP((int) [DS:EAX + 4]);
+}
