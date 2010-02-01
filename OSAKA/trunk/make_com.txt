@@ -1,0 +1,21 @@
+# Makefileのインクルードファイル
+# 全機種共通
+
+MAKE     = $(TOOLPATH)make -r
+EFG      = $(TOOLPATH)hijk
+SJISCONV = $(EFG) $(TOOLPATH)sjisconv sjis
+CC1      = $(TOOLPATH)28GOcc1.exe -I$(INCPATH) -Os -Wall -quiet
+GAS2NASK = $(EFG) $(TOOLPATH)gas2nask -a
+NASK     = $(EFG) $(TOOLPATH)Nasuka
+OBJ2BIM  = $(EFG) $(TOOLPATH)obj2bim
+BIM2BIN  = $(TOOLPATH)bim2bin.exe
+CPP0     = $(TOOLPATH)28GOcpp0 -P -I$(INCPATH)
+ASKA     = $(TOOLPATH)Asuka
+NASKCNV  = $(EFG) $(TOOLPATH)naskcnv0 -l -s
+GOLIB    = $(EFG) $(TOOLPATH)golib00
+OSALINK  = $(TOOLPATH)osalink1.exe
+EDIMG    = $(TOOLPATH)edimg.exe
+DELE     = del
+COPY     = copy
+
+TXT2BIN  = ../ankfont0/txt2bin.exe
