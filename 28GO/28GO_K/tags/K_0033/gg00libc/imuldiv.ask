@@ -1,0 +1,21 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'imuldiv.ask']");
+asmout("GLOBAL _lib_imuldiv");
+
+/* int _lib_imuldiv(signed int a, signed int b, signed int c, int *r) */
+
+void _lib_imuldiv()
+{
+	PUSH(EDX);
+	PUSH(ECX);
+	EAX = [SS:ESP + 12]; /* a */
+	ECX = [SS:ESP + 24]; /* r */
+	IMUL((int) [SS:ESP + 16]); /* b */
+	IDIV((int) [SS:ESP + 20]); /* c */
+	[DS:ECX] = EDX;
+	POP(ECX);
+	POP(EDX);
+	return;
+}

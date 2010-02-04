@@ -1,0 +1,16 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'execcmd0.ask']");
+asmout("GLOBAL _lib_execcmd0");
+
+/*	void lib_execcmd0(const int cmd, ...) */
+
+void _lib_execcmd0()
+{
+	PUSH(EBX);
+	LEA(EBX, [SS:ESP + 8] /* cmd */);
+	CALL(0xc7, 0);
+	POP(EBX);
+	return;
+}
