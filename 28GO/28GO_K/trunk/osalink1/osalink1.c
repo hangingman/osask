@@ -4,6 +4,7 @@
 
 
 
+#include <guigui01.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -12,9 +13,21 @@
 #define	BUFSIZE		2 * 1024 * 1024
 
 
+
+//オプションファイル情報の構造体の定義
+struct optfiledata {
+  int fnames;     //有効なファイル名の数
+  unsigned char files[500];  //ファイル名。とりあえず500文字
+  int hpoint[50];
+  unsigned char *optname;
+};
+
+
+
 //関数のプロトタイプ宣言
 char tolower_hide(char moto);
-const int script(char *opt, char *inp, char *out, char *helmes_buf);
+int readoptfile( struct optfiledata *optfiledata);
+//const int script(char *opt, char *inp, char *out, char *helmes_buf);
 
 
 void wordstore(char *p, const int w)
@@ -44,69 +57,154 @@ const int dwordload(const unsigned char *p)
 }
 
 
-const int main(int argc, char **argv)
+//const int main(int argc, char **argv)
+void G01Main()
 {
-  //バージョン表記
-  if ( argc == 2 ){
-    if ( strcmp(argv[1],"-v") == 0 ){
-      fprintf(stderr, "osalink1 hideyosi version 1.1\n");
-      return 0;
-    }
-  }
+	char error[100];
 
-	FILE *fp0, *fp1;
+  //バージョン表記
+  //  if ( argc == 2 ){
+  //    if ( strcmp(argv[1],"-v") == 0 ){
+  //      fprintf(stderr, "osalink1 hideyosi version 1.1\n");
+  //      return 0;
+  //    }
+  //  }
+
+  //FILE *fp0, *fp1;
 	int i, i2,j, k, size, totalsize = 0;
 	unsigned char fname[32], name[8], c;
 	unsigned char fname2[32];
 
 
-	unsigned char buf0[2*1024*1024];
+	//	unsigned char buf0[2*1024*1024];
+	unsigned char *buf0 = jg01_malloc(BUFSIZE);
+	if ( *buf0 == -1 ){
+	  g01_putstr0("Mem Error!\n");
+	  return;
+	}
+
 
 	unsigned char *buf = buf0, *buf1, *buf2, *buf3;
 
 	unsigned char *optfile = OPTIONFILE, *outfile = OUTPUTFILE;
 
-	if (argc == 4)
-		return script(argv[1], argv[2], argv[3], buf0);
-	if (argc >= 2)
-		optfile = argv[1];
-	if (argc >= 3)
-		outfile = argv[2];
+	//if (argc == 4)
+	//	return script(argv[1], argv[2], argv[3], buf0);
+	//if (argc >= 2)
+	//	optfile = argv[1];
+	//if (argc >= 3)
+	//	outfile = argv[2];
+
 
 	// OPTIONFILEの読み込みと各ファイルのサイズ取得
-	fp0 = fopen(optfile, "r");
-	if (fp0 == NULL) {
-		fprintf(stderr, "Can't open \"%s\".\n", optfile);
-		return 1;
-	}
+	//optionファイルの読み込みは関数化。構造体に内容を入れて
+	//返してくる。
 
-	for (i = 0; fgets(fname,32,fp0) != NULL; i++) {
+
+	//構造体を宣言
+	struct optfiledata optfdata1;
+	optfdata1.optname = OPTIONFILE;
+	optfdata1.fnames = 3;
+
+	i=readoptfile(&optfdata1);
+
+		sprintf(error,"fnames=%d\n",optfdata1.fnames);
+		g01_putstr0(error);
+
+
+
+		//		for ( i = 0; i < optfdata1.fnames; i++){
+		//		  g01_putstr0(optfdata1.files + optfdata1.hpoint[i] );
+		//		  g01_putstr0("\n");
+		//		}
+
+	//ここで構造体にファイル名の配列情報が来ているはず・・・
+
+
+
+
+
+	//fp0 = fopen(optfile, "r");
+	//	if (fp0 == NULL) {
+	//		fprintf(stderr, "Can't open \"%s\".\n", optfile);
+	//		return 1;
+	//	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	for (i = 0; i < optfdata1.fnames; i++) {
 
 	  //改行コードの引っこ抜き
-	  for ( i2 = 31; i2 != 0; i2--){
-	    if ( fname[i2] == 0x0a ) fname[i2] = 0x0;
-	    if ( fname[i2] == 0x0d ) fname[i2] = 0x0;
-	  }
+	  // for ( i2 = 31; i2 != 0; i2--){
+	  //	    if ( fname[i2] == 0x0a ) fname[i2] = 0x0;
+	  //	    if ( fname[i2] == 0x0d ) fname[i2] = 0x0;
+	  //	  }
 
 	  //わっからん・・・こうやってコピーするとうまくいく・・・
-	  strcpy (fname2,fname);
+	  //	  strcpy (fname2,fname);
 
-		fp1 = fopen(fname2, "rb");
-		if (fp1 == NULL) {
+
+
+
+
+	  //fp1 = fopen(fname2, "rb");
+	  //	  jg01_fopen(1, 4, optfile);
+
+	  g01_putstr0(optfdata1.files + optfdata1.hpoint[i]);
+	  g01_putstr0(" Reading....");
+
+	  jg01_fopen(1, 4, optfdata1.files + optfdata1.hpoint[i]);
+	  size = jg01_fread1_4(BUFSIZE - totalsize, buf + totalsize);
+	  
+	  if (size == 0){
+	    g01_putstr0("error\n");
+	    return;
+	  }
+
+	  *fname = optfdata1.files + optfdata1.hpoint[i];
+
+
+	  jg01_fclose(4);
+	  g01_putstr0(" OK!");
+	  sprintf(error,"%d bit readen\n",size);
+	  g01_putstr0(error);
+
+	  sprintf(error,"buf=%d\n",buf+totalsize);
+	  g01_putstr0(error);
+
+
+
+	  //		if (fp1 == NULL) {
 err1:
-			fclose(fp0);
-			fprintf(stderr, "Can't open \"%s\".\n", fname2);
-			return 1;
-		}
-			fprintf(stderr, "reading %s \n", fname2);
+	  //			fclose(fp0);
+	  //			fprintf(stderr, "Can't open \"%s\".\n", fname2);
+	  //			return 1;
+	  //		}
+	  //			fprintf(stderr, "reading %s \n", fname2);
 
 		buf1 = buf + totalsize;
-		size = fread(buf + totalsize, 1, BUFSIZE - totalsize, fp1);
-		fclose(fp1);
+		//		size = fread(buf + totalsize, 1, BUFSIZE - totalsize, fp1);
+		//		fclose(fp1);
+
+	       
 		if (size <= 0)
-			goto err1;
+		  //	goto err1;
+		  return 1;
+
 		if (size >= BUFSIZE - totalsize)
-			goto err1;
+		  //goto err1;
+		  return 1;
 		if (i == 0) {
 			buf2 = buf + (wordload(buf + 0x204) << 4) - 16 + 0x220;
 			goto skip; /* BASE.EXEは加工しない */
@@ -144,7 +242,9 @@ skip:
 		while (totalsize & 0x0f)
 			*(buf + totalsize++) = '\0'; /* パラグラフ単位のアライン */
 	}
-	fclose(fp0);
+	//fclose(fp0);
+	//ここでファイル名のループは終わり
+
 
 	/* ヘッダ調整 */
 	wordstore(buf + 0x02, totalsize & 0x01ff); // 最終ページサイズ
@@ -156,13 +256,25 @@ skip:
 		size = (totalsize + (0x1ff - 0x200)) >> 9;
 		buf[0x020b] =  size       & 0xff;
 		buf[0x020c] = (size >> 8) & 0xff;
+
 	}
 
+
+	sprintf(error,"totalsize=%d",totalsize);
+	g01_putstr0(error);
+
+
 	/* 出力 */
-	fp1 = fopen(outfile, "wb");
-	fwrite(buf, 1, totalsize, fp1);
-	fclose(fp1);
-	return 0;
+	//	fp1 = fopen(outfile, "wb");
+	//	fwrite(buf, 1, totalsize, fp1);
+	//	fclose(fp1);
+	//	return 0;
+
+	jg01_fopen(0x19, 5,  outfile);
+	jg01_fwrite1f_5(totalsize,buf);
+	jg01_fclose(5);
+
+
 }
 
 char *skipspace(char *s, char *s1)
@@ -331,14 +443,20 @@ err:
 	return NULL;
 }
 
+
+//この関数は使われていないと思うんだが･･
+/*
 const int script(char *opt, char *inp, char *out, char *helmes_buf)
-/* スクリプトが4KBを超えたら死にます */
+     //スクリプトが4KBを超えたら死にます
 {
+
+
 	unsigned char *buf = helmes_buf + 4 * 1024, *scr0 = helmes_buf, *scr1, *s, *s1;
-	FILE *fp;
+		FILE *fp;
 	int size, memofs, filofs;
 
-	fp = fopen(opt, "r");
+		fp = fopen(opt, "r");
+
 	if (fp == NULL)
 		goto err;
 	scr1 = scr0 + fread(scr0, 1, 4 * 1024, fp);
@@ -411,7 +529,7 @@ err:
 	return 0;
 }
 
-
+*/
 
 
 char tolower_hide(char moto){
@@ -422,3 +540,119 @@ char tolower_hide(char moto){
        return moto;
     }
 }
+
+
+
+
+//オプションファイルを読み込み、ファイル名の構造体を返す
+int readoptfile(struct optfiledata *optdata1){
+
+  int i,i2;
+  int lfs;
+  int fnames;
+
+
+	jg01_fopen(1, 4, optdata1->optname);
+	jg01_fread0_4(2 * 1024 * 1024, g01_bss1a1);
+	if (strlen(g01_bss1a1) == 0) {
+	  g01_putstr0("Can't open optfile\n");
+	  return;
+	}
+  g01_putstr0("cccccccc\n");
+
+	//まずは改行コードを一旦統一する
+	for ( i = 0; i < strlen(g01_bss1a1); i++){
+	  //とりあえずLFに統一するか・・・
+	  if (g01_bss1a1[i] == 0x0D) g01_bss1a1[i] = 0x0A;
+	  //これで、CRが全部LFに置換されるはず。
+	}
+
+	//先頭にある邪魔なLFなどを排除するため、開始地点を探っておく
+	int stppoint; stppoint = 0;
+	for ( i =0; i < strlen(g01_bss1a1); i++){
+	  if ( g01_bss1a1[i] != 0x0A ){
+	    stppoint = i;
+	    break;
+	  }
+	}
+	//これでもし先頭にLFがあっても全て飛ばした位置から開始できる
+
+
+	//新しい配列変数を確保する。
+	i2 = 0;
+	lfs = 0;
+
+	//	unsigned char files[strlen(g01_bss1a1)+1];
+	//	unsigned char *files = tttttt.files;
+	unsigned char *files = optdata1->files;
+
+	for ( i = stppoint; i < strlen(g01_bss1a1); i++){
+	  if ( g01_bss1a1[i] == 0x0A && g01_bss1a1[i-1] == 0x0A ){
+	    //  連続したLFだったらシカトして進める。
+	  }
+	  else {
+	    if ( g01_bss1a1[i] == 0x0A ){
+	      files[i2] = 0;
+	      lfs++;
+	    }
+	    else {
+	      files[i2] = g01_bss1a1[i];
+	    }
+	    i2++;
+	    //  LFを終端コードに置換
+	  }
+	}
+	//最後に終端コードを打っておく
+	files[i2+1] = 0;
+
+	//エラーチェック用
+	char error[100];
+	//sprintf(error,"ii2=%d\n",ii2);
+	//	g01_putstr0(error);
+	//	g01_putstr0(files);
+
+
+	//これで、0によって区切られた配列になったはず。
+	//files配列内の、0の位置を記憶する配列を用意する。
+	//厳密には0の前。行頭というべきか・・・
+	//	int zeropoint[lfs + 1];
+	//	int *zeropoint = optdata1->hpoint;
+	//↑の処理で先頭は必ず行頭になってるはずなので・・・
+	optdata1->hpoint[0]=0;
+	fnames = 1;
+	for (i = 1; i < i2 +1; i++){
+	    if (files[i] != 0 && files[i-1] == 0){
+	      //ここが行頭になるはず。位置を記憶
+	      optdata1->hpoint[fnames] = i;
+	      fnames++;
+	    }
+	}
+
+	//これで、有効な行数はi3個。lfpointが行の先頭になっているはず。
+		sprintf(error,"fnames=%d\n",fnames);
+		g01_putstr0(error);
+	//
+		//				for ( i = 0; i < files; i++){
+		//			g01_putstr0(files + optdata1->hpoint[i] );	g01_putstr0("\n");
+		//					}
+
+	//ここまででoptファイル読み込みの処理は終わった。
+	//ファイルをクローズし、バッファも破棄する。
+	jg01_fclose(4); 
+	//	jg01_mfree(2*024*1024,buffer1);
+
+
+	optdata1->fnames = fnames;
+
+
+
+	return 0;
+
+
+
+
+
+
+
+
+ }
