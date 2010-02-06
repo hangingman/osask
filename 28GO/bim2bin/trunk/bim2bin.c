@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 
 	if (argc <= 2) {
 		fprintf(stdout,
-			"bim2bin hideyosi version 1.0\n\t executable binary maker for GUIGUI00 (OSASK API)\n"
+			"bim2bin hideyosi version 1.1\n\t executable binary maker for GUIGUI00 (OSASK API)\n"
 			"usage : \n"
 			">bim2bin [malloc:#] [mmarea:#] in:(file) out:(file)\n"
 			" [-bim | -exe512 | -bin0 | -data | -restore | -osacmp]\n"

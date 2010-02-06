@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET     = bim2bin
 MODE       = exe
 OBJS       = $(TARGET).obj
