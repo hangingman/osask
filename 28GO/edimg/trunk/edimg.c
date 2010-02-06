@@ -82,7 +82,7 @@ int main(int argc, UCHAR **argv)
 {
   if (argc <= 2) {
     fprintf(stdout,
-	    "edimg hideyosi version 1.1\n"
+	    "edimg hideyosi version 1.2\n"
 	    "usage : \n"
 	    ">edimg imgin:osaimgat.bin bias:9 copy from:@:!guide!.txt to:./\n"
 	    ">edimg @srcipt0.txt\n"

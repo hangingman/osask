@@ -1,3 +1,5 @@
+include ../z_tools/command.txt
+
 TARGET     = edimg
 MODE       = exe
 OBJS       = $(TARGET).obj autodec.obj sargow32.lib
