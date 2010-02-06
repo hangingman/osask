@@ -1,8 +1,8 @@
 #include "parser.h"
 
 void usage(void){
-	puts("Asuka Ver1.0 by hideyosi");
-	puts("\tUsage: aska <InputFile> <OutputFile>");
+	puts("Asuka Ver1.1 by hideyosi");
+	puts("\tUsage: Asuka <InputFile> <OutputFile>");
 }
 
 int main(int argc, char* argv[]){
