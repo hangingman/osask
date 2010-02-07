@@ -1,0 +1,80 @@
+●これはなにか？
+　g01アプリのサンプルです。
+　作品というよりは、プログラミングする時の参考になれば的な意味合いが強いかな？
+
+
+●ライセンス
+　この中にあるものは全部はKL-01です。
+
+
+●メイクの仕方
+　・z_toolsディレクトリ内にhidetol_8をコピーしてください。（hidetol_8以外
+　　では確認を取っていません。ツールが足りないので、7以前ではダメでしょう）
+　
+　・!cons.batをダブルクリックしてコンソールを出します。
+　
+　・あとはプロンプトで、　>make　とやれば、全てがコンパイルできるはずです。
+　
+　・>make clean　で、全ての中間ファイルおよびg01ファイルが削除されます。
+　
+　・>make install　で、コンパイルが完了したg01アプリを全てOKディレクトリに
+　　コピーします。インストールとは言ってもコピー以外は行いませんのでご安心を。
+
+
+
+---
+
+  以下は簡単なアプリの説明です。
+
+＜非tolsetアプリ＞
+アプリ名  サイズ  最新      ソース     説明
+hello         16  abcdw012  abcdw012   "hello, world\n"を表示する
+helloc1       67  abcdw012  abcdw012   helloのC版
+helloc        68  abcdw009  abcdw009   ソースが普通のhelloc1
+chars         13  abcdw009  abcdw009   キャラクタコード0x20から0x7eを出力
+echo           6  abcdw009  なし(注1)  コマンドライン引数のエコーバック
+echoc         50  abcdw009  abcdw009   echoのC版
+pi           189  abcdw014  abcdw009   円周率算出(高負荷テスト用)
+calc       1,503  abcdw014  abcdw009   コマンドライン計算機(.hrbベンチマーク用)
+calc1         86  abcdw012  abcdw012   calcを.g01向けに作り直したもの
+cpyc         119  abcdw014  abcdw009   tolsetのcpyのC版
+cpy           45  abcdw009  abcdw009   ファイルのコピーと連結とtek圧縮解除
+dmparg     1,082  abcdw014  abcdw009   コマンドライン引数のテスト
+calendar     358  abcdw014  abcdw014   カレンダー表示
+calendrc     538  abcdw014  abcdw014   calendarのC版
+cntup0       997  abcdw016  abcdw016   数を数える（sleep1のテスト）
+hexdump      168  abcdw014  abcdw014   ファイルの16進ダンプ表示
+testkey0     995  abcdw016  abcdw016   キー入力のテスト・C版
+testkey1     118  abcdw016  abcdw016   キー入力のテスト・C版
+cclsc         65  abcdw016  abcdw016   コンソールのcls・C版
+ccolorc      120  abcdw016  abcdw016   コンソールのカラー設定・C版
+tcns00a      206  abcdw017  abcdw017   コンソールの色見本・C版
+tcns00b      206  abcdw017  abcdw017   コンソールの色見本・C版
+tcns01a      232  abcdw016  abcdw016   テンキーで@が歩く・C版 (注2)
+tcns02a      484  abcdw017  abcdw017   一人テニスゲーム・C版 (注3)
+tcns02b      484  abcdw017  abcdw017   一人テニスゲーム・C版 (注3)
+tcns03a      467  abcdw017  abcdw017   文字早うちゲーム・C版 (注4)
+tcns04a      595  abcdw017  abcdw017   走って星を集めるゲーム・C版 (注5)
+
+
+ (注1) これはバイナリエディタでゴリゴリ書いたらしいのでソースが存在しない
+
+ (注2) tcns01は、テンキーの2468で動く。スペースで色変わる。Enterで終了。
+
+ (注3) tcns02は、テンキーの46で動く。
+
+ (注4) tcns03は、落ちてくる文字を入力する。大文字小文字の区別なし。だんだん
+        速くなって難しくなる。誤入力すると減点。1とIや0とOの区別が難しい。
+        フォントによっては見分けられず、両方押してみるしかないかもしれない。
+
+ (注5) tcns04は、テンキーの2468で動く。壁にぶつかるか、自分の軌跡にぶつかる
+        と終了。バックすれば即死。
+
+
+
+●ご注意
+　このアーカイブ内のものはhideyosiの責任において配布されています。
+
+
+2010/2/7　　hideyosi　　　　　　　　　　　　　　http://osask.net/w/502.html
+

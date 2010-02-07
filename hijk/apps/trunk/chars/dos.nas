@@ -1,0 +1,10 @@
+	MOV		AH,0x02
+	MOV		DL,0x20
+do:
+	INT		0x21
+	INC		DX
+	CMP		DL,0x7f
+	JB		do
+	MOV		DL,0x0a
+	INT		0x21
+	RET

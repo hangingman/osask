@@ -1,0 +1,51 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+void header()
+{
+	DB(0x47, 0x01, 0x05);
+}
+
+void puteax();
+
+void main()
+{
+	//	CALL([ESI]);
+	DB(0x38, 0x65, 0x00, 0x21, 0x69, 0x6e, 0x74, 0x87);
+	asmout("DB 'formula'");
+	DB(0x48, 0x60, 0x05, 0x13, 0x3d, 0x20, 0x00);
+	PUSH(EAX);
+	if (EAX < 0) {
+		CALL([ESI]);
+		DB(0x51, 0x2d, 0x00);
+		NEG(EAX);
+	}
+	EBX = EDX;
+	[EBX] = CL;
+	CL = 10;
+	puteax();
+	CALL([ESI]);
+	DB(0x51, 0x20, 0x3d, 0x20, 0x30, 0x78, 0x00);
+	POP(EAX);
+	CL = 16;
+}
+
+void puteax()
+{
+	do {
+		EBX++;
+		EDX = 0;
+		DIV(ECX);
+		DL += 0x10;
+		[EBX] = DL;
+	} while (EAX != 0);
+	do {
+		EBX--;
+		CALL([ESI]);
+		DB(0x55, 0x16, 0xba);
+		DL = [EBX];
+	} while (DL != 0);
+//	return;
+}
+
+/* naskcnv0.g01 -l -s */

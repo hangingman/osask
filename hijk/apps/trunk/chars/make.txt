@@ -1,0 +1,9 @@
+このプログラムにはMakefileを特に用意はしていません。
+
+コマンドラインから
+>..\z_tools\efg01.exe ../z_tools/nask.g01 chars.nas chars.g01 chars.lst
+と入力すれば作れます。
+
+DOS版も同様に
+>..\z_tools\efg01.exe ../z_tools/nask.g01 dos.nas dos.com dos.lst
+と入力すれば作れます。
