@@ -18,4 +18,4 @@ EDIMG    = $(TOOLPATH)edimg.exe
 DELE     = del
 COPY     = copy
 
-TXT2BIN  = ../ankfont0/txt2bin.exe
+TXT2BIN  = $(EFG) $(TOOLPATH)makefont
