@@ -34,9 +34,10 @@ qe :
 	$(COPY) qemu\OSAKA.EXE OSAKA_QE.EXE
 	$(EDIMG) binin:OSAKA_QE.EXE exe2bin seg:2048 binout:OSAKA_QE.SYS
 
-run : Makefile qemu/edimgopt.txt $(TOOLPATH)osa_qemu/OSAIMGAT.BIN
+#run : Makefile qemu/edimgopt.txt $(TOOLPATH)osa_qemu/OSAIMGAT.BIN
+run : Makefile qemu/edimgopt.txt qemu/OSAIMGAT.BIN
 	$(MAKE) qe
-	$(EDIMG) imgin:$(TOOLPATH)osa_qemu/OSAIMGAT.BIN @qemu/edimgopt.txt \
+	$(EDIMG) imgin:qemu/OSAIMGAT.BIN @qemu/edimgopt.txt \
 		imgout:qemu/OSAIMGQE.BIN imgout:$(TOOLPATH)qemu/FDIMAGE0.BIN
 	$(MAKE) -C $(TOOLPATH)qemu
 
