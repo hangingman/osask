@@ -1,2 +1,0 @@
-ovrcopy from:osaka_qe.sys to:@:OSAKA.SYS
-copy from:qemu/OSASK0.PSF to:@:
