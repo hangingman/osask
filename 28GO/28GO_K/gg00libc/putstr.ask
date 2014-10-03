@@ -1,0 +1,47 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'putstr.ask']");
+asmout("GLOBAL _lib_putstring_ASCII");
+
+/* void lib_putstring_ASCII(const int opt, const int x_pos, const int y_pos,
+	struct LIB_TEXTBOX *textbox, const int color, const int backcolor, const char *str) */
+
+void _lib_putstring_ASCII()
+{
+	PUSH(EBP);
+	PUSH(EBX);
+	PUSH(EAX);
+	EBP = ESP;
+	EBX = [SS:EBP + 40]; /* str */
+	EAX = 0;
+	CMP(AL, [DS:EBX]);
+	PUSH(EAX);
+	PUSH(DS);
+	PUSH(EBX);
+	if (==)
+		goto skip;
+	do {
+		EBX++;
+	} while (AL != [DS:EBX]);
+	EBX -= [SS:EBP + 40]; /* str */
+	PUSH(EBX); /* length */
+	PUSH(EAX); /* base */
+	EAX = [SS:EBP + 16]; /* opt */
+	PUSH((int) [SS:EBP + 36]); /* backcolor */
+	AH |= 0x50; /* ptr, bytes */
+	PUSH((int) [SS:EBP + 32]); /* color */
+	PUSH((int) [SS:EBP + 28]); /* textbox */
+	PUSH((int) [SS:EBP + 24]); /* y_pos */
+	PUSH((int) [SS:EBP + 20]); /* x_pos */
+	PUSH(EAX);
+	PUSH(0x0040);
+	EBX = ESP;
+	CALL(0x00c7, 0);
+skip:
+	ESP = EBP;
+	POP(EAX);
+	POP(EBX);
+	POP(EBP);
+	return;
+}

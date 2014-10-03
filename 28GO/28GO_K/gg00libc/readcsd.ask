@@ -1,0 +1,14 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'readcsd.ask']");
+asmout("GLOBAL _lib_readCSd");
+
+/* int _lib_readCSd(int ofs) */
+
+void _lib_readCSd()
+{
+	EAX = [SS:ESP + 4];
+	EAX = [CS:EAX];
+	return;
+}

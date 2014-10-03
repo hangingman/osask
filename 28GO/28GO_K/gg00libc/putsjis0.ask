@@ -1,0 +1,56 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'putsjis0.ask']");
+asmout("GLOBAL _lib_putstring_SJIS0");
+
+/* void lib_putstring_SJIS0(const int opt, const int x_pos, const int y_pos,
+	struct LIB_TEXTBOX *textbox, const int color, const int backcolor, const char *str) */
+
+/*	ç≈ëÂÇ≈124ï∂éöÇ‹Ç≈ÇµÇ©ëŒâûÇµÇƒÇ¢Ç»Ç¢Ç™ÅAë„ÇÌÇËÇ…ë¨Ç¢ */
+
+void _lib_putstring_SJIS0()
+{
+	PUSH(EBP);
+	PUSH(EBX);
+	PUSH(ECX);
+	PUSH(EAX);
+	EBP = ESP;
+	ECX = [SS:EBP + 44]; /* str */
+	EAX = 0;
+	if (AL == [DS:ECX])
+		goto skip;
+	ESP -= 512;
+	EBX = ESP;
+	do {
+		ECX++;
+	} while (AL != [DS:ECX]);
+	ECX -= [SS:EBP + 44];
+	[DS:EBX + ECX * 4] = EAX; /* eoc */
+	PUSH(ECX);
+	PUSH((int) [SS:EBP + 40]); /* backcolor */
+	PUSH((int) [SS:EBP + 36]); /* color */
+	PUSH((int) [SS:EBP + 32]); /* textbox */
+	PUSH((int) [SS:EBP + 28]); /* y_pos */
+	PUSH((int) [SS:EBP + 24]); /* x_pos */
+	PUSH((int) [SS:EBP + 20]); /* opt */
+	PUSH(0x0040);
+	PUSH(0x0400);
+	PUSH(0x4e00);
+	PUSH(0x000c);
+	PUSH(EBX);
+	PUSH(0x000c);
+	PUSH((int) [SS:EBP + 44]); /* str */
+	PUSH(ECX);
+	PUSH(0x0001);
+	PUSH(0x00ec);
+	EBX = ESP;
+	CALL(0x00c7, 0);
+	ESP = EBP;
+skip:
+	POP(EAX);
+	POP(ECX);
+	POP(EBX);
+	POP(EBP);
+	return;
+}

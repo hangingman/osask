@@ -1,0 +1,29 @@
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+void header()
+{
+	DB(0x47, 0x01, 0x05);
+}
+
+void main()
+{
+	//	CALL([ESI]);
+	DB(0x38, 0x65, 0x08, 0xa8, 0xc4, 0x86, 0x13, 0x53);	/* [3] [6 !5 0 10 12 4] [6 1 3 5] [3] */
+	for (;;) {
+		CALL([ESI]);
+		DB(0x86, 0x01, 0x00, 0x40);	/* [6 0 ECX EAX 0 4] */
+		if (EAX == 0)
+			break;
+		do {
+			CALL([ESI]);
+			DB(0x37, 0xb9, 0x98, 0x04, 0x04, 0x2d, 0xfb, 0x02, 0x7b);	/* junk 4 0 4 2 2M 0 EDX */
+			DB(0x99, 0x80, 0x43, 0x52, 0x60, 0x23);		/* junk 4 3 5 2 EAX EDX */
+			/* 7b9-98-0 = 0 << 24 = 16M-1, 7b8-95-1 = 1 << 21 */
+			/* 1fb=2M */
+		} while (EAX != 0);
+		ECX++;
+	}
+}
+
+/* naskcnv0.g01 -l -s */
