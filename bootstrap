@@ -1,4 +1,8 @@
 #!/bin/sh
 
-# exec autoreconf
+libtoolize --force
+aclocal
+autoheader
+automake --force-missing --add-missing
+autoconf
 autoreconf -vi -I `pwd`/m4
