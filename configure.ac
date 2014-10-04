@@ -5,6 +5,7 @@ AC_PREREQ([2.69])
 AC_INIT([osask], [4.7.0], [newserver002@gmail.com])
 AC_CONFIG_SRCDIR([OSASK/winman0.c])
 AC_CONFIG_HEADERS([config.h])
+AC_USE_SYSTEM_EXTENSIONS
 
 # Checks for programs.
 AC_PROG_CXX
@@ -31,6 +32,7 @@ AC_TYPE_UINT32_T
 
 # Checks for library functions.
 AM_GNU_GETTEXT
+AM_GNU_GETTEXT_VERSION([0.18])
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
 AC_FUNC_MALLOC
@@ -41,10 +43,26 @@ AC_FUNC_REALLOC
 AC_FUNC_STRTOD
 AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero getcwd getpagesize memchr memmove mempcpy memset munmap nl_langinfo re_comp regcomp setenv setlocale sqrt stpcpy strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk strrchr strspn strstr strtol strtoul tzset utime])
 
-AC_CONFIG_FILES([28GO/28GO_G/gcc/Makefile
-                 28GO/28GO_G/intl/Makefile
-                 28GO/28GO_G/libiberty/Makefile
-                 28GO/28GO_K/Makefile
+#
+# Below files add later...
+#
+
+# GCC is not yet build...
+# 28GO/28GO_G/gcc/Makefile
+# 28GO/28GO_G/intl/Makefile
+# 28GO/28GO_G/libiberty/Makefile
+
+# osask is not yet build
+# OSASK/Makefile
+# OSASK/bochs/Makefile
+# OSASK/nec98/makefile
+# OSASK/pcat/Makefile
+# OSASK/qemu/Makefile
+# OSASK/sgg00lib/Makefile
+# OSASK/towns/Makefile
+# OSASK/vmware3/Makefile
+
+AC_CONFIG_FILES([28GO/28GO_K/Makefile
                  28GO/28GO_K/Nasuka/Makefile
                  28GO/28GO_K/akusA/Makefile
                  28GO/28GO_K/bim2g01/Makefile
@@ -88,13 +106,5 @@ AC_CONFIG_FILES([28GO/28GO_G/gcc/Makefile
                  28GO/bim2bin/dtk5s0d/Makefile
                  28GO/bim2bin/dtk5s0r/Makefile
                  28GO/edimg/Makefile
-                 Makefile
-                 OSASK/Makefile
-                 OSASK/bochs/Makefile
-                 OSASK/nec98/makefile
-                 OSASK/pcat/Makefile
-                 OSASK/qemu/Makefile
-                 OSASK/sgg00lib/Makefile
-                 OSASK/towns/Makefile
-                 OSASK/vmware3/Makefile])
+                 Makefile])
 AC_OUTPUT
