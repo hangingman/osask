@@ -1,6 +1,7 @@
 *.o
 *.lo
 *.log
+*Makefile
 Makefile
 configure
 intl/*
