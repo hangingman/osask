@@ -5,6 +5,7 @@ Makefile
 configure
 intl/*
 po/*
+m4/*
 */Makefile.in
 Makefile.in
 autom4te*
