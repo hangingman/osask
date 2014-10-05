@@ -10,7 +10,6 @@ SUBDIRS = Nasuka     \
 	  doscmd     \
 	  drv_osa    \
 	  drv_stdc   \
-	  drv_w32    \
 	  funcs	     \
 	  g01libc0   \
 	  g01libc1   \
@@ -31,5 +30,10 @@ SUBDIRS = Nasuka     \
 	  rjcg01     \
 	  sjisconv   \
 	  tekmin0    \
-	  tekmin1    \
-	  w32clibc
+	  tekmin1
+
+if USE_WINDOWS
+SUBDIRS += drv_w32   \
+	   w32clibc
+
+endif

@@ -1,8 +1,7 @@
 #!/bin/sh
 
 libtoolize --force
-aclocal
+aclocal -I `pwd`/m4
 autoheader
 automake --force-missing --add-missing
 autoconf
-autoreconf -vi -I `pwd`/m4

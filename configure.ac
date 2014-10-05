@@ -3,6 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT([osask], [4.7.0], [newserver002@gmail.com])
+AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([OSASK/winman0.c])
 AC_CONFIG_HEADERS([config.h])
@@ -18,7 +19,8 @@ AC_PROG_CPP
 
 # Checks for header files.
 AC_FUNC_ALLOCA
-AC_CHECK_HEADERS([langinfo.h libintl.h limits.h locale.h malloc.h stddef.h stdlib.h string.h unistd.h utime.h wchar.h wctype.h])
+AC_CHECK_HEADERS([langinfo.h libintl.h limits.h locale.h malloc.h stddef.h 
+		  stdlib.h string.h unistd.h utime.h wchar.h wctype.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL
@@ -33,6 +35,31 @@ AC_CHECK_DECLS([sys_siglist])
 AC_TYPE_UINT32_T
 LT_INIT
 
+# Set bool value for Makefile.am
+AM_CONDITIONAL(USE_MAC_OSX, false)
+AM_CONDITIONAL(USE_LINUX, false)
+AM_CONDITIONAL(USE_WINDOWS, false)
+AM_CONDITIONAL(USE_BSD, false)
+
+# Checks for HostOS
+case "$host" in
+        *-*-mingw*|*-*-cygwin*)
+		AM_CONDITIONAL(USE_WINDOWS, true)
+                ;;
+        *-*-linux*)
+		AM_CONDITIONAL(USE_LINUX, true)
+                ;;
+        *-*-darwin*)
+		AM_CONDITIONAL(USE_MAC_OSX, true)
+                ;;
+        *-*-*bsd*)
+		AM_CONDITIONAL(USE_BSD, true)
+                ;;
+        *)
+                AC_MSG_WARN([*** Please add $host to configure.ac checks!])
+                ;;
+esac
+
 # Checks for library functions.
 AM_GNU_GETTEXT_VERSION([0.18])
 AC_FUNC_ERROR_AT_LINE
@@ -43,7 +70,11 @@ AC_FUNC_MKTIME
 AC_FUNC_MMAP
 AC_FUNC_REALLOC
 AC_FUNC_STRTOD
-AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero getcwd getpagesize memchr memmove mempcpy memset munmap nl_langinfo re_comp regcomp setenv setlocale sqrt stpcpy strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk strrchr strspn strstr strtol strtoul tzset utime])
+AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero 
+		getcwd getpagesize memchr memmove mempcpy memset munmap 
+		nl_langinfo re_comp regcomp setenv setlocale sqrt stpcpy 
+		strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk 
+		strrchr strspn strstr strtol strtoul tzset utime])
 
 #
 # Below files add later...
