@@ -1,8 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS =	     \
-	  drv_osa    \
+SUBDIRS = drv_osa    \
 	  drv_stdc   \
-	  Nasuka     \
+	  nask       \
 	  akusA	     \
 	  bim2g01    \
 	  bim2hrb    \

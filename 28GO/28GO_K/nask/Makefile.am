@@ -1,5 +1,7 @@
 AM_CFLAGS      = -I$(top_builddir)/28GO/28GO_K/g01libc1/g01lib_h
-bin_PROGRAMS   = nasuka
+bin_PROGRAMS   = nasuka nask
+
+# naska
 nasuka_SOURCES = \
 mmmalloc.c	 \
 Nasuka.c	 \
@@ -8,3 +10,6 @@ Nasuka_sub.c	 \
 ll_lib.c	 \
 ll.c 
 
+# nask
+nask_SOURCES   = \
+nask.c

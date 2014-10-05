@@ -106,7 +106,7 @@ AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero         \
 # 28GO/bim2bin/dtk5s0r/Makefile
 
 AC_CONFIG_FILES([28GO/28GO_K/Makefile
-                 28GO/28GO_K/Nasuka/Makefile
+                 28GO/28GO_K/nask/Makefile
                  28GO/28GO_K/akusA/Makefile
                  28GO/28GO_K/bim2g01/Makefile
                  28GO/28GO_K/bim2hrb/Makefile
