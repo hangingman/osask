@@ -1,56 +1,59 @@
-fwrite.c
-fclose.c
-strcat.c
-mmmalloc.c
-strlen.c
-abort.c
-calloc.c
-memmove.c
-printf.c
-fseek.c
-ldexp.c
-strchr.c
-mmreallo.c
-symalloc.c
-qsort.c
-strcmp.c
-malloc.c
-vfprintf.c
-strtol.c
-strncmp.c
-memchr.c
-vsprintf.c
-strcpy.c
-fread.c
-fopen.c
-fprintf.c
-strncat.c
-strstr.c
-strtoul.c
-realloc.c
-ftell.c
-atof.c
-fgets.c
-strdup.c
-fputc.c
-feof.c
-ungetc.c
-strncpy.c
-sprintf.c
-memcmp.c
-abs.c
-memcpy.c
-memset.c
-fgetc.c
-errno.c
-strspn.c
-rand.c
-strpbrk.c
-atoi.c
-strrchr.c
-strcspn.c
-frexp.c
-fputs.c
-strtoul0.c
-stdin.c
+noinst_LTLIBRARIES	= libgolib.la
+libgolib_la_LDFLAGS 	= -no-undefined -version-info 1:0:0
+libgolib_la_SOURCES	= \
+fwrite.c		  \
+fclose.c		  \
+strcat.c		  \
+mmmalloc.c		  \
+strlen.c		  \
+abort.c			  \
+calloc.c		  \
+memmove.c		  \
+printf.c		  \
+fseek.c			  \
+ldexp.c			  \
+strchr.c		  \
+mmreallo.c		  \
+symalloc.c		  \
+qsort.c			  \
+strcmp.c		  \
+malloc.c		  \
+vfprintf.c		  \
+strtol.c		  \
+strncmp.c		  \
+memchr.c		  \
+vsprintf.c		  \
+strcpy.c		  \
+fread.c			  \
+fopen.c			  \
+fprintf.c		  \
+strncat.c		  \
+strstr.c		  \
+strtoul.c		  \
+realloc.c		  \
+ftell.c			  \
+atof.c			  \
+fgets.c			  \
+strdup.c		  \
+fputc.c			  \
+feof.c			  \
+ungetc.c		  \
+strncpy.c		  \
+sprintf.c		  \
+memcmp.c		  \
+abs.c			  \
+memcpy.c		  \
+memset.c		  \
+fgetc.c			  \
+errno.c			  \
+strspn.c		  \
+rand.c			  \
+strpbrk.c		  \
+atoi.c			  \
+strrchr.c		  \
+strcspn.c		  \
+frexp.c			  \
+fputs.c			  \
+strtoul0.c		  \
+stdin.c			  \
 dummy.c

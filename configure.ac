@@ -19,7 +19,7 @@ AC_PROG_CPP
 
 # Checks for header files.
 AC_FUNC_ALLOCA
-AC_CHECK_HEADERS([langinfo.h libintl.h limits.h locale.h malloc.h stddef.h 
+AC_CHECK_HEADERS([langinfo.h libintl.h limits.h locale.h malloc.h stddef.h \
 		  stdlib.h string.h unistd.h utime.h wchar.h wctype.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -70,10 +70,10 @@ AC_FUNC_MKTIME
 AC_FUNC_MMAP
 AC_FUNC_REALLOC
 AC_FUNC_STRTOD
-AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero 
-		getcwd getpagesize memchr memmove mempcpy memset munmap 
-		nl_langinfo re_comp regcomp setenv setlocale sqrt stpcpy 
-		strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk 
+AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero         \
+		getcwd getpagesize memchr memmove mempcpy memset munmap	      \
+		nl_langinfo re_comp regcomp setenv setlocale sqrt stpcpy      \
+		strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk \
 		strrchr strspn strstr strtol strtoul tzset utime])
 
 #
@@ -94,6 +94,16 @@ AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero
 # OSASK/sgg00lib/Makefile
 # OSASK/towns/Makefile
 # OSASK/vmware3/Makefile
+
+# mystery zone...
+# 28GO/bim2bin/dtk1s0c/Makefile
+# 28GO/bim2bin/dtk1s0s/Makefile
+# 28GO/bim2bin/dtk2s0f/Makefile
+# 28GO/bim2bin/dtk2s0r/Makefile
+# 28GO/bim2bin/dtk5f0d/Makefile
+# 28GO/bim2bin/dtk5f0r/Makefile
+# 28GO/bim2bin/dtk5s0d/Makefile
+# 28GO/bim2bin/dtk5s0r/Makefile
 
 AC_CONFIG_FILES([28GO/28GO_K/Makefile
                  28GO/28GO_K/Nasuka/Makefile
@@ -130,14 +140,7 @@ AC_CONFIG_FILES([28GO/28GO_K/Makefile
                  28GO/Asuka/Makefile
                  28GO/Makefile
                  28GO/bim2bin/Makefile
-                 28GO/bim2bin/dtk1s0c/Makefile
-                 28GO/bim2bin/dtk1s0s/Makefile
-                 28GO/bim2bin/dtk2s0f/Makefile
-                 28GO/bim2bin/dtk2s0r/Makefile
-                 28GO/bim2bin/dtk5f0d/Makefile
-                 28GO/bim2bin/dtk5f0r/Makefile
-                 28GO/bim2bin/dtk5s0d/Makefile
-                 28GO/bim2bin/dtk5s0r/Makefile
                  28GO/edimg/Makefile
-                 Makefile])
+                 Makefile
+		 ])
 AC_OUTPUT

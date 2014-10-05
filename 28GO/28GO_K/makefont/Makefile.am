@@ -1,1 +1,2 @@
-makefont.c
+bin_PROGRAMS     = makefont
+makefont_SOURCES = makefont.c
