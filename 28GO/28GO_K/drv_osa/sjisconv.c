@@ -100,5 +100,3 @@ int sjisconv_main(struct STR_SJISCONV *params)
 
 	GOLD_exit(errflag);
 }
-
-#include "../funcs/m_sjiscv.c"

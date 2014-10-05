@@ -8,8 +8,8 @@
 #endif
 
 typedef unsigned char UCHAR;
-typedef unsigned int UINT;
-typedef UINT size_t;
+typedef unsigned int  UINT;
+#include <stddef.h>   /* size_t */
 
 #define GO_TERM_NORMAL		0
 #define GO_TERM_WORKOVER	1

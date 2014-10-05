@@ -1,5 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = Nasuka     \
+SUBDIRS =	     \
+	  drv_osa    \
+	  drv_stdc   \
+	  Nasuka     \
 	  akusA	     \
 	  bim2g01    \
 	  bim2hrb    \
@@ -8,8 +11,6 @@ SUBDIRS = Nasuka     \
 	  cpy	     \
 	  cpyc	     \
 	  doscmd     \
-	  drv_osa    \
-	  drv_stdc   \
 	  funcs	     \
 	  g01libc0   \
 	  g01libc1   \

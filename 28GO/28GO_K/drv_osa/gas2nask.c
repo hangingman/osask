@@ -142,5 +142,3 @@ int gas2nask_main(struct STR_GAS2NASK *params)
 
 	GOLD_exit(errflag);
 }
-
-#include "../funcs/m_gasnas.c"
