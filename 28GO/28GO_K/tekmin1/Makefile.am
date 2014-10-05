@@ -1,0 +1,1 @@
+tekmin1.c
