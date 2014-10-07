@@ -1,2 +1,2 @@
-bin_PROGRAMS   = do.cppmd
-do.cppmd_SOURCES = do.cppmd.cpp
+bin_PROGRAMS   = doscmd
+doscmd_SOURCES = doscmd.cpp

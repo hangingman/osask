@@ -1,2 +1,2 @@
-bin_PROGRAMS	= bin2.cppc
-bin2.cppc_SOURCES = bin2.cppc.cpp
+bin_PROGRAMS	= bin2ucc
+bin2ucc_SOURCES = bin2ucc.cpp

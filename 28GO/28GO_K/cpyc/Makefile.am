@@ -1,2 +1,2 @@
-bin_PROGRAMS	=.cppp.cpp
-cp.cpp_SOURCES	=.cppp.cpp.cpp
+bin_PROGRAMS	= cpyc
+cpyc_SOURCES	= cpyc.cpp
