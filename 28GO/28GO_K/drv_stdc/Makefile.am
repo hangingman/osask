@@ -5,3 +5,5 @@ cc1main.c		  \
 cc1pmain.c		  \
 cpp0main.c		  \
 drv_stdc.c
+
+AM_CFLAGS		= -I$(top_builddir)/28GO/28GO_K/include

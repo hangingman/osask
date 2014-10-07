@@ -7,5 +7,5 @@ else
 fi
 aclocal -I `pwd`/m4
 autoheader
-automake --force-missing --add-missing
+automake --add-missing
 autoconf

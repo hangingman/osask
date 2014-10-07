@@ -3,22 +3,18 @@
 /*   [OSASK 3978], [OSASK 3979]で光成さんの指摘を大いに参考にしました */
 /*	小柳さんのstring0に関する指摘も参考にしました */
 
-//#include "../include/stdlib.h"	/* malloc/free */
-
 typedef unsigned int size_t;
 
 #include "go_lib.h"
 
-#define	DEBUG			0
-
 int nask_LABELBUFSIZ = 256 * 1024;
 
+#define	DEBUG			0
 #define	OPCLENMAX		8	/* 足りなくなったら12にしてください */
-#define MAX_SECTIONS	8
-
+#define MAX_SECTIONS		8
 #define E_LABEL0		16
-int nask_L_LABEL0 = 16384; /* externラベルは16300個程度使える */
-int nask_maxlabels = 64 * 1024; /* 64K個(LL:88*64k) */
+int nask_L_LABEL0 = 16384;              /* externラベルは16300個程度使える */
+int nask_maxlabels = 64 * 1024;         /* 64K個(LL:88*64k) */
 
 static void setdec(unsigned int i, int n, UCHAR *s);
 static void sethex0(unsigned int i, int n, UCHAR *s);
@@ -27,10 +23,8 @@ static void *cmalloc(int size)
 {
 	int i;
 	char *p = GOL_memmanalloc(&GOL_memman, size);
-//	if (p) {
-		for (i = 0; i < size; i++)
-			p[i] = 0;
-//	}
+	for (i = 0; i < size; i++)
+		p[i] = 0;
 	return p;
 }
 
@@ -231,11 +225,8 @@ UCHAR *LL_skipcode(UCHAR *p);
 /* リマーク[DW](e8) : 4バイト出力[]つき */
 
 #define	REM_ADDR		0xe0
-//#define	REM_BYTE		0xe1	/* 廃止 */
-//#define	REM_WORD		0xe2	/* 廃止 */
-//#define	REM_DWRD		0xe4	/* 廃止 */
-#define	REM_ADDR_ERR	0xe5
-#define	REM_RANGE_ERR	0xe8
+#define	REM_ADDR_ERR		0xe5
+#define	REM_RANGE_ERR		0xe8
 #define REM_3B			0xf1
 #define REM_4B			0xf2
 #define REM_8B			0xf6
@@ -316,8 +307,6 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	for (i = 0; i < nask_maxlabels; i++)
 		labelflags[i] = 0;
 	for (i = 0; i < MAX_SECTIONS; i++) {
-	//	sectable[i].name[0] = '\0';
-	//	sectable[i].total_len = 0;
 		sectable[i].align0 = -1;
 		sectable[i].align1 = 1;
 		sectable[i].dollar_label2 = 0xffffffff;
@@ -347,9 +336,6 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	dest0[2] = 0;
 	dest0[3] = 0x68; /* 68-00 Intel-endian */
 	dest0[4] = 0x00;
-//	dest0[5] = 0x58; /* ORG */
-//	dest0[6] = 0x00; /* 0 */
-//	dest0[7] = 0x00;
 	dest0 += 5;
 
 	status->expr_status.dollar_label2 = 0xffffffff;
@@ -374,8 +360,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		put4b((int) src0, &dest0[5]);
 		dest0 += 9;
 		ifdef->bp = ifdef->bp0;
-	//	if (decode->dollar != 0 && status->expr_status.dollar_label0 == 0xffffffff)
-	//		status->expr_status.dollar_label0 = nextlabelid++;
+
 		if ((i = status->expr_status.dollar_label0) != 0xffffffff) {
 			if (labelflags[i] == 0) {
 				dest0[0] = 0x0e;
@@ -528,8 +513,6 @@ err:
 					decode->error = 3; /* data size error */
 					goto err;
 				}
-			//	if (j == 3)
-			//		goto err3;
 				if ((k & j) == 0)
 					goto err3;
 
@@ -543,8 +526,6 @@ err:
 				}
 				if (i > 4)
 					goto err3;
-			//	if (i == 3)
-			//		goto err3;
 				if ((k & i) == 0)
 					goto err3;
 		ope_mr_mem:
@@ -560,12 +541,6 @@ err:
 					if (j == 0)
 						goto err4;
 				}
-			//	if (j == 0) {
-			//		tmret = testmem0(status, decode->gp_mem, &decode->prefix);
-			//		if (tmret == 0)
-			//			goto err5; /* addressing error */
-			//		prefix_def |= tmret & 0x03;
-			//	}
 				j = itp->param[2] & 0x07;
 				for (i = 0; i < j; i++) {
 					bp[0] = SHORT_DB1; /* 0x31 */
@@ -580,10 +555,6 @@ err:
 					i &= 0x0f;
 					if ((itp->param[2] & 0x20) == 0) {
 						decode->prefix |= (tbl_o16o32 - 1)[i];
-					//	if (i == 2)
-					//		decode->prefix |= 0x10000000; /* O16(暗黙) */
-					//	if (i == 4)
-					//		decode->prefix |= 0x20000000; /* O32(暗黙) */
 					}
 					if (itp->param[2] & 0x10) {
 						if (i != 1)
@@ -621,10 +592,6 @@ err:
 				if (i > 4)
 					goto err3;
 				decode->prefix |= (tbl_o16o32 - 1)[i];
-			//	if (i == 2)
-			//		decode->prefix |= 0x10000000; /* O16(暗黙) */
-			//	if (i == 4)
-			//		decode->prefix |= 0x20000000; /* O32(暗黙) */
 				j = 0;
 				if (i != 1)
 					j++; /* j = 1; */
@@ -659,16 +626,12 @@ err:
 					bp[4] = 0x7d; /* imm8 || none */
 				}
 				bp += 5;
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-			//	break;
 				goto setc;
 
 			case OPE_RET: /* RET, RETF, RETN */
 				bp[0] = SHORT_DB1; /* 0x31 */
-			//	c = 0; /* mod nnn r/m なし */
 				if (decode->flag == 0) {
 					/* オペランドなし */
-				//	bp[0] = SHORT_DB1; /* 0x31 */
 					bp[1] = itp->param[1] | 0x01;
 					bp += 2;
 					break;
@@ -686,7 +649,6 @@ err:
 		OPE_RET_notopt:
 					if (defnumexpr(ifdef, status->expression, 0x75 & 0x07, 0x9a & 0x07))
 						goto err2;
-				//	bp[0] = SHORT_DB1; /* 0x31 */
 					bp[1] = itp->param[1];
 					bp += 2;
 				} else {
@@ -720,7 +682,6 @@ err:
 				bp[1] = itp->param[1];
 				bp[2] = 0x7c; /* オペランド(デフォルト:itp->param[2]) */
 				bp += 3;
-			//	c = 0; /* mod nnn r/m なし */
 				break;
 
 			case OPE_INT: /* INT */
@@ -749,13 +710,11 @@ err:
 					*bp++ = 0x7c; /* 自動選択されたオペコード */
 				}
 				*bp++ = 0x7d; /* imm8 || none */
-			//	c = 0; /* mod nnn r/m なし */
 				break;
 
 			case OPE_PUSH: /* PUSH, POP, INC, DEC */
 				if (decode->gparam[0] & 0xc0)
 					goto err2; /* rangeがついていた */
-			//	c = 0; /* mod nnn r/m なし */
 				decode->gp_mem = decode->gparam[0];
 				decode->gp_reg = (itp->param[1] & 0x07) << 9;
 				bp[0] = SHORT_DB1; /* 0x31 */
@@ -764,12 +723,6 @@ err:
 					if (decode->gvalue[0] < 16) {
 						/* reg16/reg32 */
 						decode->prefix |= (tbl_o16o32 - 1)[decode->gparam[0] & 0x0f];
-					//	i = 0x10000000; /* O16(暗黙) */
-					//	if (decode->gvalue[0] < 8) {
-					//	//	i = 0x20000000; /* O32(暗黙) */
-					//		i <<= 1;
-					//	}
-					//	decode->prefix |= i;
 						bp[1] = itp->param[2] | (decode->gvalue[0] & 0x07);
 						bp += 2;
 						goto outbp;
@@ -806,10 +759,6 @@ err:
 					}
 					goto err2;
 				case 0x10: /* mem */
-				//	tmret = testmem0(status, decode->gp_mem, &decode->prefix);
-				//	if (tmret == 0)
-				//		goto err5; /* addressing error */
-				//	prefix_def |= tmret & 0x03;
 					c = decode->gparam[0] & 0x0f;
 					bp[1] = 0;
 					if (itp->param[1] & 0x08) {
@@ -887,11 +836,6 @@ err:
 						goto err2;
 					/* mem,imm */
 					decode->gp_mem = decode->gparam[0];
-				//	tmret = testmem0(status, decode->gp_mem = decode->gparam[0], &decode->prefix);
-				//	if (tmret == 0)
-				//		goto err5; /* addressing error */
-				//	prefix_def |= tmret & 0x03;
-				//	decode->flag = 0;
 					bp[1] = 0xc6;
 					decode->gp_reg = 0x00 << 9;
 					bp[2] = 0x78;
@@ -918,7 +862,6 @@ err:
 					tmret = testmem0(status, decode->gp_mem, &decode->prefix);
 					if (tmret == 0)
 						goto err5; /* addressing error */
-				//	prefix_def |= tmret & 0x03;
 					decode->flag = 0;
 				} else if ((decode->gp_mem & 0x30) != 0x00)
 					goto err4; /* immが来てはいけない */
@@ -944,8 +887,6 @@ err:
 						bp[1] = c;
 						bp[2] = 0x7a; /* disp */
 						bp += 3;
-					//	c = 3 ^ decode->flag; /* mod nnn r/m あり */
-					//	goto outbp;
 						goto setc;
 					}
 				}
@@ -1017,9 +958,6 @@ err:
 									bp[1] |= 0x01;
 								bp[2] = 0x7c;
 								bp += 3;
-							//	c == 1 >> 9e(6);
-							//	c == 2 >> 9b(3);
-							//	9 - c * 3
 								if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 9 - c * 3))
 									goto err2; /* パラメータエラー */
 								c = 0; /* mod nnn r/m なし */
@@ -1066,8 +1004,6 @@ err:
 					bp[2] = 0x7a;
 					bp[3] = 0x7c;
 					bp += 4;
-				//	c = 3 ^ decode->flag; /* mod nnn r/m あり */
-				//	goto outbp;
 					goto setc;
 				}
 				i = 0; /* direction-bit */
@@ -1211,15 +1147,12 @@ err:
 						if ((j = decode->gp_mem & decode->gp_reg & 0x0f) == 0)
 							goto err3; /* data size error */
 						decode->prefix |= (tbl_o16o32 - 1)[j];
-					//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-					//	goto outbp;
 						goto setc;
 					}
 					/* imm */
 					decode->gparam[2] = decode->gparam[1];
 					decode->gparam[1] = decode->gparam[0];
 					decode->gvalue[1] = decode->gvalue[0];
-				//	decode->flag = 3;
 				}
 				{
 					/* reg,mem/reg,imm型 */
@@ -1302,8 +1235,6 @@ err:
 				if (j != 1)
 					s[1] |= 0x01;
 				decode->prefix |= (tbl_o16o32 - 1)[j];
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-			//	goto outbp;
 				goto setc;
 
 			case OPE_MOVZX:
@@ -1374,8 +1305,6 @@ err:
 						goto err2; /* パラメータエラー */
 					bp += 8;
 				}
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-			//	goto outbp;
 				goto setc;
 
 			case OPE_LOOP:
@@ -1518,8 +1447,6 @@ err:
 				if (j > 4)
 					goto err3; /* data size error */
 				decode->prefix |= (tbl_o16o32 - 1)[j];
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-			//	goto outbp;
 				goto setc;
 
 			case OPE_ENTER: /* imm16, imm8 */
@@ -1542,7 +1469,6 @@ err:
 				getparam0(decode->prm_p[0], status);
 				if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x9a & 0x07 /* USHORT */))
 					goto err2; /* パラメータエラー */
-			//	c = 0; /* mod nnn r/m なし */
 				goto outbp;
 
 			case OPE_ALIGN: /* ALIGN, ALIGNB */
@@ -1601,10 +1527,6 @@ err:
 							0xff, 0xff, 0, 0xff, 1, 0xff, 0xff, 0xff,
 							2, 0xff, 3, 0xff, 0xff, 0xff, 0xff, 0xfe
 						};
-					//	tmret = testmem0(status, decode->gp_mem, &decode->prefix);
-					//	if (tmret == 0)
-					//		goto err5; /* addressing error */
-					//	prefix_def |= tmret & 0x03;
 						c = sizelist[decode->gp_mem & 0x0f];
 						if (c == 0xff)
 							goto err3; /* data size error */
@@ -1655,8 +1577,6 @@ err:
 				bp[3] = 0x79;
 				bp[4] = 0x7a;
 				bp += 5;
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */
-			//	goto outbp;
 				goto setc;
 
 			case OPE_FPUP:
@@ -1690,17 +1610,13 @@ err:
 					bp[1] = itp->param[7];
 					bp += 2;
 				}
-			//	c = 0; /* mod nnn r/m なし */
 				goto outbp;
 
 			case OPE_ORG:
 				if ((decode->gparam[0] & 0xf0) != 0x20)
 					goto err4; /* data type error */
-			//	if (status->optimize == 0)
-			//		dest0 = putprefix(dest0, dest1, decode->prefix, prefix_def, 0);
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 					goto overrun;
-			//	bp = buf;
 				if (dest0 + EXPR_MAXSIZ + 1 > dest1)
 					dest0 = NULL;
 				if (dest0 == NULL)
@@ -1734,7 +1650,6 @@ err:
 				bp[2] = SHORT_DB1; /* 0x31 */
 				bp[3] = 0xc8 + ((decode->gparam[0] >> 9) & 0x07);
 				bp += 4;
-			//	c = 0; /* mod nnn r/m なし */
 				goto outbp;
 
 			case OPE_RESB:
@@ -1773,11 +1688,8 @@ err:
 					goto err2; /* パラメータエラー */
 				if ((decode->gparam[0] & 0xf0) != 0x20)
 					goto err4; /* data type error */
-			//	if (status->optimize == 0)
-			//		dest0 = putprefix(dest0, dest1, decode->prefix, prefix_def, 0);
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 					goto overrun;
-			//	bp = buf;
 				if (dest0 + EXPR_MAXSIZ > dest1)
 					dest0 = NULL;
 				if (dest0 == NULL)
@@ -2019,8 +1931,6 @@ err:
 					goto err2;
 				j = getparam(&s, status->src1, &i, status->expression,
 					status->mem_expr, &status->ofsexpr, &status->expr_status);
-			//	if (j == 0)
-			//		goto err2;
 				if ((j & 0xf0) != 0x20)
 					goto err2;
 				ifdef->vb[8] = 0x84;
@@ -2051,7 +1961,6 @@ err:
 					/* 必要ならエラーも出力する */
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 					goto overrun;
-			//	bp = buf;
 				for (;;) {
 					s = skipspace(s, status->src1);
 					if (s < status->src1) {
@@ -2100,8 +2009,6 @@ err:
 			ope_db_expr:
 					j = getparam(&s, status->src1, &i, status->expression,
 						status->mem_expr, &status->ofsexpr, &status->expr_status);
-				//	if (j == 0)
-				//		goto err2;
 					if ((j & 0xf0) != 0x20)
 						goto err2;
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, itp->param[2] & 0x07))
@@ -2145,11 +2052,9 @@ err:
 						goto err2;
 					s = skipspace(s + 1, status->src1);
 				}
-			//	goto skip_equ;
 
 			case OPE_END:
 				src = src1;
-			//	c = 0; /* mod nnn r/m なし */
 				goto outbp;
 
 			case 0xe7: /* SECTION */
@@ -2188,7 +2093,6 @@ flush_ifdefbuf:
 
 		if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 			goto overrun;
-	//	bp = buf;
 
 		if (itp != NULL && itp->param[0] == 0xe7) {
 			/* section */
@@ -2248,10 +2152,7 @@ flush_ifdefbuf:
 		}
 skip_equ:
 		src0 = src;
-	//	if (dest0 == NULL)
-	//		goto overrun;
 	}
-//skip_end:
 	if (dest0 + (6 + 3) * MAX_SECTIONS + 9 > dest1)
 		dest0 = NULL;
 	if (dest0 == NULL)
@@ -2264,9 +2165,7 @@ skip_equ:
 	put4b(0, &dest0[5]);
 	dest0 += 9;
 
-//	section->dollar_label0 = status->expr_status.dollar_label0;
 	section->dollar_label1 = status->expr_status.dollar_label1;
-//	section->dollar_label2 = status->expr_status.dollar_label2;
 
 	for (i = 0; i < MAX_SECTIONS; i++) {
 		if (sectable[i].name[0] == '\0')
@@ -2402,8 +2301,6 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 			continue;
 		}
 
-	//	if (c == 0x30)
-	//		continue;
 		if (0x31 <= c && c <= 0x37) {
 			*dest0++ = c;
 			c -= 0x30;
@@ -2827,7 +2724,6 @@ dest_out_skip:
 					#endif
 					put4b(get4b(&dest0[i]) + addr + 4, &dest0[i]);
 				}
-//skip_relative_relocation:
 				sectable[secno].reloc_p += 10;
 			}
 			srcp = LL_skipcode(srcp);
@@ -2928,10 +2824,6 @@ dest_out_skip:
 				status = 2;
 			}
 			if (len + 1 + (c - 0x30) * 2 > MAX_LISTLEN) {
-			//	if (status == 1) {
-			//		len = -9;
-			//		status = 2;
-			//	}
 				if (status == 2) {
 					/* (MAX_LISTLEN - len)個のスペースを出力 */
 					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
@@ -2973,10 +2865,6 @@ dest_out_skip:
 				status = 2;
 			}
 			if (len + 11 > MAX_LISTLEN) {
-			//	if (status == 1) {
-			//		len = -9;
-			//		status = 2;
-			//	}
 				if (status == 2) {
 					/* (MAX_LISTLEN - len)個のスペースを出力 */
 					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
@@ -3548,7 +3436,6 @@ UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
 	decode->error = 0;
 	decode->prefix = 0;
 	decode->label = NULL;
-//	decode->dollar = 0;
 setting:
 	src = skipspace(src, status->src1);
 	if (src >= status->src1)
@@ -3757,18 +3644,15 @@ research:
 						if (*q == '$') {
 			need_dollar0:
 							status->expr_status.dollar_label0 = nextlabelid++;
-					//		decode->dollar = 1;
 							break;
 						}
 					}
 				}
 				if ((c = itp->param[0]) != 0) {
-				//	src = skipspace(p, status->src1);
 					src = p;
 					if (c == PREFIX) {
 						decode->instr = NULL;
 						decode->prefix |= 1 << itp->param[1];
-					//	src = p;
 						if (src < status->src1 && *src != '\n' && *src != ';')
 							goto research; /* 何かが続いていれば、さらに検索 */
 						goto skipline;
@@ -3816,12 +3700,9 @@ research:
 		decode->label = src; /* ラベル発見 */
 		while (*src > ' ' && src < status->src1)
 			src++;
-	//	c = src[-1];
 		src = skipspace(src, status->src1);
 		if (src >= status->src1 || *src == '\n' || *src == ';') {
-		//	if (c == ':')
 				goto skipline; /* ラベル定義 */
-		//	goto error1;
 		}
 		goto research;
 	}
@@ -3891,7 +3772,6 @@ struct STR_TERM *decode_expr(UCHAR **ps, UCHAR *s1, struct STR_TERM *expr, int *
 		SUP_8086,	"BYTE", "WORD", "SHORT", "NEAR", "FAR", "NOSPLIT", "$", "$$",
 		SUP_8086,	"DWORD", "", "", "", "QWORD", "..$", "TWORD", "TO",
 		SUP_8086,	"ST0", "ST1", "ST2", "ST3", "ST4", "ST5", "ST6", "ST7",	/* 80-87 */
-	//	SUP_MMX,	"MM0", "MM1", "MM2", "MM3", "MM4", "MM5", "MM6", "MM7",	/* 88-95 */
 		0, 			"", "", "", "", "", "", "", ""
 	};
 	struct STR_KEYWORD *pkw;
@@ -3918,17 +3798,11 @@ single1:
 		/* 単項マイナス */
 		expr->value = 1; /* s- */
 		goto single1;
-	//	expr->term_type = 1; /* operator */
-	//	expr++;
-	//	goto single;
 	}
 	if (c == '~') {
 		/* 単項NOT */
 		expr->value = 2; /* s~ */
 		goto single1;
-	//	expr->term_type = 1; /* operator */
-	//	expr++;
-	//	goto single;
 	}
 
 	/* 第1項 */

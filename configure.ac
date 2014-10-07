@@ -47,12 +47,15 @@ case "$host" in
 		AM_CONDITIONAL(USE_WINDOWS, true)
                 ;;
         *-*-linux*)
+		AC_DEFINE(USE_SYS_STAT_H, 1, [Use <sys/stat.h>])
 		AM_CONDITIONAL(USE_LINUX, true)
                 ;;
         *-*-darwin*)
+		AC_DEFINE(USE_SYS_STAT_H, 1, [Use <sys/stat.h>])
 		AM_CONDITIONAL(USE_MAC_OSX, true)
                 ;;
         *-*-*bsd*)
+		AC_DEFINE(USE_SYS_STAT_H, 1, [Use <sys/stat.h>])
 		AM_CONDITIONAL(USE_BSD, true)
                 ;;
         *)
