@@ -5,7 +5,7 @@ bin_PROGRAMS   = nask nasuka
 # nask
 #
 nask_SOURCES	= \
-nask.c
+nask.cpp
 
 nask_LDADD	= \
 ../drv_w32/libdrvw32.la
@@ -14,9 +14,9 @@ SUBDIRS = ../drv_w32
 
 # nasuka
 nasuka_SOURCES = \
-mmmalloc.c	 \
-Nasuka.c	 \
-go_lib.h	 \
-Nasuka_sub.c	 \
-ll_lib.c	 \
-ll.c
+mmmall.cpp.cpp	 \
+Nasuka.cpp	 \
+go_lib.hpp	 \
+Nasuka_sub.cpp	 \
+ll_lib.cpp	 \
+ll.cpp

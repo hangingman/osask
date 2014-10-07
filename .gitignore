@@ -8,6 +8,7 @@ intl/*
 po/*
 m4/*
 */Makefile.in
+.deps
 Makefile.in
 autom4te*
 autom4te*/*

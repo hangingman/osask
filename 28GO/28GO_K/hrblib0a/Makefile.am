@@ -1,1 +1,1 @@
-startup.c
+startup.cpp

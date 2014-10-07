@@ -1,9 +1,9 @@
-noinst_LTLIBRARIES	= libdrvstdc.la
-libdrvstdc_la_LDFLAGS 	= -no-undefined -version-info 1:0:0
-libdrvstdc_la_SOURCES	= \
-cc1main.c		  \
-cc1pmain.c		  \
-cpp0main.c		  \
-drv_stdc.c
+noinst_LTLIBRARIES	= libdrvst.cpp.la
+libdrvst.cpp_la_LDFLAGS 	= -no-undefined -version-info 1:0:0
+libdrvst.cpp_la_SOURCES	= \
+.cpp1main.cpp		  \
+.cpp1pmain.cpp		  \
+cpp0main.cpp		  \
+drv_st.cpp.cpp
 
-AM_CFLAGS		= -I$(top_builddir)/28GO/28GO_K/include
+AM_CFLAGS		= -I$(top_builddir)/28GO/28GO_K/i.cpplude

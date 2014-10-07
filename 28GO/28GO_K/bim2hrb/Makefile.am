@@ -1,2 +1,2 @@
-bin_PROGRAMS	= bim2hrb
-bim2hrb_SOURCES = bim2hrb.c
+bin_PROGRAMS	= bim.hpprb
+bim.hpprb_SOURCES = bim.hpprb.cpp

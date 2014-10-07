@@ -1,14 +1,14 @@
 noinst_LTLIBRARIES	= libdrvosa.la
 libdrvosa_la_LDFLAGS 	= -no-undefined -version-info 1:0:0
 libdrvosa_la_SOURCES	= \
-obj2bim.c		  \
-cmdline.c		  \
-cc1main.c		  \
-naskmain.c		  \
-bim2bin.c		  \
-osamain.c		  \
-others.h		  \
-guigui00.h		  \
-sjisconv.c		  \
-gas2nask.c		  \
-stdlib.h
+obj2bim.cpp		  \
+cmdline.cpp		  \
+.cpp1main.cpp		  \
+naskmain.cpp		  \
+bim2bin.cpp		  \
+osamain.cpp		  \
+o.hppers.hpp		  \
+guigui00.hpp		  \
+sji.cpponv.cpp		  \
+gas2nask.cpp		  \
+stdlib.hpp
