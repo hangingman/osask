@@ -440,7 +440,6 @@ const int search(unsigned char *buf, unsigned char *buf0, const int max0, int *p
 void putbc(const int bits, int mask)
 {
 	do {
-	//	putb((bits & mask) != 0);
 		putb_byte = (putb_byte << 1) + ((bits & mask) != 0);
 		if (--putb_count == 0) {
 			putb_count = 8;
@@ -661,12 +660,6 @@ void putnum_df(int d, unsigned int s)
 {
 	int len;
 	unsigned int i = 1;
-//	if (d == 0) { /* リピートマーク出力 */
-//		for (i = 1; (i & s) == 0; i <<= 1)
-//			putbc(1, 1);
-//		putbc(0x2, 0x2); /* "10" */
-//		return;
-//	}
 
 	i = 31;
 	while (i > 0 && (d & (1 << i)) != 0)
@@ -779,8 +772,6 @@ int getnum_df(unsigned int s)
 			break;
 		if (getbc(1))
 			break;
-	//	if (d == -1)
-	//		return 0;
 	}
 	return d;
 }
@@ -851,13 +842,6 @@ const int calclen_df(int d, unsigned int s)
 {
 	int len, l = 0;
 	unsigned int i = 1;
-//	if (d == 0) { /* リピートマーク出力 */
-//		for (i = 1; (i & s) == 0; i <<= 1)
-//			l++;
-//		l += 2;
-//		return l;
-//	}
-
 	i = 31;
 	while (i > 0 && (d & (1 << i)) != 0)
 		i--;
@@ -964,8 +948,6 @@ const int lzcompress_l2d3(unsigned char *buf, int k, int i, int outlimit, int ma
 
 	flushb();
 
-//	printf("%d -> %d (%f%%)\n", k, putb_ptr - ptr0, (double) (putb_ptr - ptr0) * 100 / k);
-
 	return k;
 }
 
@@ -989,8 +971,6 @@ const int lzrestore_l2d3(unsigned char *buf, int k, int i, int outlimit)
 		}
 		/* len */
 		j = getbc(2);
-//		if (j < 0)
-//			return i;
 		len = j;
 		if (j == 0) {
 			j = getbc(4);
@@ -1010,8 +990,6 @@ const int lzrestore_l2d3(unsigned char *buf, int k, int i, int outlimit)
 		do {
 			distance = getbc0(3, distance);
 			j = getbc(1);
-//			if (j < 0)
-//				return i;
 		} while (j);
 		do {
 			buf[i] = buf[i + distance];
@@ -1187,10 +1165,6 @@ const int lzcompress_tek0(int prm, unsigned char *buf, int k, int i, int outlimi
 	subbuf = subbuf0;
 
 	while (i < k) {
-	//	if (outlimit >= putb_ptr + (putb_count != 8))
-	//		i0 = i;
-	//	else
-	//		return i0;
 
 		if (i == 0)
 			len = 0;
@@ -1307,8 +1281,6 @@ const int lzcompress_tek0(int prm, unsigned char *buf, int k, int i, int outlimi
 
 	/* disのエンコード方式の自動選択 */
 	dis_s = calcdis_s(subbuf0, i);
-//	printf("method:l1%c(+%d) = %8d rep-mode:%x ", 'a' + ii0, i, i0, z0);
-//	printf("dis_s = %08x\n", dis_s);
 
 	/* エンコード */
 	putnum_s8(dis_s);
@@ -1370,8 +1342,6 @@ const int lzrestore_tek0(unsigned char *buf, int k, int i, int outlimit)
 	method = getbc(1); /* l1a/l1b */
 	z0 = getbc(2);
 	z1 = getbc(2);
-
-//	printf("method:l1%c(+%d) dis_s = %08x z0 = %d z1 = %d\n", 'a' + method, l_ofs, dis_s, z0, z1);
 
 	i = 0;
 	for (;;) {

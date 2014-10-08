@@ -46,6 +46,9 @@ Tool to generate .hrb files
 ### bin2obj  
 Tool to make data files .obj files  
   
+### bim2bin
+Tool for compressing binary by tek5  
+  
 ### makefont  
 Hankaku font data maker  
   
