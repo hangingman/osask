@@ -67,7 +67,7 @@ int bim2bin_main(struct STR_BIM2BIN *params)
 
 	putb_count = 8;
 
-	if (setjmp(setjmp_env)) {
+	if (setjmp(reinterpret_cast<void**>(setjmp_env))) {
 		params->err0 = GO_stderr.p;
 		return GOL_abortcode;
 	}
@@ -78,7 +78,7 @@ int bim2bin_main(struct STR_BIM2BIN *params)
 	GOL_memmaninit(&GOL_memman, params->work1 - params->work0 - SIZ_SYSWRK, params->work0 + SIZ_SYSWRK);
 	argv = ConvCmdLine1(&argc, params->cmdlin);
 
-	params->errcode = main0(argc, argv, params);
+	params->errcode = main0(argc, reinterpret_cast<char**>(argv), params);
 
 skip:
 	/* バッファを出力 */
@@ -88,7 +88,6 @@ skip:
 static const int getnum(unsigned char *p)
 {
 	int i = 0, j, base = 10;
-//	p = skipspace(p);
 	if (*p == '0') {
 		p++;
 		if (*p == 'X' || *p == 'x') {
@@ -117,13 +116,10 @@ static const int getnum(unsigned char *p)
 	}
 	if (*p == 'k' || *p == 'K') {
 		i *= 1024;
-	//	p++;
 	} else if (*p == 'm' || *p == 'M') {
 		i *= 1024 * 1024;
-	//	p++;
 	} else if (*p == 'g' || *p == 'G') {
 		i *= 1024 * 1024 * 1024;
-	//	p++;
 	}
 	return i;
 }
@@ -132,15 +128,14 @@ static int main0(int argc, char **argv, struct STR_BIM2BIN *params)
 {
 	int mallocsize = 32 * 1024, reserve = 0, stacksize, datasize, worksize;
 	int i, filesize, compress = 2, outtype = 0, prm0 = 12, maxdis = 32 * 1024;
-//	FILE *fp;
 	unsigned char *filepath[2], *s, *t, c;
 	unsigned char *buf, *overbuf;
 	int oversize, j, k, code_end, data_begin, entry;
-	static unsigned char signature[15] = "\xff\xff\xff\x01\x00\x00\x00OSASKCMP";
+	static unsigned char signature[] = "\xff\xff\xff\x01\x00\x00\x00OSASKCMP";
 
 	filepath[0] = filepath[1] = NULL;
-	buf = malloc(SIZEOFBUF);
-	overbuf = malloc(SIZEOFOVERBUF);
+	buf = reinterpret_cast<unsigned char*>(malloc(SIZEOFBUF));
+	overbuf = reinterpret_cast<unsigned char*>(malloc(SIZEOFOVERBUF));
 
 	if (argc <= 2) {
 		fprintf(stderr,
@@ -155,43 +150,43 @@ static int main0(int argc, char **argv, struct STR_BIM2BIN *params)
 
 	/* パラメーター解析 */
 	for (argv++, i = 1; i < argc; argv++, i++) {
-		s = *argv;
-		if (strncmp(s, "malloc:", 7) == 0)
-			mallocsize = getnum(s + 7);
-		else if (strncmp(s, "file:", 5) == 0)
-			reserve = getnum(s + 5) | 0x01;
-		else if (strcmp(s, "-simple") == 0)
+	     	char* cs = *argv;
+		if (strncmp(cs, "malloc:", 7) == 0)
+		     	mallocsize = getnum(reinterpret_cast<unsigned char*>(cs) + 7);
+		else if (strncmp(cs, "file:", 5) == 0)
+			reserve = getnum(reinterpret_cast<unsigned char*>(cs) + 5) | 0x01;
+		else if (strcmp(cs, "-simple") == 0)
 			compress = -1;
-		else if (strncmp(s, "input:", 6) == 0)
-			filepath[0] = s + 6;
-		else if (strncmp(s, "output:", 7) == 0)
-			filepath[1] = s + 7;
-		else if (strcmp(s, "-l2d3") == 0)
+		else if (strncmp(cs, "input:", 6) == 0)
+			filepath[0] = reinterpret_cast<unsigned char*>(cs) + 6;
+		else if (strncmp(cs, "output:", 7) == 0)
+			filepath[1] = reinterpret_cast<unsigned char*>(cs) + 7;
+		else if (strcmp(cs, "-l2d3") == 0)
 			compress = 1;
-		else if (strcmp(s, "-tek0") == 0)
+		else if (strcmp(cs, "-tek0") == 0)
 			compress = 2;
-		else if (strcmp(s, "-bim") == 0)
+		else if (strcmp(cs, "-bim") == 0)
 			outtype = 0;
-		else if (strcmp(s, "-exe512") == 0)
+		else if (strcmp(cs, "-exe512") == 0)
 			outtype = 1;
-		else if (strcmp(s, "-data") == 0)
+		else if (strcmp(cs, "-data") == 0)
 			outtype = 2;
-		else if (strcmp(s, "-restore") == 0)
+		else if (strcmp(cs, "-restore") == 0)
 			outtype = 3;
-		else if (strncmp(s, "prm0:", 5) == 0)
-			prm0 = getnum(s + 5);
-		else if (strncmp(s, "in:", 3) == 0)
-			filepath[0] = s + 3;
-		else if (strncmp(s, "out:", 4) == 0)
-			filepath[1] = s + 4;
-		else if (strncmp(s, "mmarea:", 7) == 0)
-			reserve = getnum(s + 7) | 0x01;
-		else if (strcmp(s, "-bin0") == 0)
+		else if (strncmp(cs, "prm0:", 5) == 0)
+		     	prm0 = getnum(reinterpret_cast<unsigned char*>(cs) + 5);
+		else if (strncmp(cs, "in:", 3) == 0)
+			filepath[0] = reinterpret_cast<unsigned char*>(cs) + 3;
+		else if (strncmp(cs, "out:", 4) == 0)
+			filepath[1] = reinterpret_cast<unsigned char*>(cs) + 4;
+		else if (strncmp(cs, "mmarea:", 7) == 0)
+			reserve = getnum(reinterpret_cast<unsigned char*>(cs) + 7) | 0x01;
+		else if (strcmp(cs, "-bin0") == 0)
 			outtype = 4;
-		else if (strcmp(s, "-osacmp") == 0)
+		else if (strcmp(cs, "-osacmp") == 0)
 			outtype = 5;
-		else if (strncmp(s, "maxdis:", 7) == 0)
-			maxdis = getnum(s + 7);
+		else if (strncmp(cs, "maxdis:", 7) == 0)
+			maxdis = getnum(reinterpret_cast<unsigned char*>(cs) + 7);
 		else
 			fprintf(stderr, "Commnad line error : %s ... skiped\n", s);
 	}

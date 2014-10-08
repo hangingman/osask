@@ -45,6 +45,8 @@ AM_CONDITIONAL(USE_BSD, false)
 AX_COMPILER_VENDOR
 # Use C++11
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+# Some compile flags
+AX_CHECK_COMPILE_FLAG([-Wno-parentheses],[CXXFLAGS="$CXXFLAGS -Wno-parentheses"])
 
 # Checks for HostOS
 case "$host" in

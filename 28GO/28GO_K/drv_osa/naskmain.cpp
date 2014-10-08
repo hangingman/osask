@@ -36,7 +36,6 @@ extern int nask_maxlabels;
 
 int naskmain(struct STR_NASKMAIN *params)
 {
-//	static char execflag = 0;
 	int argc;
 	UCHAR **argv, *tmp0;
 	UCHAR **argv1, **p;
@@ -47,16 +46,11 @@ int naskmain(struct STR_NASKMAIN *params)
 	GO_stderr.p1 = params->err1;
 	GO_stderr.dummy = ~0;
 
-	/* 多重実行阻止 (staticを再初期化すればできるが) */
-//	if (execflag)
-//		return 7;
-//	execflag = 1;
-
 	nask_LABELBUFSIZ = 64 * 1024; /* ラベル文字列の合計 */
 	nask_L_LABEL0 = 1024; /* externは1000個ほど */
 	nask_maxlabels = 4 * 1024; /* 88*4k */
 
-	if (setjmp(setjmp_env)) {
+	if (setjmp(reinterpret_cast<void**>(setjmp_env))) {
 		params->err0 = GO_stderr.p;
 		return GOL_abortcode;
 	}

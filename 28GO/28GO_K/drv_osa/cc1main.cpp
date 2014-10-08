@@ -27,7 +27,6 @@ struct STR_CC1MAIN {
 
 int cc1main(struct STR_CC1MAIN *str_cc1main)
 {
-//	static char execflag = 0;
 	int argc;
 	UCHAR **argv;
 	UCHAR **argv1, **p;
@@ -38,12 +37,7 @@ int cc1main(struct STR_CC1MAIN *str_cc1main)
 	GO_stderr.p1 = str_cc1main->err1;
 	GO_stderr.dummy = ~0;
 
-	/* ëΩèdé¿çsëjé~ (staticÇçƒèâä˙âªÇ∑ÇÍÇŒÇ≈Ç´ÇÈÇ™) */
-//	if (execflag)
-//		return 7;
-//	execflag = 1;
-
-	if (setjmp(setjmp_env)) {
+	if (setjmp(reinterpret_cast<void**>(setjmp_env))) {
 		str_cc1main->dest0 = GO_stdout.p;
 		str_cc1main->err0 = GO_stderr.p;
 		return GOL_abortcode;
@@ -55,7 +49,7 @@ int cc1main(struct STR_CC1MAIN *str_cc1main)
 	GOL_memmaninit(&GOL_memman, str_cc1main->work1 - str_cc1main->work0 - SYSWORK_SIZE,
 		str_cc1main->work0 + SYSWORK_SIZE);
 	argv = ConvCmdLine1(&argc, str_cc1main->cmdlin);
-	p = argv1 = GOL_sysmalloc((argc + 1) * sizeof (char *));
+	p = argv1 = reinterpret_cast<UCHAR**>(GOL_sysmalloc((argc + 1) * sizeof (char *)));
 	for (;;) {
 		if ((*p = *argv) == NULL)
 			break;
@@ -77,7 +71,7 @@ int cc1main(struct STR_CC1MAIN *str_cc1main)
 void GOL_sysabort(UCHAR termcode)
 {
 	GOL_abortcode = termcode;
-	longjmp(setjmp_env, 1);
+	longjmp(reinterpret_cast<void**>(setjmp_env), 1);
 }
 
 UCHAR *osain(UCHAR *f, int *size);
@@ -87,10 +81,10 @@ GOL_FILE *GOL_open(struct GOL_STR_DIR *dir, const UCHAR *name)
 	GOL_FILE *gfp;
 	UCHAR *fp;
 	int size;
-	fp = osain(name, &size);
+	fp = osain(const_cast<UCHAR*>(name), &size);
 	if (fp == NULL)
 		return (GOL_FILE *) ~0;
-	gfp = GOL_sysmalloc(sizeof (struct GOL_STR_FILE));
+	gfp = reinterpret_cast<GOL_FILE*>(GOL_sysmalloc(sizeof (struct GOL_STR_FILE)));
 	gfp->size = size;
 	gfp->p0 = fp;
 	gfp->linkcount = 1;

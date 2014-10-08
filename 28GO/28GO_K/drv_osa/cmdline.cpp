@@ -4,7 +4,7 @@ UCHAR **ConvCmdLine1(int *pargc, UCHAR *p)
 {
 	int argc = 0, i;
 	UCHAR *q, *q0, **argv;
-	q = q0 = GOL_sysmalloc(strlen((char *) p) + 1);
+	q = q0 = reinterpret_cast<UCHAR*>(GOL_sysmalloc(strlen((char *) p) + 1));
 	do {
 		while ((*q++ = *p++) > ' ');
 		argc++;
@@ -13,7 +13,7 @@ UCHAR **ConvCmdLine1(int *pargc, UCHAR *p)
 		while ('\0' < *p && *p <= ' ')
 			p++;
 	} while (*p);
-	argv = GOL_sysmalloc((argc + 1) * sizeof (char *));
+	argv = reinterpret_cast<UCHAR**>(GOL_sysmalloc((argc + 1) * sizeof (char *)));
 	argv[0] = q = q0;
 	i = 1;
 	while (i < argc) {
