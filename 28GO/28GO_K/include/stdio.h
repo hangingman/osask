@@ -8,7 +8,7 @@
 	extern "C" {
 #endif
 
-#include "go_lib.h"
+#include "go_lib.hpp"
 #include "stdarg.h"
 
 typedef struct GO_STR_FILE {

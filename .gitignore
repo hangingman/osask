@@ -6,7 +6,6 @@ Makefile
 configure
 intl/*
 po/*
-m4/*
 */Makefile.in
 .deps
 Makefile.in

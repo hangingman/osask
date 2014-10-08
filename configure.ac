@@ -41,6 +41,11 @@ AM_CONDITIONAL(USE_LINUX, false)
 AM_CONDITIONAL(USE_WINDOWS, false)
 AM_CONDITIONAL(USE_BSD, false)
 
+# Compiler vendor check
+AX_COMPILER_VENDOR
+# Use C++11
+AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+
 # Checks for HostOS
 case "$host" in
         *-*-mingw*|*-*-cygwin*)
@@ -53,6 +58,9 @@ case "$host" in
         *-*-darwin*)
 		AC_DEFINE(USE_SYS_STAT_H, 1, [Use <sys/stat.h>])
 		AM_CONDITIONAL(USE_MAC_OSX, true)
+		if test "${ax_cv_c_compiler_vendor}x" = "clangx"; then
+		   CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+		fi
                 ;;
         *-*-*bsd*)
 		AC_DEFINE(USE_SYS_STAT_H, 1, [Use <sys/stat.h>])
@@ -64,7 +72,6 @@ case "$host" in
 esac
 
 # Checks for library functions.
-AM_GNU_GETTEXT_VERSION([0.18])
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
 AC_FUNC_MALLOC

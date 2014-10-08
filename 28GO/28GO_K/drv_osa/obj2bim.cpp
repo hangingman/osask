@@ -11,16 +11,14 @@
 
 #define FILEBUFSIZ		(4 * 1024)	/* rulefileの最大サイズ */
 #define	OBJBUFSIZ		(512 * 1024)	/* 512KB */
-#define	LABELSTRSIZ		 		(8000)	/* 総ラベル数 (8000*140Bytes) */
-#define	OBJFILESTRSIZ			(512)	/* 最大オブジェクトファイル数(512*260bytes)
-// #define LINKSTRSIZ		(LABELSTRSIZ * 1)	/* 8000*12Bytes */
-#define	MAXSECTION				  8	/* 1つの.objファイルあたりの最大セクション数 */
+#define	LABELSTRSIZ		(8000)		/* 総ラベル数 (8000*140Bytes) */
+#define	OBJFILESTRSIZ		(512)		/* 最大オブジェクトファイル数(512*260bytes) */
+#define	MAXSECTION		8		/* 1つの.objファイルあたりの最大セクション数 */
 
 /* LINKSTRSIZがなぜか効かない。cpp0はバグもちか？ */
 #define LINKSTRSIZ		LABELSTRSIZ
 
 /* 計1833.5KB？ */
-
 struct STR_OBJ2BIM {
 	UCHAR *cmdlin; /* '\0'で終わる */
 	UCHAR *outname; /* '\0'で終わる, workのどこかへのポインタ */
@@ -46,9 +44,8 @@ static int main0(const int argc, const char **argv, struct STR_OBJ2BIM *params);
 
 int obj2bim_main(struct STR_OBJ2BIM *params)
 {
-//	static char execflag = 0;
 	int argc;
-	UCHAR **argv, *tmp0;
+	UCHAR **argv,*tmp0;
 	UCHAR **argv1, **p;
 	GO_stdout.p0 = GO_stdout.p = params->map0;
 	GO_stdout.p1 = params->map1; /* stdoutはmap */
@@ -57,12 +54,7 @@ int obj2bim_main(struct STR_OBJ2BIM *params)
 	GO_stderr.p1 = params->err1;
 	GO_stderr.dummy = ~0;
 
-	/* 多重実行阻止 (staticを再初期化すればできるが) */
-//	if (execflag)
-//		return 7;
-//	execflag = 1;
-
-	if (setjmp(setjmp_env)) {
+	if (setjmp(reinterpret_cast<void**>(setjmp_env))) {
 		params->err0 = GO_stderr.p;
 		return GOL_abortcode;
 	}
@@ -73,7 +65,7 @@ int obj2bim_main(struct STR_OBJ2BIM *params)
 	GOL_memmaninit(&GOL_memman, params->work1 - params->work0 - SIZ_SYSWRK, params->work0 + SIZ_SYSWRK);
 	argv = ConvCmdLine1(&argc, params->cmdlin);
 
-	params->errcode = main0(argc, argv, params);
+	params->errcode = main0(argc, (const char**) argv, params);
 	params->map0 = GO_stdout.p;
 
 skip:
@@ -135,7 +127,7 @@ static struct LABELSTR *symbolconv0(unsigned char *s, struct OBJFILESTR *obj);
 static struct LABELSTR *symbolconv(unsigned char *p, unsigned char *s, struct OBJFILESTR *obj);
 static void link0(const int sectype, int *secparam, unsigned char *image);
 
-static struct LABELSTR *label0 = NULL;
+static struct LABELSTR *label0;
 static struct OBJFILESTR *objstr0;
 static unsigned char *objbuf0;
 
@@ -148,8 +140,9 @@ static const int alignconv(int align)
 	int i; 
 	if ((i = align) >= 1) {
 		align = 1;
-		while (i >>= 1);
-			align++;
+		while (i >>= 1) {
+		     align++;
+		}
 	}
 	return align;
 }
@@ -241,7 +234,6 @@ static int main0(const int argc, const char **argv, struct STR_OBJ2BIM *params)
 #endif
 
 	/* 汎用リンカー */
-
 	s = (unsigned char *) malloc(1024);
 
 	if (argv[1][0] != '@') {
@@ -249,7 +241,7 @@ static int main0(const int argc, const char **argv, struct STR_OBJ2BIM *params)
 		return 1;
 	}
 
-	p = osain(argv[1] + 1, &filesize);
+	p = osain(const_cast<char*>(argv[1] + 1), &filesize);
 	filebuf = (unsigned char *) malloc(FILEBUFSIZ);
 	if (p == NULL || filesize > FILEBUFSIZ - 1) {
 		fprintf(stderr, "Can't open rule file\n");
@@ -264,7 +256,7 @@ static int main0(const int argc, const char **argv, struct STR_OBJ2BIM *params)
 	/* (format section) */
 
 	p = skipspace(p);
-	if (strncmp(p, "format", 6)) {
+	if (strncmp(reinterpret_cast<const char*>(p), "format", 6)) {
 err_rule_format0:
 		fprintf(stderr, "Rule file error : can't find format section\n");
 		free(filebuf);
@@ -285,12 +277,12 @@ err_rule_format0:
 		section_param[i] = -1;
 
 	for (;;) {
-		if (*p == '\0' || strncmp(p, "file", 4) == 0 || strncmp(p, "label", 5) == 0)
+		if (*p == '\0' || strncmp(reinterpret_cast<const char*>(p), "file", 4) == 0 || strncmp(reinterpret_cast<const char*>(p), "label", 5) == 0)
 			break;
 		i = -1;
-		if (strncmp(p, "code", 4) == 0)
+		if (strncmp(reinterpret_cast<const char*>(p), "code", 4) == 0)
 			i = 0;
-		if (strncmp(p, "data", 4) == 0)
+		if (strncmp(reinterpret_cast<const char*>(p), "data", 4) == 0)
 			i = 4;
 		if (i >= 0) {
 			p = skipspace(p + 4);
@@ -298,13 +290,13 @@ err_rule_format0:
 				goto err_rule_format1;
 			p++;
 			for (;;) {
-				if (strncmp(p, "align", 5) == 0) {
+				if (strncmp(reinterpret_cast<const char*>(p), "align", 5) == 0) {
 					p += 5;
 					j = 0;
-				} else if (strncmp(p, "logic", 5) == 0) {
+				} else if (strncmp(reinterpret_cast<const char*>(p), "logic", 5) == 0) {
 					p += 5;
 					j = 1;
-				} else if (strncmp(p, "file", 4) == 0) {
+				} else if (strncmp(reinterpret_cast<const char*>(p), "file", 4) == 0) {
 					p += 4;
 					j = 2;
 				} else if (*p == ')')
@@ -317,13 +309,13 @@ err_rule_format0:
 				p = skipspace(p + 1);
 				if ('0' <= *p && *p <= '9')
 					section_param[i + j] = getnum(&p);
-				else if (strncmp(p, "code_end", 8) == 0) {
+				else if (strncmp(reinterpret_cast<const char*>(p), "code_end", 8) == 0) {
 					section_param[i + j] = -2;
 					p += 8;
-				} else if (strncmp(p, "data_end", 8) == 0) {
+				} else if (strncmp(reinterpret_cast<const char*>(p), "data_end", 8) == 0) {
 					section_param[i + j] = -3;
 					p += 8;
-				} else if (strncmp(p, "stack_end", 9) == 0) {
+				} else if (strncmp(reinterpret_cast<const char*>(p), "stack_end", 9) == 0) {
 					section_param[i + j] = -4;
 					p += 9;
 				} else
@@ -354,18 +346,18 @@ err_rule_format1:
 
 	for (i = 2; i < argc; i++) {
 		ps = s;
-		t = argv[i];
-		if (strncmp(t, "out:", 4) == 0) {
+		t = (unsigned char*) argv[i];
+		if (strncmp(reinterpret_cast<const char*>(t), "out:", 4) == 0) {
 			/* filename = t + 4; */
 			params->outname = t + 4;
 			continue;
 		}
-		if (strncmp(t, "map:", 4) == 0) {
+		if (strncmp(reinterpret_cast<const char*>(t), "map:", 4) == 0) {
 			/* mapname = t + 4; */
 			params->mapname = t + 4;
 			continue;
 		}
-		if (strncmp(t, "stack:", 6) == 0) {
+		if (strncmp(reinterpret_cast<const char*>(t), "stack:", 6) == 0) {
 			t += 6;
 			j = getnum(&t);
 			if (section_param[1 /* logic */ + 0 /* code */] == -4 /* stack_end */)
@@ -381,13 +373,13 @@ err_rule_format1:
 			ps = s + 1;
 		} else
 			ps = s;
-		t = osain(ps, &j);
+		t = osain(reinterpret_cast<char*>(ps), &j);
 		if (t == NULL) {
 			fprintf(stderr, "Command line error : can't open file : %s\n", ps);
 			free(filebuf);
 			return 8;
 		}
-		if (strncmp(t, "!<arch>\x0a/               ", 24) == 0 && (t[0x42] - 0x60 | t[0x43] - 0x0a) == 0)
+		if (strncmp(reinterpret_cast<const char*>(t), "!<arch>\x0a/               ", 24) == 0 && (t[0x42] - 0x60 | t[0x43] - 0x0a) == 0)
 			loadlib(t);
 		else if ((t[0] - 0x4c | t[1] - 0x01) == 0)
 			loadobj(t);
@@ -401,7 +393,7 @@ err_rule_format1:
 
 	/* (file section) */
 
-	if (strncmp(p, "file", 4) == 0) {
+	if (strncmp(reinterpret_cast<const char*>(p), "file", 4) == 0) {
 		p = skipspace(p + 4);
 		if (*p != ':') {
 err_rule_illsec:
@@ -413,7 +405,7 @@ err_rule_illsec:
 		/* ファイルをどんどん読み込んで、解釈して、バッファへ溜め込む */
 		for (;;) {
 			p = skipspace(p + 1); /* ':'か';'を読み飛ばす */
-			if (*p == '\0' || (strncmp(p, "label", 5) == 0 && (p[5] == ':' || p[5] <= ' ')))
+			if (*p == '\0' || (strncmp(reinterpret_cast<const char*>(p), "label", 5) == 0 && (p[5] == ':' || p[5] <= ' ')))
 				break;
 			ps = s;
 			while (*p != '\0' && *p != ';')
@@ -432,13 +424,13 @@ err_rule_illsec:
 				ps = s + 1;
 			} else
 				ps = s;
-			t = osain(ps, &j);
+			t = osain(reinterpret_cast<char*>(ps), &j);
 			if (t == NULL) {
 				fprintf(stderr, "Rule file error : can't open file : %s\n", ps);
 				free(filebuf);
 				return 6;
 			}
-			if (strncmp(t, "!<arch>\x0a/               ", 24) == 0 && (t[0x42] - 0x60 | t[0x43] - 0x0a) == 0)
+			if (strncmp(reinterpret_cast<const char*>(t), "!<arch>\x0a/               ", 24) == 0 && (t[0x42] - 0x60 | t[0x43] - 0x0a) == 0)
 				loadlib(t);
 			else if ((t[0] - 0x4c | t[1] - 0x01) == 0)
 				loadobj(t);
@@ -453,7 +445,7 @@ err_rule_illsec:
 
 	/* (label section) */
 
-	if (strncmp(p, "label", 5) != 0) {
+	if (strncmp(reinterpret_cast<const char*>(p), "label", 5) != 0) {
 err_rule_label:
 		fprintf(stderr, "Rule file error : can't find label section\n");
 		free(filebuf);
@@ -799,7 +791,7 @@ static void loadlib(unsigned char *p)
 	unsigned char *t;
 	int i, j;
 	i = getdec(&p[0x38]) + 0x44;
-	if (strncmp(&p[i], "/       ", 8) != 0) {
+	if (strncmp(reinterpret_cast<const char*>(&p[i]) , "/       ", 8) != 0) {
 		fprintf(stderr, "Internal error : loadlib(1)\n");
 		return;
 	}
@@ -822,9 +814,11 @@ static void loadobj(unsigned char *p)
 	struct OBJFILESTR *objstr;
 
 	if (next_objstr == NULL) {
+	     /** TODO: fix me
 		objstr0 = next_objstr = malloc(OBJFILESTRSIZ * sizeof (struct OBJFILESTR));
 		objbuf0 = next_objbuf = malloc(OBJBUFSIZ);
 		next_linkstr = malloc(LINKSTRSIZ * sizeof (struct LINKSTR));
+	     */
 	}
 
 	/* ヘッダチェック */
@@ -883,19 +877,11 @@ static void loadobj(unsigned char *p)
 			next_objbuf = s;
 
 			/* next_linkstrへ転送 */
-		//	ls = next_linkstr;
 			t = p + get32l(&q[0x18]);
 			for (k = objstr->section[i].links; k > 0; k--, t += 0x0a) {
 				ls->offset = get32l(&t[0x00]) /* - objstr->section[i].sh_paddr */;
 				s = p + get32l(&t[0x04]) * 0x12 + get32l(&p[0x08]);
-			//	if (strncmp(s, ".text\0\0\0", 8) == 0)
-			//		goto link_skip;
-			//	if (strncmp(s, ".data\0\0\0", 8) == 0)
-			//		goto link_skip;
-			//	if (strncmp(s, ".bss\0\0\0\0", 8) == 0)
-			//		goto link_skip;
 				ls->label = symbolconv(p, s, objstr);
-			//	ls->label = label0 + get32l(&t[0x04]);
 				if (t[0x08] == 0x06 || t[0x08] == 0x14) {
 					ls->type = t[0x08];
 					ls++;
@@ -906,9 +892,6 @@ link_skip:
 				}
 			}
 			next_linkstr = ls;
-			/* ターミネーターはあるかな？ */
-		//	printf("0x%04X 0x%04X 0x%02X\n", get32l(&t[0x00]), get32l(&t[0x04]), t[0x08] | t[0x09] << 8);
-			/* なかった・・・ */
 		}
 	}
 
@@ -919,26 +902,14 @@ link_skip:
 		sec = q[0x0c];
 		if (sec != 0 && sec < 0xf0)
 			sec0 = sec;
-	//	if ((q[0x0e] | q[0x0f] | q[0x10] - 0x03) == 0 && q[0x11] != 0) {
-	//		/* section symbols */
-	//	//	sec0 = sec;
-	//		continue;
-	//	}
+
 		value = get32l(&q[0x08]);
 		switch(q[0x10]) {
 		case 0x02: /* public symbol */
 		case 0x03: /* static symbol */
 		case 0x06: /* label */
-		//	if (q[0x11] /* numaux */)
-		//		break;
-			if (strncmp(q, "@comp.id", 8) == 0)
+		     if (strncmp(reinterpret_cast<const char*>(q), "@comp.id", 8) == 0)
 				break;
-		//	if (strncmp(q, ".text\0\0\0", 8) == 0)
-		//		break;
-		//	if (strncmp(q, ".data\0\0\0", 8) == 0)
-		//		break;
-		//	if (strncmp(q, ".bss\0\0\0\0", 8) == 0)
-		//		break;
 			if (sec == 0xfe /* debugging symbol */)
 				break;
 			label = symbolconv(p, q, objstr);
@@ -1032,14 +1003,14 @@ static struct LABELSTR *symbolconv0(unsigned char *s, struct OBJFILESTR *obj)
 	unsigned char *n;
 	struct LABELSTR *label;
 	int i, *name;
-
+/** TODO: fix me
 	name = malloc((128 / 4 - 4) * sizeof (int));
 
 	if (label0 == NULL) {
 		label0 = malloc(LABELSTRSIZ * sizeof (struct LABELSTR));
 		label0->type = 0xff;
 	}
-
+*/
 	for (i = 0; i < 128 / 4 - 4; i++)
 		name[i] = 0;
 	n = (unsigned char *) name;
@@ -1113,7 +1084,7 @@ static void link0(const int sectype, int *secparam, unsigned char *image)
 			if (i == 0) {
 				i = secparam[0 /* align */] - 1;
 				if (i < 0) {
-					static char *secname[3] = { "code", "data", "data" };
+					static const char *secname[3] = { "code", "data", "data" };
 					fprintf(stderr, "Warning : please set align for %s\n", secname[sectype]);
 					i = 0;
 				}

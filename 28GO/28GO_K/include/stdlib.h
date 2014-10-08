@@ -8,7 +8,7 @@
 	extern "C" {
 #endif
 
-#include "go_lib.h"
+#include "go_lib.hpp"
 
 #define	_ATTRIB_NORETURN	__attribute__ ((noreturn))
 

@@ -8,7 +8,7 @@
 	extern "C" {
 #endif
 
-#include "go_lib.h"
+#include "go_lib.hpp"
 
 char *GO_strcpy(char *s, const char *ct);
 char *GO_strncpy(char *s, const char *ct, size_t n);

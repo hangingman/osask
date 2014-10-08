@@ -19,11 +19,13 @@ typedef unsigned int  UINT;
 #define GO_TERM_SYSRESOVER	5
 #define GO_TERM_ABORT		6
 
-#define	GO_LANG_C			0
-#define GO_LANG_C89			1
-#define GO_LANG_CPP			2
+#define	GO_LANG_C		0
+#define GO_LANG_C89		1
+#define GO_LANG_CPP		2
 
-#define	NULL			((void *) 0)
+#ifndef NULL
+   #define	NULL		((void *) 0)
+#endif
 
 typedef struct GOL_STR_FILE {
 	UINT size;

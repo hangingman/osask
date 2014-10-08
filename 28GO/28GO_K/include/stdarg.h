@@ -10,7 +10,7 @@
 	extern "C" {
 #endif
 
-#include "go_lib.h"
+#include "go_lib.hpp"
 
 #define va_start(v,l)	__builtin_stdarg_start((v),l)
 #define va_end			__builtin_va_end
