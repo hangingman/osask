@@ -2,7 +2,7 @@
 #include "../include/setjmp.h"
 #include "../include/string.h"
 #include "stdlib.h"
-#include "guigui00.h"
+#include "guigui00.hpp"
 
 int GOL_abortcode;
 jmp_buf setjmp_env;
@@ -74,15 +74,17 @@ struct CONSOLE {
 	int x_size, y_size, x_cur, y_cur, color;
 	int ibuf_rptr, ibuf_wptr, ebuf_rptr, ebuf_wptr, curflag;
 	unsigned char *cons_buf, *input_buf, *echo_buf;
-	struct LIB_TEXTBOX *textbox;
+	struct guigui::LIB_TEXTBOX *textbox;
 };
 
 static int getsignalw();
 
 struct CONSOLE *copen(const int x_size, const int y_size,
-	struct LIB_WINDOW *window, const int x0, const int y0, const int color, const int backcolor);
+		      struct guigui::LIB_WINDOW *window, 
+		      const int x0, const int y0, const int color, const int backcolor);
 void cputc(int c, struct CONSOLE *cons);
 void cputs(const unsigned char *str, struct CONSOLE *cons);
+void cputs(const char *str, struct CONSOLE *cons);
 const int cgetc(struct CONSOLE *cons);
 void cgets(unsigned char *str, int n, struct CONSOLE *cons);
 const int cungetc(const int c, struct CONSOLE *cons);
@@ -114,15 +116,15 @@ static UCHAR osaname[] = "        .   ";
 
 void OsaskMain()
 {
-	struct LIB_WINDOW *window;
-	struct LIB_TEXTBOX *wintitle;
+	struct guigui::LIB_WINDOW *window;
+	struct guigui::LIB_TEXTBOX *wintitle;
 	struct CONSOLE *stdout;
 
 	/* ライブラリの初期化(必ず最初にやらなければならない) */
 	lib_init(AUTO_MALLOC);
 
 	/* シグナルボックス初期化 */
-    sig_ptr = signalbox0 = lib_opensignalbox(256, AUTO_MALLOC, 0, REWIND_CODE);
+    	sig_ptr = signalbox0 = lib_opensignalbox(256, AUTO_MALLOC, 0, REWIND_CODE);
 
 	/* ウィンドウのオープン */
 	window = lib_openwindow(AUTO_MALLOC, 0x0200, 480, 240);
@@ -140,20 +142,20 @@ void OsaskMain()
 	lib_definesignal1p0(0, 0x0100, 0xa1, window, 128 + '\b'); /* Backspace入力 */
 	lib_definesignal0p0(0, 0, 0, 0);
 
-	memtemp0 = malloc(SIZ_MEMTEMP);
-	memtemp1 = malloc(SIZ_MEMTEMP);
+	memtemp0 = reinterpret_cast<UCHAR*>(malloc(SIZ_MEMTEMP));
+	memtemp1 = reinterpret_cast<UCHAR*>(malloc(SIZ_MEMTEMP));
 
 	/* メインループ */
 	for (;;) {
 		int i, j;
 		UCHAR *p, *fp0, c;
-		fp0 = (UCHAR *) lib_readCSd(0x0010);
+		fp0 = (UCHAR *) guigui::lib_readCSd(0x0010);
 		lib_unmapmodule(0, 520 * 1024, fp0);
 		cputc('>', stdout);
 		if (!cons_readyinput(stdin))
 			waitready(stdin);
 		cgets(cmdlinbuf0, sizeof cmdlinbuf0, stdin);
-		if (i = strlen(cmdlinbuf0) > sizeof cmdlinbuf0 - 3) {
+		if (i = strlen(reinterpret_cast<const char*>(cmdlinbuf0)) > sizeof cmdlinbuf0 - 3) {
 			cputs("[ERROR : too long command-line.]\n", stdout);
 			continue;
 		}
@@ -266,7 +268,7 @@ int execute(UCHAR *p, struct CONSOLE *cons)
 
 	if (p[0] == 'c' && p[1] == 'c' && p[2] == '1' && p[3] <= ' ') {
 		/* malloc_size : 5632k (5440) */
-		static UCHAR *msg_term[] = {
+		static const char *msg_term[] = {
 			"[TERM_WORKOVER]\n",
 			"[TERM_OUTOVER]\n",
 			"[TERM_ERROVER]\n",
@@ -277,11 +279,11 @@ int execute(UCHAR *p, struct CONSOLE *cons)
 		err = 0;
 		str_cc1main.cmdlin = p;
 		str_cc1main.outname = NULL;
-		str_cc1main.dest0 = q = malloc(256 * 1024);
+		str_cc1main.dest0 = q = reinterpret_cast<UCHAR*>(malloc(256 * 1024));
 		str_cc1main.dest1 = q + 256 * 1024;
-		str_cc1main.err0 = r = malloc(64 * 1024);
+		str_cc1main.err0 = r = reinterpret_cast<UCHAR*>(malloc(64 * 1024));
 		str_cc1main.err1 = r + 64 * 1024 - 1;
-		str_cc1main.work0 = s = malloc(5120 * 1024);
+		str_cc1main.work0 = s = reinterpret_cast<UCHAR*>(malloc(5120 * 1024));
 		str_cc1main.work1 = s + 5120 * 1024;
 		i = cc1main(&str_cc1main);
 		*(str_cc1main.err0) = '\0';
@@ -311,11 +313,11 @@ put_termcode:
 		err = 0;
 		str_gas2nask.cmdlin = p;
 		str_gas2nask.outname = NULL;
-		str_gas2nask.dest0 = q = malloc(3072 * 1024);
+		str_gas2nask.dest0 = q = reinterpret_cast<UCHAR*>(malloc(3072 * 1024));
 		str_gas2nask.dest1 = q + 3072 * 1024;
-		str_gas2nask.err0 = r = malloc(128 * 1024);
+		str_gas2nask.err0 = r = reinterpret_cast<UCHAR*>(malloc(128 * 1024));
 		str_gas2nask.err1 = r + 128 * 1024 - 1;
-		str_gas2nask.work0 = s = malloc(64 * 1024);
+		str_gas2nask.work0 = s = reinterpret_cast<UCHAR*>(malloc(64 * 1024));
 		str_gas2nask.work1 = s + 64 * 1024;
 		i = gas2nask_main(&str_gas2nask);
 		*(str_gas2nask.err0) = '\0';
@@ -341,13 +343,13 @@ put_termcode:
 		str_naskmain.cmdlin = p;
 		str_naskmain.outname = NULL;
 		str_naskmain.listname = NULL;
-		str_naskmain.dest0 = q = malloc(768 * 1024);
+		str_naskmain.dest0 = q = reinterpret_cast<UCHAR*>(malloc(768 * 1024));
 		str_naskmain.dest1 = q + 768 * 1024;
-		str_naskmain.list0 = t = malloc(1024 * 1024);
+		str_naskmain.list0 = t = reinterpret_cast<UCHAR*>(malloc(1024 * 1024));
 		str_naskmain.list1 = t + 1024 * 1024;
-		str_naskmain.err0 = r = malloc(64 * 1024);
+		str_naskmain.err0 = r = reinterpret_cast<UCHAR*>(malloc(64 * 1024));
 		str_naskmain.err1 = r + 64 * 1024 - 1;
-		str_naskmain.work0 = s = malloc(1536 * 1024);
+		str_naskmain.work0 = s = reinterpret_cast<UCHAR*>(malloc(1536 * 1024));
 		str_naskmain.work1 = s + 1536 * 1024;
 		i = naskmain(&str_naskmain);
 		*(str_naskmain.err0) = '\0';
@@ -382,13 +384,13 @@ put_termcode:
 		str_obj2bim.cmdlin = p;
 		str_obj2bim.outname = NULL;
 		str_obj2bim.mapname = NULL;
-		str_obj2bim.dest0 = q = malloc(512 * 1024);
+		str_obj2bim.dest0 = q = reinterpret_cast<UCHAR*>(malloc(512 * 1024));
 		str_obj2bim.dest1 = q + 512 * 1024;
-		str_obj2bim.map0 = t = malloc(64 * 1024);
+		str_obj2bim.map0 = t = reinterpret_cast<UCHAR*>(malloc(64 * 1024));
 		str_obj2bim.map1 = t + 64 * 1024;
-		str_obj2bim.err0 = r = malloc(16 * 1024);
+		str_obj2bim.err0 = r = reinterpret_cast<UCHAR*>(malloc(16 * 1024));
 		str_obj2bim.err1 = r + 16 * 1024 - 1;
-		str_obj2bim.work0 = s = malloc(2768 * 1024);
+		str_obj2bim.work0 = s = reinterpret_cast<UCHAR*>(malloc(2768 * 1024));
 		str_obj2bim.work1 = s + 2768 * 1024;
 		i = obj2bim_main(&str_obj2bim);
 		*(str_obj2bim.err0) = '\0';
@@ -418,11 +420,11 @@ put_termcode:
 		err = 0;
 		str_bim2bin.cmdlin = p;
 		str_bim2bin.outname = NULL;
-		str_bim2bin.dest0 = q = malloc(768 * 1024);
+		str_bim2bin.dest0 = q = reinterpret_cast<UCHAR*>(malloc(768 * 1024));
 		str_bim2bin.dest1 = q + 768 * 1024;
-		str_bim2bin.err0 = r = malloc(16 * 1024);
+		str_bim2bin.err0 = r = reinterpret_cast<UCHAR*>(malloc(16 * 1024));
 		str_bim2bin.err1 = r + 16 * 1024 - 1;
-		str_bim2bin.work0 = s = malloc(2432 * 1024);
+		str_bim2bin.work0 = s = reinterpret_cast<UCHAR*>(malloc(2432 * 1024));
 		str_bim2bin.work1 = s + 2432 * 1024;
 		i = bim2bin_main(&str_bim2bin);
 		*(str_bim2bin.err0) = '\0';
@@ -445,11 +447,11 @@ put_termcode:
 		err = 0;
 		str_sjisconv.cmdlin = p;
 		str_sjisconv.outname = NULL;
-		str_sjisconv.dest0 = q = malloc(3072 * 1024);
+		str_sjisconv.dest0 = q = reinterpret_cast<UCHAR*>(malloc(3072 * 1024));
 		str_sjisconv.dest1 = q + 3072 * 1024;
-		str_sjisconv.err0 = r = malloc(128 * 1024);
+		str_sjisconv.err0 = r = reinterpret_cast<UCHAR*>(malloc(128 * 1024));
 		str_sjisconv.err1 = r + 128 * 1024 - 1;
-		str_sjisconv.work0 = s = malloc(64 * 1024);
+		str_sjisconv.work0 = s = reinterpret_cast<UCHAR*>(malloc(64 * 1024));
 		str_sjisconv.work1 = s + 64 * 1024;
 		i = sjisconv_main(&str_sjisconv);
 		*(str_sjisconv.err0) = '\0';
@@ -514,7 +516,7 @@ int osaopen(UCHAR *f, int slot, int opt)
 
 	setosaname(f);
 	lib_initmodulehandle0(0x0008, slot); /* user-dirに初期化 */
-	lib_steppath0(opt, slot, osaname, 16 /* sig */);
+	guigui::lib_steppath0(opt, slot, reinterpret_cast<const char*>(&osaname), 16 /* sig */);
 
 	do {
 		sig = getsignalw();
@@ -532,7 +534,7 @@ int osamap(UCHAR *f, int slot, int limit, UCHAR *fp, int opt, int rw)
 	int size;
 	if (osaopen(f, slot, opt))
 		return -1;
-	size = lib_readmodulesize(slot);
+	size = guigui::lib_readmodulesize(slot);
 	if (size > limit)
 		return -1;
 	lib_mapmodule(0x0000, slot, rw, limit, fp, 0);
@@ -541,19 +543,19 @@ int osamap(UCHAR *f, int slot, int limit, UCHAR *fp, int opt, int rw)
 
 UCHAR *osain(UCHAR *f, int *size)
 {
-	if (strcmp(f, "memtemp0") == 0) {
+     	if (strcmp(reinterpret_cast<const char*>(f), "memtemp0") == 0) {
 		*size = mt_size0;
 		return memtemp0;
 	}
-	if (strcmp(f, "memtemp1") == 0) {
+	if (strcmp(reinterpret_cast<const char*>(f), "memtemp1") == 0) {
 		*size = mt_size1;
 		return memtemp1;
 	}
 
-	UCHAR *fp = (UCHAR *) lib_readCSd(0x0010);
+	UCHAR *fp = (UCHAR *) guigui::lib_readCSd(0x0010);
 	if (osaopen(f, 0x220, 0))
 		return NULL;
-	*size = lib_readmodulesize(0x220);
+	*size = guigui::lib_readmodulesize(0x220);
 	if (*size > 512 * 1024)
 		return NULL;
 	lib_mapmodule(0x0000, 0x220, 5, 512 * 1024, fp, 0);
@@ -562,13 +564,13 @@ UCHAR *osain(UCHAR *f, int *size)
 
 void osaunmap()
 {
-	lib_unmapmodule(0, 512 * 1024, lib_readCSd(0x0010));
+	lib_unmapmodule(0, 512 * 1024, guigui::lib_readCSd(0x0010));
 	return;
 }
 
 int osaout(UCHAR *f, int size0, UCHAR *buf)
 {
-	UCHAR *fp = (UCHAR *) lib_readCSd(0x0010);
+	UCHAR *fp = (UCHAR *) guigui::lib_readCSd(0x0010);
 	int size1 = 0, i;
 	for (i = 0; i < size0; i++) {
 		if (buf[i] == '\r')
@@ -577,14 +579,14 @@ int osaout(UCHAR *f, int size0, UCHAR *buf)
 			size1++;
 		size1++;
 	}
-	if (strcmp(f, "memtemp0") == 0) {
+	if (strcmp(reinterpret_cast<const char*>(f), "memtemp0") == 0) {
 		if (size1 > SIZ_MEMTEMP)
 			goto err;
 		fp = memtemp0;
 		mt_size0 = size1;
 		goto skip;
 	}
-	if (strcmp(f, "memtemp1") == 0) {
+	if (strcmp(reinterpret_cast<const char*>(f), "memtemp1") == 0) {
 		if (size1 > SIZ_MEMTEMP)
 			goto err;
 		fp = memtemp1;
@@ -607,7 +609,7 @@ err:
 	} while (i < 16 || 32 <= i);
 	if (i != 16)
 		goto err;
-	if (size1 != lib_readmodulesize(0x220))
+	if (size1 != guigui::lib_readmodulesize(0x220))
 		goto err;
 	lib_mapmodule(0x0000, 0x220, 7, 512 * 1024, fp, 0);
 skip:
@@ -618,7 +620,7 @@ skip:
 			*fp++ = '\r';
 		*fp++ = buf[i];
 	}
-	lib_unmapmodule(0, 512 * 1024, lib_readCSd(0x0010));
+	lib_unmapmodule(0, 512 * 1024, guigui::lib_readCSd(0x0010));
 	lib_initmodulehandle0(0x0008, 0x220); /* user-dirに初期化 */
 
 	return 0;
@@ -626,16 +628,16 @@ skip:
 
 int osaoutb(UCHAR *f, int size, UCHAR *buf)
 {
-	UCHAR *fp = (UCHAR *) lib_readCSd(0x0010);
+	UCHAR *fp = (UCHAR *) guigui::lib_readCSd(0x0010);
 	int i;
-	if (strcmp(f, "memtemp0") == 0) {
+	if (strcmp(reinterpret_cast<const char*>(f), "memtemp0") == 0) {
 		if (size > SIZ_MEMTEMP)
 			goto err;
 		fp = memtemp0;
 		mt_size0 = size;
 		goto skip;
 	}
-	if (strcmp(f, "memtemp1") == 0) {
+	if (strcmp(reinterpret_cast<const char*>(f), "memtemp1") == 0) {
 		if (size > SIZ_MEMTEMP)
 			goto err;
 		fp = memtemp1;
@@ -659,7 +661,7 @@ err:
 	} while (i < 16 || 32 <= i);
 	if (i != 16)
 		goto err;
-	if (lib_readmodulesize(0x220) != 0)
+	if (guigui::lib_readmodulesize(0x220) != 0)
 		goto err;
 	/* 以降は通常 */
 	lib_resizemodule(0, 0x0220, size, 16);
@@ -672,14 +674,14 @@ err:
 	} while (i < 16 || 32 <= i);
 	if (i != 16)
 		goto err;
-	if (size != lib_readmodulesize(0x220))
+	if (size != guigui::lib_readmodulesize(0x220))
 		goto err;
 	lib_mapmodule(0x0000, 0x220, 7, 512 * 1024, fp, 0);
 skip:
 	for (i = 0; i < size; i++) {
 		*fp++ = buf[i];
 	}
-	lib_unmapmodule(0, 512 * 1024, lib_readCSd(0x0010));
+	lib_unmapmodule(0, 512 * 1024, guigui::lib_readCSd(0x0010));
 	lib_initmodulehandle0(0x0008, 0x220); /* user-dirに初期化 */
 
 	return 0;
@@ -747,7 +749,8 @@ void waitready(struct CONSOLE *cons)
 #endif
 
 struct CONSOLE *copen(const int x_size, const int y_size,
-	struct LIB_WINDOW *window, const int x0, const int y0, const int color, const int backcolor)
+		      struct guigui::LIB_WINDOW *window, 
+		      const int x0, const int y0, const int color, const int backcolor)
 /* コンソール初期化 */
 {
 	struct CONSOLE *cons = (struct CONSOLE *) malloc(sizeof (struct CONSOLE));
@@ -758,9 +761,9 @@ struct CONSOLE *copen(const int x_size, const int y_size,
 	cons->x_size = x_size;
 	cons->y_size = y_size;
 	cons->color = color;
-	cons->cons_buf  = (char *) malloc((x_size + 1) * (y_size + 1));
-	cons->input_buf = (char *) malloc(CONS_IBUFSIZ);
-	cons->echo_buf  = (char *) malloc(CONS_EBUFSIZ);
+	cons->cons_buf  = (unsigned char *) malloc((x_size + 1) * (y_size + 1));
+	cons->input_buf = (unsigned char *) malloc(CONS_IBUFSIZ);
+	cons->echo_buf  = (unsigned char *) malloc(CONS_EBUFSIZ);
 	cons->x_cur = 0;
 	cons->y_cur = 0;
 	cons->ibuf_rptr = 0;
@@ -768,7 +771,7 @@ struct CONSOLE *copen(const int x_size, const int y_size,
 	cons->ebuf_rptr = 0;
 	cons->ebuf_wptr = 0;
 	cons->curflag = 0;
-	p = cons->cons_buf;
+	p = reinterpret_cast<char*>(cons->cons_buf);
 	for (i = 0; i < y_size + 1; i++) {
 		for (j = 0; j < x_size; j++)
 			*p++ = ' ';
@@ -794,7 +797,7 @@ void cons_sub_scroll(struct CONSOLE *cons)
 {
 	char *s, *d;
 	int i, j, xsiz1 = cons->x_size + 1;
-	d = cons->cons_buf;
+	d = reinterpret_cast<char*>(cons->cons_buf);
 	s = d + cons->x_size + 1;
 	for (i = 0; i < cons->y_size; i++) {
 		for (j = 0; j < xsiz1; j++)
@@ -849,6 +852,12 @@ void cputs(const unsigned char *str, struct CONSOLE *cons)
 
 #if 1 /* 高速版 */
 
+void cputs(const char *str, struct CONSOLE *cons)
+{
+     char* cp = const_cast<char*>(str);
+     cputs(cp, cons);
+}
+
 void cputs(const unsigned char *str, struct CONSOLE *cons)
 /* コンソールストリング出力 */
 {
@@ -868,13 +877,13 @@ void cputs(const unsigned char *str, struct CONSOLE *cons)
 				cons_sub_scroll(cons);
 		} else {
 			int x_cur = cons->x_cur, x_size = cons->x_size;
-			char *b = &cons->cons_buf[cons->y_cur * (x_size + 1) + x_cur];
+			char *b = reinterpret_cast<char*>(&cons->cons_buf[cons->y_cur * (x_size + 1) + x_cur]);
 			do {
 				*b++ = c;
 				x_cur++;
 				if (x_cur == x_size) {
-					lib_putstring_ASCII(0x0000, 0, cons->y_cur, cons->textbox,
-						cons->color, 0, &cons->cons_buf[cons->y_cur * (x_size + 1)]);
+					guigui::lib_putstring_ASCII(0x0000, 0, cons->y_cur, cons->textbox,
+					cons->color, 0, (const char*)&cons->cons_buf[cons->y_cur * (x_size + 1)]);
 					b++;
 					x_cur = 0;
 					if (++cons->y_cur == cons->y_size) {
@@ -884,8 +893,8 @@ void cputs(const unsigned char *str, struct CONSOLE *cons)
 				}
 				c = *str++;
 			} while (c != '\0' && c != '\n');
-			lib_putstring_ASCII(0x0000, 0, cons->y_cur, cons->textbox,
-				cons->color, 0, &cons->cons_buf[cons->y_cur * (x_size + 1)]);
+			guigui::lib_putstring_ASCII(0x0000, 0, cons->y_cur, cons->textbox,
+							 cons->color, 0, (const char*)&cons->cons_buf[cons->y_cur * (x_size + 1)]);
 			cons->x_cur = x_cur;
 			str--;
 		}
@@ -1028,10 +1037,6 @@ const int cungetc(const int c, struct CONSOLE *cons)
 }
 
 /* GOL_sysabortとかは、cc1main.cのほうにある */
-
-#define	NL			"\r\n"
-#define	LEN_NL		2
-
 int DRVOSA_errcode;
 
 void GOLD_exit(int status)
@@ -1053,7 +1058,7 @@ void DRVOSA_msgout0(int l, UCHAR *s)
 
 void DRVOSA_msgout(UCHAR *s)
 {
-	DRVOSA_msgout0(strlen(s), s);
+	DRVOSA_msgout0(strlen(reinterpret_cast<const char*>(s)), s);
 	return;
 }
 
@@ -1067,7 +1072,8 @@ void DRVOSA_errout_s_NL(UCHAR *s, UCHAR *t)
 {
 	DRVOSA_msgout(s);
 	DRVOSA_msgout(t);
-	DRVOSA_msgout(NL);
+	unsigned char NL [] = "\r\n";
+	DRVOSA_msgout(&NL[0]);
 	GOLD_exit(1);
 }
 

@@ -11,8 +11,7 @@
 
 #define FLAG_E		0
 #define FLAG_S		1
-
-#define	NL			"\r\n"
+#define	NL		"\r\n"
 #define	LEN_NL		2
 
 struct STR_FLAGS {
@@ -34,7 +33,7 @@ extern int GOL_abortcode;
 extern jmp_buf setjmp_env;
 static char errflag;
 
-#include "others.h"
+#include "others.hpp"
 
 int sjisconv_main(struct STR_SJISCONV *params)
 {
