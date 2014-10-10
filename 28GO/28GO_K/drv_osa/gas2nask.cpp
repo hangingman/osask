@@ -44,7 +44,7 @@ static char errflag;
 
 static UCHAR *param_p[6];
 
-#include "others.h"
+#include "others.hpp"
 
 int gas2nask_main(struct STR_GAS2NASK *params)
 {
@@ -61,7 +61,7 @@ int gas2nask_main(struct STR_GAS2NASK *params)
 	for (j = 0; j < 8; j++)
 		flags.opt[j] = 0;
 
-	if (setjmp(setjmp_env)) {
+	if (setjmp(reinterpret_cast<void**>(setjmp_env))) {
 		params->err0 = msgptr;
 		params->errcode = DRVOSA_errcode;
 		return GOL_abortcode;
@@ -124,15 +124,24 @@ int gas2nask_main(struct STR_GAS2NASK *params)
 		*f = '\0';
 		if (i == 0) {
 			src0 = osain(filename, &size);
+
+			unsigned const char message[] = "can't open file: ";
+			const size_t len = sizeof(message) + sizeof(filename);
+			unsigned char result[len];
+			
+			memcpy(&result, &message, sizeof(message));
+			memcpy(&result + sizeof(message), filename, sizeof(filename));
+			
 			if (src0 == NULL)
-				errout_s_NL("can't open file: ", filename);
+			     	errout_s_NL(&result[0], filename);
 		}
 		i++;
 	}
 	if (i != 2) {
-		errout("\"gas2nask\"  Copyright(C) 2004 H.Kawai" NL
-			"usage : >gas2nask [-a] [-e] input-file output-file" NL
-		);
+	     	unsigned char message[] = "\"gas2nask\"  Copyright(C) 2004 H.Kawai\r\n"
+		     			  "usage : >gas2nask [-a] [-e] input-file output-file\r\n";
+
+		errout(&message[0]);
 	}
 	src0 = convmain(src0, src0 + size, params->dest0, params->dest1, flags);
 	if (src0 == NULL)

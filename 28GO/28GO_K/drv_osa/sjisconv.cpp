@@ -6,6 +6,7 @@
 	-s:ShiftJISモード
 */
 
+#include "stdio.h"
 #include "../include/string.h"		/* strlen, strstr, strchr */
 #include "../include/setjmp.h"
 
@@ -18,11 +19,11 @@ struct STR_FLAGS {
 	UCHAR opt[3];
 };
 
-struct STR_SJISCONV { /* STR_GAS2NASKとコンパチ */
-	UCHAR *cmdlin; /* '\0'で終わる */
-	UCHAR *outname; /* '\0'で終わる, workのどこかへのポインタ */
-	UCHAR *dest0, *dest1; /* 出力ファイル(dest0は書き換えられる) */
-	UCHAR *err0, *err1; /* コンソールメッセージ(err0は書き換えられる) */
+struct STR_SJISCONV {         /* STR_GAS2NASKとコンパチ                 */
+	UCHAR *cmdlin;        /* '\0'で終わる                           */
+	UCHAR *outname;       /* '\0'で終わる, workのどこかへのポインタ    */
+	UCHAR *dest0, *dest1; /* 出力ファイル(dest0は書き換えられる)       */
+	UCHAR *err0, *err1;   /* コンソールメッセージ(err0は書き換えられる) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
@@ -50,7 +51,7 @@ int sjisconv_main(struct STR_SJISCONV *params)
 	for (j = 0; j < 3; j++)
 		flags.opt[j] = 0;
 
-	if (setjmp(setjmp_env)) {
+	if (setjmp(reinterpret_cast<void**>(setjmp_env))) {
 		params->err0 = msgptr;
 		params->errcode = DRVOSA_errcode;
 		return GOL_abortcode;
@@ -81,15 +82,24 @@ int sjisconv_main(struct STR_SJISCONV *params)
 		*f = '\0';
 		if (i == 0) {
 			src0 = osain(filename, &size);
+
+			unsigned const char message[] = "can't open file: ";
+			const size_t len = sizeof(message) + sizeof(filename);
+			unsigned char result[len];
+			
+			memcpy(&result, &message, sizeof(message));
+			memcpy(&result + sizeof(message), filename, sizeof(filename));
+			
 			if (src0 == NULL)
-				errout_s_NL("can't open file: ", filename);
+			     	errout_s_NL(&result[0], filename);
 		}
 		i++;
 	}
 	if (i != 2) {
-		errout("\"sjisconv\"  Copyright(C) 2003 H.Kawai" NL
-			"usage : >sjisconv [-e] [-s] input-file output-file" NL
-		);
+	     	unsigned char message[] = "\"sjisconv\"  Copyright(C) 2003 H.Kawai\r\n"
+		     			  "usage : >sjisconv [-e] [-s] input-file output-file\r\n";
+
+		errout(&message[0]);
 	}
 	src0 = convmain(src0, src0 + size, params->dest0, params->dest1, flags);
 	if (src0 == NULL)
@@ -98,4 +108,5 @@ int sjisconv_main(struct STR_SJISCONV *params)
 	params->dest0 = src0;
 
 	GOLD_exit(errflag);
+	return 0;
 }
