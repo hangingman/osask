@@ -1,22 +1,20 @@
 bin_PROGRAMS  = asuka
 asuka_SOURCES = filepath.cpp   \
-		filepath.h     \
+		filepath.hpp   \
 		generator.cpp  \
-		generator.h    \
-		macro.h	       \
+		generator.hpp  \
+		macro.hpp      \
 		main.cpp       \
-		makefile.gcc   \
-		mkmgw20.bat    \
 		module.cpp     \
-		module.h       \
+		module.hpp     \
 		parser.cpp     \
-		parser.h       \
+		parser.hpp     \
 		scanner.cpp    \
-		scanner.h      \
+		scanner.hpp    \
 		stringx.cpp    \
-		stringx.h      \
+		stringx.hpp    \
 		table.cpp      \
-		table.h	       \
+		table.hpp      \
 		textmodule.cpp \
-		textmodule.h   \
-		tokendef.h    
+		textmodule.hpp \
+		tokendef.hpp    
