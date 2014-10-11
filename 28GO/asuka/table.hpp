@@ -16,10 +16,9 @@
 
 using namespace std;
 
-
-#include "macro.h"
-#include "module.h"
-#include "scanner.h"
+#include "macro.hpp"
+#include "module.hpp"
+#include "scanner.hpp"
 
 enum RegisterType{
 	R_GENERAL,		// 汎用レジスタ

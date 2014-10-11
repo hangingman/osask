@@ -1,4 +1,4 @@
-#include "filepath.h"
+#include "filepath.hpp"
 
 void	filepath::set(string& s){
 	string	tmp1, tmp2;

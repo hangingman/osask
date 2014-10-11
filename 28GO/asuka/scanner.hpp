@@ -6,8 +6,8 @@
 
 #pragma warning(disable:4786)
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 
 #include <string>
@@ -17,9 +17,9 @@
 
 using namespace std;
 
-#include "macro.h"
-#include "module.h"
-#include "tokendef.h"
+#include "macro.hpp"
+#include "module.hpp"
+#include "tokendef.hpp"
 
 class ScannerSub{
 	int		nLine;					// 現在処理している行番号

@@ -6,13 +6,13 @@
 
 #pragma warning(disable:4786)
 
-#include <stdio.h>
-#include <stdlib.h>
-#ifndef LINUX
-#include <io.h>
+#ifdef _WIN32
+   #include <io.h>
 #endif
-#include <iostream>
 
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
 #include <string>
 #include <list>
 #include <map>
@@ -20,7 +20,7 @@
 
 using namespace std;
 
-#include "macro.h"
+#include "macro.hpp"
 
 class Module{
 	LPVOID	lpMdlAdr;		// モジュールアドレス
@@ -36,23 +36,23 @@ class Module{
 #ifdef WINVC
 	void	Release(void){ DELETEPTR_SAFE(lpMdlAdr); dwMdlSize=0; lpMdlPos=NULL; }
 #else
-	//	void	Release(void){ DELETEPTR_SAFE((unsigned char*)lpMdlAdr); dwMdlSize=0; lpMdlPos=NULL; }
 	void	Release(void){
-	  //	  DELETEPTR_SAFE((unsigned char*)lpMdlAdr);
-	  //	  DELETEPTR_SAFE(    (unsigned char*)lpMdlAdr    );
+/**       生ポインタは使用しないようにする
 	  DELETEPTR_SAFE(    lpMdlAdr    );
 	  dwMdlSize=0;
 	  lpMdlPos=NULL;
+*/
 	}
 #endif
 
 	string	GetFileName(void){ return FileName; }
 	LPVOID	GetModuleAddress(void){ return lpMdlAdr; }
 	DWORD	GetModuleSize(void){ return dwMdlSize; }
+
+	// 戻り値 0:正常終了  1:fileopen失敗  3:メモリ確保失敗  4:読み込み失敗  5:fileclose失敗
 	HRESULT ReadFile(string& filename);
-		// 戻り値 0:正常終了  1:fileopen失敗  3:メモリ確保失敗  4:読み込み失敗  5:fileclose失敗
+	// 戻り値 0:正常終了  1:EOF  2:バッファあふれ  3:ファイル読み込んでない
 	HRESULT ReadLine(LPSTR buf);
-		// 戻り値 0:正常終了  1:EOF  2:バッファあふれ  3:ファイル読み込んでない
 };
 
 //現段階ではディレクトリの追加などはしていない。そのうち

@@ -16,7 +16,7 @@
 
 using namespace std;
 
-#include "stringx.h"
+#include "stringx.hpp"
 
 class filepath{
   public:

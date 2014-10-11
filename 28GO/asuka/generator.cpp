@@ -1,4 +1,4 @@
-#include "generator.h"
+#include "generator.hpp"
 #ifdef LINUX
 #define ltoa(n,b,l) (sprintf(b, "%ld", n), b)
 #define itoa(n,b,l) (sprintf(b, "%d", n), b)
@@ -17,7 +17,7 @@ void	Generator::Param2LPSTR(LPSTR buf, Parameter& param){
 		param.ndisp += 4;
 		param.bLabel = false;
 	}
-	strcpy(buf, "");
+	buf = {};
 	if(param.paramtype != P_REG){
 		if(param.pdepth != 0){
 			switch(param.size){
@@ -153,7 +153,7 @@ void	Generator::CloseSegment(SegmentList* segment){
 	OutputMASM(segment->name, "ends", "", "");
 }
 
-void	Generator::Error(LPSTR str){
+void	Generator::Error(const LPSTR str){
 	nErrorCount++;
 	fprintf(lpLogFP, "%s(%d):(Generator)%s \n", scanner->GetFileName().c_str(), scanner->GetScanline(), str);
 }
@@ -183,7 +183,7 @@ void	Generator::EndGenerate(void){
 }
 
 // これはTAB位置の調整など、まだ未完成
-void	Generator::OutputMASM(LPSTR label, LPSTR command, LPSTR param, LPSTR comment){
+void	Generator::OutputMASM(const LPSTR label, const LPSTR command, const LPSTR param, const LPSTR comment){
 	int		n = strlen(label);
 	char	buf[256];
 	strcpy(buf, label);

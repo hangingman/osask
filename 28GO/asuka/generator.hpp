@@ -6,8 +6,9 @@
 
 #pragma warning(disable:4786)
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 
 #include <string>
@@ -17,11 +18,11 @@
 
 using namespace std;
 
-#include "macro.h"
-#include "module.h"
-#include "scanner.h"
-#include "table.h"
-#include "textmodule.h"
+#include "macro.hpp"
+#include "module.hpp"
+#include "scanner.hpp"
+#include "table.hpp"
+#include "textmodule.hpp"
 
 class Generator{
   public:
@@ -35,7 +36,7 @@ class Generator{
 	Label			GlobalData;
 	bool			bExistMain;			// ソースファイル内にmain()が出てきたらtrue
 
-	string			OutFileName;		// コードを出力するファイル名
+	string			OutFileName;			// コードを出力するファイル名
 	TextModule		OutFile;			// コード出力用ファイルモジュール
 	Scanner*		scanner;			// Scannerのポインタ（Error()で使う）
 	FILE*			lpLogFP;			// エラーメッセージ出力用FP
@@ -57,7 +58,7 @@ class Generator{
 	void			RegistShr(Parameter& param1, Parameter& param2);
 	void			OpenSegment(SegmentList* segment);
 	void			CloseSegment(SegmentList* segment);
-	void			Error(LPSTR str);	// エラーメッセージを表示
+	void			Error(const LPSTR str);	// エラーメッセージを表示
 
   public:
 	SegmentList*	prevseg;		// 前に処理していたセグメントを入れる
@@ -70,9 +71,9 @@ class Generator{
 	void			BeginGenerate(string& outfilename, Scanner* s);
 	void			EndGenerate(void);
 
-	RegisterList*	FindRegisterList(LPSTR key){ return RegisterData.Find(key); }
+	RegisterList*		FindRegisterList(const LPSTR key){ return RegisterData.Find(key); }
 	void			AddSegmentList(LPSTR key, SegmentList* s){ SegmentData.Add(key, s); }
-	SegmentList*	FindSegmentList(LPSTR key){ return SegmentData.Find(key); }
+	SegmentList*		FindSegmentList(LPSTR key){ return SegmentData.Find(key); }
 	void			AddTagList(LPSTR key, TagList* t){ TagData.Add(key, t); }
 	TagList*		FindTagList(LPSTR key){ return TagData.Find(key); }
 	void			AddLocalLabelList(LPSTR key, LabelList* l){ LocalData.Add(key, l); }
@@ -87,7 +88,7 @@ class Generator{
 	void			Erase(LineData linedata){ OutFile.EraseLine(linedata); }
 
 	void			Param2LPSTR(LPSTR buf, Parameter& param);
-	void			OutputMASM(LPSTR label, LPSTR command, LPSTR param, LPSTR comment);
+	void			OutputMASM(const LPSTR label, const LPSTR command, const LPSTR param, const LPSTR comment);
 	void			Call(Token ptype, LPSTR func);
 	void			GlobalLabel(LPSTR label);
 	void			LocalLabel(LPSTR label);
@@ -110,7 +111,7 @@ class Generator{
 	void			Asmout(LPSTR buf);
 
 	void			SetLogFile(FILE* fp){ lpLogFP = fp; }
-	int				GetErrorCount(void){ return nErrorCount; }
+	int			GetErrorCount(void){ return nErrorCount; }
 };
 
 #endif
