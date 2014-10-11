@@ -149,7 +149,7 @@ AC_CONFIG_FILES([28GO/28GO_K/Makefile
                  28GO/28GO_K/tekmin0/Makefile
                  28GO/28GO_K/tekmin1/Makefile
                  28GO/28GO_K/w32clibc/Makefile
-                 28GO/Asuka/Makefile
+                 28GO/asuka/Makefile
                  28GO/Makefile
                  28GO/bim2bin/Makefile
                  28GO/edimg/Makefile
