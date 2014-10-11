@@ -6,7 +6,7 @@
 	-s:ShiftJISモード
 */
 
-#include <guigui01.h>
+#include <guigui01.hpp>
 
 typedef unsigned char UCHAR;
 
