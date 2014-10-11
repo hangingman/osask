@@ -24,8 +24,8 @@ void *GOL_sysmalloc(unsigned int size);
 void GOL_callmain(int argc, UCHAR **argv);
 
 int main(int argc, char **argv)
-/* かならず、-oオプションを付ける */
-/* ここで、-oオプションは剥ぎ取られる */
+/* かならず、-oオプションを付ける                                 */
+/* ここで、-oオプションは剥ぎ取られる                             */
 /* しかし入力ファイル名は書く(標準入力ではsizeが測定できないため) */
 {
 	struct bss_alloc *bss0;
@@ -37,8 +37,8 @@ int main(int argc, char **argv)
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
 	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* わざと少し小さくしておく */
 	GO_stderr.dummy = ~0;
-	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
-	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
+	GOL_memmaninit(&GOL_sysman, static_cast<size_t>(SIZ_WORK), bss0->syswrk);
+	GOL_memmaninit(&GOL_memman, static_cast<size_t>(SIZ_WORK), GOL_work0 = bss0->work);
 	GOL_callmain(argc, reinterpret_cast<unsigned char**>(argv));
 	return 0; /* ダミー */
 }
