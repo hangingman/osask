@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include "GO_lib.hpp"
+#include "go_lib.hpp"
 
 struct GOL_STR_MEMMAN GOL_memman;
 
