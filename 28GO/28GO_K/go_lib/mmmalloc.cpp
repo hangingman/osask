@@ -58,7 +58,7 @@ void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, size_t size, void *p)
 /* p‚ÍŠù‚É\•ª‚ÉƒAƒ‰ƒCƒ“‚³‚ê‚Ä‚¢‚é‚±‚Æ */
 {
 	man->u.s.bytes = sizeof (struct GOL_STR_MEMMAN);
-	man->u.s.next = p;
+	man->u.s.next = reinterpret_cast<GOL_STR_MEMMAN*>(p);
 	((struct GOL_STR_MEMMAN *) p)->u.s.bytes = size;
 	((struct GOL_STR_MEMMAN *) p)->u.s.next = NULL;
 	return p;

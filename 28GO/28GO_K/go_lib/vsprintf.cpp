@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <limits.h>
 #include <string.h>
+#include <inttypes.h>
 
 unsigned long GO_strtoul0(const char **ps, int base, char *errflag);
 
@@ -17,13 +18,14 @@ static UCHAR *setdec(UCHAR *s, UINT ui)
 
 int GO_vsprintf(char *s, const char *format, va_list arg)
 {
-	UCHAR c, *t = s, *p, flag_left, flag_zero /* , flag_sign, flag_space */;
+     	UCHAR* t = (UCHAR*)s;
+     	UCHAR c, *p, flag_left, flag_zero /* , flag_sign, flag_space */;
 	UCHAR temp[32] /* êîéöóp */, *q;
 	temp[31] = '\0';
 	int field_min, field_max, i;
 	long l;
-	static char hextable_X[16] = "0123456789ABCDEF";
-	static char hextable_x[16] = "0123456789abcdef";
+	static char hextable_X[] = "0123456789ABCDEF";
+	static char hextable_x[] = "0123456789abcdef";
 	for (;;) {
 		c = *format++;
 		if (c != '%') {
@@ -47,7 +49,7 @@ put1char:
 		field_min = 0;
 		if ('1' <= c && c <= '9') {
 			format--;
-			field_min = (int) GO_strtoul0(&format, 10, &c);
+			field_min = (int) GO_strtoul0(&format, 10, (char*)&c);
 			c = *format++;
 		} else if (c == '*') {
 			field_min = va_arg(arg, int);
@@ -58,7 +60,7 @@ put1char:
 			c = *format++;
 			if ('1' <= c && c <= '9') {
 				format--;
-				field_min = (int) GO_strtoul0(&format, 10, &c);
+				field_min = (int) GO_strtoul0(&format, 10, (char*)&c);
 				c = *format++;
 			} else if (c == '*') {
 				field_max = va_arg(arg, int);
@@ -71,8 +73,8 @@ put1char:
 				fputs("string-field_max error!\n", stderr);
 				goto sysabort;
 			}
-			p = va_arg(arg, char *);
-			l = strlen(p);
+			p = (UCHAR*)va_arg(arg, char *);
+			l = strlen((const char*)p);
 			if (*p) {
 				c = ' ';
 copy_p2t:
@@ -132,7 +134,7 @@ printf_x2:
 		if (c == '%')
 			goto put1char;
 		if (c == 'x') {
-			q = hextable_x;
+			q = (UCHAR*)hextable_x;
 printf_x:
 			l = va_arg(arg, UINT);
 			p = &temp[31];
@@ -142,11 +144,11 @@ printf_x:
 			goto printf_x2;
 		}
 		if (c == 'X') {
-			q = hextable_X;
+		        q = (UCHAR*)hextable_X;
 			goto printf_x;
 		}
 		if (c == 'p') {
-			i = (int) va_arg(arg, void *);
+		     	i = (intptr_t) va_arg(arg, void *);
 			p = &temp[31];
 			for (l = 0; l < 8; l++) {
 				*--p = hextable_X[i & 0x0f];

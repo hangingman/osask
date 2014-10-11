@@ -5,7 +5,10 @@
 
 char *GO_strdup(const char *cs)
 {
-	char *t = malloc(strlen(cs) + 1);
+     	char *t = reinterpret_cast<char*>(
+	     malloc(strlen(cs) + 1)
+	);
+	
 	if (t)
 		strcpy(t, cs);
 	return t;

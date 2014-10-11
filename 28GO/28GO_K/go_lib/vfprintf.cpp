@@ -9,8 +9,10 @@
 int GO_vfprintf(GO_FILE *stream, const char *format, va_list arg)
 {
 	int i;
-	char *s = malloc(MAXBUFSIZ);
-
+	char *s = reinterpret_cast<char*>(
+	     malloc(MAXBUFSIZ)
+	);
+	
 	i = vsprintf(s, format, arg);
 	fputs(s, stream);
 	free(s);

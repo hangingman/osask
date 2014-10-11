@@ -10,9 +10,9 @@
 	extern "C" {
 #endif
 
-#include "go_lib.h"
+#include "go_lib.hpp"
 
-/* size_t --> go_lib.h */
+/* size_t --> go_lib.hpp */
 
 #if (defined(__cplusplus))
 	}

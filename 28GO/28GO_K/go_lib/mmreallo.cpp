@@ -17,7 +17,10 @@ void *GOL_memmanrealloc(struct GOL_STR_MEMMAN *man, void *p0, size_t size)
 		}
 		return p0;
 	}
-	q = GOL_memmanalloc(man, size - sizeof (struct GOL_STR_MEMMAN));
+	q = reinterpret_cast<GOL_STR_MEMMAN*>(
+	     GOL_memmanalloc(man, size - sizeof (struct GOL_STR_MEMMAN))
+	);
+
 	if (q)
 		memcpy(q, p0, p->u.s.bytes - sizeof (struct GOL_STR_MEMMAN));
 	GOL_memmanfree(man, p0);

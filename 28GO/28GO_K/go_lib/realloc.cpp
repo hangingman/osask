@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include "GO_lib.h"
+#include "GO_lib.hpp"
 
 void *GO_realloc(void *p, size_t size)
 {

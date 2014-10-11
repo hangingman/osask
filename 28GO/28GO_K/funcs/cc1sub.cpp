@@ -25,7 +25,7 @@ void GOL_sysabort(unsigned char termcode);
 void GOL_callmain(int argc, UCHAR **argv)
 {
 	UCHAR **argv1, **p;
-	p = argv1 = GOL_sysmalloc((argc + 1) * sizeof (char *));
+	p = argv1 = reinterpret_cast<UCHAR**>(GOL_sysmalloc((argc + 1) * sizeof (char *)));
 	for (;;) {
 		if ((*p = *argv) == NULL)
 			break;

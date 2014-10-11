@@ -1,5 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 SUBDIRS = drv_osa    \
+	  go_lib     \
 	  drv_stdc   \
 	  nask       \
 	  drv_w32    \
@@ -17,7 +18,6 @@ SUBDIRS = drv_osa    \
 	  cpyc	     \
 	  doscmd     \
 	  gas2nask   \
-	  go_lib     \
 	  imgtol     \
 	  mtek2org   \
 	  obj2bim    \

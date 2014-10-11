@@ -18,14 +18,18 @@ GO_FILE *GO_fopen(const char *filename, const char *mode)
 			GOL_sysabort(GO_TERM_BUGTRAP);
 		#endif
 	}
-	filename = GOL_stepdir(&dir, filename);
-	gfp = GOL_open(dir, filename);
+	// FIXME: uggh...urgly cast, why osask use UCHAR ?
+	filename = reinterpret_cast<const char*>(
+	     GOL_stepdir(&dir, reinterpret_cast<const UCHAR*>(filename))
+	     );
+	gfp = GOL_open(dir, reinterpret_cast<const UCHAR*>(filename));
 	if (gfp == (GOL_FILE *) ~0) {
 		errno = ENOENT;
 		return NULL;
 	}
-	fp = GOL_sysmalloc(sizeof (GO_FILE));
-	fp->dummy = (int) gfp;
+	fp = reinterpret_cast<GO_FILE*>(GOL_sysmalloc(sizeof (GO_FILE)));
+	// FIXME: mystery code ??
+	//fp->dummy = reinterpret_cast<int>(gfp);
 	fp->p0 = fp->p = gfp->p0;
 	fp->p1 = gfp->p0 + gfp->size;
 	return fp;

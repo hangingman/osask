@@ -10,7 +10,7 @@ int GO_fprintf(FILE *stream, const char *format, ...)
 {
 	int i;
 	va_list ap;
-	char *s = malloc(MAXBUFSIZ);
+	char *s = reinterpret_cast<char*>(malloc(MAXBUFSIZ));
 
 	va_start(ap, format);
 	i = vsprintf(s, format, ap);
