@@ -3,13 +3,9 @@
 
 typedef unsigned char UCHAR;
 
-typedef struct GO_STR_FILE {
-	UCHAR *p0, *p1, *p;
-	int dummy;
-} GO_FILE;
-
 extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 
+#include "go_lib.hpp"
 #include "others.hpp"
 #include "wfile_t.cpp"
 #include "others.cpp"
@@ -17,7 +13,7 @@ extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 
 void GOL_sysabort(UCHAR termcode)
 {
-	static const UCHAR *termmsg[] = {
+	static const char *termmsg[] = {
 		"",
 		"[TERM_WORKOVER]\n",
 		"[TERM_OUTOVER]\n",

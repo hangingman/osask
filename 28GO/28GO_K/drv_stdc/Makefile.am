@@ -6,4 +6,4 @@ cc1pmain.cpp		  \
 cpp0main.cpp		  \
 drv_stdc.cpp
 
-AM_CFLAGS		= -I$(top_builddir)/28GO/28GO_K/include
+AM_CXXFLAGS		= -I$(top_builddir)/28GO/28GO_K/include

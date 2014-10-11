@@ -3,13 +3,6 @@
 
 struct GOL_STR_DIR;
 
-typedef struct GOL_STR_FILE {
-	unsigned int size;
-	UCHAR *p0;
-	unsigned int linkcount;
-	void *p_sys;
-} GOL_FILE;
-
 int GOL_retcode = 0;
 UCHAR *GOL_outname = NULL;
 void *GOL_sysmalloc(unsigned int size);
@@ -57,7 +50,7 @@ void GOL_close(GOL_FILE *gfp)
 GOL_FILE *GOL_open(struct GOL_STR_DIR *dir, const UCHAR *name)
 {
 	GOL_FILE *gfp;
-	int bytes;
+	size_t bytes;
 	UCHAR *p;
 	bytes = GOLD_getsize(name);
 	if (bytes == -1)
