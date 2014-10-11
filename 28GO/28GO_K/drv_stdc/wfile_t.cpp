@@ -6,7 +6,7 @@ int GOLD_write_t(const UCHAR *name, int len, const UCHAR *p0)
 	int ll = 0;
 	FILE *fp = stdout;
 	if (name) {
-		fp = fopen(name, "w");
+	     	fp = fopen(reinterpret_cast<const char*>(name), "w");
 		if (fp == NULL)
 			goto err;
 	}

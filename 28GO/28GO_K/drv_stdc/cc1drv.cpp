@@ -23,7 +23,7 @@ void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, unsigned int size, void *p);
 void *GOL_sysmalloc(unsigned int size);
 void GOL_callmain(int argc, UCHAR **argv);
 
-int main(int argc, UCHAR **argv)
+int main(int argc, char **argv)
 /* かならず、-oオプションを付ける */
 /* ここで、-oオプションは剥ぎ取られる */
 /* しかし入力ファイル名は書く(標準入力ではsizeが測定できないため) */
@@ -39,6 +39,6 @@ int main(int argc, UCHAR **argv)
 	GO_stderr.dummy = ~0;
 	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
-	GOL_callmain(argc, argv);
+	GOL_callmain(argc, reinterpret_cast<unsigned char**>(argv));
 	return 0; /* ダミー */
 }

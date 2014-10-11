@@ -1,13 +1,13 @@
 ACLOCAL_AMFLAGS = -I m4
 SUBDIRS = drv_osa    \
-	  drv_w32    \
+	  drv_stdc   \
 	  nask       \
+	  drv_w32    \
 	  naskcnv0   \
 	  g01libc0   \
 	  g01libc1   \
 	  sjisconv   \
 	  makefont   \
-	  drv_stdc   \
 	  akusA	     \
 	  bim2g01    \
 	  bim2hrb    \

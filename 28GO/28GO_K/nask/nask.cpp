@@ -38,7 +38,7 @@ struct bss_alloc {
 	UCHAR work1[MAX_SRCSIZ + MAX_TMPSIZ + MAX_BINSIZ + MAX_LSTSIZ];
 };
 
-#include "../drv_stdc/others.h"
+#include "../drv_stdc/others.hpp"
 
 int main(int argc, char** argv)
 {

@@ -10,10 +10,10 @@ typedef struct GO_STR_FILE {
 
 extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 
-#include "others.h"
-#include "wfile_t.c"
-#include "others.c"
-#include "../funcs/cc1sub.c"
+#include "others.hpp"
+#include "wfile_t.cpp"
+#include "others.cpp"
+#include "../funcs/cc1sub.cpp"
 
 void GOL_sysabort(UCHAR termcode)
 {

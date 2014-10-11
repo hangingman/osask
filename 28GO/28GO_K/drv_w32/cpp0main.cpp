@@ -5,4 +5,4 @@
 #define SIZ_WORK			(8 * 1024 * 1024)
 #define SIZ_SYSWRK			(2 * 1024 * 1024)
 
-#include "cc1drv.c"
+#include "cc1drv.cpp"

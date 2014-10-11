@@ -23,12 +23,14 @@ void *GOL_sysmalloc(unsigned int size);
 void GOL_callmain0();
 
 void mainCRTStartup(void)
-/* かならず、-oオプションを付ける */
-/* ここで、-oオプションは剥ぎ取られる */
+/* かならず、-oオプションを付ける                             */
+/* ここで、-oオプションは剥ぎ取られる                          */
 /* しかし入力ファイル名は書く(標準入力ではsizeが測定できないため) */
 {
 	struct bss_alloc bss_image;
-	struct bss_alloc *bss0 = (void *) ((((int) &bss_image) + 0x0f) & ~0x0f);
+	// TODO: FIXME 初期化を0x0fで行っている？C++らしいやり方に変更する
+	//struct bss_alloc *bss0 = (void *) ((((int) &bss_image) + 0x0f) & ~0x0f);
+	struct bss_alloc *bss0;
 	GO_stdout.p0 = GO_stdout.p = bss0->_stdout;
 	GO_stdout.p1 = GO_stdout.p0 + SIZ_STDOUT;
 	GO_stdout.dummy = ~0;

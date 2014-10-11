@@ -1,4 +1,6 @@
-#include "windows.h"
+#ifdef _WIN32 /** windows */
+   #include "windows.h"
+#endif
 
 typedef unsigned char UCHAR;
 
