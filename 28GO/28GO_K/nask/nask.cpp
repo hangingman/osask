@@ -47,14 +47,14 @@ int main(int argc, char** argv)
 	GO_stdout.p1 = GO_stdout.p0 + SIZ_STDOUT;
 	GO_stdout.dummy = ~0;
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
-	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ‚í‚´‚Æ­‚µ¬‚³‚­‚µ‚Ä‚¨‚­ */
+	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ã‚ã–ã¨å°‘ã—å°ã•ãã—ã¦ãŠã */
 	GO_stderr.dummy = ~0;
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
 
 	GOL_retcode = main1(argc, (UCHAR**)argv, bss0->work1);
-	/* ƒoƒbƒtƒ@‚ğo—Í */
+	/* ãƒãƒƒãƒ•ã‚¡ã‚’å‡ºåŠ› */
 	GOL_sysabort(0);
-	return 0; /* ƒ_ƒ~[ */
+	return 0; /* ãƒ€ãƒŸãƒ¼ */
 }
 
 #include "../drv_stdc/others.c"

@@ -10,7 +10,7 @@ unsigned int filelength(int fd){
 }
 #endif
 
-//Œ»İ‚Å‚ÍƒfƒBƒŒƒNƒgƒŠ‚ÌŒŸõ‚È‚Ç‚Í‚µ‚Ä‚¢‚È‚¢‚Ì‚ÅA’Pƒ‚É""‚â<>‚ğ‚Í‚¸‚·‚¾‚¯
+//ç¾åœ¨ã§ã¯ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã®æ¤œç´¢ãªã©ã¯ã—ã¦ã„ãªã„ã®ã§ã€å˜ç´”ã«""ã‚„<>ã‚’ã¯ãšã™ã ã‘
 string	Module::MakeFullPath(string& p){
 	string	str = p.substr(0, 0);
 	if(str == "\"" || str == "\'" || str == "<"){
@@ -29,7 +29,7 @@ HRESULT	Module::ReadFile(string& filename){
 	FileName = MakeFullPath(filename);
 	lpFP = fopen(FileName.c_str(), "rb");
 	if(lpFP == NULL){
-		return 1;	// fileopen¸”s
+		return 1;	// fileopenå¤±æ•—
 	}
 	
 	dwMdlSize = filelength(fileno(lpFP));
@@ -44,20 +44,20 @@ HRESULT	Module::ReadFile(string& filename){
 	if(lpMdlAdr == NULL){
 		dwMdlSize = 0;
 		fclose(lpFP);
-		return 3;	// ƒƒ‚ƒŠŠm•Û¸”s
+		return 3;	// ãƒ¡ãƒ¢ãƒªç¢ºä¿å¤±æ•—
 	}
 	if(fread(lpMdlAdr, 1, dwMdlSize, lpFP) != dwMdlSize){
 		dwMdlSize = 0;
 		fclose(lpFP);
-		return 4;	// “Ç‚İ‚İ¸”s
+		return 4;	// èª­ã¿è¾¼ã¿å¤±æ•—
 	}
 	if(fclose(lpFP)){
 		lpMdlAdr = NULL;
 		dwMdlSize = 0;
-		return 5;	// fileclose¸”s
+		return 5;	// filecloseå¤±æ•—
 	}
 	lpMdlPos = (LPSTR)lpMdlAdr;
-	return 0;		// ³íI—¹
+	return 0;		// æ­£å¸¸çµ‚äº†
 }
 
 HRESULT Module::ReadLine(LPSTR buf){
@@ -65,13 +65,13 @@ HRESULT Module::ReadLine(LPSTR buf){
 	
 	if(lpMdlPos == NULL) return 3;
 	j = ((LPSTR)lpMdlAdr + dwMdlSize) - lpMdlPos;
-	if (j <= 0) return 1;	// ‚à‚¤ƒtƒ@ƒCƒ‹‚ª‚È‚¢
-	if (j > 1023) i = 1023;	// ƒoƒbƒtƒ@ƒTƒCƒY‚Å“ª‘Å‚¿
+	if (j <= 0) return 1;	// ã‚‚ã†ãƒ•ã‚¡ã‚¤ãƒ«ãŒãªã„
+	if (j > 1023) i = 1023;	// ãƒãƒƒãƒ•ã‚¡ã‚µã‚¤ã‚ºã§é ­æ‰“ã¡
 	for(i = j; i > 0; i--){
 		if(*lpMdlPos == 0x0D && *(lpMdlPos+1) == 0x0A){
 			*buf = '\0';
 			lpMdlPos += 2;
-			return 0;	// ‚PsI—¹
+			return 0;	// ï¼‘è¡Œçµ‚äº†
 		}
 
 		if (*lpMdlPos == 0x0a || *lpMdlPos == 0x0d){
@@ -84,7 +84,7 @@ HRESULT Module::ReadLine(LPSTR buf){
 	}
 	*buf = '\0';
 	if (j < 1023)
-	  return 0;		// ƒtƒ@ƒCƒ‹I’[
+	  return 0;		// ãƒ•ã‚¡ã‚¤ãƒ«çµ‚ç«¯
 	else
-	  return 2;	// ƒoƒbƒtƒ@‚ ‚Ó‚ê
+	  return 2;	// ãƒãƒƒãƒ•ã‚¡ã‚ãµã‚Œ
 }

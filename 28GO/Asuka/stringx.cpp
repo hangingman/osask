@@ -26,7 +26,7 @@ string	stringx::tolower(){
 	string::iterator	itr, itr2;
 	for(itr = str.begin(), itr2 = tmp.begin(); itr != str.end(); itr++, itr2++){
 		if(*itr >= 'A' && *itr <= 'Z'){
-			*itr2 = *itr + 0x20;		// ‘å•¶š¨¬•¶š•ÏŠ·
+			*itr2 = *itr + 0x20;		// å¤§æ–‡å­—â†’å°æ–‡å­—å¤‰æ›
 		}
 	}
 	return tmp;
@@ -37,7 +37,7 @@ string	stringx::toupper(){
 	string::iterator	itr, itr2;
 	for(itr = str.begin(), itr2 = tmp.begin(); itr != str.end(); itr++, itr2++){
 		if(*itr >= 'a' && *itr <= 'z'){
-			*itr2 = *itr - 0x20;		// ¬•¶š¨‘å•¶š•ÏŠ·
+			*itr2 = *itr - 0x20;		// å°æ–‡å­—â†’å¤§æ–‡å­—å¤‰æ›
 		}
 	}
 	return tmp;

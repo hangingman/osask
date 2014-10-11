@@ -13,8 +13,8 @@ void G01Main()
     unsigned char *buf = g01_bss1a1, *p = buf + 16, *q, *r, mod, typ, flag = 0, first;
     int i, j;
     g01_setcmdlin(cmdusage);
-	mod = g01_getcmdlin_int_o(0, 0);	/* .g01Œ^ */
-	typ = g01_getcmdlin_int_o(1, 1);	/* tek5Œ^ */
+	mod = g01_getcmdlin_int_o(0, 0);	/* .g01åž‹ */
+	typ = g01_getcmdlin_int_o(1, 1);	/* tek5åž‹ */
     g01_getcmdlin_fopen_s_0_4(2);
 	i = jg01_fread1f_4(2 * 1024 * 1024, buf);
 	if (i < 17 || buf[1] != 0xff || buf[8] != 'O')
@@ -54,7 +54,7 @@ void G01Main()
 		q[6] = j & 0xff;
 		r = q + 7;
 	} else {
-		g01_putstr0_exit1("Internal error");	/* Šî–{“I‚É‚±‚±‚É‚Í—ˆ‚È‚¢‚ª«—ˆŠg’£‚µ‚½‚Æ‚«—p */
+		g01_putstr0_exit1("Internal error");	/* åŸºæœ¬çš„ã«ã“ã“ã«ã¯æ¥ãªã„ãŒå°†æ¥æ‹¡å¼µã—ãŸã¨ãç”¨ */
 	}
 	if (r < p) {
 		for (j = 0; j > q - r; j--)

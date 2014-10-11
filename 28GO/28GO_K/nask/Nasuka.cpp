@@ -65,13 +65,13 @@ void G01Main()
 	GO_stdout.p1 = GO_stdout.p0 + SIZ_STDOUT;
 	GO_stdout.dummy = ~0;
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
-	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ‚í‚´‚Æ­‚µ¬‚³‚­‚µ‚Ä‚¨‚­ */
+	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ã‚ã–ã¨å°‘ã—å°ã•ãã—ã¦ãŠã */
 	GO_stderr.dummy = ~0;
 //	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
 
 	GOL_retcode = main1(bss0->work1);
-	/* ƒoƒbƒtƒ@‚ğo—Í */
+	/* ãƒãƒƒãƒ•ã‚¡ã‚’å‡ºåŠ› */
 	GOL_sysabort(0);
 }
 
@@ -178,8 +178,8 @@ void GOL_sysabort(unsigned char termcode)
 		"[TERM_ABORT]\n"
 	};
 
-	GO_stderr.p1 += 128; /* —\”õ‚Éæ‚Á‚Ä‚¨‚¢‚½•ª‚ğ•œŠˆ */
-	/* ƒoƒbƒtƒ@‚ğo—Í */
+	GO_stderr.p1 += 128; /* äºˆå‚™ã«å–ã£ã¦ãŠã„ãŸåˆ†ã‚’å¾©æ´» */
+	/* ãƒãƒƒãƒ•ã‚¡ã‚’å‡ºåŠ› */
 	if (termcode <= 6)
 		errmsgout(termmsg[termcode]);
 	if (GO_stderr.p > GO_stderr.p0)

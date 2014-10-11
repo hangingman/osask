@@ -1,6 +1,6 @@
-/* "osalink1.c":OSASK LINKƒvƒƒOƒ‰ƒ€ version 2.0
+/* "osalink1.c":OSASK LINKãƒ—ãƒ­ã‚°ãƒ©ãƒ  version 2.0
 
-	Å‰‚ªBASE.EXEA‚»‚ÌŒã‚ÍŠeí.BIN(.TEK)‚ğ‘z’è‚µ‚Ä‚¢‚é */
+	æœ€åˆãŒBASE.EXEã€ãã®å¾Œã¯å„ç¨®.BIN(.TEK)ã‚’æƒ³å®šã—ã¦ã„ã‚‹ */
 
 
 
@@ -14,17 +14,17 @@
 
 
 
-//ƒIƒvƒVƒ‡ƒ“ƒtƒ@ƒCƒ‹î•ñ‚Ì\‘¢‘Ì‚Ì’è‹`
+//ã‚ªãƒ—ã‚·ãƒ§ãƒ³ãƒ•ã‚¡ã‚¤ãƒ«æƒ…å ±ã®æ§‹é€ ä½“ã®å®šç¾©
 struct optfiledata {
-  int fnames;     //—LŒø‚Èƒtƒ@ƒCƒ‹–¼‚Ì”
-  unsigned char files[500];  //ƒtƒ@ƒCƒ‹–¼B‚Æ‚è‚ ‚¦‚¸500•¶š
+  int fnames;     //æœ‰åŠ¹ãªãƒ•ã‚¡ã‚¤ãƒ«åã®æ•°
+  unsigned char files[500];  //ãƒ•ã‚¡ã‚¤ãƒ«åã€‚ã¨ã‚Šã‚ãˆãš500æ–‡å­—
   int hpoint[50];
   unsigned char *optname;
 };
 
 
 
-//ŠÖ”‚Ìƒvƒƒgƒ^ƒCƒvéŒ¾
+//é–¢æ•°ã®ãƒ—ãƒ­ãƒˆã‚¿ã‚¤ãƒ—å®£è¨€
 char tolower_hide(char moto);
 int readoptfile( struct optfiledata *optfiledata);
 //const int script(char *opt, char *inp, char *out, char *helmes_buf);
@@ -62,7 +62,7 @@ void G01Main()
 {
 	char error[100];
 
-  //ƒo[ƒWƒ‡ƒ“•\‹L
+  //ãƒãƒ¼ã‚¸ãƒ§ãƒ³è¡¨è¨˜
   //  if ( argc == 2 ){
   //    if ( strcmp(argv[1],"-v") == 0 ){
   //      fprintf(stderr, "osalink1 hideyosi version 1.1\n");
@@ -96,12 +96,12 @@ void G01Main()
 	//	outfile = argv[2];
 
 
-	// OPTIONFILE‚Ì“Ç‚İ‚İ‚ÆŠeƒtƒ@ƒCƒ‹‚ÌƒTƒCƒYæ“¾
-	//optionƒtƒ@ƒCƒ‹‚Ì“Ç‚İ‚İ‚ÍŠÖ”‰»B\‘¢‘Ì‚É“à—e‚ğ“ü‚ê‚Ä
-	//•Ô‚µ‚Ä‚­‚éB
+	// OPTIONFILEã®èª­ã¿è¾¼ã¿ã¨å„ãƒ•ã‚¡ã‚¤ãƒ«ã®ã‚µã‚¤ã‚ºå–å¾—
+	//optionãƒ•ã‚¡ã‚¤ãƒ«ã®èª­ã¿è¾¼ã¿ã¯é–¢æ•°åŒ–ã€‚æ§‹é€ ä½“ã«å†…å®¹ã‚’å…¥ã‚Œã¦
+	//è¿”ã—ã¦ãã‚‹ã€‚
 
 
-	//\‘¢‘Ì‚ğéŒ¾
+	//æ§‹é€ ä½“ã‚’å®£è¨€
 	struct optfiledata optfdata1;
 	optfdata1.optname = OPTIONFILE;
 	optfdata1.fnames = 3;
@@ -118,7 +118,7 @@ void G01Main()
 		//		  g01_putstr0("\n");
 		//		}
 
-	//‚±‚±‚Å\‘¢‘Ì‚Éƒtƒ@ƒCƒ‹–¼‚Ì”z—ñî•ñ‚ª—ˆ‚Ä‚¢‚é‚Í‚¸EEE
+	//ã“ã“ã§æ§‹é€ ä½“ã«ãƒ•ã‚¡ã‚¤ãƒ«åã®é…åˆ—æƒ…å ±ãŒæ¥ã¦ã„ã‚‹ã¯ãšãƒ»ãƒ»ãƒ»
 
 
 
@@ -145,13 +145,13 @@ void G01Main()
 
 	for (i = 0; i < optfdata1.fnames; i++) {
 
-	  //‰üsƒR[ƒh‚Ìˆø‚Á‚±”²‚«
+	  //æ”¹è¡Œã‚³ãƒ¼ãƒ‰ã®å¼•ã£ã“æŠœã
 	  // for ( i2 = 31; i2 != 0; i2--){
 	  //	    if ( fname[i2] == 0x0a ) fname[i2] = 0x0;
 	  //	    if ( fname[i2] == 0x0d ) fname[i2] = 0x0;
 	  //	  }
 
-	  //‚í‚Á‚©‚ç‚ñEEE‚±‚¤‚â‚Á‚ÄƒRƒs[‚·‚é‚Æ‚¤‚Ü‚­‚¢‚­EEE
+	  //ã‚ã£ã‹ã‚‰ã‚“ãƒ»ãƒ»ãƒ»ã“ã†ã‚„ã£ã¦ã‚³ãƒ”ãƒ¼ã™ã‚‹ã¨ã†ã¾ãã„ããƒ»ãƒ»ãƒ»
 	  //	  strcpy (fname2,fname);
 
 
@@ -207,7 +207,7 @@ err1:
 		  return 1;
 		if (i == 0) {
 			buf2 = buf + (wordload(buf + 0x204) << 4) - 16 + 0x220;
-			goto skip; /* BASE.EXE‚Í‰ÁH‚µ‚È‚¢ */
+			goto skip; /* BASE.EXEã¯åŠ å·¥ã—ãªã„ */
 		}
 
 		for (j = 0; j < 8; j++)
@@ -227,10 +227,10 @@ err1:
 					c |= buf1[k] ^ "\x82\xff\xff\xff\x01\x00\x00\x00OSASKCMP"[k];
 				if (c == 0) {
 					size -= 20;
-					j = dwordload(buf1 + 16); /* “WŠJŒã‚ÌƒTƒCƒY */
+					j = dwordload(buf1 + 16); /* å±•é–‹å¾Œã®ã‚µã‚¤ã‚º */
 					for (k = 0; k < size; k++)
 						buf1[k] = buf1[k + 20];
-					buf3[0x0f] = 0x80; /* ˆ³kƒtƒ‰ƒO‚ğ—§‚Ä‚é */
+					buf3[0x0f] = 0x80; /* åœ§ç¸®ãƒ•ãƒ©ã‚°ã‚’ç«‹ã¦ã‚‹ */
 				}
 			}
 			dwordstore(buf3 + 0x08, j);
@@ -240,19 +240,19 @@ err1:
 skip:
 		totalsize += size;
 		while (totalsize & 0x0f)
-			*(buf + totalsize++) = '\0'; /* ƒpƒ‰ƒOƒ‰ƒt’PˆÊ‚ÌƒAƒ‰ƒCƒ“ */
+			*(buf + totalsize++) = '\0'; /* ãƒ‘ãƒ©ã‚°ãƒ©ãƒ•å˜ä½ã®ã‚¢ãƒ©ã‚¤ãƒ³ */
 	}
 	//fclose(fp0);
-	//‚±‚±‚Åƒtƒ@ƒCƒ‹–¼‚Ìƒ‹[ƒv‚ÍI‚í‚è
+	//ã“ã“ã§ãƒ•ã‚¡ã‚¤ãƒ«åã®ãƒ«ãƒ¼ãƒ—ã¯çµ‚ã‚ã‚Š
 
 
-	/* ƒwƒbƒ_’²® */
-	wordstore(buf + 0x02, totalsize & 0x01ff); // ÅIƒy[ƒWƒTƒCƒY
-	wordstore(buf + 0x04, (totalsize + 0x1ff) >> 9); // ƒtƒ@ƒCƒ‹ƒy[ƒW”
-	wordstore(buf + 0x0e, (totalsize - 0x200) >> 4); // ‰ŠúSS
+	/* ãƒ˜ãƒƒãƒ€èª¿æ•´ */
+	wordstore(buf + 0x02, totalsize & 0x01ff); // æœ€çµ‚ãƒšãƒ¼ã‚¸ã‚µã‚¤ã‚º
+	wordstore(buf + 0x04, (totalsize + 0x1ff) >> 9); // ãƒ•ã‚¡ã‚¤ãƒ«ãƒšãƒ¼ã‚¸æ•°
+	wordstore(buf + 0x0e, (totalsize - 0x200) >> 4); // åˆæœŸSS
 
 	if (buf[0x0208] == 0x10 && buf[0x0209] == 0x89 && buf[0x020a] == 0x00) {
-		/* OSASK‚ÌKHBIOS—pƒXƒNƒŠƒvƒg‚ğ”­Œ© */
+		/* OSASKã®KHBIOSç”¨ã‚¹ã‚¯ãƒªãƒ—ãƒˆã‚’ç™ºè¦‹ */
 		size = (totalsize + (0x1ff - 0x200)) >> 9;
 		buf[0x020b] =  size       & 0xff;
 		buf[0x020c] = (size >> 8) & 0xff;
@@ -264,7 +264,7 @@ skip:
 	g01_putstr0(error);
 
 
-	/* o—Í */
+	/* å‡ºåŠ› */
 	//	fp1 = fopen(outfile, "wb");
 	//	fwrite(buf, 1, totalsize, fp1);
 	//	fclose(fp1);
@@ -297,7 +297,7 @@ retry:
 }
 
 char *checktoken(char *s, char *s1)
-/* ‚±‚ê‚ğŒÄ‚Ô‘O‚Éskipspace‚µ‚Ä‚¨‚­‚±‚Æ */
+/* ã“ã‚Œã‚’å‘¼ã¶å‰ã«skipspaceã—ã¦ãŠãã“ã¨ */
 {
 	char *s0 = s;
 	if (s < s1) {
@@ -328,9 +328,9 @@ char *checktoken(char *s, char *s1)
 }
 
 int getnum(char *s, char *s1)
-/* 10i”‚Æ16i”‚Ì‚İ, ‚µ‚©‚à•‰‚Ì’l‚Íˆµ‚í‚È‚¢ */
-/* ƒGƒ‰[‚¾‚Æ-1‚ğ•Ô‚· */
-/* s‚Ískipspace()‚µ‚Ä‚¨‚­‚±‚Æ */
+/* 10é€²æ•°ã¨16é€²æ•°ã®ã¿, ã—ã‹ã‚‚è² ã®å€¤ã¯æ‰±ã‚ãªã„ */
+/* ã‚¨ãƒ©ãƒ¼ã ã¨-1ã‚’è¿”ã™ */
+/* sã¯skipspace()ã—ã¦ãŠãã“ã¨ */
 {
 	int i = 0, base = 10, c;
 	if (s >= s1)
@@ -444,10 +444,10 @@ err:
 }
 
 
-//‚±‚ÌŠÖ”‚Íg‚í‚ê‚Ä‚¢‚È‚¢‚Æv‚¤‚ñ‚¾‚ª¥¥
+//ã“ã®é–¢æ•°ã¯ä½¿ã‚ã‚Œã¦ã„ãªã„ã¨æ€ã†ã‚“ã ãŒãƒ»ãƒ»
 /*
 const int script(char *opt, char *inp, char *out, char *helmes_buf)
-     //ƒXƒNƒŠƒvƒg‚ª4KB‚ğ’´‚¦‚½‚ç€‚É‚Ü‚·
+     //ã‚¹ã‚¯ãƒªãƒ—ãƒˆãŒ4KBã‚’è¶…ãˆãŸã‚‰æ­»ã«ã¾ã™
 {
 
 
@@ -544,7 +544,7 @@ char tolower_hide(char moto){
 
 
 
-//ƒIƒvƒVƒ‡ƒ“ƒtƒ@ƒCƒ‹‚ğ“Ç‚İ‚İAƒtƒ@ƒCƒ‹–¼‚Ì\‘¢‘Ì‚ğ•Ô‚·
+//ã‚ªãƒ—ã‚·ãƒ§ãƒ³ãƒ•ã‚¡ã‚¤ãƒ«ã‚’èª­ã¿è¾¼ã¿ã€ãƒ•ã‚¡ã‚¤ãƒ«åã®æ§‹é€ ä½“ã‚’è¿”ã™
 int readoptfile(struct optfiledata *optdata1){
 
   int i,i2;
@@ -560,14 +560,14 @@ int readoptfile(struct optfiledata *optdata1){
 	}
   g01_putstr0("cccccccc\n");
 
-	//‚Ü‚¸‚Í‰üsƒR[ƒh‚ğˆê’U“ˆê‚·‚é
+	//ã¾ãšã¯æ”¹è¡Œã‚³ãƒ¼ãƒ‰ã‚’ä¸€æ—¦çµ±ä¸€ã™ã‚‹
 	for ( i = 0; i < strlen(g01_bss1a1); i++){
-	  //‚Æ‚è‚ ‚¦‚¸LF‚É“ˆê‚·‚é‚©EEE
+	  //ã¨ã‚Šã‚ãˆãšLFã«çµ±ä¸€ã™ã‚‹ã‹ãƒ»ãƒ»ãƒ»
 	  if (g01_bss1a1[i] == 0x0D) g01_bss1a1[i] = 0x0A;
-	  //‚±‚ê‚ÅACR‚ª‘S•”LF‚É’uŠ·‚³‚ê‚é‚Í‚¸B
+	  //ã“ã‚Œã§ã€CRãŒå…¨éƒ¨LFã«ç½®æ›ã•ã‚Œã‚‹ã¯ãšã€‚
 	}
 
-	//æ“ª‚É‚ ‚é×–‚‚ÈLF‚È‚Ç‚ğ”rœ‚·‚é‚½‚ßAŠJn’n“_‚ğ’T‚Á‚Ä‚¨‚­
+	//å…ˆé ­ã«ã‚ã‚‹é‚ªé­”ãªLFãªã©ã‚’æ’é™¤ã™ã‚‹ãŸã‚ã€é–‹å§‹åœ°ç‚¹ã‚’æ¢ã£ã¦ãŠã
 	int stppoint; stppoint = 0;
 	for ( i =0; i < strlen(g01_bss1a1); i++){
 	  if ( g01_bss1a1[i] != 0x0A ){
@@ -575,10 +575,10 @@ int readoptfile(struct optfiledata *optdata1){
 	    break;
 	  }
 	}
-	//‚±‚ê‚Å‚à‚µæ“ª‚ÉLF‚ª‚ ‚Á‚Ä‚à‘S‚Ä”ò‚Î‚µ‚½ˆÊ’u‚©‚çŠJn‚Å‚«‚é
+	//ã“ã‚Œã§ã‚‚ã—å…ˆé ­ã«LFãŒã‚ã£ã¦ã‚‚å…¨ã¦é£›ã°ã—ãŸä½ç½®ã‹ã‚‰é–‹å§‹ã§ãã‚‹
 
 
-	//V‚µ‚¢”z—ñ•Ï”‚ğŠm•Û‚·‚éB
+	//æ–°ã—ã„é…åˆ—å¤‰æ•°ã‚’ç¢ºä¿ã™ã‚‹ã€‚
 	i2 = 0;
 	lfs = 0;
 
@@ -588,7 +588,7 @@ int readoptfile(struct optfiledata *optdata1){
 
 	for ( i = stppoint; i < strlen(g01_bss1a1); i++){
 	  if ( g01_bss1a1[i] == 0x0A && g01_bss1a1[i-1] == 0x0A ){
-	    //  ˜A‘±‚µ‚½LF‚¾‚Á‚½‚çƒVƒJƒg‚µ‚Äi‚ß‚éB
+	    //  é€£ç¶šã—ãŸLFã ã£ãŸã‚‰ã‚·ã‚«ãƒˆã—ã¦é€²ã‚ã‚‹ã€‚
 	  }
 	  else {
 	    if ( g01_bss1a1[i] == 0x0A ){
@@ -599,36 +599,36 @@ int readoptfile(struct optfiledata *optdata1){
 	      files[i2] = g01_bss1a1[i];
 	    }
 	    i2++;
-	    //  LF‚ğI’[ƒR[ƒh‚É’uŠ·
+	    //  LFã‚’çµ‚ç«¯ã‚³ãƒ¼ãƒ‰ã«ç½®æ›
 	  }
 	}
-	//ÅŒã‚ÉI’[ƒR[ƒh‚ğ‘Å‚Á‚Ä‚¨‚­
+	//æœ€å¾Œã«çµ‚ç«¯ã‚³ãƒ¼ãƒ‰ã‚’æ‰“ã£ã¦ãŠã
 	files[i2+1] = 0;
 
-	//ƒGƒ‰[ƒ`ƒFƒbƒN—p
+	//ã‚¨ãƒ©ãƒ¼ãƒã‚§ãƒƒã‚¯ç”¨
 	char error[100];
 	//sprintf(error,"ii2=%d\n",ii2);
 	//	g01_putstr0(error);
 	//	g01_putstr0(files);
 
 
-	//‚±‚ê‚ÅA0‚É‚æ‚Á‚Ä‹æØ‚ç‚ê‚½”z—ñ‚É‚È‚Á‚½‚Í‚¸B
-	//files”z—ñ“à‚ÌA0‚ÌˆÊ’u‚ğ‹L‰¯‚·‚é”z—ñ‚ğ—pˆÓ‚·‚éB
-	//Œµ–§‚É‚Í0‚Ì‘OBs“ª‚Æ‚¢‚¤‚×‚«‚©EEE
+	//ã“ã‚Œã§ã€0ã«ã‚ˆã£ã¦åŒºåˆ‡ã‚‰ã‚ŒãŸé…åˆ—ã«ãªã£ãŸã¯ãšã€‚
+	//filesé…åˆ—å†…ã®ã€0ã®ä½ç½®ã‚’è¨˜æ†¶ã™ã‚‹é…åˆ—ã‚’ç”¨æ„ã™ã‚‹ã€‚
+	//å³å¯†ã«ã¯0ã®å‰ã€‚è¡Œé ­ã¨ã„ã†ã¹ãã‹ãƒ»ãƒ»ãƒ»
 	//	int zeropoint[lfs + 1];
 	//	int *zeropoint = optdata1->hpoint;
-	//ª‚Ìˆ—‚Åæ“ª‚Í•K‚¸s“ª‚É‚È‚Á‚Ä‚é‚Í‚¸‚È‚Ì‚ÅEEE
+	//â†‘ã®å‡¦ç†ã§å…ˆé ­ã¯å¿…ãšè¡Œé ­ã«ãªã£ã¦ã‚‹ã¯ãšãªã®ã§ãƒ»ãƒ»ãƒ»
 	optdata1->hpoint[0]=0;
 	fnames = 1;
 	for (i = 1; i < i2 +1; i++){
 	    if (files[i] != 0 && files[i-1] == 0){
-	      //‚±‚±‚ªs“ª‚É‚È‚é‚Í‚¸BˆÊ’u‚ğ‹L‰¯
+	      //ã“ã“ãŒè¡Œé ­ã«ãªã‚‹ã¯ãšã€‚ä½ç½®ã‚’è¨˜æ†¶
 	      optdata1->hpoint[fnames] = i;
 	      fnames++;
 	    }
 	}
 
-	//‚±‚ê‚ÅA—LŒø‚Ès”‚Íi3ŒÂBlfpoint‚ªs‚Ìæ“ª‚É‚È‚Á‚Ä‚¢‚é‚Í‚¸B
+	//ã“ã‚Œã§ã€æœ‰åŠ¹ãªè¡Œæ•°ã¯i3å€‹ã€‚lfpointãŒè¡Œã®å…ˆé ­ã«ãªã£ã¦ã„ã‚‹ã¯ãšã€‚
 		sprintf(error,"fnames=%d\n",fnames);
 		g01_putstr0(error);
 	//
@@ -636,8 +636,8 @@ int readoptfile(struct optfiledata *optdata1){
 		//			g01_putstr0(files + optdata1->hpoint[i] );	g01_putstr0("\n");
 		//					}
 
-	//‚±‚±‚Ü‚Å‚Åoptƒtƒ@ƒCƒ‹“Ç‚İ‚İ‚Ìˆ—‚ÍI‚í‚Á‚½B
-	//ƒtƒ@ƒCƒ‹‚ğƒNƒ[ƒY‚µAƒoƒbƒtƒ@‚à”jŠü‚·‚éB
+	//ã“ã“ã¾ã§ã§optãƒ•ã‚¡ã‚¤ãƒ«èª­ã¿è¾¼ã¿ã®å‡¦ç†ã¯çµ‚ã‚ã£ãŸã€‚
+	//ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ã‚¯ãƒ­ãƒ¼ã‚ºã—ã€ãƒãƒƒãƒ•ã‚¡ã‚‚ç ´æ£„ã™ã‚‹ã€‚
 	jg01_fclose(4); 
 	//	jg01_mfree(2*024*1024,buffer1);
 

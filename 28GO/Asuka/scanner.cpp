@@ -18,16 +18,16 @@ Token	Scanner::GetToken(void){
 		token = files.top()->GetToken();
 		if(token == TK_INCLUDE){
 			nIncludeNest++;
-			files.top()->GetToken();	// include‚ÌŸ‚Ì"ƒtƒ@ƒCƒ‹–¼"‚ğæ‚èo‚·
-			ReadFile(string(files.top()->GetLabel()));	// Š‡‚è•¶š•t‚«‚Å“n‚µ‚Ä‚é
+			files.top()->GetToken();	// includeã®æ¬¡ã®"ãƒ•ã‚¡ã‚¤ãƒ«å"ã‚’å–ã‚Šå‡ºã™
+			ReadFile(string(files.top()->GetLabel()));	// æ‹¬ã‚Šæ–‡å­—ä»˜ãã§æ¸¡ã—ã¦ã‚‹
 			continue;
 		}
 //		if(token == TK_DEFINE){
-//			files.top()->GetToken();	// include‚ÌŸ‚Ì"ƒtƒ@ƒCƒ‹–¼"‚ğæ‚èo‚·
+//			files.top()->GetToken();	// includeã®æ¬¡ã®"ãƒ•ã‚¡ã‚¤ãƒ«å"ã‚’å–ã‚Šå‡ºã™
 //			continue;
 //		}
 		if(token == TK_EOF){
-			if(nIncludeNest == 0) break;		// –{“–‚ÉI‚í‚è
+			if(nIncludeNest == 0) break;		// æœ¬å½“ã«çµ‚ã‚ã‚Š
 			nErrorCount += files.top()->GetErrorCount();
 			DELETE_SAFE(files.top());
 			files.pop();
@@ -45,13 +45,13 @@ Token	Scanner::PeekToken(void){
 		token = files.top()->PeekToken();
 		if(token == TK_INCLUDE){
 			nIncludeNest++;
-			files.top()->GetToken();	// Ÿ‚Éi‚ß‚é
-			files.top()->GetToken();	// include‚ÌŸ‚Ì"ƒtƒ@ƒCƒ‹–¼"‚ğæ‚èo‚·
-			ReadFile(string(files.top()->GetLabel()));	// Š‡‚è•¶š•t‚«‚Å“n‚µ‚Ä‚é
+			files.top()->GetToken();	// æ¬¡ã«é€²ã‚ã‚‹
+			files.top()->GetToken();	// includeã®æ¬¡ã®"ãƒ•ã‚¡ã‚¤ãƒ«å"ã‚’å–ã‚Šå‡ºã™
+			ReadFile(string(files.top()->GetLabel()));	// æ‹¬ã‚Šæ–‡å­—ä»˜ãã§æ¸¡ã—ã¦ã‚‹
 			continue;
 		}
 		if(token == TK_EOF){
-			if(nIncludeNest == 0) break;	// –{“–‚ÉI‚í‚è
+			if(nIncludeNest == 0) break;	// æœ¬å½“ã«çµ‚ã‚ã‚Š
 			nErrorCount += files.top()->GetErrorCount();
 			DELETE_SAFE(files.top());
 			files.pop();
@@ -64,7 +64,7 @@ Token	Scanner::PeekToken(void){
 }
 
 bool	ScannerSub::IsToken(LPSTR &lp, LPSTR lp2){
-	bool	bReserved = false;		// ‚Í‚¶‚ß‚Ì•¶š‚ª‰‰Zq‚Å‚È‚¯‚ê‚Î—\–ñŒê‚ÆŒ©‚È‚·
+	bool	bReserved = false;		// ã¯ã˜ã‚ã®æ–‡å­—ãŒæ¼”ç®—å­ã§ãªã‘ã‚Œã°äºˆç´„èªã¨è¦‹ãªã™
 	unsigned char c;
 	LPSTR	lpx = lp;
 	LPSTR	lpt = labelbuf;
@@ -80,14 +80,14 @@ bool	ScannerSub::IsToken(LPSTR &lp, LPSTR lp2){
 		if(*lp2 == '\0'){
 			c = *lpx;
 			if(bReserved == true && IS_CHARACTOR(c)) return false;
-			lp = lpx;		//token‚ÌI‚í‚è‚ÌˆÊ’u‚Ü‚Åƒ|ƒCƒ“ƒ^‚ği‚ß‚é
+			lp = lpx;		//tokenã®çµ‚ã‚ã‚Šã®ä½ç½®ã¾ã§ãƒã‚¤ãƒ³ã‚¿ã‚’é€²ã‚ã‚‹
 			return true;
 		}
 		if(*(lpx++) != *(lp2++)) return false;
 	}
 }
 
-// lpPos‚©‚çŸ‚Ìƒg[ƒNƒ“‚Ü‚ÅƒRƒs[
+// lpPosã‹ã‚‰æ¬¡ã®ãƒˆãƒ¼ã‚¯ãƒ³ã¾ã§ã‚³ãƒ”ãƒ¼
 void	ScannerSub::CopyLabel(LPSTR& lpPos){
 	unsigned char c;
 	LPSTR lp = labelbuf;
@@ -95,7 +95,7 @@ void	ScannerSub::CopyLabel(LPSTR& lpPos){
 		c = *lpPos;
 		if(IS_KANJI1(c)){
 			*(lp++) = c;
-			*(lp++) = c;	//‚Ù‚ñ‚Æ‚Í‚±‚±‚Ésjis‚Ì2ƒoƒCƒg–Ú‚©‚Ì”»•Ê‚ğ“ü‚ê‚é
+			*(lp++) = c;	//ã»ã‚“ã¨ã¯ã“ã“ã«sjisã®2ãƒã‚¤ãƒˆç›®ã‹ã®åˆ¤åˆ¥ã‚’å…¥ã‚Œã‚‹
 			lpPos++;
 		}else if(IS_ALNUM(c) || c == '#' || c == '@' || c == '$'){
 			*(lp++) = c;
@@ -107,8 +107,8 @@ void	ScannerSub::CopyLabel(LPSTR& lpPos){
 	*lp = '\0';
 }
 
-// ”’l‚È‚ç‚Înumbuf‚ÉB‚»‚¤‚Å‚È‚¯‚ê‚Î–ß‚è’lF”ñ0
-// ”š‚àCopyLabel()‚Æ“¯—l‚Ì‹@”\‚ª’Ç‰Á‚³‚êAGetLabel()‚Å‚«‚é‚æ‚¤‚É‚È‚Á‚½
+// æ•°å€¤ãªã‚‰ã°numbufã«ã€‚ãã†ã§ãªã‘ã‚Œã°æˆ»ã‚Šå€¤ï¼šé0
+// æ•°å­—ã‚‚CopyLabel()ã¨åŒæ§˜ã®æ©Ÿèƒ½ãŒè¿½åŠ ã•ã‚Œã€GetLabel()ã§ãã‚‹ã‚ˆã†ã«ãªã£ãŸ
 HRESULT	ScannerSub::NumCheck(LPSTR& lpPos){
 	int num;
 	unsigned char c;
@@ -130,7 +130,7 @@ HRESULT	ScannerSub::NumCheck(LPSTR& lpPos){
 	while(true){
 		c = *lpPos;
 		switch(num){
-		  case 10:		// 10i–@
+		  case 10:		// 10é€²æ³•
 			if((c >= '0') && (c <= '9')){
 				numbuf *= num;
 				numbuf += (LONG)(c-'0');
@@ -139,7 +139,7 @@ HRESULT	ScannerSub::NumCheck(LPSTR& lpPos){
 				return 0;
 			}
 			break;
-		  case 16:		// 16i–@
+		  case 16:		// 16é€²æ³•
 			if((c >= '0') && (c <= '9')){
 				numbuf *= num;
 				numbuf += (LONG)(c-'0');
@@ -157,7 +157,7 @@ HRESULT	ScannerSub::NumCheck(LPSTR& lpPos){
 				return 0;
 			}
 			break;
-		  case 2:		// 2i–@
+		  case 2:		// 2é€²æ³•
 			if(c == '0' || c == '1'){
 				numbuf *= num;
 				numbuf += (LONG)(c-'0');
@@ -175,7 +175,7 @@ HRESULT	ScannerSub::NumCheck(LPSTR& lpPos){
 }
 
 void	ScannerSub::GetQuotedLabel(LPSTR &p){
-	unsigned char c = *(p++);			// '‚©"‚ªc‚É“ü‚é
+	unsigned char c = *(p++);			// 'ã‹"ãŒcã«å…¥ã‚‹
 	LPSTR x = labelbuf;
 	*(x++) = c;
 	while(true){
@@ -183,7 +183,7 @@ void	ScannerSub::GetQuotedLabel(LPSTR &p){
 				*(x++) = *(p++);
 		}else if(*p == c){
 			*(x++) = c;
-			p++;				// '`'‚©"`"‚ÌŸ‚ğw‚·
+			p++;				// 'ã€œ'ã‹"ã€œ"ã®æ¬¡ã‚’æŒ‡ã™
 			break;
 		}else if(*p == '\0') break;
 		*(x++) = *(p++);
@@ -237,16 +237,16 @@ Token	ScannerSub::PeekToken2(void){
 
 	while(true){
 		unsigned char c = *lpPos;
-		if(c == ' ' || c == '\t'){ lpPos++; continue; }	// ƒXƒy[ƒX or TAB
-		if(c == '\0'){									// s––
+		if(c == ' ' || c == '\t'){ lpPos++; continue; }	// ã‚¹ãƒšãƒ¼ã‚¹ or TAB
+		if(c == '\0'){									// è¡Œæœ«
 			if(ReadLine()) return TK_EOF;				// EOF
 			continue;
 		}
-		if(IsToken(lpPos,"/*")){						// ƒRƒƒ“ƒgs
+		if(IsToken(lpPos,"/*")){						// ã‚³ãƒ¡ãƒ³ãƒˆè¡Œ
 			nCommentNest++;
 			continue;	
 		}
-		if(IsToken(lpPos,"*/")){						// ƒRƒƒ“ƒgs
+		if(IsToken(lpPos,"*/")){						// ã‚³ãƒ¡ãƒ³ãƒˆè¡Œ
 			nCommentNest--;
 			continue;	
 		}
@@ -255,19 +255,19 @@ Token	ScannerSub::PeekToken2(void){
 			lpPos++;
 			continue;
 		}
-		if(IsToken(lpPos,"//")){						// ƒRƒƒ“ƒgs
+		if(IsToken(lpPos,"//")){						// ã‚³ãƒ¡ãƒ³ãƒˆè¡Œ
 			if(ReadLine()) return TK_EOF;				// EOF
 			continue;	
 		}
 		
-		// š‹å‰ğÍ•”‚Ì–½—ß
+		// å­—å¥è§£æéƒ¨ã®å‘½ä»¤
 		if(IsToken(lpPos,"include"))return TK_INCLUDE;
 		if(IsToken(lpPos,"#include"))return TK_INCLUDE;
 		if(IsToken(lpPos,"define"))return TK_DEFINE;
 		if(IsToken(lpPos,"#define"))return TK_DEFINE;
 
 
-		// –½—ß
+		// å‘½ä»¤
 		if(IsToken(lpPos,"if"))		return TK_IF;
 		if(IsToken(lpPos,"else"))	return TK_ELSE;
 		if(IsToken(lpPos,"loop"))	return TK_LOOP;
@@ -284,7 +284,7 @@ Token	ScannerSub::PeekToken2(void){
 		if(IsToken(lpPos,"do"))		return TK_DO;
 		if(IsToken(lpPos,"continue"))return TK_CONTINUE;
 
-		// Œ^éŒ¾
+		// å‹å®£è¨€
 		if(IsToken(lpPos,"int"))	return TK_INT;
 		if(IsToken(lpPos,"long"))	return TK_LONG;
 		if(IsToken(lpPos,"short"))	return TK_SHORT;
@@ -308,11 +308,11 @@ Token	ScannerSub::PeekToken2(void){
 //		if(IsToken(lpPos,"data"))	return TK_DATA;
 //		if(IsToken(lpPos,"local"))	return TK_LOCAL;
 		
-		// ƒtƒ‰ƒO‚È‚Ç‚ÌéŒ¾
+		// ãƒ•ãƒ©ã‚°ãªã©ã®å®£è¨€
 		if(IsToken(lpPos,"CF"))		return TK_CF;
 		if(IsToken(lpPos,"ZF"))		return TK_ZF;
 
-		// segment–½—ß‚Ì‚½‚ß‚ÌéŒ¾
+		// segmentå‘½ä»¤ã®ãŸã‚ã®å®£è¨€
 		if(IsToken(lpPos,"DWORD"))	return TK_DWORD;
 		if(IsToken(lpPos,"WORD"))	return TK_WORD;
 		if(IsToken(lpPos,"BYTE"))	return TK_BYTE;
@@ -355,7 +355,7 @@ Token	ScannerSub::PeekToken2(void){
 		if(IsToken(lpPos,"::"))		return TK_DCOLON;
 		if(IsToken(lpPos,"&&"))		return TK_DAND;
 
-		// ˆê•¶šƒg[ƒNƒ“
+		// ä¸€æ–‡å­—ãƒˆãƒ¼ã‚¯ãƒ³
 		if(c=='<'){ lpPos++; return TK_BE; }
 		if(c=='>'){ lpPos++; return TK_AB; }
 
@@ -388,15 +388,15 @@ Token	ScannerSub::PeekToken2(void){
 //		if(c=='#'){ lpPos++; return TK_SHARP; }
 //		if(c=='@'){ lpPos++; return TK_AT; }
 
-		// '`' ‚à‚µ‚­‚Í "`"
+		// 'ã€œ' ã‚‚ã—ãã¯ "ã€œ"
 		if(c=='\''){ GetQuotedLabel(lpPos); return TK_QUOTE; }
 		if(c=='\"'){ GetQuotedLabel(lpPos); return TK_WQUOTE; }
 
-		if(!NumCheck(lpPos)){	// ”’l
+		if(!NumCheck(lpPos)){	// æ•°å€¤
 			return TK_NUM;
 		}
 
-		CopyLabel(lpPos);			// lpPos‚©‚çŸ‚Ìƒg[ƒNƒ“‚Ü‚ÅƒRƒs[
-		return TK_LABEL;			// ƒ‰ƒxƒ‹
+		CopyLabel(lpPos);			// lpPosã‹ã‚‰æ¬¡ã®ãƒˆãƒ¼ã‚¯ãƒ³ã¾ã§ã‚³ãƒ”ãƒ¼
+		return TK_LABEL;			// ãƒ©ãƒ™ãƒ«
 	}
 }

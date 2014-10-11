@@ -1,11 +1,11 @@
-/* "gas2nask" (.g01”Å)
+/* "gas2nask" (.g01ç‰ˆ)
 	Copyright(C) 2009 H.Kawai
 
 	usage : >gas2nask [-a] [-e] [-A] input-file output-file
 
-	-a:.text‚Ìbalign2‚ğíœ
-	-e:execcmdŒn‚ÌƒCƒ“ƒ‰ƒCƒ““WŠJ
-	-A:.data‚ÌƒAƒ‰ƒCƒ“ˆÙí‚ğC³
+	-a:.textã®balign2ã‚’å‰Šé™¤
+	-e:execcmdç³»ã®ã‚¤ãƒ³ãƒ©ã‚¤ãƒ³å±•é–‹
+	-A:.dataã®ã‚¢ãƒ©ã‚¤ãƒ³ç•°å¸¸ã‚’ä¿®æ­£
 */
 
 #include <guigui01.h>
@@ -396,7 +396,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"1fdiv    FDIV",
 		"0fdivr   FDIV",
 		"1fsub    FSUB",
-		"0fsubr   FSUB", /* GO‚É‚Í•s—v */
+		"0fsubr   FSUB", /* GOã«ã¯ä¸è¦ */
 		"\0"
 	};
 
@@ -445,14 +445,14 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		output0(NL);
 	}
 
-	/* EXTERN’Šo */
+	/* EXTERNæŠ½å‡º */
 	if (src0 > &src1[-1])
 		goto no_src;
 	if (src1[-1] != '\n') {
 		errflag = 1;
 		goto no_src;
 	}
-	/* ƒAƒ‹ƒSƒŠƒYƒ€Fƒg[ƒNƒ“‚Å‹æØ‚éB_‚Ån‚Ü‚éƒg[ƒNƒ“‚ğ“o˜^ */
+	/* ã‚¢ãƒ«ã‚´ãƒªã‚ºãƒ ï¼šãƒˆãƒ¼ã‚¯ãƒ³ã§åŒºåˆ‡ã‚‹ã€‚_ã§å§‹ã¾ã‚‹ãƒˆãƒ¼ã‚¯ãƒ³ã‚’ç™»éŒ² */
 	r = src0;
 	p = dest0_ + (dest1 - dest0_) / 2;
 	q = p;
@@ -485,7 +485,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		if (flag2 == 0)
 			goto ext_skip2;
 		if (s - r != 0 && *s == ':' && *r == '_') {
-			/* ƒ‰ƒxƒ‹’è‹`ŒŸo */
+			/* ãƒ©ãƒ™ãƒ«å®šç¾©æ¤œå‡º */
 			if (s - r > 255)
 				goto ext_skip0;
 			c = s - r;
@@ -505,7 +505,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 							goto ext_next_label2;
 					}
 					t[-1] = 0x01; /* internal */
-					goto ext_skip0; /* “ñd“o˜^‰ñ”ğ */
+					goto ext_skip0; /* äºŒé‡ç™»éŒ²å›é¿ */
 				} while (t < q);
 				if (q + c + 2 > dest1)
 					goto err;
@@ -540,7 +540,7 @@ ext_skip0:
 			s = seek_token_end(r);
 			if (*r == '_') {
 				if (s - r > 255)
-					goto ext_skip1; /* ‚È‚ª‚·‚¬ */
+					goto ext_skip1; /* ãªãŒã™ã */
 				c = s - r;
 				if (q > p) {
 					t = p;
@@ -555,7 +555,7 @@ ext_skip0:
 							if (r[i] != t[i])
 								goto ext_next_label;
 						}
-						goto ext_skip1; /* “ñd“o˜^‰ñ”ğ */
+						goto ext_skip1; /* äºŒé‡ç™»éŒ²å›é¿ */
 					} while (t < q);
 				}
 				if (q + c + 2 > dest1)
@@ -589,13 +589,13 @@ ext_skip2:
 		} while (p < q);
 	}
 
-	/* ˆê”Ê•ÏŠ· */
+	/* ä¸€èˆ¬å¤‰æ› */
 	flag2 = 1;
 	do {
-		/* í‚É•¶––‚É'\n'‚ª‚ ‚é‚±‚Æ‚ğ‘z’è‚µ‚Ä‚æ‚¢ */
+		/* å¸¸ã«æ–‡æœ«ã«'\n'ãŒã‚ã‚‹ã“ã¨ã‚’æƒ³å®šã—ã¦ã‚ˆã„ */
 		src0 = skipspace(src0);
 retry1:
-		/* ‹[—–½—ß */
+		/* æ“¬ä¼¼å‘½ä»¤ */
 		if (*src0 == '.') {
 			if (src0[1] == 'f' && src0[2] == 'i' && src0[3] == 'l' && src0[4] == 'e' && src0[5] <= ' ') {
 				/* .file */
@@ -670,10 +670,10 @@ retry1:
 				goto skip;
 			}
 			if (src0[1] == 'd' && src0[2] == 'e' && src0[3] == 'f' && src0[4] <= ' ')
-				goto skip; /* .def ‚Í”ò‚Î‚· */
+				goto skip; /* .def ã¯é£›ã°ã™ */
 			if (src0[1] == 'p' && src0[2] == '2' && src0[3] == 'a' && src0[4] == 'l' && src0[5] == 'i' && src0[6] == 'g' &&
 					src0[7] == 'n' && src0[8] <= ' ')
-				goto skip; /* .p2align ‚Í”ò‚Î‚· */
+				goto skip; /* .p2align ã¯é£›ã°ã™ */
 			if (flag2 == 0)
 				goto skip;
 			if (src0[1] == 'b' && src0[2] == 'a' && src0[3] == 'l' && src0[4] == 'i' && src0[5] == 'g' && src0[6] == 'n'  && src0[7] <= ' ') {
@@ -791,9 +791,9 @@ retry1:
 						if (c == 0x22)
 							break;
 						if (c == '\r')
-							break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+							break; /* ã‚¨ãƒ©ãƒ¼ã ãŒé¢å€’ãªã®ã§è¦‹é€ƒã—ã¦ã‚„ã‚‹ */
 						if (c == '\n')
-							break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+							break; /* ã‚¨ãƒ©ãƒ¼ã ãŒé¢å€’ãªã®ã§è¦‹é€ƒã—ã¦ã‚„ã‚‹ */
 						if (c != '\\') {
 							if (flag == 0) {
 								if (flag1)
@@ -807,9 +807,9 @@ retry1:
 						}
 						c = *p++;
 						if (c == '\r')
-							break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+							break; /* ã‚¨ãƒ©ãƒ¼ã ãŒé¢å€’ãªã®ã§è¦‹é€ƒã—ã¦ã‚„ã‚‹ */
 						if (c == '\n')
-							break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+							break; /* ã‚¨ãƒ©ãƒ¼ã ãŒé¢å€’ãªã®ã§è¦‹é€ƒã—ã¦ã‚„ã‚‹ */
 						if (flag) {
 							output0("\x22");
 							flag = 0;
@@ -838,12 +838,12 @@ retry1:
 					if (*src0 == ';')
 						break;
 					if (*src0++ != ',')
-						break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+						break; /* ã‚¨ãƒ©ãƒ¼ã ãŒé¢å€’ãªã®ã§è¦‹é€ƒã—ã¦ã‚„ã‚‹ */
 				}
 				output0(NL);
 				goto skip;
 			}
-			/* ŠY“–‚È‚µ */
+			/* è©²å½“ãªã— */
 			goto err_skip;
 		}
 
@@ -852,7 +852,7 @@ retry1:
 		if (src0[0] == '/')
 			goto skip;
 
-		/* ’Êí–½—ß */
+		/* é€šå¸¸å‘½ä»¤ */
 		if (flag2 == 0)
 			goto skip;
 retry:
@@ -866,7 +866,7 @@ retry:
 			p++;
 		} while (*p > ' ' && *p != ';');
 		if (p[-1] == ':') {
-			/* ƒ‰ƒxƒ‹’è‹` */
+			/* ãƒ©ãƒ™ãƒ«å®šç¾© */
 			if (flags.opt[FLAG_A] != 0 && intext == 0) {
 				dld0s = src0;
 				dld0d = dest0_;
@@ -881,10 +881,10 @@ retry:
 		if (p - src0 > 8)
 			goto unknown;
 
-		/* ƒpƒ‰ƒ[ƒ^‚È‚µ–½—ß */
+		/* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãªã—å‘½ä»¤ */
 		for (i = 0; q = &no_params[i][0], *q != '\0'; i++) {
 			if ((r = opcmp(&q[0], src0)) != 0) {
-				if (*r == '\n' || *r == ';') { /* ƒpƒ‰ƒ[ƒ^‚ª‚ ‚ê‚ÎƒXƒ‹[ */
+				if (*r == '\n' || *r == ';') { /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãŒã‚ã‚Œã°ã‚¹ãƒ«ãƒ¼ */
 					output0(&q[8]);
 					output0(NL);
 					goto skip;
@@ -917,11 +917,11 @@ retry:
 			}
 		}
 
-		/* ƒpƒ‰ƒ[ƒ^1‚Â–½—ß */
+		/* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿1ã¤å‘½ä»¤ */
 		for (i = 0; q = &one_param[i][0], *q != '\0'; i++) {
 			if ((r = opcmp(&q[1], src0)) != 0) {
-				if (*r != '\n' && *r != ';') { /* ƒpƒ‰ƒ[ƒ^‚ª‚È‚¯‚ê‚ÎƒXƒ‹[ */
-					r = checkparam(r); /* ƒRƒ“ƒ}‚©ƒZƒ~ƒRƒƒ“A\n‚Ü‚Å“Ç‚İ”ò‚Î‚· */
+				if (*r != '\n' && *r != ';') { /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãŒãªã‘ã‚Œã°ã‚¹ãƒ«ãƒ¼ */
+					r = checkparam(r); /* ã‚³ãƒ³ãƒã‹ã‚»ãƒŸã‚³ãƒ­ãƒ³ã€\nã¾ã§èª­ã¿é£›ã°ã™ */
 					if (r == NULL)
 						break;
 					if (*r == ',')
@@ -935,11 +935,11 @@ retry:
 			}
 		}
 
-		/* ƒVƒtƒgŒnƒpƒ‰ƒ[ƒ^1‚Â–½—ß */
+		/* ã‚·ãƒ•ãƒˆç³»ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿1ã¤å‘½ä»¤ */
 		for (i = 0; q = &one_shifts[i][0], *q != '\0'; i++) {
 			if ((r = opcmp(&q[1], src0)) != 0) {
-				if (*r != '\n' && *r != ';') { /* ƒpƒ‰ƒ[ƒ^‚ª‚È‚¯‚ê‚ÎƒXƒ‹[ */
-					r = checkparam(r); /* ƒRƒ“ƒ}‚©ƒZƒ~ƒRƒƒ“A\n‚Ü‚Å“Ç‚İ”ò‚Î‚· */
+				if (*r != '\n' && *r != ';') { /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãŒãªã‘ã‚Œã°ã‚¹ãƒ«ãƒ¼ */
+					r = checkparam(r); /* ã‚³ãƒ³ãƒã‹ã‚»ãƒŸã‚³ãƒ­ãƒ³ã€\nã¾ã§èª­ã¿é£›ã°ã™ */
 					if (r == NULL)
 						break;
 					if (*r == ',')
@@ -953,10 +953,10 @@ retry:
 			}
 		}
 
-		/* ƒpƒ‰ƒ[ƒ^2‚Â–½—ß(ŒğŠ·ƒ^ƒCƒv) */
+		/* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿2ã¤å‘½ä»¤(äº¤æ›ã‚¿ã‚¤ãƒ—) */
 		for (i = 0; q = &two_params[i][0], *q != '\0'; i++) {
 			if ((r = opcmp(&q[1], src0)) != 0) {
-				if (*r != '\n' && *r != ';') { /* ƒpƒ‰ƒ[ƒ^‚ª‚È‚¯‚ê‚ÎƒXƒ‹[ */
+				if (*r != '\n' && *r != ';') { /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãŒãªã‘ã‚Œã°ã‚¹ãƒ«ãƒ¼ */
 					r = checkparam(p);
 					if (r == NULL)
 						break;
@@ -978,10 +978,10 @@ retry:
 			}
 		}
 
-		/* ƒpƒ‰ƒ[ƒ^3‚Â–½—ß(‹t‡ƒ^ƒCƒv) */
+		/* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿3ã¤å‘½ä»¤(é€†é †ã‚¿ã‚¤ãƒ—) */
 		for (i = 0; q = &three_params[i][0], *q != '\0'; i++) {
 			if ((r = opcmp(&q[1], src0)) != 0) {
-				if (*r != '\n' && *r != ';') { /* ƒpƒ‰ƒ[ƒ^‚ª‚È‚¯‚ê‚ÎƒXƒ‹[ */
+				if (*r != '\n' && *r != ';') { /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãŒãªã‘ã‚Œã°ã‚¹ãƒ«ãƒ¼ */
 					r = checkparam(r);
 					if (r == NULL)
 						break;
@@ -1010,10 +1010,10 @@ retry:
 			}
 		}
 
-		/* ƒpƒ‰ƒ[ƒ^2‚Â–½—ß(ŒğŠ·ƒ^ƒCƒv, FDIV/FSUBê—p) */
+		/* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿2ã¤å‘½ä»¤(äº¤æ›ã‚¿ã‚¤ãƒ—, FDIV/FSUBå°‚ç”¨) */
 		for (i = 0; q = &fdivfsub[i][0], *q != '\0'; i++) {
 			if ((r = opcmp(&q[1], src0)) != 0) {
-				if (*r != '\n' && *r != ';') { /* ƒpƒ‰ƒ[ƒ^‚ª‚È‚¯‚ê‚ÎƒXƒ‹[ */
+				if (*r != '\n' && *r != ';') { /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãŒãªã‘ã‚Œã°ã‚¹ãƒ«ãƒ¼ */
 					r = checkparam(r);
 					if (r == NULL)
 						break;
@@ -1042,7 +1042,7 @@ retry:
 		}
 
 unknown:
-		/* ŠY“–‚È‚µ */
+		/* è©²å½“ãªã— */
 		output0(NL);
 		goto err_skip;
 
@@ -1213,7 +1213,7 @@ imm:
 			*dest0_++ = c;
 		}
 	}
-	if (i == 0) { /* call‚âjmp‚È‚Ç */
+	if (i == 0) { /* callã‚„jmpãªã© */
 		i += 4;
 		if (*p == '*') {
 			p++;

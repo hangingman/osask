@@ -96,7 +96,7 @@ void	Generator::FlushStaticData(void){
 	ListStaticDataList::iterator	itstatic;
 	for(itseg = SegmentData.mapsegment.begin(); itseg != SegmentData.mapsegment.end(); itseg++){
 		if(itseg->second->liststatic.empty()) continue;
-		OutputMASM("", "", "", "");		// ‚Ps‰üs‚·‚é
+		OutputMASM("", "", "", "");		// ï¼‘è¡Œæ”¹è¡Œã™ã‚‹
 		OpenSegment(itseg->second);
 		for(itstatic = itseg->second->liststatic.begin(); itstatic != itseg->second->liststatic.end(); itstatic++){
 			RegistVariable(itstatic->name, itstatic->label, itstatic->lpInit);
@@ -120,7 +120,7 @@ void	Generator::OpenSegment(SegmentList* segment){
 		return;
 	}
 	switch(segment->combine){
-	  case TK_PRIVATE:                          break;	// private‚Íw’è‚È‚µ
+	  case TK_PRIVATE:                          break;	// privateã¯æŒ‡å®šãªã—
 	  case TK_PUBLIC:  strcat(buf, "PUBLIC ");  break;
 	  case TK_STACK:   strcat(buf, "STACK ");   break;
 	  case TK_COMMON:  strcat(buf, "COMMON ");  break;
@@ -182,7 +182,7 @@ void	Generator::EndGenerate(void){
 	OutFile.Save(OutFileName);
 }
 
-// ‚±‚ê‚ÍTABˆÊ’u‚Ì’²®‚È‚ÇA‚Ü‚¾–¢Š®¬
+// ã“ã‚Œã¯TABä½ç½®ã®èª¿æ•´ãªã©ã€ã¾ã æœªå®Œæˆ
 void	Generator::OutputMASM(LPSTR label, LPSTR command, LPSTR param, LPSTR comment){
 	int		n = strlen(label);
 	char	buf[256];
@@ -248,7 +248,7 @@ void	Generator::Op1(Token command, Parameter& param){
 	}
 	switch(command){
 	  case TK_INC:
-		if(param.pdepth != 0 && param.ptype == TK_FAR){			// ‚ ‚â‚µ‚¢’Ç‰Á•ª
+		if(param.pdepth != 0 && param.ptype == TK_FAR){			// ã‚ã‚„ã—ã„è¿½åŠ åˆ†
 			if(param.seg != NULL) param.paramtype = P_REG;
 			param.pdepth = 0;
 			param.size = param.base->size;
@@ -257,7 +257,7 @@ void	Generator::Op1(Token command, Parameter& param){
 		OutputMASM("", "inc", buf, "");
 		break;
 	  case TK_DEC:
-		if(param.pdepth != 0 && param.ptype == TK_FAR){			// ‚ ‚â‚µ‚¢’Ç‰Á•ª
+		if(param.pdepth != 0 && param.ptype == TK_FAR){			// ã‚ã‚„ã—ã„è¿½åŠ åˆ†
 			if(param.seg != NULL) param.paramtype = P_REG;
 			param.pdepth = 0;
 			param.size = param.base->size;
@@ -351,9 +351,9 @@ void	Generator::RegistBecome(Parameter& param1, Parameter& param2){
 		}
 	}else if(param1.size < param2.size){
 		if(param2.paramtype == P_MEM){
-			param2.size = param1.size;		// Param2LPSTR()‚Å‚Ítype‚ÍŒ©‚Ä‚È‚¢‚Ì‚Åsize‚¾‚¯•Ï‚¦‚ê‚Î‚æ‚¢
+			param2.size = param1.size;		// Param2LPSTR()ã§ã¯typeã¯è¦‹ã¦ãªã„ã®ã§sizeã ã‘å¤‰ãˆã‚Œã°ã‚ˆã„
 		}else if(param2.paramtype == P_REG){
-			if(RegisterDown(param1, param2) != 0) return;	// ƒGƒ‰[‚È‚çˆ—‚¹‚¸‚ÉI—¹
+			if(RegisterDown(param1, param2) != 0) return;	// ã‚¨ãƒ©ãƒ¼ãªã‚‰å‡¦ç†ã›ãšã«çµ‚äº†
 		}else{
 			Error("Casting mismatched immediate operand");
 			return;
@@ -405,7 +405,7 @@ HRESULT	Generator::RegisterDown(Parameter& param1, Parameter& param2){
 			param2.base = FindRegisterList("SP");
 		}else{
 			Error("This register has no LOW");
-			return 1;		// ƒGƒ‰[
+			return 1;		// ã‚¨ãƒ©ãƒ¼
 		}
 	}else if(param1.size == 1 && param2.size == 2){
 		if(strcmp(param2.base->name, "AX") == 0){
@@ -418,7 +418,7 @@ HRESULT	Generator::RegisterDown(Parameter& param1, Parameter& param2){
 			param2.base = FindRegisterList("DL");
 		}else{
 			Error("This register has no LOW");
-			return 1;		// ƒGƒ‰[
+			return 1;		// ã‚¨ãƒ©ãƒ¼
 		}
 	}else if(param1.size == 1 && param2.size == 4){
 		if(strcmp(param2.base->name, "EAX") == 0){
@@ -431,7 +431,7 @@ HRESULT	Generator::RegisterDown(Parameter& param1, Parameter& param2){
 			param2.base = FindRegisterList("DL");
 		}else{
 			Error("This register has no LOW");
-			return 1;		// ƒGƒ‰[
+			return 1;		// ã‚¨ãƒ©ãƒ¼
 		}
 	}
 	param2.size = param1.size;
@@ -446,9 +446,9 @@ void	Generator::RegistAdd(Parameter& param1, Parameter& param2){
 			Param2LPSTR(buf1, param1);
 			OutputMASM("", "inc", buf1, "");
 		}else if(param2.paramtype == P_IMM && param2.ndisp == 0 && param2.disp == "0"){
-			// ‰½‚à‚µ‚È‚¢
+			// ä½•ã‚‚ã—ãªã„
 		}else{
-			if(param1.pdepth != 0 && param1.ptype == TK_FAR){			// ‚ ‚â‚µ‚¢’Ç‰Á•ª
+			if(param1.pdepth != 0 && param1.ptype == TK_FAR){			// ã‚ã‚„ã—ã„è¿½åŠ åˆ†
 				if(param1.seg != NULL) param1.paramtype = P_REG;
 				param1.pdepth = 0;
 				param1.size = param1.base->size;
@@ -472,9 +472,9 @@ void	Generator::RegistSub(Parameter& param1, Parameter& param2){
 			Param2LPSTR(buf1, param1);
 			OutputMASM("", "dec", buf1, "");
 		}else if(param2.paramtype == P_IMM && param2.ndisp == 0 && param2.disp == "0"){
-			// ‰½‚à‚µ‚È‚¢
+			// ä½•ã‚‚ã—ãªã„
 		}else{
-			if(param1.pdepth != 0 && param1.ptype == TK_FAR){			// ‚ ‚â‚µ‚¢’Ç‰Á•ª
+			if(param1.pdepth != 0 && param1.ptype == TK_FAR){			// ã‚ã‚„ã—ã„è¿½åŠ åˆ†
 				if(param1.seg != NULL) param1.paramtype = P_REG;
 				param1.pdepth = 0;
 				param1.size = param1.base->size;
@@ -503,7 +503,7 @@ void	Generator::RegistMul(Parameter& param1, Parameter& param2){
 	int		x;
 	if(param2.paramtype == P_IMM && param2.ndisp == 0){
 		if(param2.disp == "1"){
-			// ‰½‚à‚µ‚È‚¢
+			// ä½•ã‚‚ã—ãªã„
 		}else if(param2.disp == "2" && param1.paramtype == P_REG && param1.base->type == R_GENERAL){
 			Param2LPSTR(buf1, param1);
 			strcpy(buf, buf1); strcat(buf, ","); strcat(buf, buf1);
@@ -552,7 +552,7 @@ void	Generator::RegistDiv(Parameter& param1, Parameter& param2){
 	if((param1.paramtype == P_MEM || param1.paramtype == P_REG && param1.base->type == R_GENERAL)
 			&& param2.paramtype == P_IMM && param2.ndisp == 0){
 		if(param2.disp == "1"){
-			// ‰½‚à‚µ‚È‚¢
+			// ä½•ã‚‚ã—ãªã„
 		}else if((x = CheckPower2(atoi(param2.disp.c_str()))) != -1){
 			Param2LPSTR(buf, param1);
 			strcat(buf, ","); strcat(buf, itoa(x, buf1, 10));
@@ -651,7 +651,7 @@ void	Generator::RegistShl(Parameter& param1, Parameter& param2){
 			strcat(buf, buf1);
 			OutputMASM("", "add", buf, "");
 		}else if(param2.paramtype == P_IMM && param2.ndisp == 0 && param2.disp == "0"){
-			// ‰½‚à‚µ‚È‚¢
+			// ä½•ã‚‚ã—ãªã„
 		}else{
 			Param2LPSTR(buf1, param1);
 			Param2LPSTR(buf2, param2);
@@ -678,7 +678,7 @@ void	Generator::RegistShr(Parameter& param1, Parameter& param2){
 	}
 	if(param1.size == param2.size || param1.size == 0 || param2.size == 0){
 		if(param2.paramtype == P_IMM && param2.ndisp == 0 && param2.disp == "0"){
-			// ‰½‚à‚µ‚È‚¢
+			// ä½•ã‚‚ã—ãªã„
 		}else{
 			Param2LPSTR(buf1, param1);
 			Param2LPSTR(buf2, param2);
@@ -697,8 +697,8 @@ void	Generator::RegistShr(Parameter& param1, Parameter& param2){
 	}
 }
 
-// ˆø”‚ğƒTƒ|[ƒg‚µ‚½‚çˆø”‚ğƒ[ƒJƒ‹•Ï”‚Ö’Ç‰Á‚·‚é
-// ƒ[ƒJƒ‹•Ï”‚ğƒTƒ|[ƒg‚µ‚½‚çƒXƒ^ƒbƒN‚Ì‘€ì‚à‚·‚é
+// å¼•æ•°ã‚’ã‚µãƒãƒ¼ãƒˆã—ãŸã‚‰å¼•æ•°ã‚’ãƒ­ãƒ¼ã‚«ãƒ«å¤‰æ•°ã¸è¿½åŠ ã™ã‚‹
+// ãƒ­ãƒ¼ã‚«ãƒ«å¤‰æ•°ã‚’ã‚µãƒãƒ¼ãƒˆã—ãŸã‚‰ã‚¹ã‚¿ãƒƒã‚¯ã®æ“ä½œã‚‚ã™ã‚‹
 void	Generator::StartFunction(LPSTR funcname, Token ptype, SegmentList* segment){
 	if(strcmp(funcname, "main") == 0) bExistMain = true;
 	seg = segment;
@@ -706,10 +706,10 @@ void	Generator::StartFunction(LPSTR funcname, Token ptype, SegmentList* segment)
 		OpenSegment(segment);
 	}else if(prevseg != segment){
 		CloseSegment(prevseg);
-		OutputMASM("", "", "", "");		// segment‚ª‘±‚¢‚Ä‚¢‚é‚©‚ç‚¹‚ß‚Ä‰üs‚ğ“ü‚ê‚é
+		OutputMASM("", "", "", "");		// segmentãŒç¶šã„ã¦ã„ã‚‹ã‹ã‚‰ã›ã‚ã¦æ”¹è¡Œã‚’å…¥ã‚Œã‚‹
 		OpenSegment(segment);
 	}else{
-		OutputMASM("", "", "", "");		// proc‚ª‘±‚¢‚Ä‚¢‚é‚©‚ç‚¹‚ß‚Ä‰üs‚ğ“ü‚ê‚é
+		OutputMASM("", "", "", "");		// procãŒç¶šã„ã¦ã„ã‚‹ã‹ã‚‰ã›ã‚ã¦æ”¹è¡Œã‚’å…¥ã‚Œã‚‹
 	}
 	switch(ptype){
 	  case TK_FAR:  OutputMASM(funcname, "proc", "far", "");  break;
@@ -720,7 +720,7 @@ void	Generator::StartFunction(LPSTR funcname, Token ptype, SegmentList* segment)
 	}
 }
 
-// StartFunction()‚Æ“¯—l
+// StartFunction()ã¨åŒæ§˜
 void	Generator::EndFunction(LPSTR funcname, int sysvarlocalvalue){
 	char buf[16];
 	OutputMASM("#local", "equ", itoa(sysvarlocalvalue, buf, 10), "");
@@ -730,8 +730,8 @@ void	Generator::EndFunction(LPSTR funcname, int sysvarlocalvalue){
 	seg = NULL;
 }
 
-// ”z—ñ‚Ì‰Šú‰»‚Íinitialize‚É“ü‚Á‚Ä‚¢‚é‚à‚Ì‚ğ‚»‚Ì‚Ü‚Ü‘‚«o‚·‚¾‚¯‚Ìd—lB
-// ‚»‚Ì‚¤‚¿‚È‚ñ‚Æ‚©‚·‚é—\’èB
+// é…åˆ—ã®åˆæœŸåŒ–ã¯initializeã«å…¥ã£ã¦ã„ã‚‹ã‚‚ã®ã‚’ãã®ã¾ã¾æ›¸ãå‡ºã™ã ã‘ã®ä»•æ§˜ã€‚
+// ãã®ã†ã¡ãªã‚“ã¨ã‹ã™ã‚‹äºˆå®šã€‚
 void	Generator::RegistVariable(LPSTR varname, LabelList* label, LPSTR initialize){
 	char	buf[256];
 	int		index;
@@ -788,10 +788,10 @@ void	Generator::StartSegment(SegmentList* segment){
 	}
 	if(prevseg != segment){
 		CloseSegment(prevseg);
-		OutputMASM("", "", "", "");		// segment‚ª‘±‚¢‚Ä‚¢‚é‚©‚ç‚¹‚ß‚Ä‰üs‚ğ“ü‚ê‚é
+		OutputMASM("", "", "", "");		// segmentãŒç¶šã„ã¦ã„ã‚‹ã‹ã‚‰ã›ã‚ã¦æ”¹è¡Œã‚’å…¥ã‚Œã‚‹
 		OpenSegment(segment);
 	}else{
-		OutputMASM("", "", "", "");		// ’è‹`‚ª‘±‚¢‚Ä‚¢‚é‚©‚ç‚¹‚ß‚Ä‰üs‚ğ“ü‚ê‚é
+		OutputMASM("", "", "", "");		// å®šç¾©ãŒç¶šã„ã¦ã„ã‚‹ã‹ã‚‰ã›ã‚ã¦æ”¹è¡Œã‚’å…¥ã‚Œã‚‹
 	}
 }
 
@@ -905,7 +905,7 @@ LPSTR	Generator::ConstString(LPSTR str){
 	LPSTR	p = initialize;
 	int		quoted = -1;
 	
-	str++;	// "‚ğ”ò‚Î‚·
+	str++;	// "ã‚’é£›ã°ã™
 	while(*str != '\0'){
 		if(IS_KANJI1(*((unsigned char*)str))){
 			if(quoted == -1){

@@ -1,5 +1,5 @@
-/* "golib00.c":golib00‚ð.g01‰»‚µ‚½‚à‚Ì */
-/* copyright(C) 2009 ì‡GŽÀ  KL-01 */
+/* "golib00.c":golib00ã‚’.g01åŒ–ã—ãŸã‚‚ã® */
+/* copyright(C) 2009 å·åˆç§€å®Ÿ  KL-01 */
 
 #include <guigui01.h>
 #include <string.h>
@@ -146,7 +146,7 @@ too_many_object:
 		g01_putstr0("unknown file type: ");
 		g01_putstr0_exit1(obj->name);
 	}
-	/* ƒ‰ƒCƒuƒ‰ƒŠ‚Ìƒ[ƒh */
+	/* ãƒ©ã‚¤ãƒ–ãƒ©ãƒªã®ãƒ­ãƒ¼ãƒ‰ */
 	p = obj->file0;
 	s = obj->file1;
 	t = &p[0x44];
@@ -341,7 +341,7 @@ static void libout(struct str_works *work)
 			for (i = 0; i < len; i++)
 				put32l(work->objs0[i].ofs);
 			put32l(len = work->label - work->label0);
-			/* –{—ˆ‚Íƒ\[ƒg‚µ‚Äo—Í‚·‚é‚Ì‚¾‚ªAŽè”²‚«‚Åƒ\[ƒg‚µ‚Ä‚¢‚È‚¢ */
+			/* æœ¬æ¥ã¯ã‚½ãƒ¼ãƒˆã—ã¦å‡ºåŠ›ã™ã‚‹ã®ã ãŒã€æ‰‹æŠœãã§ã‚½ãƒ¼ãƒˆã—ã¦ã„ãªã„ */
 			for (i = 0; i < len; i++)
 				put16l(work->label0[i].obj - work->objs0 + 1);
 			for (i = 0; i < len; i++)

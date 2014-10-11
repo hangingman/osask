@@ -1,5 +1,5 @@
-/* cc1sub.c:cc1, cpp0, cc1plus—p‚Ìƒhƒ‰ƒCƒo•â• */
-/* w32, stdc‹¤’ÊBosa‚Íˆá‚¤ */
+/* cc1sub.c:cc1, cpp0, cc1plusç”¨ã®ãƒ‰ãƒ©ã‚¤ãƒè£œåŠ© */
+/* w32, stdcå…±é€šã€‚osaã¯é•ã† */
 
 struct GOL_STR_DIR;
 
@@ -34,7 +34,7 @@ void GOL_callmain(int argc, UCHAR **argv)
 		argv++;
 	}
 	GOL_retcode = main1(p - argv1, argv1);
-	/* ƒoƒbƒtƒ@‚ğo—Í */
+	/* ãƒãƒƒãƒ•ã‚¡ã‚’å‡ºåŠ› */
 	GOL_sysabort(0);
 }
 

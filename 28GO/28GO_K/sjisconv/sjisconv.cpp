@@ -3,7 +3,7 @@
 
 	usage : >sjisconv [-e] [-s] input-file output-file
 
-	-s:ShiftJISÉÇÅ[Éh
+	-s:ShiftJIS„É¢„Éº„Éâ
 */
 
 #include <guigui01.h>
@@ -71,7 +71,7 @@ void G01Main()
 			continue;
 		}
 		if (flags.opt[FLAG_S]) {
-			if (0xa0 <= c && c <= 0xdf) { /* îºäpÇ©Ç» */
+			if (0xa0 <= c && c <= 0xdf) { /* ÂçäËßí„Åã„Å™ */
 escape1:
 				escape(q, c);
 				q += 4;

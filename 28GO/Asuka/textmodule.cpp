@@ -1,8 +1,8 @@
 
 #include "textmodule.h"
 
-// ÉtÉ@ÉCÉãÇ™Ç†Ç¡ÇΩèÍçáÇ…ì«Ç›çûÇﬁÅAì«Ç›çûÇ‹Ç»Ç¢ÇÃê›íË
-// ÉtÉ@ÉCÉãÇÃç≈å„Ç…ÉVÅ[ÉNÇ∑ÇÈÇ©Ç«Ç§Ç©ÇÃê›íËÇÇ«Ç§Ç∑ÇÈÇ©ÅH > OpenÇ‡
+// „Éï„Ç°„Ç§„É´„Åå„ÅÇ„Å£„ÅüÂ†¥Âêà„Å´Ë™≠„ÅøËæº„ÇÄ„ÄÅË™≠„ÅøËæº„Åæ„Å™„ÅÑ„ÅÆË®≠ÂÆö
+// „Éï„Ç°„Ç§„É´„ÅÆÊúÄÂæå„Å´„Ç∑„Éº„ÇØ„Åô„Çã„Åã„Å©„ÅÜ„Åã„ÅÆË®≠ÂÆö„Çí„Å©„ÅÜ„Åô„Çã„ÅãÔºü > Open„ÇÇ
 void	TextModule::New(){
 		TextData.clear();
 		FileName = "";
@@ -32,7 +32,7 @@ void	TextModule::Save(){
 	FILE*	fp;
 	fp = fopen(FileName.c_str(), "wt");
 	if(fp == NULL){
-		// ÉGÉâÅ[
+		// „Ç®„É©„Éº
 		return;
 	}
 	for(LineData itr = TextData.begin(); itr != TextData.end(); itr++) fputs((*itr).c_str(), fp);

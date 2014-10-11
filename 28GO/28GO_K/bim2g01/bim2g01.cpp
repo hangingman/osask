@@ -85,23 +85,23 @@ void G01Main()
 		}
 	}
 
-	/* ƒtƒ@ƒCƒ‹“Ç‚İ‚İ */
+	/* ãƒ•ã‚¡ã‚¤ãƒ«èª­ã¿è¾¼ã¿ */
 	g01_getcmdlin_fopen_s_0_4(CMDLIN_IN);
 	fsiz = jg01_fread1f_4(MAXSIZ, fbuf);
 
-	/* ƒwƒbƒ_Šm”F */
-	if (get32(&fbuf[4]) != 0x20) {	/* ƒtƒ@ƒCƒ‹’†‚Ì.textƒXƒ^[ƒgƒAƒhƒŒƒX */
+	/* ãƒ˜ãƒƒãƒ€ç¢ºèª */
+	if (get32(&fbuf[4]) != 0x20) {	/* ãƒ•ã‚¡ã‚¤ãƒ«ä¸­ã®.textã‚¹ã‚¿ãƒ¼ãƒˆã‚¢ãƒ‰ãƒ¬ã‚¹ */
 err_form:
 		g01_putstr0_exit1("bim file format error");
 	}
-	if (get32(&fbuf[8]) != 0x0)	/* ƒƒ‚ƒŠƒ[ƒh‚Ì.textƒXƒ^[ƒgƒAƒhƒŒƒX */
+	if (get32(&fbuf[8]) != 0x0)	/* ãƒ¡ãƒ¢ãƒªãƒ­ãƒ¼ãƒ‰æ™‚ã®.textã‚¹ã‚¿ãƒ¼ãƒˆã‚¢ãƒ‰ãƒ¬ã‚¹ */
 		goto err_form;
 	csize  = get32(&fbuf[ 0]);
-	dsize  = get32(&fbuf[12]);	/* .dataƒZƒNƒVƒ‡ƒ“ƒTƒCƒY */
-	dofs   = get32(&fbuf[16]);	/* ƒtƒ@ƒCƒ‹‚Ì‚Ç‚±‚É.dataƒZƒNƒVƒ‡ƒ“‚ª‚ ‚é‚© */
-	stksiz = get32(&fbuf[20]);	/* ƒXƒ^ƒbƒNƒTƒCƒY */
-	entry  = get32(&fbuf[24]);	/* ƒGƒ“ƒgƒŠƒ|ƒCƒ“ƒg */
-	bsssiz = get32(&fbuf[28]);	/* bssƒTƒCƒY */
+	dsize  = get32(&fbuf[12]);	/* .dataã‚»ã‚¯ã‚·ãƒ§ãƒ³ã‚µã‚¤ã‚º */
+	dofs   = get32(&fbuf[16]);	/* ãƒ•ã‚¡ã‚¤ãƒ«ã®ã©ã“ã«.dataã‚»ã‚¯ã‚·ãƒ§ãƒ³ãŒã‚ã‚‹ã‹ */
+	stksiz = get32(&fbuf[20]);	/* ã‚¹ã‚¿ãƒƒã‚¯ã‚µã‚¤ã‚º */
+	entry  = get32(&fbuf[24]);	/* ã‚¨ãƒ³ãƒˆãƒªãƒã‚¤ãƒ³ãƒˆ */
+	bsssiz = get32(&fbuf[28]);	/* bssã‚µã‚¤ã‚º */
 	if ((entry | bsssiz) != 0)
 		goto err_form;
 	if (fbuf[(0x20-1)+csize] == 0xc3)
@@ -111,7 +111,7 @@ err_form:
 			dsize--;
 	}
 
-	/* g01¶¬ */
+	/* g01ç”Ÿæˆ */
 	i = (fsiz + 255) & -256;
 	p0 = p = fbuf + i;
 	p[0] = 'G';
@@ -131,7 +131,7 @@ err_form:
 		p0[2] += 0x10;
 	}
 
-	/* .textƒZƒNƒVƒ‡ƒ“ */
+	/* .textã‚»ã‚¯ã‚·ãƒ§ãƒ³ */
 	putnum_u(&p, &flags, 0x0d);
 	q = p;
 	qf = flags;
@@ -144,7 +144,7 @@ err_form:
 	i++;
 	putqlink(&p, &flags, q, qf, 1, 1, &reloc_table_all[i]);
 
-	/* .dataƒZƒNƒVƒ‡ƒ“ */
+	/* .dataã‚»ã‚¯ã‚·ãƒ§ãƒ³ */
 	if (dsize > 0) {
 		p0[2] += 0x10;
 		putnum_u(&p, &flags, 0x0d);
@@ -163,7 +163,7 @@ err_form:
 	}
 	putnum_flush(&p, &flags);
 
-	/* ƒtƒ@ƒCƒ‹‘‚«‚İ */
+	/* ãƒ•ã‚¡ã‚¤ãƒ«æ›¸ãè¾¼ã¿ */
 	g01_getcmdlin_fopen_s_3_5(CMDLIN_OUT);
 	jg01_fwrite1f_5(p - p0, p0);
 	return;
@@ -381,16 +381,16 @@ void put32(UCHAR *p, int i)
 
 memo
 
-[ .bimƒtƒ@ƒCƒ‹‚Ì\‘¢ ]
+[ .bimãƒ•ã‚¡ã‚¤ãƒ«ã®æ§‹é€  ]
 
-+ 0 : .textƒTƒCƒY
-+ 4 : ƒtƒ@ƒCƒ‹’†‚Ì.textƒXƒ^[ƒgƒAƒhƒŒƒXi0x24j
-+ 8 : ƒƒ‚ƒŠƒ[ƒh‚Ì.textƒXƒ^[ƒgƒAƒhƒŒƒXi0x24j
-+12 : .dataƒTƒCƒY
-+16 : ƒtƒ@ƒCƒ‹’†‚Ì.dataƒXƒ^[ƒgƒAƒhƒŒƒX
-+20 : ƒƒ‚ƒŠƒ[ƒh‚Ì.dataƒXƒ^[ƒgƒAƒhƒŒƒX
-+24 : ƒGƒ“ƒgƒŠƒ|ƒCƒ“ƒg
-+28 : bss—Ìˆæ‚ÌƒoƒCƒg”
-+32 : ƒR[ƒh
++ 0 : .textã‚µã‚¤ã‚º
++ 4 : ãƒ•ã‚¡ã‚¤ãƒ«ä¸­ã®.textã‚¹ã‚¿ãƒ¼ãƒˆã‚¢ãƒ‰ãƒ¬ã‚¹ï¼ˆ0x24ï¼‰
++ 8 : ãƒ¡ãƒ¢ãƒªãƒ­ãƒ¼ãƒ‰æ™‚ã®.textã‚¹ã‚¿ãƒ¼ãƒˆã‚¢ãƒ‰ãƒ¬ã‚¹ï¼ˆ0x24ï¼‰
++12 : .dataã‚µã‚¤ã‚º
++16 : ãƒ•ã‚¡ã‚¤ãƒ«ä¸­ã®.dataã‚¹ã‚¿ãƒ¼ãƒˆã‚¢ãƒ‰ãƒ¬ã‚¹
++20 : ãƒ¡ãƒ¢ãƒªãƒ­ãƒ¼ãƒ‰æ™‚ã®.dataã‚¹ã‚¿ãƒ¼ãƒˆã‚¢ãƒ‰ãƒ¬ã‚¹
++24 : ã‚¨ãƒ³ãƒˆãƒªãƒã‚¤ãƒ³ãƒˆ
++28 : bssé ˜åŸŸã®ãƒã‚¤ãƒˆæ•°
++32 : ã‚³ãƒ¼ãƒ‰
 
 */

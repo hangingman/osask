@@ -1,7 +1,7 @@
 /* "nask.c" */
-/* copyright(C) 2003 H.Kawai(ì‡GÀ) */
-/*   [OSASK 3978], [OSASK 3979]‚ÅŒõ¬‚³‚ñ‚Ìw“E‚ğ‘å‚¢‚ÉQl‚É‚µ‚Ü‚µ‚½ */
-/*	¬–ö‚³‚ñ‚Ìstring0‚ÉŠÖ‚·‚éw“E‚àQl‚É‚µ‚Ü‚µ‚½ */
+/* copyright(C) 2003 H.Kawai(å·åˆç§€å®Ÿ) */
+/*   [OSASK 3978], [OSASK 3979]ã§å…‰æˆã•ã‚“ã®æŒ‡æ‘˜ã‚’å¤§ã„ã«å‚è€ƒã«ã—ã¾ã—ãŸ */
+/*	å°æŸ³ã•ã‚“ã®string0ã«é–¢ã™ã‚‹æŒ‡æ‘˜ã‚‚å‚è€ƒã«ã—ã¾ã—ãŸ */
 
 typedef unsigned int size_t;
 
@@ -10,11 +10,11 @@ typedef unsigned int size_t;
 int nask_LABELBUFSIZ = 256 * 1024;
 
 #define	DEBUG			0
-#define	OPCLENMAX		8	/* ‘«‚è‚È‚­‚È‚Á‚½‚ç12‚É‚µ‚Ä‚­‚¾‚³‚¢ */
+#define	OPCLENMAX		8	/* è¶³ã‚Šãªããªã£ãŸã‚‰12ã«ã—ã¦ãã ã•ã„ */
 #define MAX_SECTIONS		8
 #define E_LABEL0		16
-int nask_L_LABEL0 = 16384;              /* externƒ‰ƒxƒ‹‚Í16300ŒÂ’ö“xg‚¦‚é */
-int nask_maxlabels = 64 * 1024;         /* 64KŒÂ(LL:88*64k) */
+int nask_L_LABEL0 = 16384;              /* externãƒ©ãƒ™ãƒ«ã¯16300å€‹ç¨‹åº¦ä½¿ãˆã‚‹ */
+int nask_maxlabels = 64 * 1024;         /* 64Kå€‹(LL:88*64k) */
 
 static void setdec(unsigned int i, int n, UCHAR *s);
 static void sethex0(unsigned int i, int n, UCHAR *s);
@@ -39,9 +39,9 @@ struct STR_SECTION {
 	unsigned int dollar_label1; /* ..$ */
 	unsigned int dollar_label2; /* $$ */
 	int total_len;
-	UCHAR *p0, *p; /* ƒ\[ƒg—p‚Ìƒ|ƒCƒ“ƒ^ */
+	UCHAR *p0, *p; /* ã‚½ãƒ¼ãƒˆç”¨ã®ãƒã‚¤ãƒ³ã‚¿ */
 	UCHAR name[17], name_len;
-	signed char align0, align1; /* -1‚Í–¢İ’è */
+	signed char align0, align1; /* -1ã¯æœªè¨­å®š */
 };
 
 struct STR_OUTPUT_SECTION {
@@ -65,11 +65,11 @@ extern int nask_errors;
 #define	SUP_Pentium3
 #define	SUP_Pentium4
 
-#define	PREFIX			0x01	/* param[1]‚ªƒvƒŠƒtƒBƒbƒNƒX”Ô† */
-#define	NO_PARAM		0x02	/* param[1]‚Ì‰ºˆÊ4bit‚ªƒIƒyƒR[ƒhƒoƒCƒg” */
-#define	OPE_MR			0x03	/* mem/reg,regŒ^ */ /* [1]:datawidth, [2]:len */
-#define	OPE_RM			0x04	/* reg,mem/regŒ^ */
-#define	OPE_M			0x05	/* mem/regŒ^ */
+#define	PREFIX			0x01	/* param[1]ãŒãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹ç•ªå· */
+#define	NO_PARAM		0x02	/* param[1]ã®ä¸‹ä½4bitãŒã‚ªãƒšã‚³ãƒ¼ãƒ‰ãƒã‚¤ãƒˆæ•° */
+#define	OPE_MR			0x03	/* mem/reg,regå‹ */ /* [1]:datawidth, [2]:len */
+#define	OPE_RM			0x04	/* reg,mem/regå‹ */
+#define	OPE_M			0x05	/* mem/regå‹ */
 #define OPE_SHIFT		0x06	/* ROL, ROR, RCL, RCR, SHL, SAL, SHR, SAR */
 #define OPE_RET			0x07	/* RET, RETF, RETN */
 #define OPE_AAMD		0x08	/* AAM, AAD */
@@ -102,14 +102,14 @@ extern int nask_errors;
 #define	OPE_DB			0x48	/* DB, DW, DD, DQ, DT */
 #define	OPE_END			0x49
 
-/* NO_PARAM—p */
+/* NO_PARAMç”¨ */
 #define	OPE16			0x10
 #define	OPE32			0x20
 #define DEF_DS			0x40
-	/* param[1]‚Ìbit4 : ope32 */
-	/* param[1]‚Ìbit5 : ope16 */
-	/* param[1]‚Ìbit6 : ƒfƒtƒHƒ‹ƒgƒvƒŠƒtƒBƒbƒNƒXDS */
-	/* param[1]‚Ìbit7 : ƒfƒtƒHƒ‹ƒgƒvƒŠƒtƒBƒbƒNƒXSS */
+	/* param[1]ã®bit4 : ope32 */
+	/* param[1]ã®bit5 : ope16 */
+	/* param[1]ã®bit6 : ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹DS */
+	/* param[1]ã®bit7 : ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹SS */
 
 static UCHAR table_prms[] = {
 	0, 0, 0 /* NO_PARAM */, 2 /* OPE_MR */, 2 /* OPE_RM */,
@@ -134,7 +134,7 @@ struct STR_DECODE {
 	struct STR_SECTION *sectable;
 	UCHAR error, flag /* , dollar */;
 };
-/* flag‚Ìbit0‚Ímem/reg‚ªreg‚©‚Ç‚¤‚©‚ğ‚ ‚ç‚í‚· */
+/* flagã®bit0ã¯mem/regãŒregã‹ã©ã†ã‹ã‚’ã‚ã‚‰ã‚ã™ */
 
 struct STR_TERM {
 	int term_type;
@@ -143,7 +143,7 @@ struct STR_TERM {
 
 struct STR_OFSEXPR {
 	int scale[2], disp;
-	unsigned char reg[2], dispflag; /* 0xff‚Ì‚Æ‚«Aunknown, reg‚ª127ˆÈ‰º‚È‚çAƒXƒP[ƒ‹–³‚µ */
+	unsigned char reg[2], dispflag; /* 0xffã®ã¨ãã€unknown, regãŒ127ä»¥ä¸‹ãªã‚‰ã€ã‚¹ã‚±ãƒ¼ãƒ«ç„¡ã— */
 	unsigned char err;
 };
 
@@ -152,7 +152,7 @@ struct STR_DEC_EXPR_STATUS {
 	int glabel_len;
 	UCHAR *glabel;
 	signed char datawidth; /* -1(default), 1(byte), 2(word), 4(dword) */
-	signed char seg_override; /* -1(default), 0`5 */
+	signed char seg_override; /* -1(default), 0ã€œ5 */
 	signed char range; /* -1(default), 0(short), 1(near), 2(far) */
 	char nosplit; /* 0(default), 1(nosplit) */
 	char use_dollar;  /* 0(no use), 1(use) */
@@ -164,7 +164,7 @@ struct STR_DEC_EXPR_STATUS {
 };
 
 struct STR_STATUS {
-	UCHAR *src1; /* ƒtƒ@ƒCƒ‹I’[ƒ|ƒCƒ“ƒ^ */
+	UCHAR *src1; /* ãƒ•ã‚¡ã‚¤ãƒ«çµ‚ç«¯ãƒã‚¤ãƒ³ã‚¿ */
 	unsigned int support, file_len;
 	char bits, optimize, format, option;
 	struct STR_DEC_EXPR_STATUS expr_status;
@@ -174,9 +174,9 @@ struct STR_STATUS {
 };
 
 struct STR_IFDEFBUF {
-	/* ğŒ•t‚«’è‹`—pƒoƒbƒtƒ@\‘¢‘Ì */
-	UCHAR *bp, *bp0, *bp1; /* range-error—pƒoƒbƒtƒ@ */
-	UCHAR vb[12]; /* bit0-4:ƒoƒCƒg”, bit7:exprƒtƒ‰ƒO, bit5-6:ƒŒƒ“ƒWƒ`ƒFƒbƒN */
+	/* æ¡ä»¶ä»˜ãå®šç¾©ç”¨ãƒãƒƒãƒ•ã‚¡æ§‹é€ ä½“ */
+	UCHAR *bp, *bp0, *bp1; /* range-errorç”¨ãƒãƒƒãƒ•ã‚¡ */
+	UCHAR vb[12]; /* bit0-4:ãƒã‚¤ãƒˆæ•°, bit7:exprãƒ•ãƒ©ã‚°, bit5-6:ãƒ¬ãƒ³ã‚¸ãƒã‚§ãƒƒã‚¯ */
 	int dat[12];
 	UCHAR *expr[12];
 };
@@ -212,17 +212,17 @@ UCHAR *LL_skipcode(UCHAR *p);
 
 #define	defnumconst(ifdef, imm, virbyte, typecode) ifdef->vb[(virbyte) & 0x07] = typecode; ifdef->dat[(virbyte) & 0x07] = imm
 
-/* ƒŠƒ}[ƒNNL(f8) : ƒ‰ƒCƒ“ƒXƒ^[ƒg, 4ƒoƒCƒg‚ÌƒŒƒ“ƒOƒX, 4ƒoƒCƒg‚Ìƒ|ƒCƒ“ƒ^
-	ƒoƒCƒg—ñ‚ğ•À‚×‚é */
-/* ƒŠƒ}[ƒNADR(e0) : ƒAƒhƒŒƒXo—Í */
-/* ƒŠƒ}[ƒNBY(e1) : 1ƒoƒCƒgo—Í */
-/* ƒŠƒ}[ƒNWD(e2) : 2ƒoƒCƒgo—Í */
-/* ƒŠƒ}[ƒN3B(e3) : 3ƒoƒCƒgo—Í */
-/* ƒŠƒ}[ƒNDW(e4) : 4ƒoƒCƒgo—Í */
-/* ƒŠƒ}[ƒN[BY](e5) : 1ƒoƒCƒgo—Í[]‚Â‚« */
-/* ƒŠƒ}[ƒN[WD](e6) : 2ƒoƒCƒgo—Í[]‚Â‚« */
-/* ƒŠƒ}[ƒN[3B](e7) : 3ƒoƒCƒgo—Í[]‚Â‚« */
-/* ƒŠƒ}[ƒN[DW](e8) : 4ƒoƒCƒgo—Í[]‚Â‚« */
+/* ãƒªãƒãƒ¼ã‚¯NL(f8) : ãƒ©ã‚¤ãƒ³ã‚¹ã‚¿ãƒ¼ãƒˆ, 4ãƒã‚¤ãƒˆã®ãƒ¬ãƒ³ã‚°ã‚¹, 4ãƒã‚¤ãƒˆã®ãƒã‚¤ãƒ³ã‚¿
+	ãƒã‚¤ãƒˆåˆ—ã‚’ä¸¦ã¹ã‚‹ */
+/* ãƒªãƒãƒ¼ã‚¯ADR(e0) : ã‚¢ãƒ‰ãƒ¬ã‚¹å‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯BY(e1) : 1ãƒã‚¤ãƒˆå‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯WD(e2) : 2ãƒã‚¤ãƒˆå‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯3B(e3) : 3ãƒã‚¤ãƒˆå‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯DW(e4) : 4ãƒã‚¤ãƒˆå‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯[BY](e5) : 1ãƒã‚¤ãƒˆå‡ºåŠ›[]ã¤ã */
+/* ãƒªãƒãƒ¼ã‚¯[WD](e6) : 2ãƒã‚¤ãƒˆå‡ºåŠ›[]ã¤ã */
+/* ãƒªãƒãƒ¼ã‚¯[3B](e7) : 3ãƒã‚¤ãƒˆå‡ºåŠ›[]ã¤ã */
+/* ãƒªãƒãƒ¼ã‚¯[DW](e8) : 4ãƒã‚¤ãƒˆå‡ºåŠ›[]ã¤ã */
 
 #define	REM_ADDR		0xe0
 #define	REM_ADDR_ERR		0xe5
@@ -246,7 +246,7 @@ UCHAR *skipspace(UCHAR *s, UCHAR *t)
 }
 
 UCHAR *putimm(int i, UCHAR *p)
-/* Å‘å6ƒoƒCƒgo—Í */
+/* æœ€å¤§6ãƒã‚¤ãƒˆå‡ºåŠ› */
 {
 	UCHAR c = 6;
 	if (i >= 0) {
@@ -277,10 +277,10 @@ UCHAR *putimm(int i, UCHAR *p)
 }
 
 UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
-/* dest1‚ğ•Ô‚·(NULL‚È‚ç‚ ‚Ó‚ê‚½) */
+/* dest1ã‚’è¿”ã™(NULLãªã‚‰ã‚ãµã‚ŒãŸ) */
 {
 	int i, j, k, prefix_def = 0, tmret = 0;
-	UCHAR buf[2 * 8], *bp; /* buf‚Í“K“–‚Émalloc‚µ‚½•û‚ª‚¢‚¢‚©‚à */
+	UCHAR buf[2 * 8], *bp; /* bufã¯é©å½“ã«mallocã—ãŸæ–¹ãŒã„ã„ã‹ã‚‚ */
 	UCHAR *src, c, *s, *labelflags, *dest00 = dest0;
 	struct STR_STATUS *status;
 	struct STR_DECODE *decode;
@@ -288,7 +288,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	struct STR_IFDEFBUF *ifdef;
 	struct STR_TERM *expr;
 	static int tbl_o16o32[4] =
-		{ 0, 0x10000000 /* O16(ˆÃ–Ù) */, 0, 0x20000000 /* O32(ˆÃ–Ù) */ };
+		{ 0, 0x10000000 /* O16(æš—é»™) */, 0, 0x20000000 /* O32(æš—é»™) */ };
 	struct STR_SECTION *sectable, *section;
 	nextlabelid = nask_L_LABEL0;
 	status = GOL_memmanalloc(&GOL_memman, sizeof (*status));
@@ -322,7 +322,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	status->bits = 16;
 	status->optimize = 0;
 	status->format = 0; /* BIN */
-	status->option = 0; /* ‚Ù‚ÚNASMŒİŠ· */
+	status->option = 0; /* ã»ã¼NASMäº’æ› */
 	status->expr_status.option = 0;
 	status->file_len = 0;
 
@@ -349,9 +349,9 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		bp = buf;
 		ifdef->vb[8] = 0; /* for TIMES */
 		src = decoder(status, src0, decode);
-		/* ƒ‰ƒCƒ“ƒXƒ^[ƒgo—Í */
+		/* ãƒ©ã‚¤ãƒ³ã‚¹ã‚¿ãƒ¼ãƒˆå‡ºåŠ› */
 		/* f7, src - src0, src0 */
-		if (dest0 + 9 + 6 /* $‚Ì•ª */ > dest1)
+		if (dest0 + 9 + 6 /* $ã®åˆ† */ > dest1)
 			dest0 = NULL;
 		if (dest0 == NULL)
 			goto overrun;
@@ -369,8 +369,8 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			}
 		}
 		if (decode->label) {
-			/* ƒ‰ƒxƒ‹’è‹` */
-			bp[0] = 0x0e; /* ƒvƒƒOƒ‰ƒ€ƒJƒEƒ“ƒ^‚ğƒ‰ƒxƒ‹’è‹`‚·‚éƒRƒ}ƒ“ƒh */
+			/* ãƒ©ãƒ™ãƒ«å®šç¾© */
+			bp[0] = 0x0e; /* ãƒ—ãƒ­ã‚°ãƒ©ãƒ ã‚«ã‚¦ãƒ³ã‚¿ã‚’ãƒ©ãƒ™ãƒ«å®šç¾©ã™ã‚‹ã‚³ãƒãƒ³ãƒ‰ */
  			if (decode->instr != NULL && decode->instr->param[0] == OPE_EQU)
 				bp[0] = 0x2d; /* EQU */
 			s = decode->label;
@@ -388,7 +388,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			i = label2id(s - decode->label, decode->label, 0);
 			if (labelflags[i]) {
 				*bp++ = 0xe7;
-				c = 0; /* mod nnn r/m ‚È‚µ */
+				c = 0; /* mod nnn r/m ãªã— */
 				goto outbp;
 			}
 			labelflags[i] = 0x01;
@@ -414,23 +414,23 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 times_skip:
 		if (decode->error) {
 err:
-			/* ƒGƒ‰[o—Í */
+			/* ã‚¨ãƒ©ãƒ¼å‡ºåŠ› */
 			buf[0] = decode->error | 0xe0;
 			bp = buf + 1;
-			c = 0; /* mod nnn r/m ‚È‚µ */
+			c = 0; /* mod nnn r/m ãªã— */
 			goto outbp;
 		}
-		c = 0; /* mod nnn r/m ‚È‚µ */
-		prefix_def = status->bits; /* ƒfƒtƒHƒ‹ƒgó‘Ô */
+		c = 0; /* mod nnn r/m ãªã— */
+		prefix_def = status->bits; /* ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆçŠ¶æ…‹ */
 		if ((itp = decode->instr) != 0) {
 			switch (itp->param[0]) {
 			case NO_PARAM:
-				/* ƒvƒŠƒtƒBƒbƒNƒX */
+				/* ãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹ */
 				j = itp->param[1];
 				if (j & OPE16)
-					decode->prefix |= 0x10000000; /* O16(ˆÃ–Ù) */
+					decode->prefix |= 0x10000000; /* O16(æš—é»™) */
 				if (j & OPE32)
-					decode->prefix |= 0x20000000; /* O32(ˆÃ–Ù) */
+					decode->prefix |= 0x20000000; /* O32(æš—é»™) */
 				if (j & DEF_DS)
 					prefix_def |= 0x01; /* DS */
 				for (i = 0; i < (j & 0x0f); i++) {
@@ -438,17 +438,17 @@ err:
 					bp[1] = itp->param[2 + i];
 					bp += 2;
 				}
-			//	c = 0; /* mod nnn r/m ‚È‚µ */
+			//	c = 0; /* mod nnn r/m ãªã— */
 				break;
 
 			case OPE_M:
 			ope_m:
-				if ((i = decode->gparam[0]) & 0xe0) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ */
-					goto err4; /* ƒf[ƒ^ƒ^ƒCƒvƒGƒ‰[ */
+				if ((i = decode->gparam[0]) & 0xe0) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ */
+					goto err4; /* ãƒ‡ãƒ¼ã‚¿ã‚¿ã‚¤ãƒ—ã‚¨ãƒ©ãƒ¼ */
 				decode->flag = 0;
 				if ((i & 0x10) == 0) {
 					decode->flag = 1;
-					if (decode->gvalue[0] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[0] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
 				decode->gp_mem = i;
@@ -457,48 +457,48 @@ err:
 				goto ope_mr_check0;
 
 			case OPE_MR:
-				if ((j = decode->gparam[0]) & 0xe0) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ */
+				if ((j = decode->gparam[0]) & 0xe0) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
 				decode->flag = 0;
 				if ((j & 0x10) == 0) {
 					decode->flag = 1;
-					if (decode->gvalue[0] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[0] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
-				if (decode->gparam[1] & 0x1f0) /* reg‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ || use $‚àƒGƒ‰[ */
+				if (decode->gparam[1] & 0x1f0) /* regã§ã¯ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ || use $ã‚‚ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
-				if (decode->gvalue[1] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+				if (decode->gvalue[1] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 					goto err4;
 				decode->gp_reg = decode->gparam[1];
 				if ((j & 0x0f) == 0x0f && (itp->param[1] & 0x80) != 0) {
-					/* mem‚Ìƒf[ƒ^ƒTƒCƒY‚ª•s’è && ‘æ“ñƒIƒyƒ‰ƒ“ƒh‚Ésame0w’è‚ ‚è */
+					/* memã®ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚ºãŒä¸å®š && ç¬¬äºŒã‚ªãƒšãƒ©ãƒ³ãƒ‰ã«same0æŒ‡å®šã‚ã‚Š */
 					j = (j & ~0x0f) | (decode->gparam[1] & 0x0f);
 				}
 				decode->gp_mem = decode->gparam[0] = j;
 				goto ope_mr2;
 
 			case OPE_RM:
-				if (decode->gparam[0] & 0x1f0) /* reg‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ || use $‚àƒGƒ‰[ */
+				if (decode->gparam[0] & 0x1f0) /* regã§ã¯ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ || use $ã‚‚ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
-				if (decode->gvalue[0] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+				if (decode->gvalue[0] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 					goto err4;
 				decode->gp_reg = decode->gparam[0];
-				if ((j = decode->gparam[1]) & 0xe0) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ */
+				if ((j = decode->gparam[1]) & 0xe0) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
 				decode->flag = 0;
 				if ((j & 0x10) == 0) {
 					decode->flag = 1;
-					if (decode->gvalue[1] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[1] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
 				if ((j & 0x0f) == 0x0f && (itp->param[1] & 0x80) != 0) {
-					/* mem‚Ìƒf[ƒ^ƒTƒCƒY‚ª•s’è && ‘æ“ñƒIƒyƒ‰ƒ“ƒh‚Ésame0w’è‚ ‚è */
+					/* memã®ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚ºãŒä¸å®š && ç¬¬äºŒã‚ªãƒšãƒ©ãƒ³ãƒ‰ã«same0æŒ‡å®šã‚ã‚Š */
 					j = (j & ~0x0f) | (decode->gparam[0] & 0x0f);
 				}
 				decode->gp_mem = decode->gparam[1] = j;
 
 		ope_mr2:
-				/* ƒIƒyƒ‰ƒ“ƒhƒTƒCƒYƒ`ƒFƒbƒN */
+				/* ã‚ªãƒšãƒ©ãƒ³ãƒ‰ã‚µã‚¤ã‚ºãƒã‚§ãƒƒã‚¯ */
 				k = itp->param[1] >> 4;
 				i = decode->gparam[0] & 0x0f;
 				j = decode->gparam[1] & 0x0f;
@@ -548,7 +548,7 @@ err:
 					bp += 2;
 				}
 				if ((itp->param[2] & 0x30) != 0x20) {
-					/* ƒf[ƒ^ƒTƒCƒY‚ğŠm’è */
+					/* ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚ºã‚’ç¢ºå®š */
 					i = decode->gparam[0];
 					if (itp->param[2] & 0x08)
 						i = decode->gparam[1];
@@ -570,11 +570,11 @@ err:
 				bp[2] = 0x7a; /* disp */
 				bp += 3;
 	setc:
-				c = 3 ^ decode->flag; /* mod nnn r/m ‚ ‚è */ 				
+				c = 3 ^ decode->flag; /* mod nnn r/m ã‚ã‚Š */ 				
 				break;
 
 			case OPE_SHIFT: /* mem/reg, imm8|CL */
-				if ((j = decode->gparam[0]) & 0xe0) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ */
+				if ((j = decode->gparam[0]) & 0xe0) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
 				decode->gp_mem = j;
 				decode->gp_reg = itp->param[1] << 9; /* TTT */
@@ -582,10 +582,10 @@ err:
 				if ((j & 0x10) == 0) {
 					/* reg */
 					decode->flag = 1;
-					if (decode->gvalue[0] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[0] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
-				/* ƒf[ƒ^ƒTƒCƒY‚ğŠm’è */
+				/* ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚ºã‚’ç¢ºå®š */
 				i = decode->gparam[0] & 0x0f;
 				if (i == 0)
 					goto err3;
@@ -608,7 +608,7 @@ err:
 					};
 					mcode[2] = 0xc0 | j;
 					mcode[7] = 0xd0 | j;
-					if ((decode->gparam[1] & 0xf0) != 0x20) /* imm‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚Ä‚¢‚½ */
+					if ((decode->gparam[1] & 0xf0) != 0x20) /* immã§ã¯ãªã„ || rangeãŒã¤ã„ã¦ã„ãŸ */
 						goto err4; /* data type error */
 					if ((decode->gparam[1] & 0x0f) == 0x0f) {
 						if (microcode94(ifdef, status->expression, mcode))
@@ -618,7 +618,7 @@ err:
 						if (defnumexpr(ifdef, status->expression, 0x75 & 0x07, 0x98 & 0x07))
 							goto err2;
 					} else
-						goto err3; /* WORD‚âDWORD‚ªw’è‚³‚ê‚½ */
+						goto err3; /* WORDã‚„DWORDãŒæŒ‡å®šã•ã‚ŒãŸ */
 					bp[0] = 0x7c; /* 1100000w || 1101000w */
 					bp[1] = 0x78; /* mod nnn r/m */
 					bp[2] = 0x79; /* sib */
@@ -631,21 +631,21 @@ err:
 			case OPE_RET: /* RET, RETF, RETN */
 				bp[0] = SHORT_DB1; /* 0x31 */
 				if (decode->flag == 0) {
-					/* ƒIƒyƒ‰ƒ“ƒh‚È‚µ */
+					/* ã‚ªãƒšãƒ©ãƒ³ãƒ‰ãªã— */
 					bp[1] = itp->param[1] | 0x01;
 					bp += 2;
 					break;
 				}
 				if (decode->flag > 1)
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				if ((decode->gparam[0] & 0xf0) != 0x20)
-					goto err2; /* imm‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚Ä‚¢‚½ */
+					goto err2; /* immã§ã¯ãªã„ || rangeãŒã¤ã„ã¦ã„ãŸ */
 				if ((decode->gparam[0] & 0x0f) == 2)
-					goto OPE_RET_notopt; /* WORDw’è‚ ‚è */
+					goto OPE_RET_notopt; /* WORDæŒ‡å®šã‚ã‚Š */
 				if ((decode->gparam[0] & 0x0f) != 0x0f)
-					goto err3; /* BYTE‚âDWORD‚ªw’è‚³‚ê‚½ */
+					goto err3; /* BYTEã‚„DWORDãŒæŒ‡å®šã•ã‚ŒãŸ */
 				if (status->optimize == 0) {
-					/* Å“K‰»‚µ‚È‚¢ */
+					/* æœ€é©åŒ–ã—ãªã„ */
 		OPE_RET_notopt:
 					if (defnumexpr(ifdef, status->expression, 0x75 & 0x07, 0x9a & 0x07))
 						goto err2;
@@ -658,10 +658,10 @@ err:
 					};
 					mcode[2] = itp->param[1];
 					mcode[7] = itp->param[1] | 0x01;
-					/* Å“K‰»‚·‚é */
+					/* æœ€é©åŒ–ã™ã‚‹ */
 					if (microcode94(ifdef, status->expression, mcode))
 						goto err2;
-					*bp++ = 0x7c; /* ©“®‘I‘ğ‚³‚ê‚½ƒIƒyƒR[ƒh */
+					*bp++ = 0x7c; /* è‡ªå‹•é¸æŠã•ã‚ŒãŸã‚ªãƒšã‚³ãƒ¼ãƒ‰ */
 				}
 				*bp++ = 0x7d; /* imm16 || none */
 				break;
@@ -671,29 +671,29 @@ err:
 					defnumconst(ifdef, itp->param[2], 0x74, 0x01 /* UCHAR, const */);
 				} else if (decode->flag == 1) {
 					if ((decode->gparam[0] & 0xf0) != 0x20)
-						goto err2; /* imm‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚Ä‚¢‚½ */
+						goto err2; /* immã§ã¯ãªã„ || rangeãŒã¤ã„ã¦ã„ãŸ */
 					if ((decode->gparam[0] & 0x0f) != 0x01 && (decode->gparam[0] & 0x0f) != 0x0f)
-						goto err3; /* WORD‚âDWORD‚ª‚Â‚¢‚Ä‚¢‚½ */
+						goto err3; /* WORDã‚„DWORDãŒã¤ã„ã¦ã„ãŸ */
 					if (defnumexpr(ifdef, status->expression, 0x74 & 0x07, 0x98 & 0x07))
 						goto err2;
 				} else
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				bp[0] = SHORT_DB1; /* 0x31 */
 				bp[1] = itp->param[1];
-				bp[2] = 0x7c; /* ƒIƒyƒ‰ƒ“ƒh(ƒfƒtƒHƒ‹ƒg:itp->param[2]) */
+				bp[2] = 0x7c; /* ã‚ªãƒšãƒ©ãƒ³ãƒ‰(ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ:itp->param[2]) */
 				bp += 3;
 				break;
 
 			case OPE_INT: /* INT */
 				if ((decode->gparam[0] & 0xf0) != 0x20)
-					goto err2; /* imm‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚Ä‚¢‚½ */
+					goto err2; /* immã§ã¯ãªã„ || rangeãŒã¤ã„ã¦ã„ãŸ */
 				if ((decode->gparam[0] & 0x0f) == 1)
-					goto OPE_INT_notopt; /* BYTEw’è‚ ‚è */
+					goto OPE_INT_notopt; /* BYTEæŒ‡å®šã‚ã‚Š */
 				if ((decode->gparam[0] & 0x0f) != 0x0f)
-					goto err3; /* WORD‚âDWORD‚ª‚Â‚¢‚Ä‚¢‚½ */
+					goto err3; /* WORDã‚„DWORDãŒã¤ã„ã¦ã„ãŸ */
 				if (status->optimize == 0) {
 		OPE_INT_notopt:
-					/* Å“K‰»‚µ‚È‚¢ */
+					/* æœ€é©åŒ–ã—ãªã„ */
 					if (defnumexpr(ifdef, status->expression, 0x75 & 0x07, 0x98 & 0x07))
 						goto err2;
 					bp[0] = SHORT_DB1; /* 0x31 */
@@ -704,17 +704,17 @@ err:
 						0x0154, SHORT_DB1, 0xcd, 0x98, 0, /* default */
 						0x03,   SHORT_DB1, 0xcc, SHORT_DB0, 0 /* if == 3 */
 					};
-					/* Å“K‰»‚·‚é */
+					/* æœ€é©åŒ–ã™ã‚‹ */
 					if (microcode94(ifdef, status->expression, mcode))
 						goto err2;
-					*bp++ = 0x7c; /* ©“®‘I‘ğ‚³‚ê‚½ƒIƒyƒR[ƒh */
+					*bp++ = 0x7c; /* è‡ªå‹•é¸æŠã•ã‚ŒãŸã‚ªãƒšã‚³ãƒ¼ãƒ‰ */
 				}
 				*bp++ = 0x7d; /* imm8 || none */
 				break;
 
 			case OPE_PUSH: /* PUSH, POP, INC, DEC */
 				if (decode->gparam[0] & 0xc0)
-					goto err2; /* range‚ª‚Â‚¢‚Ä‚¢‚½ */
+					goto err2; /* rangeãŒã¤ã„ã¦ã„ãŸ */
 				decode->gp_mem = decode->gparam[0];
 				decode->gp_reg = (itp->param[1] & 0x07) << 9;
 				bp[0] = SHORT_DB1; /* 0x31 */
@@ -732,7 +732,7 @@ err:
 						if (itp->param[1] & 0x08)
 							goto err3; /* PUSH, POP */
 						bp[1] = itp->param[3];
-						c = 2; /* mod nnn r/m ‚ ‚è */
+						c = 2; /* mod nnn r/m ã‚ã‚Š */
 			ope_push_mem:
 						bp[2] = 0x78;
 						bp[3] = 0x79;
@@ -744,7 +744,7 @@ err:
 						goto err2; /* INC, DEC */
 					if (decode->gvalue[0] < 28) {
 						/* ES, CS, SS, DS */
-						/* NASK‚Í"POP CS"‚ğƒGƒ‰[‚É‚µ‚È‚¢(8086‚Ì‚½‚ß) */
+						/* NASKã¯"POP CS"ã‚’ã‚¨ãƒ©ãƒ¼ã«ã—ãªã„(8086ã®ãŸã‚) */
 						bp[1] = itp->param[4] | (decode->gvalue[0] & 0x03) << 3;
 						bp += 2;
 						goto outbp;
@@ -776,7 +776,7 @@ err:
 					}
 					bp[1] |= itp->param[3];
 					decode->prefix |= (tbl_o16o32 - 1)[c];
-					c = 3; /* mod nnn r/m ‚ ‚è */
+					c = 3; /* mod nnn r/m ã‚ã‚Š */
 					goto ope_push_mem;
 				case 0x20: /* imm */
 					if ((itp->param[1] & 0x10) == 0)
@@ -798,7 +798,7 @@ err:
 						bp[0] = 0x7d;
 						bp[1] = 0x7c;
 						bp += 2;
-						c = 0; /* mod nnn r/m ‚È‚µ */
+						c = 0; /* mod nnn r/m ãªã— */
 						goto outbp;
 					}
 				}
@@ -806,9 +806,9 @@ err:
 
 			case OPE_MOV: /* MOV */
 				if (decode->gparam[0] & 0xc0)
-					goto err4; /* range‚ª‚Â‚¢‚Ä‚¢‚é, data type error */
+					goto err4; /* rangeãŒã¤ã„ã¦ã„ã‚‹, data type error */
 				if (decode->gparam[1] & 0xc0)
-					goto err4; /* range‚ª‚Â‚¢‚Ä‚¢‚é, data type error */
+					goto err4; /* rangeãŒã¤ã„ã¦ã„ã‚‹, data type error */
 				if ((decode->gparam[1] & 0x30) == 0x20) {
 					/* imm */
 					static char typecode[4] = { 0x9e & 0x07, 0x9b & 0x07, 0, 0x9d & 0x07 };
@@ -829,7 +829,7 @@ err:
 						if (c != 1)
 							bp[1] |= 0x08;
 						bp += 3;
-						c = 0; /* mod nnn r/m ‚È‚µ */
+						c = 0; /* mod nnn r/m ãªã— */
 						goto outbp;
 					}
 					if (j != 0x10)
@@ -845,7 +845,7 @@ err:
 					if (c != 1)
 						bp[1] |= 0x01;
 					bp += 6;
-					c = 3; /* mod nnn r/m ‚ ‚è */
+					c = 3; /* mod nnn r/m ã‚ã‚Š */
 					goto outbp;
 				}
 				i = 0; /* direction-bit */
@@ -864,13 +864,13 @@ err:
 						goto err5; /* addressing error */
 					decode->flag = 0;
 				} else if ((decode->gp_mem & 0x30) != 0x00)
-					goto err4; /* imm‚ª—ˆ‚Ä‚Í‚¢‚¯‚È‚¢ */
+					goto err4; /* immãŒæ¥ã¦ã¯ã„ã‘ãªã„ */
 				else if ((decode->gp_mem >> 9) >= 24)
-					goto err4; /* reg8/reg16/reg32ˆÈŠO‚ª—ˆ‚Ä‚Í‚¢‚¯‚È‚¢ */
+					goto err4; /* reg8/reg16/reg32ä»¥å¤–ãŒæ¥ã¦ã¯ã„ã‘ãªã„ */
 				j = decode->gp_reg = decode->gparam[i ^ 1];
 				c = decode->gp_mem & 0x0f;
 				if ((j & 0x30) != 0x00)
-					goto err4; /* reg‚Å‚Í‚È‚¢, data type error */
+					goto err4; /* regã§ã¯ãªã„, data type error */
 				if (24 <= (j >> 9) && (j >> 9) < 30 && decode->flag != 0) {
 					if (c == 1)
 						goto err3; /* data size error */
@@ -897,7 +897,7 @@ err:
 				}
 				if (j < 30) { /* mem/reg,sreg */
 					if (i == 0 && decode->flag != 0) {
-						/* (i == 0)‚©‚Âreg‚È‚çAO16/O32‚ ‚è */
+						/* (i == 0)ã‹ã¤regãªã‚‰ã€O16/O32ã‚ã‚Š */
 						decode->prefix |= (tbl_o16o32 - 1)[c];
 					}
 					itp->param[2] = 0x21; /* no-w no-o16/o32 */
@@ -905,7 +905,7 @@ err:
 					goto ope_mr_mem;
 				}
 				if (j < 40)
-					goto err2; /* ‚»‚ñ‚ÈƒŒƒWƒXƒ^‚Í’m‚ç‚È‚¢‚Ì‚ÅAƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãã‚“ãªãƒ¬ã‚¸ã‚¹ã‚¿ã¯çŸ¥ã‚‰ãªã„ã®ã§ã€ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				if (j < 64) {
 					c = (j - 40) >> 3;
 					if (c == 2)
@@ -917,15 +917,15 @@ err:
 					goto ope_mr_mem;
 				}
 	err2:
-				decode->error = 2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+				decode->error = 2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				goto err;
 
 			case OPE_ADD: /* ADD */
 				itp->param[3] &= 0x38;
 				if (decode->gparam[0] & 0xc0)
-					goto err4; /* range‚ª‚Â‚¢‚Ä‚¢‚é, data type error */
+					goto err4; /* rangeãŒã¤ã„ã¦ã„ã‚‹, data type error */
 				if (decode->gparam[1] & 0xc0)
-					goto err4; /* range‚ª‚Â‚¢‚Ä‚¢‚é, data type error */
+					goto err4; /* rangeãŒã¤ã„ã¦ã„ã‚‹, data type error */
 				if ((decode->gparam[1] & 0x30) == 0x20) {
 					/* imm */
 					if ((c = decode->gparam[0] & 0x0f) == 0x0f)
@@ -937,12 +937,12 @@ err:
 							goto err3; /* data size error */
 					}
 					decode->prefix |= (tbl_o16o32 - 1)[c];
-					if ((j = decode->gparam[0]) & 0x20) /* reg‚Å‚àmem‚Å‚à‚È‚¢‚È‚çƒGƒ‰[ */
+					if ((j = decode->gparam[0]) & 0x20) /* regã§ã‚‚memã§ã‚‚ãªã„ãªã‚‰ã‚¨ãƒ©ãƒ¼ */
 						goto err4;
 					decode->flag = 0;
 					if ((j & 0x10) == 0) {
 						decode->flag = 1;
-						if (decode->gvalue[0] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+						if (decode->gvalue[0] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 							goto err4;
 						if ((decode->gvalue[0] & 0x07) == 0) {
 							/* EAX, AX, AL */
@@ -951,7 +951,7 @@ err:
 										0x01 /* UCHAR, const */, 0x83, 0x01 /* UCHAR, const */, 0xc0 /* 8bit */
 							};
 							if (c <= 2) {
-								/* AL, AX‚È‚Ì‚Å˜b‚ÍŠÈ’P */
+								/* AL, AXãªã®ã§è©±ã¯ç°¡å˜ */
 								bp[0] = SHORT_DB1;
 								bp[1] = itp->param[3] | 0x04;
 								if (c == 2)
@@ -959,8 +959,8 @@ err:
 								bp[2] = 0x7c;
 								bp += 3;
 								if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 9 - c * 3))
-									goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
-								c = 0; /* mod nnn r/m ‚È‚µ */
+									goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
+								c = 0; /* mod nnn r/m ãªã— */
 								goto outbp;
 							}
 							/* EAX */
@@ -973,20 +973,20 @@ err:
 							bp += 3;
 
 							if (microcode91(ifdef, status->expression, mcode, decode->gparam[1] & 0x0f))
-								goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
-							c = 0; /* mod nnn r/m ‚È‚µ */
+								goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
+							c = 0; /* mod nnn r/m ãªã— */
 							goto outbp;
 						}
 					}
 					decode->gp_mem = decode->gparam[0];
 					decode->gp_reg = itp->param[3] << (9 - 3);
 					if (c == 1) {
-						/* 1ƒoƒCƒg‚È‚Ì‚Å˜b‚ÍŠÈ’P */
+						/* 1ãƒã‚¤ãƒˆãªã®ã§è©±ã¯ç°¡å˜ */
 						bp[0] = SHORT_DB1;
 						bp[1] = 0x80;
 						bp += 2;
 						if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x9e & 0x07))
-							goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+							goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 					} else {
 						static int mcode[] = {
 							0x54,	0x01 /* UCHAR, const */, 0x81 /* 16bit/32bit */,
@@ -997,7 +997,7 @@ err:
 							mcode[0] = 0x5c; /* 32bit */
 						*bp++ = 0x7d;
 						if (microcode90(ifdef, status->expression, mcode, decode->gparam[1] & 0x0f))
-							goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+							goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 					}
 					bp[0] = 0x78;
 					bp[1] = 0x79;
@@ -1009,21 +1009,21 @@ err:
 				i = 0; /* direction-bit */
 				if ((decode->gparam[1] & 0x30) == 0x10)
 					i++;
-				if ((j = decode->gparam[i]) & 0x20) /* reg‚Å‚àmem‚Å‚à‚È‚¢‚È‚çƒGƒ‰[ */
+				if ((j = decode->gparam[i]) & 0x20) /* regã§ã‚‚memã§ã‚‚ãªã„ãªã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
 				decode->flag = 0;
 				if ((j & 0x10) == 0) {
 					decode->flag = 1;
-					if (decode->gvalue[i] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[i] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
-				if (decode->gparam[i ^ 1] & 0x30) /* reg‚Å‚Í‚È‚¢‚È‚çƒGƒ‰[ */
+				if (decode->gparam[i ^ 1] & 0x30) /* regã§ã¯ãªã„ãªã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
-				if (decode->gvalue[i ^ 1] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+				if (decode->gvalue[i ^ 1] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 					goto err4;
 				decode->gp_reg = decode->gparam[i ^ 1];
 				if ((j & 0x0f) == 0x0f /* && (itp->param[1] & 0x80) != 0 */ ) {
-					/* mem‚Ìƒf[ƒ^ƒTƒCƒY‚ª•s’è && ‘æ“ñƒIƒyƒ‰ƒ“ƒh‚Ésame0w’è‚ ‚è */
+					/* memã®ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚ºãŒä¸å®š && ç¬¬äºŒã‚ªãƒšãƒ©ãƒ³ãƒ‰ã«same0æŒ‡å®šã‚ã‚Š */
 					j = (j & ~0x0f) | (decode->gp_reg & 0x0f);
 				}
 				decode->gp_mem = decode->gparam[i] = j;
@@ -1031,9 +1031,9 @@ err:
 				goto ope_mr2;
 
 			case OPE_XCHG: /* XCHG */
-				/* ƒƒ‚ƒŠ‚ğ‘æ1ƒIƒyƒ‰ƒ“ƒh‚ÖBEAX‚ğ‘æ2ƒIƒyƒ‰ƒ“ƒh‚Ö */
-				/* ‚»‚µ‚ÄAreg16/reg32, eAX‚È‚ç“Á•ÊŒ`® */
-				/* ‚»‚êˆÈŠO‚ÍMRŒ^ */
+				/* ãƒ¡ãƒ¢ãƒªã‚’ç¬¬1ã‚ªãƒšãƒ©ãƒ³ãƒ‰ã¸ã€‚EAXã‚’ç¬¬2ã‚ªãƒšãƒ©ãƒ³ãƒ‰ã¸ */
+				/* ãã—ã¦ã€reg16/reg32, eAXãªã‚‰ç‰¹åˆ¥å½¢å¼ */
+				/* ãã‚Œä»¥å¤–ã¯MRå‹ */
 				i = 0;
 				if ((decode->gparam[1] & 0x30) == 0x10)
 					goto xchg_swap; /* memory */
@@ -1041,21 +1041,21 @@ err:
 		xchg_swap:
 					i++;
 				}
-				if ((j = decode->gparam[i]) & 0xe0) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ */
+				if ((j = decode->gparam[i]) & 0xe0) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
 				decode->flag = 0;
 				if ((j & 0x10) == 0) {
 					decode->flag = 1;
-					if (decode->gvalue[i] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[i] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
-				if (decode->gparam[i ^ 1] & 0x1f0) /* reg‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ || use $‚àƒGƒ‰[ */
+				if (decode->gparam[i ^ 1] & 0x1f0) /* regã§ã¯ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ || use $ã‚‚ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
-				if (decode->gvalue[i ^ 1] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+				if (decode->gvalue[i ^ 1] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 					goto err4;
 				decode->gp_reg = decode->gparam[i ^ 1];
 				if ((j & 0x0f) == 0x0f /* && (itp->param[1] & 0x80) != 0 */) {
-					/* mem‚Ìƒf[ƒ^ƒTƒCƒY‚ª•s’è && ‘æ“ñƒIƒyƒ‰ƒ“ƒh‚Ésame0w’è‚ ‚è */
+					/* memã®ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚ºãŒä¸å®š && ç¬¬äºŒã‚ªãƒšãƒ©ãƒ³ãƒ‰ã«same0æŒ‡å®šã‚ã‚Š */
 					j = (j & ~0x0f) | (decode->gp_reg & 0x0f);
 				}
 				decode->gp_mem = decode->gparam[i] = j;
@@ -1067,7 +1067,7 @@ err:
 						bp[1] = 0x90 | ((decode->gp_mem >> 9) & 0x07);
 						bp += 2;
 						decode->prefix |= (tbl_o16o32 - 1)[decode->gp_reg & 0x0f];
-					//	c = 0; /* mod nnn r/m ‚È‚µ */
+					//	c = 0; /* mod nnn r/m ãªã— */
 						goto outbp;
 					}
 				}
@@ -1077,13 +1077,13 @@ err:
 				j = 0;
 				if ((c = itp->param[1]) == 0xe6 /* OUT */)
 					j++; /* j = 1; */
-				i = 0x10000000; /* O16(ˆÃ–Ù) */
+				i = 0x10000000; /* O16(æš—é»™) */
 				if (decode->gparam[j] == 0x0004 || decode->gparam[j] == 0x1002) {
-					/* EAX ‚© AX */
+					/* EAX ã‹ AX */
 					decode->prefix |= (tbl_o16o32 - 1)[decode->gparam[j] & 0x0f];
 					c++;
 				} else if (decode->gparam[j] != 0x2001)
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				j = getparam0(decode->prm_p[j ^ 0x01], status);
 				bp[0] = SHORT_DB1; /* 0x31 */
 				if (j == 0x1402) { /* DX */
@@ -1097,27 +1097,27 @@ err:
 					if (c != 0xf && c != 0x01)
 						goto err3; /* data size error */
 					if (j & 0xc0)
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[(rangeŒŸo) */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼(rangeæ¤œå‡º) */
 					if ((j & 0x30) != 0x20)
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[(reg/memŒŸo) */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼(reg/memæ¤œå‡º) */
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x98 & 0x07))
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				}
-				c = 0; /* mod nnn r/m ‚È‚µ */
+				c = 0; /* mod nnn r/m ãªã— */
 				goto outbp;
 
 			case OPE_IMUL:
 				/* mem/reg			1111011w   mod-101-r/m */
 				/* reg,mem/reg		00001111   10101111   mod-reg-r/m */
 				/* reg,mem/reg,imm	011010s1   mod-reg-r/m   imm */
-				/* reg,imm >> reg,reg,imm‚É“Ç‚İ‘Ö‚¦ */
+				/* reg,imm >> reg,reg,immã«èª­ã¿æ›¿ãˆ */
 				if (decode->flag == 0)
 					goto err2; /* parameter error */
 				if (decode->flag > 3)
 					goto err2; /* parameter error */
 				if (decode->flag == 1)
 					goto ope_m;
-				if (decode->gparam[0] & 0xf1) /* ‹ô”ƒTƒCƒY‚Ìreg‚Ì‚İ */
+				if (decode->gparam[0] & 0xf1) /* å¶æ•°ã‚µã‚¤ã‚ºã®regã®ã¿ */
 					goto err4; /* data type error */
 				if (decode->gvalue[0] >= 24)
 					goto err4; /* data type error */
@@ -1134,14 +1134,14 @@ err:
 						bp[6] = 0x7a; /* disp */
 						bp += 7;
 		imul2:
-						if (decode->gparam[1] & 0xe0) /* range‚ª‚Â‚¢‚Ä‚¢‚½ || imm */
+						if (decode->gparam[1] & 0xe0) /* rangeãŒã¤ã„ã¦ã„ãŸ || imm */
 							goto err4; /* data type error */
 						decode->gp_mem = decode->gparam[1];
 						decode->flag = 0; /* mem */
 						if ((decode->gp_mem & 0x10) == 0) {
 							/* reg */
 							decode->flag = 1;
-							if (decode->gvalue[1] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+							if (decode->gvalue[1] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 								goto err4;
 						}
 						if ((j = decode->gp_mem & decode->gp_reg & 0x0f) == 0)
@@ -1155,7 +1155,7 @@ err:
 					decode->gvalue[1] = decode->gvalue[0];
 				}
 				{
-					/* reg,mem/reg,immŒ^ */
+					/* reg,mem/reg,immå‹ */
 					static int mcode[] = {
 						0x54,	0x01 /* UCHAR, const */, 0x69 /* 16bit/32bit */,
 								0x01 /* UCHAR, const */, 0x6b /* 8bit */
@@ -1166,7 +1166,7 @@ err:
 					if (decode->gp_reg & 4)
 						mcode[0] |= 0x5c;
 					if (microcode90(ifdef, status->expression, mcode, decode->gparam[2] & 0x0f))
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 					bp[0] = 0x7d; /* 011010s1 */
 					bp[1] = 0x78; /* mod nnn r/m */
 					bp[2] = 0x79; /* sib */
@@ -1183,13 +1183,13 @@ err:
 					decode->gp_mem = decode->gparam[1];
 					decode->gp_reg = decode->gparam[0];
 				}
-				if ((j = decode->gp_mem) & 0xe0) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ */
+				if ((j = decode->gp_mem) & 0xe0) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4; /* data type error */
 				decode->flag = 0; /* mem */
 				if ((j & 0x10) == 0) {
 					/* reg */
 					decode->flag = 1;
-					if ((j >> 9) >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if ((j >> 9) >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
 				j &= 0x0f;
@@ -1198,7 +1198,7 @@ err:
 				if ((i = decode->gp_reg & 0xf0) == 0x00) {
 					/* mem/reg,reg */
 					j &= decode->gp_reg;
-					if ((decode->gp_reg >> 9) >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if ((decode->gp_reg >> 9) >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4; /* data type error */
 					bp[1] = 0x84;
 					bp[2] = 0x78; /* mod nnn r/m */
@@ -1210,7 +1210,7 @@ err:
 						0x9e /* dummy */ & 0x07, 0x9e /* byte */ & 0x07, 0x9b /* word */ & 0x07,
 						0x9b /* dummy */ & 0x07, 0x9d /* dword */ & 0x07
 					};
-					if (i != 0x20) /* imm‚Å‚Í‚È‚¢‚©Arange‚ª‚Â‚¢‚Ä‚¢‚½ */
+					if (i != 0x20) /* immã§ã¯ãªã„ã‹ã€rangeãŒã¤ã„ã¦ã„ãŸ */
 						goto err4; /* data type error */
 					if ((decode->gp_mem & 0x0ef0) == 0) {
 						/* EAX, AX, AL */
@@ -1228,7 +1228,7 @@ err:
 					}
 					*bp++ = 0x7c;
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, table[j]))
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				}
 				if (j == 0)
 					goto err3; /* data size error */
@@ -1238,17 +1238,17 @@ err:
 				goto setc;
 
 			case OPE_MOVZX:
-				if (decode->gparam[0] & 0xf9) /* reg‚Å‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ || reg8 */
+				if (decode->gparam[0] & 0xf9) /* regã§ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ || reg8 */
 					goto err4; /* data type error */
 				if (decode->gvalue[0] >= 24)
 					goto err4; /* data type error */
-				if (decode->gparam[1] & 0xe4) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ || dword‚©ƒTƒCƒY•s’è */
+				if (decode->gparam[1] & 0xe4) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ || dwordã‹ã‚µã‚¤ã‚ºä¸å®š */
 					goto err4; /* data type error */
 				decode->flag = 0; /* mem */
 				if ((decode->gparam[1] & 0x10) == 0) {
 					/* reg */
 					decode->flag = 1;
-					if (decode->gvalue[1] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[1] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
 				decode->gp_reg = decode->gparam[0];
@@ -1265,20 +1265,20 @@ err:
 				goto setc;
 
 			case OPE_SHLD: /* mem/reg, reg, imm8|CL */
-				if ((j = decode->gparam[0]) & 0xe0) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ */
+				if ((j = decode->gparam[0]) & 0xe0) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4; /* data type error */
 				decode->gp_mem = j;
 				decode->gp_reg = decode->gparam[1];
-				if ((decode->gparam[1] & 0xf0) != 0x00) /* reg‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚½ */
+				if ((decode->gparam[1] & 0xf0) != 0x00) /* regã§ã¯ãªã„ || rangeãŒã¤ã„ãŸ */
 					goto err4; /* data type error */
 				decode->flag = 0; /* mem */
 				if ((j & 0x10) == 0) {
 					/* reg */
 					decode->flag = 1;
-					if (decode->gvalue[0] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[0] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
-				/* ƒf[ƒ^ƒTƒCƒY‚ğŠm’è */
+				/* ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚ºã‚’ç¢ºå®š */
 				i = decode->gparam[1] & 0x0f;
 				if (i <= 1)
 					goto err3; /* data size error */
@@ -1298,11 +1298,11 @@ err:
 					bp[3] |= 0x01;
 					bp += 7;
 				} else {
-					if ((decode->gparam[2] & 0xf0) != 0x20) /* imm‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚Ä‚¢‚½ */
+					if ((decode->gparam[2] & 0xf0) != 0x20) /* immã§ã¯ãªã„ || rangeãŒã¤ã„ã¦ã„ãŸ */
 						goto err4; /* data type error */
 					bp[7] = 0x7c; /* imm8 */
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x98 & 0x07 /* UCHAR */))
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 					bp += 8;
 				}
 				goto setc;
@@ -1322,7 +1322,7 @@ err:
 					} else if (decode->flag != 1)
 						goto err2;
 				}
-				if ((decode->gparam[0] & 0x30) != 0x20) /* imm‚Å‚Í‚È‚¢ */
+				if ((decode->gparam[0] & 0x30) != 0x20) /* immã§ã¯ãªã„ */
 					goto err4;
 				c = decode->gparam[0] & 0xc0;
 				if (c == 0x40) /* NEAR */
@@ -1341,12 +1341,12 @@ err:
 				bp[2] = 0x7c;
 				bp += 3;
 				if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x99 & 0x07 /* SCHAR */))
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
-				c = 0; /* mod nnn r/m ‚È‚µ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
+				c = 0; /* mod nnn r/m ãªã— */
 				goto outbp;
 
 			case OPE_JCC:
-				if ((decode->gparam[0] & 0x30) != 0x20) /* imm‚Å‚Í‚È‚¢ */
+				if ((decode->gparam[0] & 0x30) != 0x20) /* immã§ã¯ãªã„ */
 					goto err4;
 				i = 0x7;
 				c = decode->gparam[0] & 0xc0;
@@ -1362,7 +1362,7 @@ err:
 				}
 				i &= decode->gparam[0];
 				if (i >= 6) {
-					/* DWORD‚©WORD‚©•ª‚©‚ç‚È‚¢‚Æ‚« */
+					/* DWORDã‹WORDã‹åˆ†ã‹ã‚‰ãªã„ã¨ã */
 					if ((prefix_def & 32) == 0)
 						i &= ~4;
 					if ((prefix_def & 16) == 0)
@@ -1394,7 +1394,7 @@ err:
 					bp[1] = 0x7e;
 					bp[2] = 0x7c;
 					bp += 3;
-					c = 0; /* mod nnn r/m ‚È‚µ */
+					c = 0; /* mod nnn r/m ãªã— */
 					goto outbp;
 				}
 				goto err3; /* data size error */
@@ -1402,8 +1402,8 @@ err:
 			case OPE_BT: /* mem/reg, imm8|reg */
 				/* 0x0f 0xba mod-TTT-r/m imm8 */
 				/* 0x0f 10-TTT-011 mod-reg-r/m */
-				/* NASM‚âMASM‚Å‚Ímem,imm‚Ì‚Æ‚«‚ÉƒAƒhƒŒƒX’²®‚ğ‚µ‚È‚¢‚Ì‚Å‚»‚ê‚É‡‚í‚¹‚½ */
-				if ((j = decode->gparam[0]) & 0xe0) /* reg‚Å‚àmem‚Å‚à‚È‚¢ || range‚ª‚Â‚¢‚½‚çƒGƒ‰[ */
+				/* NASMã‚„MASMã§ã¯mem,immã®ã¨ãã«ã‚¢ãƒ‰ãƒ¬ã‚¹èª¿æ•´ã‚’ã—ãªã„ã®ã§ãã‚Œã«åˆã‚ã›ãŸ */
+				if ((j = decode->gparam[0]) & 0xe0) /* regã§ã‚‚memã§ã‚‚ãªã„ || rangeãŒã¤ã„ãŸã‚‰ã‚¨ãƒ©ãƒ¼ */
 					goto err4;
 				decode->gp_mem = j;
 				decode->gp_reg = decode->gparam[1];
@@ -1411,7 +1411,7 @@ err:
 				if ((j & 0x10) == 0) {
 					/* reg */
 					decode->flag = 1;
-					if (decode->gvalue[0] >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+					if (decode->gvalue[0] >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 						goto err4;
 				}
 				bp[0] = SHORT_DB1; /* 0x31 */
@@ -1429,21 +1429,21 @@ err:
 					bp += 7;
 				} else {
 					/* imm8 */
-					if (i != 0x20) /* imm‚Å‚Í‚È‚¢ || range‚ª‚Â‚¢‚Ä‚¢‚½ */
+					if (i != 0x20) /* immã§ã¯ãªã„ || rangeãŒã¤ã„ã¦ã„ãŸ */
 						goto err4; /* data type error */
 					decode->gp_reg = itp->param[1] << (9 - 3);
 					bp[3] = 0xba;
 					bp[7] = 0x7c; /* imm8 */
 					bp += 8;
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x98 & 0x07 /* UCHAR */))
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				}
-				/* ƒf[ƒ^ƒTƒCƒY‚ğŠm’è */
+				/* ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚ºã‚’ç¢ºå®š */
 				j &= 0x0f;
 				if (j <= 1)
 					goto err3; /* data size error */
 				if (j == 0x0f)
-					j &= 0x01; /* ‚»‚Ì‚ÌBITS‚É‡‚í‚¹‚é */
+					j &= 0x01; /* ãã®æ™‚ã®BITSã«åˆã‚ã›ã‚‹ */
 				if (j > 4)
 					goto err3; /* data size error */
 				decode->prefix |= (tbl_o16o32 - 1)[j];
@@ -1465,17 +1465,17 @@ err:
 				bp[3] = 0x7d;
 				bp += 4;
 				if (defnumexpr(ifdef, status->expression, 0x7d & 0x07, 0x98 & 0x07 /* UCHAR */))
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				getparam0(decode->prm_p[0], status);
 				if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x9a & 0x07 /* USHORT */))
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				goto outbp;
 
 			case OPE_ALIGN: /* ALIGN, ALIGNB */
 				if ((decode->gparam[0] & 0x02f0) != 0x0020)
-					goto err2; /* ’è”®‚Å‚Í‚È‚¢‚È‚çƒGƒ‰[ */
+					goto err2; /* å®šæ•°å¼ã§ã¯ãªã„ãªã‚‰ã‚¨ãƒ©ãƒ¼ */
 				ifdef->vb[8] = 0x84;
-				/* ALIGN x ‚ÍŸ‚Ì‚æ‚¤‚É•ÏŠ·‚·‚éBTIMES (x-(($-$$)%x))%x DB y */
+				/* ALIGN x ã¯æ¬¡ã®ã‚ˆã†ã«å¤‰æ›ã™ã‚‹ã€‚TIMES (x-(($-$$)%x))%x DB y */
 				/* mod(sub(x, mod(sub($, $$), x)), x)  ->  mod sub x mod sub $ $$ x x */
 				expr = status->expression;
 				expr[0].term_type = 1; /* operator */
@@ -1498,7 +1498,7 @@ err:
 				expr[8].value = decode->gvalue[0];
 				ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
 				bp[0] = 0x59; /* TIMES microcode */
-				bp[1] = 0x06; /* len [³’è”(4ƒoƒCƒg)] */
+				bp[1] = 0x06; /* len [æ­£å®šæ•°(4ãƒã‚¤ãƒˆ)] */
 				put4b(1, &bp[2]); /* len = 1 */
 				bp[6] = SHORT_DB1; /* 0x31 */
 				bp[7] = itp->param[1];
@@ -1516,13 +1516,13 @@ err:
 
 			case OPE_FPU:
 				if (decode->flag == 0)
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				if (decode->flag == 1) {
 					if (decode->gparam[0] & 0xe0)
 						goto err4; /* data type error */
 					decode->gp_mem = decode->gparam[0];
 					if (decode->gparam[0] & 0x10) {
-						/* ƒƒ‚ƒŠ */
+						/* ãƒ¡ãƒ¢ãƒª */
 						static unsigned char sizelist[16] = {
 							0xff, 0xff, 0, 0xff, 1, 0xff, 0xff, 0xff,
 							2, 0xff, 3, 0xff, 0xff, 0xff, 0xff, 0xfe
@@ -1536,18 +1536,18 @@ err:
 							c = itp->param[1] & 0x03;
 						}
 					} else {
-						/* ƒŒƒWƒXƒ^ */
+						/* ãƒ¬ã‚¸ã‚¹ã‚¿ */
 						if ((i = decode->gvalue[0] & ~0x07) == 72)
 							c = 4;
 						else if (i == 64)
 							c = 5;
 						else
-							goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+							goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 					}
 				}
 				if (decode->flag == 2) {
 					if (itp->param[1] & 0x08)
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 					for (i = 0; i < 2; i++) {
 						if (decode->gparam[i] & 0xf0)
 							goto err4; /* data type error */
@@ -1561,10 +1561,10 @@ err:
 						decode->gp_mem = decode->gparam[0];
 						c = 5;
 					} else
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				}
 				if (decode->flag > 2)
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				decode->flag = 0;
 				if (c >= 4)
 					decode->flag = 1;
@@ -1594,7 +1594,7 @@ err:
 				bp[1] = (itp->param[1] & 0x07) | 0xd8;
 				bp[2] = 0x78;
 				bp += 3;
-				c = 2; /* mod nnn r/m ‚ ‚è(reg) */
+				c = 2; /* mod nnn r/m ã‚ã‚Š(reg) */
 				goto outbp;
 
 			case OPE_FSTSW:
@@ -1636,13 +1636,13 @@ err:
 					if (decode->gparam[1] == 0x900a /* ST0 */)
 						goto fxch1;
 					if (decode->gparam[0] != 0x900a /* ST0 */)
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 					decode->gparam[0] = decode->gparam[1];
 			fxch1:
 					decode->flag = 1;
 				}
 				if (decode->flag != 1)
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				if ((decode->gparam[0] & ~0x0e00) != 0x900a)
 					goto err4; /* data type error */
 				bp[0] = SHORT_DB1; /* 0x31 */
@@ -1658,7 +1658,7 @@ err:
 				if (ifdef->vb[8]) {
 					if (itp->param[1] != 1)
 						goto err6; /* TIMES error */
-					/* –Ê“|‚È‚Ì‚Å‚»‚Ì‘¼‚Ìƒ`ƒFƒbƒN‚ÍƒTƒ{‚Á‚Ä‚¢‚é */
+					/* é¢å€’ãªã®ã§ãã®ä»–ã®ãƒã‚§ãƒƒã‚¯ã¯ã‚µãƒœã£ã¦ã„ã‚‹ */
 					bp[0] = SHORT_DB1; /* 0x31 */
 					bp[1] = 0x00;
 					bp += 2;
@@ -1667,7 +1667,7 @@ err:
 				if ((i = itp->param[1]) > 7)
 					goto err4; /* data type error */
 				bp[0] = 0x59; /* TIMES microcode */
-				bp[1] = 0x06; /* len [³’è”(4ƒoƒCƒg)] */
+				bp[1] = 0x06; /* len [æ­£å®šæ•°(4ãƒã‚¤ãƒˆ)] */
 				put4b(i, &bp[2]); /* len */
 				bp[6] = 0x30 | itp->param[1];
 				bp += 7;
@@ -1685,7 +1685,7 @@ err:
 
 			case OPE_EQU:
 				if (decode->label == NULL)
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				if ((decode->gparam[0] & 0xf0) != 0x20)
 					goto err4; /* data type error */
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
@@ -1721,7 +1721,7 @@ err:
 				if ((j & 0x20) == 0) {
 					/* reg/mem */
 					if (c != 0 && c != '\n' && c != ';')
-						goto err2; /* Œã‘±ŒŸo */
+						goto err2; /* å¾Œç¶šæ¤œå‡º */
 					decode->gp_mem = j;
 					decode->gp_reg = itp->param[1] << (9 - 3);
 					c = j & 0x06;
@@ -1739,7 +1739,7 @@ err:
 					if ((j & 0x10) == 0) {
 						/* reg */
 						decode->flag = 1;
-						if (i >= 24) /* reg‚¾‚ªreg8/reg16/reg32‚Å‚Í‚È‚¢ */
+						if (i >= 24) /* regã ãŒreg8/reg16/reg32ã§ã¯ãªã„ */
 							goto err4;
 					}
 					bp[0] = SHORT_DB1; /* 0x31 */
@@ -1749,12 +1749,12 @@ err:
 					bp[4] = 0x7a;
 					bp += 5;
 					goto setc;
-					/* "CALL/JMP FAR reg16/reg32"‚Æ‚¢‚¤‚Ì‚à‚Å‚«‚é‚ªA“®ì‚Í•ÛØ‚µ‚È‚¢ */
+					/* "CALL/JMP FAR reg16/reg32"ã¨ã„ã†ã®ã‚‚ã§ãã‚‹ãŒã€å‹•ä½œã¯ä¿è¨¼ã—ãªã„ */
 				}
 				/* imm */
 				if (c != ':' && c != ',') {
 					if (c != 0 && c != '\n' && c != ';')
-						goto err2; /* Œã‘±ŒŸo */
+						goto err2; /* å¾Œç¶šæ¤œå‡º */
 					c = j & 0xc0;
 					if (c == 0xc0 /* far */)
 						goto err4; /* data type error */
@@ -1766,7 +1766,7 @@ err:
 						c = 0x07;
 					c &= j;
 					if (c >= 0x06) {
-						/* DWORD‚©WORD‚©•ª‚©‚ç‚È‚¢‚Æ‚« */
+						/* DWORDã‹WORDã‹åˆ†ã‹ã‚‰ãªã„ã¨ã */
 						if ((prefix_def & 32) == 0)
 							c &= ~4;
 						if ((prefix_def & 16) == 0)
@@ -1787,13 +1787,13 @@ err:
 						if (c & 4)
 							mcode[0] |= 0x5c;
 						if (c & (c - 1))
-							c = 0x0f; /* c‚ª2‚Ì‚×‚«‚Å‚È‚¢ê‡ */
+							c = 0x0f; /* cãŒ2ã®ã¹ãã§ãªã„å ´åˆ */
 						if (microcode90(ifdef, status->expression, mcode, c))
-							goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+							goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 						bp[0] = 0x7d; /* e9/eb */
 						bp[1] = 0x7c; /* imm */
 						bp += 2;
-						c = 0; /* mod nnn r/m ‚È‚µ */
+						c = 0; /* mod nnn r/m ãªã— */
 						goto outbp;
 					}
 					/* CALL NEAR */
@@ -1801,12 +1801,12 @@ err:
 						goto err4; /* data type error */
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07,
 						(0x99 & 0x07) + c /* non-over SHORT/INT */))
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 					bp[0] = SHORT_DB1; /* 0x31 */
 					bp[1] = 0xe8;
 					bp[2] = 0x7c;
 					bp += 3;
-					c = 0; /* mod nnn r/m ‚È‚µ */
+					c = 0; /* mod nnn r/m ãªã— */
 					goto outbp;
 				}
 				/* far */
@@ -1817,17 +1817,17 @@ err:
 					goto err4;
 				c = j & 0x06;
 				if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x9b & 0x07 /* non-over SHORT */))
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 			//	s = skipspace(s, status->src1);
 				j = getparam(&s, status->src1, &i, status->expression,
 					status->mem_expr, &status->ofsexpr, &status->expr_status);
 				if ((j & 0x30) != 0x20)
 					goto err4;
 				if (s < status->src1 && *s != '\n' && *s != ';')
-					goto err2; /* Œã‘±‚ ‚è */
+					goto err2; /* å¾Œç¶šã‚ã‚Š */
 				c &= j;
 				if (c >= 0x06) {
-					/* DWORD‚©WORD‚©•ª‚©‚ç‚È‚¢‚Æ‚« */
+					/* DWORDã‹WORDã‹åˆ†ã‹ã‚‰ãªã„ã¨ã */
 					if ((prefix_def & 32) == 0)
 						c &= ~4;
 					if ((prefix_def & 16) == 0)
@@ -1838,13 +1838,13 @@ err:
 				decode->prefix |= (tbl_o16o32 - 1)[c];
 				if (defnumexpr(ifdef, status->expression, 0x7d & 0x07,
 					(0x99 & 0x07) + c /* non-over SHORT/INT */))
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				bp[0] = SHORT_DB1; /* 0x31 */
 				bp[1] = itp->param[3];
 				bp[2] = 0x7d;
 				bp[3] = 0x7c;
 				bp += 4;
-				c = 0; /* mod nnn r/m ‚È‚µ */
+				c = 0; /* mod nnn r/m ãªã— */
 				goto outbp;
 
 			case OPE_GLOBAL: /* GLOBAL, EXTERN */
@@ -1852,12 +1852,12 @@ err:
 				if (!(s < status->src1 && *s != '\n' && *s != ';'))
 					goto err2;
 				dest0 = putprefix(dest0, dest1, decode->prefix, prefix_def, status->optimize);
-					/* ƒAƒhƒŒƒXo—Íƒ}[ƒN‚ào—Í */
-					/* •K—v‚È‚çƒGƒ‰[‚ào—Í‚·‚é */
+					/* ã‚¢ãƒ‰ãƒ¬ã‚¹å‡ºåŠ›ãƒãƒ¼ã‚¯ã‚‚å‡ºåŠ› */
+					/* å¿…è¦ãªã‚‰ã‚¨ãƒ©ãƒ¼ã‚‚å‡ºåŠ›ã™ã‚‹ */
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 					goto overrun;
 				for (;;) {
-					/* ƒ‰ƒxƒ‹‚ğ’Šo */
+					/* ãƒ©ãƒ™ãƒ«ã‚’æŠ½å‡º */
 					s = skipspace(s, status->src1);
 					bp = s;
 					if (s >= status->src1)
@@ -1879,8 +1879,8 @@ err:
 					} while (*s > ' ');
 					i = s - bp;
 					j = label2id(i, bp, itp->param[1] == 2);
-					/* ƒ[ƒJƒ‹ƒ‰ƒxƒ‹‚àg‚¦‚é‚ªA.‚©‚çn‚Ü‚é–¼‘O‚Ì‚Ü‚ÜGLOBAL‚É‚È‚é‚Ì‚Å’ˆÓ */
-					/* ‚à‚µ•¡”‰ñGLOBAL/EXTERN‚·‚éŠëŒ¯«‚ğ‰ñ”ğ‚µ‚½‚¯‚ê‚ÎAƒtƒ‰ƒO‚ğì‚Á‚Äƒ`ƒFƒbƒN‚¹‚æ */
+					/* ãƒ­ãƒ¼ã‚«ãƒ«ãƒ©ãƒ™ãƒ«ã‚‚ä½¿ãˆã‚‹ãŒã€.ã‹ã‚‰å§‹ã¾ã‚‹åå‰ã®ã¾ã¾GLOBALã«ãªã‚‹ã®ã§æ³¨æ„ */
+					/* ã‚‚ã—è¤‡æ•°å›GLOBAL/EXTERNã™ã‚‹å±é™ºæ€§ã‚’å›é¿ã—ãŸã‘ã‚Œã°ã€ãƒ•ãƒ©ã‚°ã‚’ä½œã£ã¦ãƒã‚§ãƒƒã‚¯ã›ã‚ˆ */
 					if (dest0 + 15 > dest1) {
 						dest0 = NULL;
 						goto overrun;
@@ -1902,8 +1902,8 @@ err:
 							dest0++;
 						} while (j >>= 8);
 					} else { /* EXTERN */
-						dest0[8] = 0x2c; /* ’¼‘O‚ÌREM_8B‚É‘Î‰‚·‚éEXTERNî•ñ */
-						dest0[9] = 0x02; /* 2ƒoƒCƒgimm */
+						dest0[8] = 0x2c; /* ç›´å‰ã®REM_8Bã«å¯¾å¿œã™ã‚‹EXTERNæƒ…å ± */
+						dest0[9] = 0x02; /* 2ãƒã‚¤ãƒˆimm */
 						dest0[10] = j & 0xff;
 						dest0[11] = (j >> 8) & 0xff;
 						if (j < nask_L_LABEL0)
@@ -1920,7 +1920,7 @@ err:
 					goto err2;
 				goto skip_equ;
 
-			case OPE_TIMES: /* virtual byte 0x80‚ğg‚¤ */
+			case OPE_TIMES: /* virtual byte 0x80ã‚’ä½¿ã† */
 				if (ifdef->vb[8]) {
 		err6:
 					decode->error = 6; /* TIMES error */
@@ -1936,13 +1936,13 @@ err:
 				ifdef->vb[8] = 0x84;
 				expr = status->expression;
 				if ((j & 0x0200) == 0) {
-					/* ’è”® */
+					/* å®šæ•°å¼ */
 					expr->term_type = 0; /* constant */
 					expr->value = i;
 				}
 				ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
 				bp[0] = 0x59; /* TIMES microcode */
-				bp[1] = 0x06; /* len [³’è”(4ƒoƒCƒg)] */
+				bp[1] = 0x06; /* len [æ­£å®šæ•°(4ãƒã‚¤ãƒˆ)] */
 				put4b(1, &bp[2]); /* len = 1 */
 				bp += 6;
 				src = decoder(status, s, decode);
@@ -1957,8 +1957,8 @@ err:
 				if (itp->param[2] == 0)
 					goto err4;
 				dest0 = putprefix(dest0, dest1, decode->prefix, prefix_def, status->optimize);
-					/* ƒAƒhƒŒƒXo—Íƒ}[ƒN‚ào—Í */
-					/* •K—v‚È‚çƒGƒ‰[‚ào—Í‚·‚é */
+					/* ã‚¢ãƒ‰ãƒ¬ã‚¹å‡ºåŠ›ãƒãƒ¼ã‚¯ã‚‚å‡ºåŠ› */
+					/* å¿…è¦ãªã‚‰ã‚¨ãƒ©ãƒ¼ã‚‚å‡ºåŠ›ã™ã‚‹ */
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 					goto overrun;
 				for (;;) {
@@ -1980,7 +1980,7 @@ err:
 							if (*bp != ',' && *bp != '\n' && *bp != ';')
 								goto ope_db_expr;
 						}
-						/* •¶š—ñŒŸo */
+						/* æ–‡å­—åˆ—æ¤œå‡º */
 						s++;
 						k = 0;
 						for (;;) {
@@ -2012,8 +2012,8 @@ err:
 					if ((j & 0xf0) != 0x20)
 						goto err2;
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, itp->param[2] & 0x07))
-						goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
-					/* ’¼Úo—Í */
+						goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
+					/* ç›´æ¥å‡ºåŠ› */
 					k = ifdef->dat[0x7c & 0x07];
 					bp = ifdef->expr[0x7c & 0x07];
 					c = ifdef->vb[0x7c & 0x07];
@@ -2033,7 +2033,7 @@ err:
 							dest0 = NULL;
 						if (dest0 == NULL)
 							goto overrun;
-						dest0[0] = (c & 0x1f) + 0x37; /* 38`3b */
+						dest0[0] = (c & 0x1f) + 0x37; /* 38ã€œ3b */
 						dest0[1] = (c >> 5) & 0x03;
 						dest0 += 2;
 						do {
@@ -2062,7 +2062,7 @@ err:
 			}
 		}
 outbp:
-		if (c & 0x01) { /* mod nnn r/m ‚ ‚è */
+		if (c & 0x01) { /* mod nnn r/m ã‚ã‚Š */
 			tmret = testmem0(status, decode->gp_mem, &decode->prefix);
 			if (tmret == 0) {
 		err5:
@@ -2072,16 +2072,16 @@ outbp:
 			prefix_def |= tmret & 0x03;
 		}
 		dest0 = putprefix(dest0, dest1, decode->prefix, prefix_def, status->optimize);
-			/* ƒAƒhƒŒƒXo—Íƒ}[ƒN‚ào—Í */
-			/* •K—v‚È‚çƒGƒ‰[‚ào—Í‚·‚é */
+			/* ã‚¢ãƒ‰ãƒ¬ã‚¹å‡ºåŠ›ãƒãƒ¼ã‚¯ã‚‚å‡ºåŠ› */
+			/* å¿…è¦ãªã‚‰ã‚¨ãƒ©ãƒ¼ã‚‚å‡ºåŠ›ã™ã‚‹ */
 
-		if (c) { /* mod nnn r/m ‚ ‚è */
+		if (c) { /* mod nnn r/m ã‚ã‚Š */
 			putmodrm(ifdef, tmret, decode->gp_mem, status,
 				/* &status->ofsexpr, */ decode->gp_reg >> 9);
 		}
 
 flush_ifdefbuf:
-		/* ifdefbuf‚ğo—Í */
+		/* ifdefbufã‚’å‡ºåŠ› */
 		i = ifdef->bp - ifdef->bp0;
 		if (dest0 + i > dest1)
 			dest0 = NULL;
@@ -2158,7 +2158,7 @@ skip_equ:
 	if (dest0 == NULL)
 		goto overrun;
 
-	/* ƒ‰ƒCƒ“ƒ^[ƒ~ƒl[ƒ^[o—Í */
+	/* ãƒ©ã‚¤ãƒ³ã‚¿ãƒ¼ãƒŸãƒãƒ¼ã‚¿ãƒ¼å‡ºåŠ› */
 	/* f7, 0, 0 */
 	dest0[0] = 0xf7; /* line start */
 	put4b(0, &dest0[1]);
@@ -2318,9 +2318,9 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 				dest0 = NULL;
 			if (dest0 == NULL)
 				goto fin;
-			put4b(-1, dest0 + 1); /* ’·‚³•s’è */
+			put4b(-1, dest0 + 1); /* é•·ã•ä¸å®š */
 			dest0 += 5;
-			c = 5; /* leno—Í */
+			c = 5; /* lenå‡ºåŠ› */
 			do {
 				*dest0++ = buf[j++];
 			} while (--c);
@@ -2357,7 +2357,7 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 				dest0 = NULL;
 			if (dest0 == NULL)
 				goto fin;
-			dest0[0] = (c & 0x1f) + 0x37; /* 38`3b */
+			dest0[0] = (c & 0x1f) + 0x37; /* 38ã€œ3b */
 			dest0[1] = (c >> 5) & 0x03;
 			dest0 += 2;
 			do {
@@ -2366,7 +2366,7 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 			continue;
 		}
 		if (0xe0 <= c && c <= 0xef) {
-			/* 1ƒoƒCƒgƒŠƒ}[ƒN */
+			/* 1ãƒã‚¤ãƒˆãƒªãƒãƒ¼ã‚¯ */
 			*dest0++ = c;
 			continue;
 		}
@@ -2384,19 +2384,19 @@ fin:
 #define MAX_LISTLEN		32
 
 UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1)
-/* dest1‚ğ•Ô‚·(NULL‚È‚ç‚ ‚Ó‚ê‚½) */
-/* list‚ª‚ ‚Ó‚ê‚Ä‚à‘±s */
+/* dest1ã‚’è¿”ã™(NULLãªã‚‰ã‚ãµã‚ŒãŸ) */
+/* listãŒã‚ãµã‚Œã¦ã‚‚ç¶šè¡Œ */
 {
 	int len, linecount = 0, srcl = 0, i, addr, secno, file_len = 0, g_symbols = 0, e_symbols = 0;
 	struct STR_OUTPUT_SECTION *sectable = GOL_memmanalloc(&GOL_memman, MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION));
 	UCHAR *srcp, *file_p = 0, *string0, *dest = dest0;
 	UCHAR *lbuf0 = GOL_memmanalloc(&GOL_memman, 1024), *lbuf;
-	UCHAR *ebuf0 = GOL_memmanalloc(&GOL_memman, 32), *ebuf; /* ƒGƒ‰[ƒoƒbƒtƒ@ */
+	UCHAR *ebuf0 = GOL_memmanalloc(&GOL_memman, 32), *ebuf; /* ã‚¨ãƒ©ãƒ¼ãƒãƒƒãƒ•ã‚¡ */
 
 	UCHAR c, status, adrflag = 0, cc, format = 0, file_aux = 0;
-		/* 0:Å‰, 1:ƒAƒhƒŒƒXo—Í‘O, 2:ƒAƒhƒŒƒXo—ÍŒã(ƒoƒCƒg—ño—Í’†), 3:ƒoƒCƒg—ño—Í’†&ƒ\[ƒXo—ÍÏ‚İ */
+		/* 0:æœ€åˆ, 1:ã‚¢ãƒ‰ãƒ¬ã‚¹å‡ºåŠ›å‰, 2:ã‚¢ãƒ‰ãƒ¬ã‚¹å‡ºåŠ›å¾Œ(ãƒã‚¤ãƒˆåˆ—å‡ºåŠ›ä¸­), 3:ãƒã‚¤ãƒˆåˆ—å‡ºåŠ›ä¸­&ã‚½ãƒ¼ã‚¹å‡ºåŠ›æ¸ˆã¿ */
 
-	/* ƒAƒ‰ƒCƒ“î•ñŒŸõ */
+	/* ã‚¢ãƒ©ã‚¤ãƒ³æƒ…å ±æ¤œç´¢ */
 	srcp = src0;
 	secno = 0;
 	for (i = 0; i < MAX_SECTIONS; i++) {
@@ -2430,8 +2430,8 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 				g_symbols++; /* GLOBAL */
 			if (srcp[1] == 2) { /* EXTERN */
 				e_symbols++;
-				/* ”Ô†‚ÆCOFFƒVƒ“ƒ{ƒ‹”Ô†‚Æ‚Ì‘Î‰•\‚ğì‚é...•K—v‚Í‚È‚¢ */
-				/* EXTERNƒVƒ“ƒ{ƒ‹‚ÍAƒ‰ƒxƒ‹”Ô†‚©‚ç’è”‚ğˆø‚­‚¾‚¯‚ÅCOFFƒVƒ“ƒ{ƒ‹”Ô†‚É‚È‚é */
+				/* ç•ªå·ã¨COFFã‚·ãƒ³ãƒœãƒ«ç•ªå·ã¨ã®å¯¾å¿œè¡¨ã‚’ä½œã‚‹...å¿…è¦ã¯ãªã„ */
+				/* EXTERNã‚·ãƒ³ãƒœãƒ«ã¯ã€ãƒ©ãƒ™ãƒ«ç•ªå·ã‹ã‚‰å®šæ•°ã‚’å¼•ãã ã‘ã§COFFã‚·ãƒ³ãƒœãƒ«ç•ªå·ã«ãªã‚‹ */
 			}
 		}
 		if (0x2e <= srcp[0] && srcp[0] <= 0x2f) {
@@ -2441,7 +2441,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 		srcp = LL_skipcode(srcp);
 	} while (srcp < src1);
 
-	/* ƒoƒCƒiƒŠ[o—Í */
+	/* ãƒã‚¤ãƒŠãƒªãƒ¼å‡ºåŠ› */
 	if (format == 1) { /* WCOFF */
 		static UCHAR header[140] = {
 			/* file header */
@@ -2594,13 +2594,13 @@ dest_out_skip:
 			0, 0, /* sizeof (line_number) == 0 */
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 		};
-		/* ÅŒã‚ÌƒZƒNƒVƒ‡ƒ“‚ÌƒTƒCƒY‘‚«‚İ */
+		/* æœ€å¾Œã®ã‚»ã‚¯ã‚·ãƒ§ãƒ³ã®ã‚µã‚¤ã‚ºæ›¸ãè¾¼ã¿ */
 		if (1 <= sectable[secno].flags && sectable[secno].flags <= 2)
 			put4b(dest - sectable[secno].d0, &dest0[sectable[secno].flags * 40 - 4]);
 		put4b(len, &dest0[0x74]);
 
 		/* relocation tables (allocate only) */
-		/* relocationî•ñ‚ğ‚ÂƒZƒNƒVƒ‡ƒ“‚Í2‚Â‚µ‚©‚È‚¢ */
+		/* relocationæƒ…å ±ã‚’æŒã¤ã‚»ã‚¯ã‚·ãƒ§ãƒ³ã¯2ã¤ã—ã‹ãªã„ */
 		for (i = 0; i < MAX_SECTIONS; i++) {
 			if (1 <= sectable[i].flags && sectable[i].flags <= 2) {
 				sectable[i].reloc_p = dest;
@@ -2641,7 +2641,7 @@ dest_out_skip:
 		dest = file_p + (e_symbols + g_symbols) * 18;
 		string0 = dest;
 		dest += 4;
-		/* ˆÈ‰º‚Ìƒ‹[ƒv‚ÅƒŠƒƒP[ƒVƒ‡ƒ“‚ÆƒVƒ“ƒ{ƒ‹ƒe[ƒuƒ‹‚ğ‚¤‚ß‚é */
+		/* ä»¥ä¸‹ã®ãƒ«ãƒ¼ãƒ—ã§ãƒªãƒ­ã‚±ãƒ¼ã‚·ãƒ§ãƒ³ã¨ã‚·ãƒ³ãƒœãƒ«ãƒ†ãƒ¼ãƒ–ãƒ«ã‚’ã†ã‚ã‚‹ */
 		srcp = src0;
 		secno = 0;
 		addr = 0;
@@ -2696,10 +2696,10 @@ dest_out_skip:
 					}
 				}
 			}
-			/* ƒŠƒƒP[ƒVƒ‡ƒ“ */
+			/* ãƒªãƒ­ã‚±ãƒ¼ã‚·ãƒ§ãƒ³ */
 			if (0x2e <= srcp[0] && srcp[0] <= 0x2f &&
 				1 <= sectable[secno].flags && sectable[secno].flags <= 2) {
-				/* 0x2e : â‘Î•â³—v‹, 0x2f : ‘Š‘Î•â³—v‹ */
+				/* 0x2e : çµ¶å¯¾è£œæ­£è¦æ±‚, 0x2f : ç›¸å¯¾è£œæ­£è¦æ±‚ */
 				put4b(addr, sectable[secno].reloc_p);
 				i = srcp[2] | srcp[3] << 8;
 				/* .text == file_aux + 1 */
@@ -2731,7 +2731,7 @@ dest_out_skip:
 		put4b(dest - string0, string0);
 	}
 
-	/* ƒŠƒXƒgo—Í */
+	/* ãƒªã‚¹ãƒˆå‡ºåŠ› */
 	status = 0;
 	secno = 0;
 	addr = 0;
@@ -2747,14 +2747,14 @@ dest_out_skip:
 			addr = sectable[secno].addr;
 		}
 
-		if (c == 0xf7) {	/* switch‚Å‘‚¢‚½‚çAlcc-win32‚ª€‚ñ‚Å‚µ‚Ü‚Á‚½ */
+		if (c == 0xf7) {	/* switchã§æ›¸ã„ãŸã‚‰ã€lcc-win32ãŒæ­»ã‚“ã§ã—ã¾ã£ãŸ */
 			/* line start */
 			if (status == 1) {
 				len = -9;
 				status = 2;
 			}
 			if (status == 2) {
-				/* (MAX_LISTLEN - len)ŒÂ‚ÌƒXƒy[ƒX‚ğo—Í */
+				/* (MAX_LISTLEN - len)å€‹ã®ã‚¹ãƒšãƒ¼ã‚¹ã‚’å‡ºåŠ› */
 				if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
 					*list0 = '\0';
 					list0 = NULL;
@@ -2771,7 +2771,7 @@ dest_out_skip:
 			if (status == 3)
 				*lbuf++ = '\n';
 			if ((len = ebuf - ebuf0) != 0) {
-				/* ƒGƒ‰[o—Í */
+				/* ã‚¨ãƒ©ãƒ¼å‡ºåŠ› */
 				static char *errmsg[] = {
 					"      >> [ERROR #001] syntax error.\n",
 					"      >> [ERROR #002] parameter error.\n",
@@ -2781,10 +2781,10 @@ dest_out_skip:
 					"      >> [ERROR #006] TIMES error.\n",
 					"      >> [ERROR #007] label definition error.\n",
 					"      >> [ERROR #008] data range error.\n",
-					"      >> [ERROR #009] expression error.\n",	/* •s’è’lƒGƒ‰[(delta != 0) */
+					"      >> [ERROR #009] expression error.\n",	/* ä¸å®šå€¤ã‚¨ãƒ©ãƒ¼(delta != 0) */
 					"      >> [ERROR #010] expression error.\n",
 					"      >> [ERROR #011] expression error.\n",
-					"      >> [ERROR #012] expression error.\n" /* –¢’è‹`ƒ‰ƒxƒ‹QÆ */
+					"      >> [ERROR #012] expression error.\n" /* æœªå®šç¾©ãƒ©ãƒ™ãƒ«å‚ç…§ */
 				};
 				nask_errors += len;
 				for (i = 0; i < len; i++) {
@@ -2809,7 +2809,7 @@ dest_out_skip:
 			addr = get4b(&src0[1]);
 			src0 += 5;
 		} else if (c == 0x68) {
-			src0 += 2; /* “Ç‚İ”ò‚Î‚· */
+			src0 += 2; /* èª­ã¿é£›ã°ã™ */
 		} else if (c == REM_ADDR) {
 			status = 2;
 			sethex0(addr, 8, &lbuf[0]);
@@ -2825,7 +2825,7 @@ dest_out_skip:
 			}
 			if (len + 1 + (c - 0x30) * 2 > MAX_LISTLEN) {
 				if (status == 2) {
-					/* (MAX_LISTLEN - len)ŒÂ‚ÌƒXƒy[ƒX‚ğo—Í */
+					/* (MAX_LISTLEN - len)å€‹ã®ã‚¹ãƒšãƒ¼ã‚¹ã‚’å‡ºåŠ› */
 					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
 						*list0 = '\0';
 						list0 = NULL;
@@ -2866,7 +2866,7 @@ dest_out_skip:
 			}
 			if (len + 11 > MAX_LISTLEN) {
 				if (status == 2) {
-					/* (MAX_LISTLEN - len)ŒÂ‚ÌƒXƒy[ƒX‚ğo—Í */
+					/* (MAX_LISTLEN - len)å€‹ã®ã‚¹ãƒšãƒ¼ã‚¹ã‚’å‡ºåŠ› */
 					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
 						*list0 = '\0';
 						list0 = NULL;
@@ -2900,7 +2900,7 @@ dest_out_skip:
 			addr += 4;
 		} else if (c == 0x0c) {
 			/* EQU (1) */
-			/* •K‚¸ status == 1 */
+			/* å¿…ãš status == 1 */
 			lbuf[0] = ' ';
 			lbuf[1] = '=';
 			lbuf[2] = ' ';
@@ -2912,7 +2912,7 @@ dest_out_skip:
 			status = 2;
 		} else if (c == 0x0d) {
 			/* EQU (2) */
-			/* •K‚¸ status == 1 */
+			/* å¿…ãš status == 1 */
 			lbuf[0] = ' ';
 			lbuf[1] = '=';
 			lbuf[2] = ' ';
@@ -2925,11 +2925,11 @@ dest_out_skip:
 			src0 += 5;
 			status = 2;
 		} else if (0xe1 <= c && c <= 0xec) {
-			/* ƒGƒ‰[ƒR[ƒh */
+			/* ã‚¨ãƒ©ãƒ¼ã‚³ãƒ¼ãƒ‰ */
 			*ebuf++ = c;
 			src0++;
 		} else if (c == 0x30 /* SHORT_DB0 */) {
-			src0++; /* “Ç‚İ”ò‚Î‚· */
+			src0++; /* èª­ã¿é£›ã°ã™ */
 		} else if (0xf0 <= c && c <= 0xf7) {
 			src0 += c - (0xf0 - 2);
 		} else if (c == 0x2c) {
@@ -2984,24 +2984,24 @@ UCHAR *putprefix(UCHAR *dest0, UCHAR *dest1, int prefix, int bits, int opt)
 		bit 8:DS
 		bit 9:FS
 		bit10:GS
-		bit16:A16(–¾¦)
-		bit17:A32(–¾¦)
-		bit20:O16(–¾¦)
-		bit21:O32(–¾¦)
-		bit24:A16(ˆÃ–Ù)
-		bit25:A32(ˆÃ–Ù)
-		bit28:O16(ˆÃ–Ù)
-		bit29:O32(ˆÃ–Ù)
+		bit16:A16(æ˜ç¤º)
+		bit17:A32(æ˜ç¤º)
+		bit20:O16(æ˜ç¤º)
+		bit21:O32(æ˜ç¤º)
+		bit24:A16(æš—é»™)
+		bit25:A32(æš—é»™)
+		bit28:O16(æš—é»™)
+		bit29:O32(æš—é»™)
 	*/
-	/* bits‚Í16‚©32Bbit0‚ÍDS, bit1‚ÍSS */
+	/* bitsã¯16ã‹32ã€‚bit0ã¯DS, bit1ã¯SS */
 	/*
-		‚Ü‚¸ˆÃ–Ù‚ÌƒvƒŠƒtƒBƒbƒNƒX‚ğbits‚ğg‚Á‚Ä–•Á
-		opt >= 1‚È‚çASS‚©DS‚à–•Á
-		‚à‚µ–¾¦ƒvƒŠƒtƒBƒbƒNƒX‚ª‚ ‚Á‚½‚çA‘Î‰‚·‚éí—Ş‚ÌˆÃ–ÙƒvƒŠƒtƒBƒbƒNƒX‚ÍƒLƒƒƒ“ƒZƒ‹
-		–¾¦ƒvƒŠƒtƒBƒbƒNƒX‚ª–³‚¯‚ê‚ÎAˆÃ–Ù‚ğ–¾¦‚ÖƒRƒs[
-		–¾¦‚ğg‚Á‚ÄAADRSIZ, OPRSIZ‚ğ”½“]
-		ƒAƒhƒŒƒXo—Íƒ}[ƒN‚ğo—Í
-		‰ºˆÊ‚©‚çQÆ‚µ‚ÄAƒvƒŠƒtƒBƒbƒNƒX—ñ‚ğo—Í(bit0-10)
+		ã¾ãšæš—é»™ã®ãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹ã‚’bitsã‚’ä½¿ã£ã¦æŠ¹æ¶ˆ
+		opt >= 1ãªã‚‰ã€SSã‹DSã‚‚æŠ¹æ¶ˆ
+		ã‚‚ã—æ˜ç¤ºãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹ãŒã‚ã£ãŸã‚‰ã€å¯¾å¿œã™ã‚‹ç¨®é¡ã®æš—é»™ãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹ã¯ã‚­ãƒ£ãƒ³ã‚»ãƒ«
+		æ˜ç¤ºãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹ãŒç„¡ã‘ã‚Œã°ã€æš—é»™ã‚’æ˜ç¤ºã¸ã‚³ãƒ”ãƒ¼
+		æ˜ç¤ºã‚’ä½¿ã£ã¦ã€ADRSIZ, OPRSIZã‚’åè»¢
+		ã‚¢ãƒ‰ãƒ¬ã‚¹å‡ºåŠ›ãƒãƒ¼ã‚¯ã‚’å‡ºåŠ›
+		ä¸‹ä½ã‹ã‚‰å‚ç…§ã—ã¦ã€ãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹åˆ—ã‚’å‡ºåŠ›(bit0-10)
 	*/
 	UCHAR buf[3 * 16 + 1], *bp;
 	static UCHAR code[11] = {
@@ -3024,17 +3024,17 @@ UCHAR *putprefix(UCHAR *dest0, UCHAR *dest1, int prefix, int bits, int opt)
 		if (bits & 2)
 			prefix &= ~0x00000080; /* SS */
 	}
-	if ((prefix & 0x00030000) == 0) /* A16(–¾¦), A32(–¾¦) */
+	if ((prefix & 0x00030000) == 0) /* A16(æ˜ç¤º), A32(æ˜ç¤º) */
 		prefix |= (prefix & 0x03000000) >> 8;
-	if ((prefix & 0x00300000) == 0) /* O16(–¾¦), O32(–¾¦) */
+	if ((prefix & 0x00300000) == 0) /* O16(æ˜ç¤º), O32(æ˜ç¤º) */
 		prefix |= (prefix & 0x30000000) >> 8;
 	if (bits & 16)
-		prefix &= ~0x00110000; /* A16(–¾¦), O16(–¾¦) */
+		prefix &= ~0x00110000; /* A16(æ˜ç¤º), O16(æ˜ç¤º) */
 	if (bits & 32)
-		prefix &= ~0x00220000; /* A32(–¾¦), O32(–¾¦) */
-	if (prefix & 0x00030000) /* A16(–¾¦), A32(–¾¦) */
+		prefix &= ~0x00220000; /* A32(æ˜ç¤º), O32(æ˜ç¤º) */
+	if (prefix & 0x00030000) /* A16(æ˜ç¤º), A32(æ˜ç¤º) */
 		prefix ^= 0x00000008; /* ADRSIZ */
-	if (prefix & 0x00300000) /* O16(–¾¦), O32(–¾¦) */
+	if (prefix & 0x00300000) /* O16(æ˜ç¤º), O32(æ˜ç¤º) */
 		prefix ^= 0x00000010; /* OPRSIZ */
 	buf[0] = REM_ADDR; /* 0xe0 */
 	bp = &buf[1];
@@ -3381,15 +3381,15 @@ static struct INST_TABLE instruction[] = {
 	{ "XOR",		SUP_8086,	OPE_ADD, 0x87, 0x11, 0x06 << 3 },
 	{ "", 0, 0 }
 };
-/* ‚±‚Ìƒe[ƒuƒ‹‚Í•K‚¸‘å•¶š‚Å */
+/* ã“ã®ãƒ†ãƒ¼ãƒ–ãƒ«ã¯å¿…ãšå¤§æ–‡å­—ã§ */
 
 static struct INST_TABLE setting_table[] = {
-	{ "BITS",		SUP_8086, 0xe0 }, /* ƒZƒNƒVƒ‡ƒ“‚ªØ‚è‘Ö‚í‚é‚Æ˜A“®‚·‚é(ƒZƒNƒVƒ‡ƒ“ŠO‚Å‚â‚é‚ÆƒfƒtƒHƒ‹ƒg) */
+	{ "BITS",		SUP_8086, 0xe0 }, /* ã‚»ã‚¯ã‚·ãƒ§ãƒ³ãŒåˆ‡ã‚Šæ›¿ã‚ã‚‹ã¨é€£å‹•ã™ã‚‹(ã‚»ã‚¯ã‚·ãƒ§ãƒ³å¤–ã§ã‚„ã‚‹ã¨ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ) */
 	{ "INSTRSET",	SUP_8086, 0xe1 },
-	{ "OPTIMIZE",	SUP_8086, 0xe2 }, /* 0:Å“K‰»‚È‚µ, 1:Å“K‰»‚ ‚è */
+	{ "OPTIMIZE",	SUP_8086, 0xe2 }, /* 0:æœ€é©åŒ–ãªã—, 1:æœ€é©åŒ–ã‚ã‚Š */
 	{ "FORMAT",		SUP_8086, 0xe3 }, /* BIN, COFF */
 	{ "PADDING",	SUP_8086, 0xe4 }, /* set, len, byte, byte, byte,... */
-	{ "PADSET",		SUP_8086, 0xe5 }, /* ƒZƒNƒVƒ‡ƒ“‚ªØ‚è‘Ö‚í‚é‚Æ˜A“®‚·‚é(ƒZƒNƒVƒ‡ƒ“ŠO‚Å‚â‚é‚ÆƒfƒtƒHƒ‹ƒg) */
+	{ "PADSET",		SUP_8086, 0xe5 }, /* ã‚»ã‚¯ã‚·ãƒ§ãƒ³ãŒåˆ‡ã‚Šæ›¿ã‚ã‚‹ã¨é€£å‹•ã™ã‚‹(ã‚»ã‚¯ã‚·ãƒ§ãƒ³å¤–ã§ã‚„ã‚‹ã¨ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ) */
 	{ "OPTION",		SUP_8086, 0xe6 },
 	{ "SECTION",	SUP_8086, 0xe7 },
 	{ "ABSOLUTE",	SUP_8086, 0xe8 },
@@ -3417,22 +3417,22 @@ UCHAR *setinstruct(UCHAR *s, UCHAR *t, UCHAR *inst)
 }
 
 static unsigned char *cpu_name[] = {
-	"8086", "80186", "80286", "80286p", "i386", "i386p", "i486", "i486p", /* 0`7 */
-	"Pentium", "PentiumPro", "PentiumMMX", "Pentium2", "Pentium3", "Pentium4", /* 8`13 */
+	"8086", "80186", "80286", "80286p", "i386", "i386p", "i486", "i486p", /* 0ã€œ7 */
+	"Pentium", "PentiumPro", "PentiumMMX", "Pentium2", "Pentium3", "Pentium4", /* 8ã€œ13 */
 	NULL
 };
 
 static unsigned char *format_type[] = { "BIN", "WCOFF", NULL };
 
 UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
-/* NASK‚Ì•¶–@‚ÉŠî‚Ã‚«Aˆê•¶‚ğ•ª‰ğ‚·‚é */
-/* Ÿ‚Ìs‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ğ•Ô‚· */
+/* NASKã®æ–‡æ³•ã«åŸºã¥ãã€ä¸€æ–‡ã‚’åˆ†è§£ã™ã‚‹ */
+/* æ¬¡ã®è¡Œã¸ã®ãƒã‚¤ãƒ³ã‚¿ã‚’è¿”ã™ */
 {
 	int i, j, k;
 	struct INST_TABLE *itp;
 	UCHAR instruct[OPCLENMAX], *p, **pq, *q, c, cc;
 
-	decode->instr = NULL; /* ‹ós‚à‚µ‚­‚Í’ßs */
+	decode->instr = NULL; /* ç©ºè¡Œã‚‚ã—ãã¯æ³¨é‡ˆè¡Œ */
 	decode->error = 0;
 	decode->prefix = 0;
 	decode->label = NULL;
@@ -3441,7 +3441,7 @@ setting:
 	if (src >= status->src1)
 		goto fin;
 	if (*src == '[') {
-		/* BITSw’è‚È‚Ç */
+		/* BITSæŒ‡å®šãªã© */
 		src++;
 		if ((p = setinstruct(skipspace(src, status->src1), status->src1, instruct)) != NULL) {
 			for (itp = setting_table; itp->opecode[0]; itp++) {
@@ -3449,7 +3449,7 @@ setting:
 				for (i = 0; i < OPCLENMAX; i++)
 					c |= itp->opecode[i] ^ instruct[i];
 				if (c == 0) {
-					/* ‹[—–½—ß”­Œ© */
+					/* æ“¬ä¼¼å‘½ä»¤ç™ºè¦‹ */
 					switch (itp->param[0]) {
 					case 0xe0:
 						/* BITS */
@@ -3458,13 +3458,13 @@ setting:
 						if (i != 16 && i != 32)
 								goto error2;
 						status->bits = i;
-						goto skipline; /* Œã‘±‚ğ‚¿‚á‚ñ‚Æƒ`ƒFƒbƒN‚µ‚Ä‚¢‚È‚¢ */
+						goto skipline; /* å¾Œç¶šã‚’ã¡ã‚ƒã‚“ã¨ãƒã‚§ãƒƒã‚¯ã—ã¦ã„ãªã„ */
 
 					case 0xe1:
 						/* INSTRSET */
 						pq = cpu_name;
 			format2:
-						if (p + 4 >= status->src1) { /* INSTRSET‚ÍÅ’á‚Å‚à2•¶š‚Í‚ ‚é‚¾‚ë‚¤ */
+						if (p + 4 >= status->src1) { /* INSTRSETã¯æœ€ä½ã§ã‚‚2æ–‡å­—ã¯ã‚ã‚‹ã ã‚ã† */
 			error2:
 							decode->error = 2; /* parameter error */
 							goto skipline;
@@ -3487,7 +3487,7 @@ setting:
 									status->support = status->expr_status.support = 1 << i;
 								else
 									status->format = i;
-								goto skipline; /* Œã‘±‚ğ‚¿‚á‚ñ‚Æƒ`ƒFƒbƒN‚µ‚Ä‚¢‚È‚¢ */
+								goto skipline; /* å¾Œç¶šã‚’ã¡ã‚ƒã‚“ã¨ãƒã‚§ãƒƒã‚¯ã—ã¦ã„ãªã„ */
 							}
 			next_cpu:
 							p = src;
@@ -3500,7 +3500,7 @@ setting:
 						if (getconst(&p, status, &i))
 							goto error2;
 						status->optimize = i;
-						goto skipline; /* Œã‘±‚ğ‚¿‚á‚ñ‚Æƒ`ƒFƒbƒN‚µ‚Ä‚¢‚È‚¢ */
+						goto skipline; /* å¾Œç¶šã‚’ã¡ã‚ƒã‚“ã¨ãƒã‚§ãƒƒã‚¯ã—ã¦ã„ãªã„ */
 
 					case 0xe3:
 						/* FORMAT */
@@ -3512,11 +3512,11 @@ setting:
 						if (getconst(&p, status, &i))
 							goto error2;
 						status->expr_status.option = status->option = i;
-						goto skipline; /* Œã‘±‚ğ‚¿‚á‚ñ‚Æƒ`ƒFƒbƒN‚µ‚Ä‚¢‚È‚¢ */
+						goto skipline; /* å¾Œç¶šã‚’ã¡ã‚ƒã‚“ã¨ãƒã‚§ãƒƒã‚¯ã—ã¦ã„ãªã„ */
 
 					case 0xe7:
 						/* SECTION */
-						/* ƒZƒNƒVƒ‡ƒ“–¼‚Æalign‚ğ”F¯ */
+						/* ã‚»ã‚¯ã‚·ãƒ§ãƒ³åã¨alignã‚’èªè­˜ */
 						for (j = 0; &p[j] < status->src1; j++) {
 							if (p[j] <= ' ')
 								break;
@@ -3524,9 +3524,9 @@ setting:
 								break;
 						}
 						if (j > 16)
-							goto error1; /* ƒZƒNƒVƒ‡ƒ“–¼‚ª’·‚·‚¬‚é */
+							goto error1; /* ã‚»ã‚¯ã‚·ãƒ§ãƒ³åãŒé•·ã™ãã‚‹ */
 						if (&p[j] >= status->src1)
-							goto error1; /* •¶–@‚ª‚¨‚©‚µ‚¢ */
+							goto error1; /* æ–‡æ³•ãŒãŠã‹ã—ã„ */
 						for (i = 0; i < MAX_SECTIONS; i++) {
 							if (decode->sectable[i].name[0] == '\0') {
 								decode->sectable[i].name_len = j;
@@ -3545,23 +3545,23 @@ setting:
 								break;
 						}
 						if (i >= MAX_SECTIONS)
-							goto error1; /* ƒZƒNƒVƒ‡ƒ“”‚ª‘½‚·‚¬‚é */
+							goto error1; /* ã‚»ã‚¯ã‚·ãƒ§ãƒ³æ•°ãŒå¤šã™ãã‚‹ */
 						p = skipspace(p + j, status->src1);
 						c = 0xff;
 						cc = 0;
 						if (p >= status->src1)
-							goto error1; /* •¶–@‚ª‚¨‚©‚µ‚¢ */
+							goto error1; /* æ–‡æ³•ãŒãŠã‹ã—ã„ */
 						if (*p == 'a' || *p == 'A') {
-							/* alignw’è */
-							/* getconst()‚Ískipspace‚ğŠÜ‚Ş */
+							/* alignæŒ‡å®š */
+							/* getconst()ã¯skipspaceã‚’å«ã‚€ */
 							p += 5;
 							if (p >= status->src1)
-								goto error1; /* •¶–@‚ª‚¨‚©‚µ‚¢ */
+								goto error1; /* æ–‡æ³•ãŒãŠã‹ã—ã„ */
 							p = skipspace(p, status->src1);
 							if (p >= status->src1)
-								goto error1; /* •¶–@‚ª‚¨‚©‚µ‚¢ */
+								goto error1; /* æ–‡æ³•ãŒãŠã‹ã—ã„ */
 							if (*p != '=')
-								goto error1; /* •¶–@‚ª‚¨‚©‚µ‚¢ */
+								goto error1; /* æ–‡æ³•ãŒãŠã‹ã—ã„ */
 							p++;
 							if ((cc = getconst(&p, status, &j)) == 0) {
 								c = 0;
@@ -3577,7 +3577,7 @@ setting:
 						itp->param[1] = i;
 						if (cc)
 							goto error2;
-						goto skipline; /* ‚Æ‚è‚ ‚¦‚¸“Ç‚İ”ò‚Î‚· */
+						goto skipline; /* ã¨ã‚Šã‚ãˆãšèª­ã¿é£›ã°ã™ */
 
 					case 0xe9:
 						/* FILE */
@@ -3592,7 +3592,7 @@ setting:
 							goto error2;
 						if (*p != c)
 							goto error2;
-						goto skipline; /* ‚Æ‚è‚ ‚¦‚¸“Ç‚İ”ò‚Î‚· */
+						goto skipline; /* ã¨ã‚Šã‚ãˆãšèª­ã¿é£›ã°ã™ */
 					}
 				}
 			}
@@ -3608,11 +3608,11 @@ setting:
 		}
 		if (c == 0) {
 			src += 5;
-			goto setting; /* Šg’£ƒIƒvƒVƒ‡ƒ“ŒŸo */
+			goto setting; /* æ‹¡å¼µã‚ªãƒ—ã‚·ãƒ§ãƒ³æ¤œå‡º */
 		}
 
 skipline:
-		/* ‘S•¶’ß */
+		/* å…¨æ–‡è¨»é‡ˆ */
 		while (src < status->src1 && *src != '\n')
 			src++;
 fin:
@@ -3621,11 +3621,11 @@ fin:
 		return src;
 	}
 	if (*src == '\n')
-		goto fin; /* ‹ós */
+		goto fin; /* ç©ºè¡Œ */
 	if (*src == '#')
-		goto skipline; /* I.Tak.‚³‚ñ‚Ì—v–] [OSASK 5543] */
+		goto skipline; /* I.Tak.ã•ã‚“ã®è¦æœ› [OSASK 5543] */
 
-	/* ˆê”ÊŒ`® */
+	/* ä¸€èˆ¬å½¢å¼ */
 research:
 	if ((p = setinstruct(src, status->src1, instruct)) != 0) {
 		for (itp = instruction; itp->opecode[0]; itp++) {
@@ -3633,10 +3633,10 @@ research:
 			for (i = 0; i < OPCLENMAX; i++)
 				c |= itp->opecode[i] ^ instruct[i];
 			if (c == 0 && (itp->support & status->support) != 0) {
-				/* ƒj[ƒ‚ƒjƒbƒN”­Œ© */
+				/* ãƒ‹ãƒ¼ãƒ¢ãƒ‹ãƒƒã‚¯ç™ºè¦‹ */
 				decode->instr = itp;
 				decode->param = p;
-				/* ŠÈˆÕ”»’è */
+				/* ç°¡æ˜“åˆ¤å®š */
 				if (status->expr_status.dollar_label0 == 0xffffffff) {
 					if (itp->param[0] == OPE_ALIGN)
 						goto need_dollar0;
@@ -3654,14 +3654,14 @@ research:
 						decode->instr = NULL;
 						decode->prefix |= 1 << itp->param[1];
 						if (src < status->src1 && *src != '\n' && *src != ';')
-							goto research; /* ‰½‚©‚ª‘±‚¢‚Ä‚¢‚ê‚ÎA‚³‚ç‚ÉŒŸõ */
+							goto research; /* ä½•ã‹ãŒç¶šã„ã¦ã„ã‚Œã°ã€ã•ã‚‰ã«æ¤œç´¢ */
 						goto skipline;
 					}
 					if (c < 0x40) {
-						/* ’Êí–½—ß, ƒpƒ‰ƒ[ƒ^‚ÍÅ‘å‚Å3‚Â */
+						/* é€šå¸¸å‘½ä»¤, ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã¯æœ€å¤§ã§3ã¤ */
 						i = 0;
 						if (src < status->src1 && *src != '\n' && *src != ';') {
-							/* ‰½‚©‚ª‘±‚¢‚Ä‚¢‚é */
+							/* ä½•ã‹ãŒç¶šã„ã¦ã„ã‚‹ */
 							for (;;) {
 								decode->prm_p[i] = src;
 								j = getparam(&src, status->src1, &decode->gvalue[i], status->expression,
@@ -3680,7 +3680,7 @@ research:
 									goto error2;
 								src = skipspace(src + 1, status->src1);
 								if (i == 3)
-									goto error1; /* —]Œv‚È‹Lq‚ª‚ ‚é */
+									goto error1; /* ä½™è¨ˆãªè¨˜è¿°ãŒã‚ã‚‹ */
 							}
 						}
 						decode->flag = i;
@@ -3697,23 +3697,23 @@ research:
 		}
 	}
 	if (decode->label == NULL) {
-		decode->label = src; /* ƒ‰ƒxƒ‹”­Œ© */
+		decode->label = src; /* ãƒ©ãƒ™ãƒ«ç™ºè¦‹ */
 		while (*src > ' ' && src < status->src1)
 			src++;
 		src = skipspace(src, status->src1);
 		if (src >= status->src1 || *src == '\n' || *src == ';') {
-				goto skipline; /* ƒ‰ƒxƒ‹’è‹` */
+				goto skipline; /* ãƒ©ãƒ™ãƒ«å®šç¾© */
 		}
 		goto research;
 	}
 error1:
-	decode->error = 1; /* —]Œv‚È‹Lq‚ª‚ ‚é(‹ós‚Å‚ ‚é‚×‚«‚È‚Ì‚É) */
+	decode->error = 1; /* ä½™è¨ˆãªè¨˜è¿°ãŒã‚ã‚‹(ç©ºè¡Œã§ã‚ã‚‹ã¹ããªã®ã«) */
 	goto skipline;
 }
 
-/* "label: hoge" ‚Íƒ‰ƒxƒ‹‚ğ“o˜^‚·‚é‚ªAƒGƒ‰[1 */
-/* "label  hoge" ‚àƒ‰ƒxƒ‹‚ğ“o˜^‚·‚é‚ªAƒGƒ‰[1 */
-/* "hoge"‚Íƒ‰ƒxƒ‹‚ğ“o˜^‚¹‚¸‚ÉƒGƒ‰[1 */
+/* "label: hoge" ã¯ãƒ©ãƒ™ãƒ«ã‚’ç™»éŒ²ã™ã‚‹ãŒã€ã‚¨ãƒ©ãƒ¼1 */
+/* "label  hoge" ã‚‚ãƒ©ãƒ™ãƒ«ã‚’ç™»éŒ²ã™ã‚‹ãŒã€ã‚¨ãƒ©ãƒ¼1 */
+/* "hoge"ã¯ãƒ©ãƒ™ãƒ«ã‚’ç™»éŒ²ã›ãšã«ã‚¨ãƒ©ãƒ¼1 */
 
 void put4b(unsigned int i, UCHAR *p)
 {
@@ -3787,7 +3787,7 @@ single:
 	if (s < s1)
 		c = *s++;
 	if (c == '+') {
-		/* ’P€ƒvƒ‰ƒX */
+		/* å˜é …ãƒ—ãƒ©ã‚¹ */
 		expr->value = 0; /* s+ */
 single1:
 		expr->term_type = 1; /* operator */
@@ -3795,17 +3795,17 @@ single1:
 		goto single;
 	}
 	if (c == '-') {
-		/* ’P€ƒ}ƒCƒiƒX */
+		/* å˜é …ãƒã‚¤ãƒŠã‚¹ */
 		expr->value = 1; /* s- */
 		goto single1;
 	}
 	if (c == '~') {
-		/* ’P€NOT */
+		/* å˜é …NOT */
 		expr->value = 2; /* s~ */
 		goto single1;
 	}
 
-	/* ‘æ1€ */
+	/* ç¬¬1é … */
 	for (i = 0; (unsigned int) i < sizeof symbols; i++) {
 		if (c == symbols[i])
 			goto symbol;
@@ -3850,7 +3850,7 @@ token_end:
 		}
 	}
 
-	/* ƒ‰ƒxƒ‹‚©A”š */
+	/* ãƒ©ãƒ™ãƒ«ã‹ã€æ•°å­— */
 	k = s - t;
 	d = t[0];
 	if ('0' <= d && d <= '9') {
@@ -4009,7 +4009,7 @@ datawidth:
 
 symbol:
 	if (c == '(') {
-		/* Š‡ŒÊ */
+		/* æ‹¬å¼§ */
 		expr = decode_expr(&s, s1, expr, NULL, status);
 	//	s = skipspace(s, s1);
 		c = '\0';
@@ -4073,14 +4073,14 @@ search_oper:
 new_operator:
 	if (prio0 >= prio1) {
 	//	if (priority)
-			*priority = - prio1; /* e‚Ì‰‰Zq•ÏX‚ğ’Ê’m */
+			*priority = - prio1; /* è¦ªã®æ¼”ç®—å­å¤‰æ›´ã‚’é€šçŸ¥ */
 		expr->value = c;
 		goto fin;
 	//	*ps = s;
-	//	return expr; /* ˆê”ÔÅŒã‚ÌŒã‚ë‚ªV‰‰Zq */
+	//	return expr; /* ä¸€ç•ªæœ€å¾Œã®å¾Œã‚ãŒæ–°æ¼”ç®—å­ */
 	}
 
-	/* ‰‰Zq‚ğ‘O‚Éo‚· */
+	/* æ¼”ç®—å­ã‚’å‰ã«å‡ºã™ */
 	pterm = expr++;
 	do {
 		*(pterm + 1) = *pterm;
@@ -4089,7 +4089,7 @@ new_operator:
 	expr0->term_type = 1; /* operator */
 	expr0->value = c;
 
-	/* ‘æ2€ */
+	/* ç¬¬2é … */
 	expr = decode_expr(&s, s1, expr, &prio1, status);
 //	s = skipspace(s, s1);
 	if (prio1 < 0) {
@@ -4104,12 +4104,12 @@ fin:
 
 /*
 
-ƒ‰ƒxƒ‹‚ª¬‚´‚Á‚½‚ç•s–¾
-4‚Â‚ÌƒRƒ“ƒfƒBƒVƒ‡ƒ“
-ˆê‚Â‚ÌintA2‚Â‚ÌŒW”
-‚±‚ê‚ğŒvZ‚·‚é‚±‚Æ‚ÅAƒx[ƒXAƒXƒP[ƒ‹ƒhƒCƒ“ƒfƒbƒNƒXAdisp‚ª‹‚ß‚ç‚ê‚éB
+ãƒ©ãƒ™ãƒ«ãŒæ··ã–ã£ãŸã‚‰ä¸æ˜
+4ã¤ã®ã‚³ãƒ³ãƒ‡ã‚£ã‚·ãƒ§ãƒ³
+ä¸€ã¤ã®intã€2ã¤ã®ä¿‚æ•°
+ã“ã‚Œã‚’è¨ˆç®—ã™ã‚‹ã“ã¨ã§ã€ãƒ™ãƒ¼ã‚¹ã€ã‚¹ã‚±ãƒ¼ãƒ«ãƒ‰ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã€dispãŒæ±‚ã‚ã‚‰ã‚Œã‚‹ã€‚
 
-ƒ‰ƒxƒ‹ŒvZFÅ‘å‚ÆÅ¬‚ğo‚·BƒŒƒWƒXƒ^‚Í0ˆµ‚¢‚ÅÁ‹B
+ãƒ©ãƒ™ãƒ«è¨ˆç®—æ™‚ï¼šæœ€å¤§ã¨æœ€å°ã‚’å‡ºã™ã€‚ãƒ¬ã‚¸ã‚¹ã‚¿ã¯0æ‰±ã„ã§æ¶ˆå»ã€‚
 
 */
 
@@ -4141,7 +4141,7 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 		if (i >= 4) {
 			calc_ofsexpr(&tmp, pexpr, nosplit);
 			j = tmp.disp;
-			if (i == 6 /* “ñ€ * */ || (12 <= i && i <= 14 /* “ñ€ &, |, ^ */)) {
+			if (i == 6 /* äºŒé … * */ || (12 <= i && i <= 14 /* äºŒé … &, |, ^ */)) {
 				if (tmp.reg[0] != 0xff || (ofsexpr->reg[0] == 0xff && ofsexpr->dispflag == 0 && tmp.dispflag != 0)) {
 					if (ofsexpr->reg[0] != 0xff)
 						goto err1;
@@ -4181,7 +4181,7 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 					}
 					if (7 <= i && i <= 10 && j == 0)
 						goto err1; /* /0, %0, //0, %%0 */
-					/* ^ ‚Ì‘ŠE‚Í”»’è‚ª•¡G‚È‚Ì‚Å‚â‚Á‚Ä‚È‚¢ */
+					/* ^ ã®ç›¸æ®ºã¯åˆ¤å®šãŒè¤‡é›‘ãªã®ã§ã‚„ã£ã¦ãªã„ */
 				//	if (ofsexpr->extlabel)
 				//		goto err1;
 					if (i == 8 || i == 10 || i == 12 || i == 13 || i == 14) {
@@ -4193,15 +4193,15 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 			}
 		}
 		if (i >= 6 && tmp.dispflag != 0) {
-			/* ƒ‰ƒxƒ‹‚ğŠÜ‚ñ‚¾®‚Ìˆµ‚¢ */
+			/* ãƒ©ãƒ™ãƒ«ã‚’å«ã‚“ã å¼ã®æ‰±ã„ */
 			if (ofsexpr->reg[0] != 0xff)
 				goto err1;
 			return;
 		}
 		switch (i) {
-		case 0: /* ’P€ + */
+		case 0: /* å˜é … + */
 			break;
-		case 1: /* ’P€ - */
+		case 1: /* å˜é … - */
 			ofsexpr->scale[0] *= -1;
 			ofsexpr->scale[1] *= -1;
 			ofsexpr->disp *= -1;
@@ -4211,12 +4211,12 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 				ofsexpr->err |= 1;
 		//	}
 			break;
-		case 2: /* ’P€ ~ */
+		case 2: /* å˜é … ~ */
 			ofsexpr->disp ^= -1;
 			if ((ofsexpr->reg[0] & ofsexpr->reg[1]) != 0xff /* || ofsexpr->extlabel != 0 */)
 				goto err1;
 			break;
-		case 4: /* “ñ€ + */
+		case 4: /* äºŒé … + */
 		addition:
 			for (i = 0; i < 2; i++) {
 				if (tmp.reg[i] != 0xff) {
@@ -4250,12 +4250,12 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 		//		ofsexpr->extlabel = tmp.extlabel;
 		//	}
 			break;
-		case 5: /* “ñ€ - */
+		case 5: /* äºŒé … - */
 			tmp.scale[0] *= -1;
 			tmp.scale[1] *= -1;
 			tmp.disp *= -1;
 			goto addition;
-		case 6: /* “ñ€ * */
+		case 6: /* äºŒé … * */
 			ofsexpr->scale[0] *= j;
 			ofsexpr->scale[1] *= j;
 			ofsexpr->disp *= j;
@@ -4263,7 +4263,7 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 			ofsexpr->reg[0] |= 0x80;
 			ofsexpr->reg[1] |= 0x80;
 			break;
-		case 7: /* “ñ€ / */
+		case 7: /* äºŒé … / */
 		div_unsigned:
 			if ((unsigned int) ofsexpr->scale[0] % (unsigned int) j)
 				goto err1;
@@ -4273,10 +4273,10 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 			ofsexpr->scale[1] /= (unsigned int) j;
 			ofsexpr->disp /= (unsigned int) j;
 			goto reg_operated;
-		case 8: /* “ñ€ % */
+		case 8: /* äºŒé … % */
 			ofsexpr->disp %= (unsigned int) j;
 			break;
-		case 9: /* “ñ€ // */
+		case 9: /* äºŒé … // */
 		div_signed:
 			if ((signed int) ofsexpr->scale[0] % (signed int) j)
 				goto err1;
@@ -4286,19 +4286,19 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 			ofsexpr->scale[1] /= (signed int) j;
 			ofsexpr->disp /= (signed int) j;
 			goto reg_operated;
-		case 10: /* “ñ€ %% */
+		case 10: /* äºŒé … %% */
 			ofsexpr->disp %= (signed int) j;
 			break;
-		case 12: /* “ñ€ & */
+		case 12: /* äºŒé … & */
 			ofsexpr->disp &= j;
 			break;
-		case 13: /* “ñ€ | */
+		case 13: /* äºŒé … | */
 			ofsexpr->disp |= j;
 			break;
-		case 14: /* “ñ€ ^ */
+		case 14: /* äºŒé … ^ */
 			ofsexpr->disp ^= j;
 			break;
-		case 16: /* “ñ€ << */
+		case 16: /* äºŒé … << */
 			ofsexpr->scale[0] <<= j;
 			ofsexpr->scale[1] <<= j;
 			ofsexpr->disp <<= j;
@@ -4313,10 +4313,10 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 				ofsexpr->reg[1] = 0xff;
 			}
 			goto reg_operated;
-		case 17: /* “ñ€ &> */
+		case 17: /* äºŒé … &> */
 			j = 1 << j;
 			goto div_unsigned;
-		case 18: /* “ñ€ |> */
+		case 18: /* äºŒé … |> */
 			j = 1 << j;
 			goto div_signed;
 		}
@@ -4332,8 +4332,8 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 	case 3: /* label */
 		init_ofsexpr(ofsexpr);
 		ofsexpr->dispflag = 1;
-		/* –³ğŒ‚É•s–¾‚É‚·‚é‚Ì‚Å‚Í‚È‚­AŠm’è‚µ‚Ä‚¢‚é‚à‚Ì‚É‚Â‚¢‚Ä‚Í”F‚ß‚Ä‚à‚¢‚¢‚¾‚ë‚¤ */
-		/* extlabel‚©‚Ç‚¤‚©”»’è‚·‚é•K—v‚à‚ ‚é */
+		/* ç„¡æ¡ä»¶ã«ä¸æ˜ã«ã™ã‚‹ã®ã§ã¯ãªãã€ç¢ºå®šã—ã¦ã„ã‚‹ã‚‚ã®ã«ã¤ã„ã¦ã¯èªã‚ã¦ã‚‚ã„ã„ã ã‚ã† */
+		/* extlabelã‹ã©ã†ã‹åˆ¤å®šã™ã‚‹å¿…è¦ã‚‚ã‚ã‚‹ */
 		break;
 	}
 	return;
@@ -4341,17 +4341,17 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 
 int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr, 
 	struct STR_OFSEXPR *ofsexpr, struct STR_DEC_EXPR_STATUS *status)
-/* •Ô’l‚É‚Â‚¢‚Ä
-	bit0-3:datawidth(ƒoƒCƒg”, 15‚Í•s’è)
+/* è¿”å€¤ã«ã¤ã„ã¦
+	bit0-3:datawidth(ãƒã‚¤ãƒˆæ•°, 15ã¯ä¸å®š)
 	bit4-5:type (0:reg, 1:mem, 2:imm)
 	bit6-7:range (0:default, 1:short, 2:near, 3:far)
 	bit8:use_dollar
-	ƒI[ƒ‹0‚ÍƒGƒ‰[‚ğˆÓ–¡‚·‚é
-	bit9-11:(mem):disp‚Ìdatawidth (1:byte, 2:word, 4:dword, 7:default)
-	bit12-14:(mem):seg (7:default, 0`5:seg)
+	ã‚ªãƒ¼ãƒ«0ã¯ã‚¨ãƒ©ãƒ¼ã‚’æ„å‘³ã™ã‚‹
+	bit9-11:(mem):dispã®datawidth (1:byte, 2:word, 4:dword, 7:default)
+	bit12-14:(mem):seg (7:default, 0ã€œ5:seg)
 	bit15:(mem):nosplit
-	bit9-15:(reg):ƒŒƒWƒXƒ^”Ô†
-	bit9:(imm):extlabel‚©®‚Ì‰ğß‚É¸”s‚µ‚½‚Ì‚Å*p‚Í–³Œø
+	bit9-15:(reg):ãƒ¬ã‚¸ã‚¹ã‚¿ç•ªå·
+	bit9:(imm):extlabelã‹å¼ã®è§£é‡ˆã«å¤±æ•—ã—ãŸã®ã§*pã¯ç„¡åŠ¹
 */
 {
 	struct STR_TERM *pe, *expr;
@@ -4363,7 +4363,7 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 	status->glabel = NULL;
 */
 	status->datawidth = -1; /* -1(default), 1(byte), 2(word), 4(dword) */
-	status->seg_override = -1; /* -1(default), 0`5 */
+	status->seg_override = -1; /* -1(default), 0ã€œ5 */
 	status->range = -1; /* -1(default), 0(short), 1(near), 2(far) */
 	status->nosplit = 0; /* 0(default), 1(nosplit) */
 	status->use_dollar = 0; /* 0(no use), 1(use) */
@@ -4376,9 +4376,9 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 	if (status->nosplit)
 		goto err;
 	if (pe == NULL && expression[0].term_type == -1 && s < s1 && *s == '[') {
-		/* ƒƒ‚ƒŠŒŸo */
-		/* datawidth‚Ærange‚ğT‚¦‚é */
-		/* seg_override‚Í‹¤’Ê */
+		/* ãƒ¡ãƒ¢ãƒªæ¤œå‡º */
+		/* datawidthã¨rangeã‚’æ§ãˆã‚‹ */
+		/* seg_overrideã¯å…±é€š */
 		if (mem_expr == NULL)
 			goto err;
 		ret = (status->range + 1) << 6 | (status->datawidth & 0x0f) | 0x10;
@@ -4404,11 +4404,11 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 	if (pe == NULL)
 		goto err;
 
-	/* ƒŒƒWƒXƒ^‚©‘¦’l */
+	/* ãƒ¬ã‚¸ã‚¹ã‚¿ã‹å³å€¤ */
 	expr = expression;
 	calc_ofsexpr(ofsexpr, &expr, 0);
 	if (ofsexpr->err)
-		goto err; /* ƒGƒ‰[ */
+		goto err; /* ã‚¨ãƒ©ãƒ¼ */
 	if (status->to_flag) {
 		if ((ofsexpr->reg[0] & ~0x07) != 72)
 			goto err;
@@ -4416,7 +4416,7 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 		status->to_flag = 0;
 	}
 	if (ofsexpr->reg[0] == 0xff) {
-		/* ’è” */
+		/* å®šæ•° */
 		i = ofsexpr->disp;
 	//	if (status->datawidth == -1) {
 	//		ret &= 0xf0;
@@ -4436,13 +4436,13 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 	}
 	if (ofsexpr->reg[1] != 0xff || ofsexpr->scale[0] != 1
 		|| ofsexpr->disp != 0 /* || ofsexpr->extlabel != 0 */) {
-		/* ƒGƒ‰[ */
+		/* ã‚¨ãƒ©ãƒ¼ */
 err:
 		ret = 0x00;
 		rethigh = 0;
 		goto fin;
 	}
-	/* ƒŒƒWƒXƒ^ */
+	/* ãƒ¬ã‚¸ã‚¹ã‚¿ */
 	i = ofsexpr->reg[0] & 0x7f;
 	if (i < 8)
 		ret2 = 0x04; /* reg32 */
@@ -4482,7 +4482,7 @@ fin:
 }
 
 int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, int *prefix)
-/* mem‚Ìa16‚©a32‚©‚ğ’²‚×‚éŠÖ”(ƒfƒtƒHƒ‹ƒg‚ğ—^‚¦‚é) */
+/* memã®a16ã‹a32ã‹ã‚’èª¿ã¹ã‚‹é–¢æ•°(ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã‚’ä¸ãˆã‚‹) */
 /*	bit0:default DS
 	bit1:default SS
 	bit3:disp only
@@ -4490,7 +4490,7 @@ int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, 
 	bit5:need a32
 	bit7:no-base
 	0:error
-	bit4‚Æbit5‚ª1‚Ì‚Æ‚«Areg
+	bit4ã¨bit5ãŒ1ã®ã¨ãã€reg
 	bit8-10:base
 	bit11-13:index
 	bit14-15:(a32):scale factor
@@ -4505,7 +4505,7 @@ int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, 
 //		return 0x30;
 //	}
 	nosplit = (gparam >> 15) & 0x01;
-	seg = (1 << ((gparam >> 12) & 0x07)) & 0x7f; /* bit12-14:(mem):seg (7:default, 0`5:seg) */
+	seg = (1 << ((gparam >> 12) & 0x07)) & 0x7f; /* bit12-14:(mem):seg (7:default, 0ã€œ5:seg) */
 	calc_ofsexpr(ofsexpr, &expr, nosplit);
 	reg[0] = ofsexpr->reg[0];
 	reg[1] = ofsexpr->reg[1];
@@ -4528,18 +4528,18 @@ int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, 
 		if (i == 2) {
 disponly_a16:
 			ret |= 0x10; /* need a16 */
-			*prefix |= 0x01000000; /* bit24:A16(ˆÃ–Ù) */
+			*prefix |= 0x01000000; /* bit24:A16(æš—é»™) */
 		}
 		if (i == 4) {
 disponly_a32:
 			ret |= 0x20; /* need a32 */
-			*prefix |= 0x02000000; /* bit25:A32(ˆÃ–Ù) */
+			*prefix |= 0x02000000; /* bit25:A32(æš—é»™) */
 		}
 	} else if (reg[0] < 8) {
 		if (i == 2)
 			goto error;
 		ret |= 0x20; /* need a32 */
-		*prefix |= 0x02000000; /* bit25:A32(ˆÃ–Ù) */
+		*prefix |= 0x02000000; /* bit25:A32(æš—é»™) */
 		if (reg[1] == 0xff) {
 			if (nosplit == 0) {
 				if (scale[0] != 1) {
@@ -4553,12 +4553,12 @@ disponly_a32:
 						scale[1]--;
 					}
 				}
-			} else if (ofsexpr->reg[0] & 0x80) { /* reg[0]‚ÍƒXƒP[ƒ‹‚³‚ê‚Ä‚¢‚é */
+			} else if (ofsexpr->reg[0] & 0x80) { /* reg[0]ã¯ã‚¹ã‚±ãƒ¼ãƒ«ã•ã‚Œã¦ã„ã‚‹ */
 				reg[1] = reg[0];
 				scale[1] = scale[0];
 				reg[0] = 0xff;
 			}
-		} else { /* 2‚Â‚ÌƒŒƒWƒXƒ^‚ª‘¶İ‚·‚é */
+		} else { /* 2ã¤ã®ãƒ¬ã‚¸ã‚¹ã‚¿ãŒå­˜åœ¨ã™ã‚‹ */
 			if (reg[1] >= 8)
 				goto error;
 			if (scale[0] != 1 || scale[1] != 1) {
@@ -4573,25 +4573,25 @@ disponly_a32:
 				if (scale[0] != 1)
 					goto error;
 			} else {
-				/* —¼•û‚Ìscale‚ª1 */
+				/* ä¸¡æ–¹ã®scaleãŒ1 */
 			//	tmp = 0xff;
 				if ((ofsexpr->reg[0] & 0x80) != 0 && (ofsexpr->reg[1] & 0x80) == 0) {
-					/* reg[0]‚ÍƒXƒP[ƒ‹‚³‚ê‚Ä‚¢‚ÄAreg[1]‚Í‚³‚ê‚Ä‚¢‚È‚¢ */
+					/* reg[0]ã¯ã‚¹ã‚±ãƒ¼ãƒ«ã•ã‚Œã¦ã„ã¦ã€reg[1]ã¯ã•ã‚Œã¦ã„ãªã„ */
 					tmp = reg[0];
 					reg[0] = reg[1];
 					reg[1] = tmp;
 				}
 			//	if ((ofsexpr->reg[0] & 0x80) == 0 && (ofsexpr->reg[1] & 0x80) != 0)
 			//		tmp = 0;
-				/* Ÿè‚ÈŒğŠ·‚ğ‘j~‚µ‚½‚¯‚ê‚ÎANOSPLIT‚ğ‘‚¯ */
+				/* å‹æ‰‹ãªäº¤æ›ã‚’é˜»æ­¢ã—ãŸã‘ã‚Œã°ã€NOSPLITã‚’æ›¸ã‘ */
 				if (status->optimize >= 1 && nosplit == 0) {
-					/* EBP‚ªƒx[ƒX‚È‚çŒğŠ· */
+					/* EBPãŒãƒ™ãƒ¼ã‚¹ãªã‚‰äº¤æ› */
 					if (/* tmp == 0xff && */ reg[0] == 5 && ofsexpr->disp == 0 &&
 						ofsexpr->dispflag == 0 /* && ofsexpr->extlabel == 0 */) {
 						reg[0] = reg[1];
 						reg[1] = 5;
 					}
-					/* reg[1]‚Åseg‚ªÁ‚¹‚é‚È‚çA‚³‚ç‚ÉŒğŠ· */
+					/* reg[1]ã§segãŒæ¶ˆã›ã‚‹ãªã‚‰ã€ã•ã‚‰ã«äº¤æ› */
 					i = 1 << 3; /* DS */
 					if (reg[1] == 4 || reg[1] == 5)
 						/* i = 1 << 2; */ i >>= 1; /* SS */
@@ -4601,7 +4601,7 @@ disponly_a32:
 						reg[1] = tmp;
 					}
 				}
-				if (reg[1] == 4) { /* ESP‚ªindex‚É‚È‚Á‚Ä‚µ‚Ü‚Á‚½‚Ì‚Å‚Ü‚½ŒğŠ· */
+				if (reg[1] == 4) { /* ESPãŒindexã«ãªã£ã¦ã—ã¾ã£ãŸã®ã§ã¾ãŸäº¤æ› */
 					reg[1] = reg[0];
 					reg[0] = 4;
 				}
@@ -4626,7 +4626,7 @@ disponly_a32:
 		if (reg[1] != 14 && reg[1] != 15 && reg[1] != 0xff)
 			goto error; /* SI, DI */
  		ret |= 0x10; /* need a16 */
-		*prefix |= 0x01000000; /* bit24:A16(ˆÃ–Ù) */
+		*prefix |= 0x01000000; /* bit24:A16(æš—é»™) */
 	} else {
 error:
 		ret = 0; /* error */
@@ -4668,7 +4668,7 @@ fin:
 	return ret;
 }
 
-/* mem/reg‚ğa16‚à‚µ‚­‚Ía32‚ÉŠî‚Ã‚¢‚Ä“WŠJ‚·‚éŠÖ”(TTTƒtƒB[ƒ‹ƒh‚à‚ ‚é) */
+/* mem/regã‚’a16ã‚‚ã—ãã¯a32ã«åŸºã¥ã„ã¦å±•é–‹ã™ã‚‹é–¢æ•°(TTTãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã‚‚ã‚ã‚‹) */
 
 void putmodrm(struct STR_IFDEFBUF *ifdef, int tmret, int gparam,
 	struct STR_STATUS *status, /* struct STR_OFSEXPR *ofsexpr, */ int ttt)
@@ -4723,13 +4723,13 @@ base_ebp:
 		tmret1 |= 0x05; /* base:EBP/BP */
 		mod2 = 0x00;
 	} else if ((tmret & 0x20) != 0 && nobase != 0)
-		goto base_ebp; /* a32‚Åbase‚ª‚È‚¢ê‡ */
+		goto base_ebp; /* a32ã§baseãŒãªã„å ´åˆ */
 
 	mod = 0;
 	if (tmret & 0x10) {
 		/* a16 */
 		if ((tmret1 & 0x38) != 0x20) {
-			/* SI, DI‚ ‚è */
+			/* SI, DIã‚ã‚Š */
 			if (nobase == 0) {
 				if ((tmret1 & 0x07) == 0x05)
 					mod |= 0x02; /* BP */
@@ -4738,7 +4738,7 @@ base_ebp:
 			if ((tmret1 & 0x38) == 0x38)
 				mod |= 0x01; /* + DI */
 		} else {
-			/* SI, DI‚È‚µ */
+			/* SI, DIãªã— */
 			mod |= 0x06;
 			if ((tmret1 & 0x07) == 0x03)
 				mod |= 0x01; /* BX */
@@ -4746,10 +4746,10 @@ base_ebp:
 	} else {
 		/* a32 */
 		if ((tmret1 & 0x38) == 0x20 && (tmret1 & 0x07) != 0x04) {
-			/* sib‚È‚µ(no-index && base != ESP) */
+			/* sibãªã—(no-index && base != ESP) */
 			mod |= tmret1 & 0x07;
 		} else {
-			/* sib‚ ‚è */
+			/* sibã‚ã‚Š */
 			ifdef->vb[1 /* 0x79(sib) */] = 0x01; /* UCHAR, const */
 			ifdef->dat[1 /* 0x79(sib) */] = tmret1;
 			mod |= 0x04;
@@ -4769,32 +4769,32 @@ fin:
 static char dsiz2mc98[] = { 0x99 & 0x07, 0x9b & 0x07, 0, 0x9d & 0x07 };
 
 int microcode90(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def, signed char dsiz)
-/* typ?‚Í00`04‚ğƒTƒ|[ƒg */
-/* ®’†‚ÌƒŒƒWƒXƒ^ƒtƒB[ƒ‹ƒh‚ÍŠ®‘S‚É–³‹‚·‚é */
+/* typ?ã¯00ã€œ04ã‚’ã‚µãƒãƒ¼ãƒˆ */
+/* å¼ä¸­ã®ãƒ¬ã‚¸ã‚¹ã‚¿ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã¯å®Œå…¨ã«ç„¡è¦–ã™ã‚‹ */
 /* def[0] : virtual-byte-code, zero-flag */
 /* def[1-2] : typ2, dat2 */
 /* def[3-4] : typ1, dat1 */
 /* def[5-6] : typ0, dat0 */
 
-/* dsiz == 0x0f : ©“®‘I‘ğ‚É”C‚¹‚é */
-/* dsiz == 0, 1, 2, 4 : ƒ†[ƒUw’è */
-/* [zero-bbb-w/d-aaa] w/d == 1‚ÅD */
+/* dsiz == 0x0f : è‡ªå‹•é¸æŠã«ä»»ã›ã‚‹ */
+/* dsiz == 0, 1, 2, 4 : ãƒ¦ãƒ¼ã‚¶æŒ‡å®š */
+/* [zero-bbb-w/d-aaa] w/d == 1ã§D */
 
-/* ƒAƒhƒŒƒbƒVƒ“ƒO‚Å‚ÍADWORDw’è‚ª–³‚¯‚ê‚Î16bit‚È‚Ì‚ÅA”Y‚Ş‚±‚Æ‚Í‚È‚¢ */
-/* ‘¼‚Í‘S•”imm‚Ì‘I‘ğ‚Å‚µ‚©‚È‚¢‚Ì‚ÅAzero‚Íg‚í‚È‚¢‚µAw/d‚©‚ÍŠù‚ÉŒˆ‚Ü‚Á‚Ä‚¢‚é */
+/* ã‚¢ãƒ‰ãƒ¬ãƒƒã‚·ãƒ³ã‚°ã§ã¯ã€DWORDæŒ‡å®šãŒç„¡ã‘ã‚Œã°16bitãªã®ã§ã€æ‚©ã‚€ã“ã¨ã¯ãªã„ */
+/* ä»–ã¯å…¨éƒ¨immã®é¸æŠã§ã—ã‹ãªã„ã®ã§ã€zeroã¯ä½¿ã‚ãªã„ã—ã€w/dã‹ã¯æ—¢ã«æ±ºã¾ã£ã¦ã„ã‚‹ */
 
-/* 91‚ÍAabcƒ^ƒCƒvBc = b + 1; b, c‚Ìƒ^ƒCƒv‚ÍSHORT_DB1‚ÉŒÅ’è
-	...‚Æ‚¢‚¤–ó‚É‚Í‚¢‚©‚È‚¢‚©BSHORT_DB0‚©‚à‚µ‚ê‚È‚¢‚©‚çB */
+/* 91ã¯ã€abcã‚¿ã‚¤ãƒ—ã€‚c = b + 1; b, cã®ã‚¿ã‚¤ãƒ—ã¯SHORT_DB1ã«å›ºå®š
+	...ã¨ã„ã†è¨³ã«ã¯ã„ã‹ãªã„ã‹ã€‚SHORT_DB0ã‹ã‚‚ã—ã‚Œãªã„ã‹ã‚‰ã€‚ */
 {
 	struct STR_OFSEXPR ofsexpr;
 	struct STR_TERM *expr0 = expr;
 	UCHAR idx, vbc = def[0], c;
 	int vba = vbc & 0x07, vbb = (vbc >> 4) & 0x07;
 	UCHAR *bp = ifdef->bp;
-	calc_ofsexpr(&ofsexpr, &expr, 0); /* ®‚Ì•]‰¿ */
+	calc_ofsexpr(&ofsexpr, &expr, 0); /* å¼ã®è©•ä¾¡ */
 	if (ofsexpr.err) {
 err2:
-		return 2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+		return 2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 	}
 	if ((dsiz == 2 && (vbc & 0x08) != 0) || (dsiz == 4 && (vbc & 0x08) == 0)
 		|| (dsiz == 0 && (vbc & 0x80 /* zero-bit */) == 0))
@@ -4805,13 +4805,13 @@ err2:
 			if (dsiz != 0) {
 			//	ifdef->bp = bp;
 				if (defnumexpr(ifdef, expr0, vba, (dsiz2mc98 - 1)[dsiz]))
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				bp = ifdef->bp;
 			}
 			goto set_vbb;
 		}
 		bp[0] = 0x90;
-		bp[1] = 0x0f; /* –¢Œˆ’è */
+		bp[1] = 0x0f; /* æœªæ±ºå®š */
 		bp[2] = 0x00;
 		bp[3] = vbc;
 		bp = put_expr(bp + 4, &expr0);
@@ -4865,24 +4865,24 @@ fin:
 }
 
 int microcode91(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def, signed char dsiz)
-/* typ?‚Í00`04‚ğƒTƒ|[ƒg */
-/* ®’†‚ÌƒŒƒWƒXƒ^ƒtƒB[ƒ‹ƒh‚ÍŠ®‘S‚É–³‹‚·‚é */
+/* typ?ã¯00ã€œ04ã‚’ã‚µãƒãƒ¼ãƒˆ */
+/* å¼ä¸­ã®ãƒ¬ã‚¸ã‚¹ã‚¿ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã¯å®Œå…¨ã«ç„¡è¦–ã™ã‚‹ */
 /* def[0] : virtual-byte-code, zero-flag */
 /* def[1-4] : typ2(b), dat2(b), typ2(c), dat2(c) */
 /* def[5-8] : typ1(b), dat1(b), typ1(c), dat1(c) */
 
-/* 91‚ÍAabcƒ^ƒCƒvBc = b + 1; b, c‚Ìƒ^ƒCƒv‚ÍSHORT_DB1‚ÉŒÅ’è
-	...‚Æ‚¢‚¤–ó‚É‚Í‚¢‚©‚È‚¢‚©BSHORT_DB0‚©‚à‚µ‚ê‚È‚¢‚©‚çB */
+/* 91ã¯ã€abcã‚¿ã‚¤ãƒ—ã€‚c = b + 1; b, cã®ã‚¿ã‚¤ãƒ—ã¯SHORT_DB1ã«å›ºå®š
+	...ã¨ã„ã†è¨³ã«ã¯ã„ã‹ãªã„ã‹ã€‚SHORT_DB0ã‹ã‚‚ã—ã‚Œãªã„ã‹ã‚‰ã€‚ */
 {
 	struct STR_OFSEXPR ofsexpr;
 	struct STR_TERM *expr0 = expr;
 	UCHAR idx, vbc = def[0], c, d;
 	int vba = vbc & 0x07, vbb = (vbc >> 4) & 0x07;
 	UCHAR *bp = ifdef->bp;
-	calc_ofsexpr(&ofsexpr, &expr, 0); /* ®‚Ì•]‰¿ */
+	calc_ofsexpr(&ofsexpr, &expr, 0); /* å¼ã®è©•ä¾¡ */
 	if (ofsexpr.err) {
 err2:
-		return 2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+		return 2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 	}
 	if ((dsiz == 2 && (vbc & 0x08) != 0) || (dsiz == 4 && (vbc & 0x08) == 0)
 		|| (dsiz == 0 && (vbc & 0x80 /* zero-bit */) == 0))
@@ -4893,13 +4893,13 @@ err2:
 			if (dsiz != 0) {
 			//	ifdef->bp = bp;
 				if (defnumexpr(ifdef, expr0, vba, (dsiz2mc98 - 1)[dsiz]))
-					goto err2; /* ƒpƒ‰ƒ[ƒ^ƒGƒ‰[ */
+					goto err2; /* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚¨ãƒ©ãƒ¼ */
 				bp = ifdef->bp;
 			}
 			goto set_vbb;
 		}
 		bp[0] = 0x91;
-		bp[1] = 0x0f; /* –¢Œˆ’è */
+		bp[1] = 0x0f; /* æœªæ±ºå®š */
 		bp[2] = 0x00;
 		bp[3] = vbc;
 		bp = put_expr(bp + 4, &expr0);
@@ -4961,13 +4961,13 @@ static int mc98_min[7] = { 0,    -128, 0,      -0x10000, 0x80000000, 0x80000000,
 static int mc98_max[7] = { 0xff, 0x7f, 0xffff, 0xffff,   0x7fffffff, 0x7fffffff, 0xff   };
 
 int microcode94(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def)
-/* typ?‚Í30`34‚ğƒTƒ|[ƒg */
-/* ®’†‚ÌƒŒƒWƒXƒ^ƒtƒB[ƒ‹ƒh‚ÍŠ®‘S‚É–³‹‚·‚é */
-/* extlabel‚à–³‹ */
+/* typ?ã¯30ã€œ34ã‚’ã‚µãƒãƒ¼ãƒˆ */
+/* å¼ä¸­ã®ãƒ¬ã‚¸ã‚¹ã‚¿ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã¯å®Œå…¨ã«ç„¡è¦–ã™ã‚‹ */
+/* extlabelã‚‚ç„¡è¦– */
 /* def[0] : virtual-byte-code, len */
 /* def[1-4] : (else) def0, def1 */
 /* def[5-9] : case, def0, def1 */
-/* 98`9d‚àƒTƒ|[ƒg */
+/* 98ã€œ9dã‚‚ã‚µãƒãƒ¼ãƒˆ */
 {
 	struct STR_OFSEXPR ofsexpr;
 	int j = def[0], vb[2];
@@ -4975,13 +4975,13 @@ int microcode94(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def)
 	int i = j >> 8, k;
 	vb[0] = j;
 	vb[1] = j >> 4;
-	calc_ofsexpr(&ofsexpr, &expr, 0); /* ®‚Ì•]‰¿ */
+	calc_ofsexpr(&ofsexpr, &expr, 0); /* å¼ã®è©•ä¾¡ */
 	if (ofsexpr.err) {
 err:
 		return 1;
 	}
 	if (ofsexpr.dispflag != 0)
-		goto err; /* ¡‚Íƒ‰ƒxƒ‹‚ªg‚¦‚È‚¢‚©‚ç */
+		goto err; /* ä»Šã¯ãƒ©ãƒ™ãƒ«ãŒä½¿ãˆãªã„ã‹ã‚‰ */
 	idx = 0;
 	j = 5;
 	do {
@@ -4992,7 +4992,7 @@ err:
 	def = &def[idx + 1];
 	for (i = 0; i < 2; i++) {
 		if ((j = vb[i] & 0x0f) < 8) {
-			ifdef->vb[j] = def[0] & 0x07; /* for 30`37 */
+			ifdef->vb[j] = def[0] & 0x07; /* for 30ã€œ37 */
 			ifdef->dat[j] = def[1];
 			if ((k = def[0] - 0x98) >= 0) {
 				ifdef->vb[j] = mc98_typ[k];
@@ -5007,20 +5007,20 @@ err:
 }
 
 int defnumexpr(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, UCHAR vb, UCHAR def)
-/* ƒŒƒWƒXƒ^‚Í–³‹‚·‚é */
+/* ãƒ¬ã‚¸ã‚¹ã‚¿ã¯ç„¡è¦–ã™ã‚‹ */
 {
 	struct STR_OFSEXPR ofsexpr;
 	struct STR_TERM *expr0 = expr;
-	calc_ofsexpr(&ofsexpr, &expr, 0); /* ®‚Ì•]‰¿ */
+	calc_ofsexpr(&ofsexpr, &expr, 0); /* å¼ã®è©•ä¾¡ */
 	vb &= 0x07;
 	def &= 0x07;
 	if (ofsexpr.err)
 		return 1;
 	ifdef->vb[vb] = mc98_typ[def];
 	if (ofsexpr.dispflag != 0) {
-		/* ƒ‰ƒxƒ‹ŒŸo */
+		/* ãƒ©ãƒ™ãƒ«æ¤œå‡º */
 	//	if (ofsexpr.scale[0]) {
-	//		return 1; /* ƒŒƒWƒXƒ^‚ğŠÜ‚ñ‚Å‚¢‚ê‚ÎƒGƒ‰[ */
+	//		return 1; /* ãƒ¬ã‚¸ã‚¹ã‚¿ã‚’å«ã‚“ã§ã„ã‚Œã°ã‚¨ãƒ©ãƒ¼ */
 	//	}
 		ifdef->vb[vb] |= 0x80;
 		expr = expr0;
@@ -5053,7 +5053,7 @@ int testmem0(struct STR_STATUS *status, int gparam, int *prefix)
 	return testmem(&status->ofsexpr, gparam, status, prefix);
 }
 
-/* ƒ‰ƒxƒ‹\‘¢ */
+/* ãƒ©ãƒ™ãƒ«æ§‹é€  */
 /* id(4bytes), len(1bytes), ... */
 
 int label2id(int len, UCHAR *label, int extflag)
@@ -5144,11 +5144,11 @@ skip_single_plus:
 
 	case 1: /* operator */
 		if (i == 0)
-			goto skip_single_plus; /* ’P€ + */
+			goto skip_single_plus; /* å˜é … + */
 		*s++ = ll_ope_list[i];
 		s = put_expr(s, &expr);
 		if (i >= 4)
-			s = put_expr(s, &expr); /* “ñ€‰‰Zq */
+			s = put_expr(s, &expr); /* äºŒé …æ¼”ç®—å­ */
 		break;
 
 	case 2: /* register */
@@ -5181,11 +5181,11 @@ skip_single_plus:
 }
 
 /*
-‚±‚ê‚Æ‚Í•Ê‚ÉAid‚©‚çŠeí‘®«‚ğ‹‚ß‚é‚±‚Æ‚à‚Å‚«‚éB
+ã“ã‚Œã¨ã¯åˆ¥ã«ã€idã‹ã‚‰å„ç¨®å±æ€§ã‚’æ±‚ã‚ã‚‹ã“ã¨ã‚‚ã§ãã‚‹ã€‚
 defined-flag, public-flag, external-flag, const-flag, opt-flag, define-ptr, external-base
-Š‘®ƒZƒNƒVƒ‡ƒ“‚ÉŠÖ‚·‚éî•ñ‚Í‚È‚¢B’l‚Í’l‚Å‚ ‚éB
-COFF‚Ìê‡Aopt‚ª1‚È‚çdefine-ptr‚ªƒZƒNƒVƒ‡ƒ“”Ô†‚ğ‚ ‚ç‚í‚·B
-external-base‚ª-1‚È‚çA[]‚Í•t‚©‚È‚¢B
+æ‰€å±ã‚»ã‚¯ã‚·ãƒ§ãƒ³ã«é–¢ã™ã‚‹æƒ…å ±ã¯ãªã„ã€‚å€¤ã¯å€¤ã§ã‚ã‚‹ã€‚
+COFFã®å ´åˆã€optãŒ1ãªã‚‰define-ptrãŒã‚»ã‚¯ã‚·ãƒ§ãƒ³ç•ªå·ã‚’ã‚ã‚‰ã‚ã™ã€‚
+external-baseãŒ-1ãªã‚‰ã€[]ã¯ä»˜ã‹ãªã„ã€‚
 
 */
 
@@ -5195,7 +5195,7 @@ static struct STR_TERM *skip_expr(struct STR_TERM *expr)
 		int optype = expr->value;
 		expr = skip_expr(expr);
 		if (optype >= 4)
-			expr = skip_expr(expr); /* “ñ€‰‰Zq */
+			expr = skip_expr(expr); /* äºŒé …æ¼”ç®—å­ */
 	}
 	return expr;
 }
@@ -5209,7 +5209,7 @@ struct STR_TERM *rel_expr(struct STR_TERM *expr, struct STR_DEC_EXPR_STATUS *sta
 		p--;
 	} while (p != expr);
 	expr->term_type = 1; /* operator */
-	expr->value = 5; /* “ñ€ - */
+	expr->value = 5; /* äºŒé … - */
 	if (status->dollar_label1 == 0xffffffff)
 		status->dollar_label1 = nextlabelid++;
 	(expr1 + 1)->term_type = 3; /* label */

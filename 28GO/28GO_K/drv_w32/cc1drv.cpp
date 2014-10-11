@@ -23,19 +23,19 @@ void *GOL_sysmalloc(unsigned int size);
 void GOL_callmain0();
 
 void mainCRTStartup(void)
-/* ‚©‚È‚ç‚¸A-oƒIƒvƒVƒ‡ƒ“‚ð•t‚¯‚é                             */
-/* ‚±‚±‚ÅA-oƒIƒvƒVƒ‡ƒ“‚Í”‚¬Žæ‚ç‚ê‚é                          */
-/* ‚µ‚©‚µ“ü—Íƒtƒ@ƒCƒ‹–¼‚Í‘‚­(•W€“ü—Í‚Å‚Ísize‚ª‘ª’è‚Å‚«‚È‚¢‚½‚ß) */
+/* ã‹ãªã‚‰ãšã€-oã‚ªãƒ—ã‚·ãƒ§ãƒ³ã‚’ä»˜ã‘ã‚‹                             */
+/* ã“ã“ã§ã€-oã‚ªãƒ—ã‚·ãƒ§ãƒ³ã¯å‰¥ãŽå–ã‚‰ã‚Œã‚‹                          */
+/* ã—ã‹ã—å…¥åŠ›ãƒ•ã‚¡ã‚¤ãƒ«åã¯æ›¸ã(æ¨™æº–å…¥åŠ›ã§ã¯sizeãŒæ¸¬å®šã§ããªã„ãŸã‚) */
 {
 	struct bss_alloc bss_image;
-	// TODO: FIXME ‰Šú‰»‚ð0x0f‚Ås‚Á‚Ä‚¢‚éHC++‚ç‚µ‚¢‚â‚è•û‚É•ÏX‚·‚é
+	// TODO: FIXME åˆæœŸåŒ–ã‚’0x0fã§è¡Œã£ã¦ã„ã‚‹ï¼ŸC++ã‚‰ã—ã„ã‚„ã‚Šæ–¹ã«å¤‰æ›´ã™ã‚‹
 	//struct bss_alloc *bss0 = (void *) ((((int) &bss_image) + 0x0f) & ~0x0f);
 	struct bss_alloc *bss0;
 	GO_stdout.p0 = GO_stdout.p = bss0->_stdout;
 	GO_stdout.p1 = GO_stdout.p0 + SIZ_STDOUT;
 	GO_stdout.dummy = ~0;
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
-	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ‚í‚´‚Æ­‚µ¬‚³‚­‚µ‚Ä‚¨‚­ */
+	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ã‚ã–ã¨å°‘ã—å°ã•ãã—ã¦ãŠã */
 	GO_stderr.dummy = ~0;
 	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);

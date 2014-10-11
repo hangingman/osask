@@ -109,7 +109,7 @@ TagList::~TagList(){
 void	TagList::AddMemberList(LPSTR n, bool bs, TagList* t, Token pt, int pd, bool ba, int s){
 	string		k = n;
 	MemberList* member = new MemberList(bs, t, pt, pd, ba, s, size);
-	size += s;			// ƒTƒCƒY‚ğ‘‰Á‚³‚¹‚éBƒAƒ‰ƒCƒƒ“ƒg‚·‚é‚È‚ç‚±‚±‚Å’²®
+	size += s;			// ã‚µã‚¤ã‚ºã‚’å¢—åŠ ã•ã›ã‚‹ã€‚ã‚¢ãƒ©ã‚¤ãƒ¡ãƒ³ãƒˆã™ã‚‹ãªã‚‰ã“ã“ã§èª¿æ•´
 	mapmember[k] = member;
 }
 
@@ -151,17 +151,17 @@ Parameter&	Parameter::operator=(Parameter& param){
 	return *this;
 }
 	bool			bStatic;
-	bool			bSigned;	// •„†‚ ‚èŒ^‚©‚Ç‚¤‚©
-	TagList*		type;		// •Ï”‚ÌŒ^
+	bool			bSigned;	// ç¬¦å·ã‚ã‚Šå‹ã‹ã©ã†ã‹
+	TagList*		type;		// å¤‰æ•°ã®å‹
 	Token			ptype;		// near:TK_NEAR, far:TK_FAR
-	int				pdepth;		// ƒ|ƒCƒ“ƒ^‚Ì[‚³B‚±‚ê‚ª0‚È‚çƒ|ƒCƒ“ƒ^‚Å‚È‚¢
-	SegmentList*	segment;	// ƒf[ƒ^‚ğ‚Ç‚±‚ÉŠ„‚è•t‚¯‚é‚©
-	int				size;		// •Ï”‚ÌƒTƒCƒYi”z—ñAƒ|ƒCƒ“ƒ^A\‘¢‘Ì‚à‰Á–¡j
-	bool			bArray;		// ”z—ñ‚Å‚ ‚é‚©
-	bool			bAlias;		// ƒGƒCƒŠƒAƒX‚Å‚ ‚é‚©
-	Parameter		alias;		// ƒGƒCƒŠƒAƒX(’è”‚Í‚±‚±‚Ö”š‚ğ“ü‚ê‚é–‚Ås‚¤)
-	int				nLocalAddress;	// ƒ[ƒJƒ‹ƒ‰ƒxƒ‹‚È‚çƒ[ƒJƒ‹ƒAƒhƒŒƒX‚ğ“ü‚ê‚é
-	bool			bFunction;	// ŠÖ”‚Å‚ ‚é‚©
+	int				pdepth;		// ãƒã‚¤ãƒ³ã‚¿ã®æ·±ã•ã€‚ã“ã‚ŒãŒ0ãªã‚‰ãƒã‚¤ãƒ³ã‚¿ã§ãªã„
+	SegmentList*	segment;	// ãƒ‡ãƒ¼ã‚¿ã‚’ã©ã“ã«å‰²ã‚Šä»˜ã‘ã‚‹ã‹
+	int				size;		// å¤‰æ•°ã®ã‚µã‚¤ã‚ºï¼ˆé…åˆ—ã€ãƒã‚¤ãƒ³ã‚¿ã€æ§‹é€ ä½“ã‚‚åŠ å‘³ï¼‰
+	bool			bArray;		// é…åˆ—ã§ã‚ã‚‹ã‹
+	bool			bAlias;		// ã‚¨ã‚¤ãƒªã‚¢ã‚¹ã§ã‚ã‚‹ã‹
+	Parameter		alias;		// ã‚¨ã‚¤ãƒªã‚¢ã‚¹(å®šæ•°ã¯ã“ã“ã¸æ•°å­—ã‚’å…¥ã‚Œã‚‹äº‹ã§è¡Œã†)
+	int				nLocalAddress;	// ãƒ­ãƒ¼ã‚«ãƒ«ãƒ©ãƒ™ãƒ«ãªã‚‰ãƒ­ãƒ¼ã‚«ãƒ«ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’å…¥ã‚Œã‚‹
+	bool			bFunction;	// é–¢æ•°ã§ã‚ã‚‹ã‹
 
 LabelList&	LabelList::operator=(LabelList& label){
 	bStatic = label.bStatic;
