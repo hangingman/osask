@@ -1,6 +1,8 @@
 *.o
 *.lo
 *.log
+*.html
+*.tex
 *Makefile
 Makefile
 configure

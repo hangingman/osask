@@ -4,7 +4,7 @@
 AC_PREREQ([2.69])
 AC_INIT([osask], [4.7.0], [newserver002@gmail.com])
 AC_CANONICAL_TARGET
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([-Wno-portability])
 AC_CONFIG_SRCDIR([OSASK/winman0.c])
 AC_CONFIG_HEADERS([config.h])
 AC_USE_SYSTEM_EXTENSIONS
