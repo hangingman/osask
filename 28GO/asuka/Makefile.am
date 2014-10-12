@@ -28,9 +28,9 @@ asuka_SOURCES    = filepath.cpp   \
 #
 # tests & sources
 #
-check_PROGRAMS          = asuka-test1
-TESTS			= asuka-test1
-asuka_test1_SOURCES	= asuka-test1.ask
+check_PROGRAMS          = helloworld
+TESTS			= helloworld
+helloworld_SOURCES	= helloworld.ask
 
 #
 # documents
