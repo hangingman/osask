@@ -35,7 +35,6 @@ asuka_test1_SOURCES	= asuka-test1.ask
 #
 # documents
 #
-#info_TEXINFOS		= asuka.texi
 html_docs               = asuka.html
 
 #
@@ -50,8 +49,8 @@ SUFFIXES = .ask .html
 	$(ASKA) $< $@
 .texi.html:
 	$(MAKEINFO) --html $<
-html: $(html_docs)
 
+html: $(html_docs)
 
 
 

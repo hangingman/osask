@@ -1,6 +1,7 @@
 \input texinfo   @c -*-texinfo-*-      
 @c %**start of header
 @setfilename asuka.texi
+@documentlanguage ja
 @documentencoding UTF-8
 @settitle Asukaのマニュアル
 @c %**end of header
@@ -24,39 +25,93 @@ Copyright 2014 Hiroyuki Nagata
 Copyright @copyright{} 1990 Free Software Foundation, Inc.
 @end titlepage
 
-@node    Top,       First Chapter, (dir),    (dir)
+@node    Top,       Asuka とは何か？, (dir),    (dir)
 @comment node-name, next,          previous, up
 
+@comment -----------------------------------------------------------[START]
 @menu
-* First Chapter::    The first chapter is the 
-                     only chapter in this sample.
-* Concept Index::    This index has two entries.
+* Asuka とは何か？::
+* NASMとの文法比較::
+* Concept Index::
 @end menu
+@comment -----------------------------------------------------------[END<<]
 
-@node    First Chapter, Concept Index, Top,      Top
-@comment node-name,     next,          previous, up
-@chapter First Chapter
-@cindex Sample index entry
 
-This is the contents of the first chapter. 
-@cindex Another sample index entry
-
-Here is a numbered list.
-
-@enumerate
+@comment -----------------------------------------------------------[START]
+@node    Asuka とは何か？,NASMとの文法比較,Top,Top
+@comment node-name,       next,            previous, up
+@chapter Asuka とは何か？
+@itemize @bullet
 @item
-This is the first item.
+あすかと読みます。ASK Assemblerの略というのが語源です。
+まあぶっちゃけた話、OSASKを作るために考案された言語ってところでしょうか。
+@item
+今はIA-32、IA-16くらいにしか使えません。
+@item
+@url{http://www.imasy.org/~kawai/osask/developers.html} のtolsetの中にASKAは入っています。
+@item
+言語仕様設計：K＆今原修一郎氏
+@item
+処理系実装：今原修一郎氏＆Risa Papa氏
+@item
+将来的にはGOの一部になる予定です。
+@end itemize
+@comment -----------------------------------------------------------[END<<]
+
+
+@comment -----------------------------------------------------------[START]
+@node    NASMとの文法比較,Top,Top,Top
+@comment node-name,       next,            previous, up
+@chapter NASMとの文法比較
+@itemize @bullet
 
 @item
-This is the second item.
-@end enumerate
+NASM (NASKも同じ：NASKについてはGOを参照)
+@example
+　　　　XOR EAX,EAX
+　　　　XOR ECX.ECX
+loopsum:
+　　　　ADD EAX,ECX
+　　　　INC ECX
+　　　　CMP ECX,10
+　　　　JLE loopsum
+@end example
 
-The @code{makeinfo} and @code{texinfo-format-buffer}
-commands transform a Texinfo file such as this into 
-an Info file; and @TeX{} typesets it for a printed 
-manual.
+@item
+ASKA
+@example
+　　int sum == EAX, i == ECX;
+　　sum = 0; i = 0;
+　　do @{
+　　　　sum += i;
+　　　　i++;
+　　@} while (i <= 10);
+@end example
 
-@node    Concept Index,    ,  First Chapter, Top
+@item
+一見するとASKAはC言語のように見えますが、結局はただのアセンブラで、@*
+ASKAは上記NASMコードと全く同じコードを生成することを保障します。   @*
+@item
+ASKAはアセンブラなので、たとえばsum += i++;みたいなことはできません。@*
+原則として一文＝一命例です。                                         @*
+@item
+ASKAはニーモニックがC言語風なので、他のCPU、たとえばZ80版になっても           @*
+似たような記述で書けます。しかしもちろん、レジスタ数もレジスタ名も違いますし、@* 
+それぞれの挙動だって微妙に違いますので、移植可能なわけではありません。        @* 
+そもそも移植可能になることを目指した言語ではなく、単に文法をC言語風にした     @* 
+アセンブラなのです。それ以上を期待してはいけません。                          @* 
+@item
+逆にこの割り切りがあったからこそ、ASKAは実用的なレベルに到達したんだとも思っています。 @*
+@end itemize
+@comment -----------------------------------------------------------[END<<]
+
+@comment
+@comment
+@comment
+@comment
+@comment
+
+@node    Concept Index,    ,  Asuka とは何か？, Top
 @comment node-name,    next,  previous,      up
 @unnumbered Concept Index
 
