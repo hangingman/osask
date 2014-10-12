@@ -1,6 +1,6 @@
-#include "stringx.h"
+#include "stringx.hpp"
 
-stringx::size_type	stringx::strlen(char* s){
+stringx::size_type	stringx::strlen(const char* s){
 	int i;
 	for(i = 0; s[i] != 0; i++);
 	return i;
@@ -43,9 +43,9 @@ string	stringx::toupper(){
 	return tmp;
 }
 
-string::size_type	stringx::lastdelimiter(char* s){
+string::size_type	stringx::lastdelimiter(const char* s){
 	string::iterator	itr;
-	int					i, n = strlen(s), last = -1;
+	int			i, n = strlen(s), last = -1;
 	for(itr = str.begin(); itr != str.end(); itr++){
 		for(i = 0; i < n; i++){
 			if(*itr == s[i]) last = itr - str.begin();
@@ -53,15 +53,3 @@ string::size_type	stringx::lastdelimiter(char* s){
 	}
 	return last;
 }
-
-
-/*
-void main(){
-	string	str = "string.h";
-	stringx	strx;
-	
-	strx.set(str);
-	puts(strx.left(strx.lastdelimiter(".")));
-	puts(strx.right(strx.lastdelimiter(".")));
-}
-*/

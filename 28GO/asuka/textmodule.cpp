@@ -1,5 +1,5 @@
 
-#include "textmodule.h"
+#include "textmodule.hpp"
 
 // ファイルがあった場合に読み込む、読み込まないの設定
 // ファイルの最後にシークするかどうかの設定をどうするか？ > Openも
@@ -16,9 +16,6 @@ void	TextModule::Open(String& filename){
 	FILE*	fp;
 	Close();
 	FileName = filename;
-//	LineItr = TextData.begin();
-//	LinePos = 1;
-//	BufferEOF = false;
 	fp = fopen(FileName.c_str(), "rt");
 	if(fp == NULL){
 		New();
@@ -105,22 +102,3 @@ void	TextModule::EraseLine(LineData linedata){
 	}
 	TextData.erase(linedata);
 }
-
-
-/*
-void	main(){
-	TextModule	tm;
-	TextModule::LineData	linedata1, linedata2;
-	tm.New();
-	linedata1 = tm.ReserveLine();
-	tm.PutLine(string("2\n"));
-	linedata2 = tm.ReserveLine();
-	tm.SeekLine(linedata1);
-	tm.PutLine(string("1\n"));
-	tm.SeekLine(linedata2);
-	tm.EraseLine(linedata1);
-	tm.EraseLine(linedata2);
-	tm.PutLine(string("3\n"));
-	tm.Save(string("test.txt"));
-}
-*/

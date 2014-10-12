@@ -31,7 +31,7 @@ class Generator{
   private:
 	Register		RegisterData;
 	Segment			SegmentData;
-	Tag				TagData;
+	Tag			TagData;
 	Label			LocalData;
 	Label			GlobalData;
 	bool			bExistMain;			// ソースファイル内にmain()が出てきたらtrue
@@ -40,9 +40,9 @@ class Generator{
 	TextModule		OutFile;			// コード出力用ファイルモジュール
 	Scanner*		scanner;			// Scannerのポインタ（Error()で使う）
 	FILE*			lpLogFP;			// エラーメッセージ出力用FP
-	int				nErrorCount;		// このソースで起こったエラーの数
+	int			nErrorCount;			// このソースで起こったエラーの数
 
-	int				CheckPower2(int x);
+	int			CheckPower2(int x);
 	void			FlushStaticData(void);
 	void			RegistBecome(Parameter& param1, Parameter& param2);
 	HRESULT			RegisterDown(Parameter& param1, Parameter& param2);
@@ -75,8 +75,8 @@ class Generator{
 	void			AddSegmentList(LPSTR key, SegmentList* s){ SegmentData.Add(key, s); }
 	SegmentList*		FindSegmentList(LPSTR key){ return SegmentData.Find(key); }
 	void			AddTagList(LPSTR key, TagList* t){ TagData.Add(key, t); }
-	TagList*		FindTagList(LPSTR key){ return TagData.Find(key); }
-	void			AddLocalLabelList(LPSTR key, LabelList* l){ LocalData.Add(key, l); }
+	TagList*		FindTagList(const LPSTR key){ return TagData.Find(key); }
+	void			AddLocalLabelList(const LPSTR key, LabelList* l){ LocalData.Add(key, l); }
 	LabelList*		FindLocalLabelList(LPSTR key){ return LocalData.Find(key); }
 	void			ClearLocalLabelList(void){ LocalData.Clear(); }
 	void			AddGlobalLabelList(LPSTR key, LabelList* l){ GlobalData.Add(key, l); }

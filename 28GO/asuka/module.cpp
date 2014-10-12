@@ -1,14 +1,21 @@
 #include <string.h>
-#include "module.h"
-#ifdef LINUX
-#include <sys/stat.h>
-unsigned int filelength(int fd){
-  struct stat st;
-  if (fstat(fd, &st))
-    return 0;
-  return st.st_size;
-}
-#endif
+#include "module.hpp"
+
+#ifdef HAVE_CONFIG_H /** have config.h */
+
+   #include "config.h"
+
+   #ifdef USE_SYS_STAT_H
+    
+   #include <sys/stat.h>
+   unsigned int filelength(int fd){
+     struct stat st;
+     if (fstat(fd, &st))
+       return 0;
+     return st.st_size;
+   }
+   #endif
+#endif /** have config.h */
 
 //現在ではディレクトリの検索などはしていないので、単純に""や<>をはずすだけ
 string	Module::MakeFullPath(string& p){

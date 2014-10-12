@@ -1,4 +1,4 @@
-#include "table.h"
+#include "table.hpp"
 
 Register::Register(){
 	RegisterList*	rl;
@@ -106,7 +106,7 @@ TagList::~TagList(){
 	mapmember.clear();
 }
 
-void	TagList::AddMemberList(LPSTR n, bool bs, TagList* t, Token pt, int pd, bool ba, int s){
+void	TagList::AddMemberList(const LPSTR n, bool bs, TagList* t, Token pt, int pd, bool ba, int s){
 	string		k = n;
 	MemberList* member = new MemberList(bs, t, pt, pd, ba, s, size);
 	size += s;			// サイズを増加させる。アライメントするならここで調整

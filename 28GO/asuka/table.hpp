@@ -32,14 +32,14 @@ enum RegisterType{
 
 class RegisterList{
   public:
-	LPSTR			name;	// レジスタ名
-	RegisterType	type;	// レジスタタイプ
-	int				size;	// レジスタサイズ
+	const LPSTR		name;	// レジスタ名
+	RegisterType		type;	// レジスタタイプ
+	int			size;	// レジスタサイズ
 	bool			bBase;	// ベースレジスタであるか
 	bool			bIndex;	// インデックスレジスタであるか
 
-	RegisterList(LPSTR n, RegisterType t, int s, bool b, bool i)
-			{ name=n; type=t; size=s; bBase=b; bIndex=i; }
+     	RegisterList(const LPSTR n, const RegisterType t, int s, bool b, bool i)
+	  { name=n; type=t; size=s; bBase=b; bIndex=i; }
 };
 
 typedef map<string, RegisterList*> MaplpRegisterList;
@@ -51,8 +51,8 @@ class Register{
 	Register(void);
 	~Register();
 	
-	void			Add(LPSTR key, RegisterList* r){ string k=key; mapregister[k]=r; }
-	RegisterList*	Find(LPSTR key){
+	void			Add(const LPSTR key, RegisterList* r){ string k=key; mapregister[k]=r; }
+	RegisterList*	Find(const LPSTR key){
 		string k = key;
 		MaplpRegisterList::iterator it = mapregister.find(k);
 		if(it == mapregister.end()) return NULL; else return it->second;
@@ -136,15 +136,15 @@ typedef map<string, MemberList*> MaplpMemberList;
 // typedefやはじめからある型は"type"というメンバを見る。typedefならmember->type!=NULL
 class TagList{
   public:
-	int				size;		// この型のサイズ
-	bool			bStruct;	// 構造体であるか
+	int		size;		// この型のサイズ
+	bool		bStruct;	// 構造体であるか
 	MaplpMemberList	mapmember;	// 構造体であればメンバのリスト
 	
 	TagList(bool bs){ bStruct=bs; size=0;}
 	~TagList();
 
-	void			AddMemberList(LPSTR n, bool bs, TagList* t, Token pt, int pd, bool ba, int s);
-	MemberList*		FindMemberList(LPSTR key){
+	void			AddMemberList(const LPSTR n, bool bs, TagList* t, Token pt, int pd, bool ba, int s);
+	MemberList*		FindMemberList(const LPSTR key){
 		string k = key;
 		MaplpMemberList::iterator it = mapmember.find(k);
 		if(it == mapmember.end()) return NULL; else return it->second;
@@ -160,8 +160,8 @@ class Tag{
 	Tag(void);
 	~Tag();
 	
-	void			Add(LPSTR key, TagList* t){ string k=key; maptag[k]=t; }
-	TagList*		Find(LPSTR key){
+	void			Add(const LPSTR key, TagList* t){ string k=key; maptag[k]=t; }
+	TagList*		Find(const LPSTR key){
 		string k = key;
 		MaplpTagList::iterator it = maptag.find(k);
 		if(it == maptag.end()) return NULL; else return it->second;
@@ -182,16 +182,16 @@ class Parameter{
 	RegisterList*	seg;
 	RegisterList*	base;
 	RegisterList*	index;
-	int				scale;		// 1, 2, 4, 8
-	string			disp;
-	int				ndisp;		// ここはメンバ検索の時のオフセットのためにある
-	bool			bLabel;		// P_MEMでもLabelかどうか
-	bool			bSigned;	// 符号あり型かどうか
-	TagList*		type;		// 変数の型
-	Token			ptype;		// near:TK_NEAR, far:TK_FAR, offset:TK_OFFSET, segment:TK_SEGMENT
-	int				pdepth;		// ポインタの深さ。これが0ならポインタでない
-	int				size;		// 変数のサイズ（配列、ポインタ、構造体も加味）
-	bool			bArray;		// 配列であるか
+	int		scale;		// 1, 2, 4, 8
+	string		disp;
+	int		ndisp;		// ここはメンバ検索の時のオフセットのためにある
+	bool		bLabel;		// P_MEMでもLabelかどうか
+	bool		bSigned;	// 符号あり型かどうか
+	TagList*	type;		// 変数の型
+	Token		ptype;		// near:TK_NEAR, far:TK_FAR, offset:TK_OFFSET, segment:TK_SEGMENT
+	int		pdepth;		// ポインタの深さ。これが0ならポインタでない
+	int		size;		// 変数のサイズ（配列、ポインタ、構造体も加味）
+	bool		bArray;		// 配列であるか
 
 	void	Initialize()
 		{ paramtype=P_ERR; seg=NULL; base=NULL; index=NULL; scale=1; disp=""; ndisp=0; size=0;
@@ -201,8 +201,6 @@ class Parameter{
 	Parameter&	operator=(Parameter& param);
 };
 
-//typedef list<TagList*> ListlpTagList;
-
 //labelはtype:dword, ptype:normal, bAddress:false, size:4とする
 class LabelList{
   public:
@@ -210,15 +208,14 @@ class LabelList{
 	bool			bSigned;	// 符号あり型かどうか
 	TagList*		type;		// 変数の型
 	Token			ptype;		// near:TK_NEAR, far:TK_FAR
-	int				pdepth;		// ポインタの深さ。これが0ならポインタでない
-	SegmentList*	segment;	// データをどこに割り付けるか
-	int				size;		// 変数のサイズ（配列、ポインタ、構造体も加味）
+	int			pdepth;		// ポインタの深さ。これが0ならポインタでない
+	SegmentList*		segment;	// データをどこに割り付けるか
+	int			size;		// 変数のサイズ（配列、ポインタ、構造体も加味）
 	bool			bArray;		// 配列であるか
 	bool			bAlias;		// エイリアスであるか
 	Parameter		alias;		// エイリアス(定数はここへ数字を入れる事で行う)
-	int				nLocalAddress;	// ローカルラベルならローカルアドレスを入れる
+	int			nLocalAddress;	// ローカルラベルならローカルアドレスを入れる
 	bool			bFunction;	// 関数であるか
-//	ListlpTagList	listtag;	// 関数なら関数の引数の型を入れる
 
 	LabelList(void)
 		{bSigned=true; type=NULL; ptype=TK_FAR; pdepth=0; segment=NULL; size=0; bArray=false;
@@ -244,8 +241,8 @@ class Label{
 	~Label(){ Clear(); }
 	
 	void			Clear(void);
-	void			Add(LPSTR key, LabelList* l){ string k=key; maplabel[k]=l; }
-	LabelList*		Find(LPSTR key){
+	void			Add(const LPSTR key, LabelList* l){ string k=key; maplabel[k]=l; }
+	LabelList*		Find(const LPSTR key){
 		string k = key;
 		MaplpLabelList::iterator it = maplabel.find(k);
 		if(it == maplabel.end()) return NULL; else return it->second;

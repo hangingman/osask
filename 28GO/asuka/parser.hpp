@@ -17,11 +17,11 @@
 
 using namespace std;
 
-#include "macro.h"
-#include "module.h"
-#include "scanner.h"
-#include "generator.h"
-#include "filepath.h"
+#include "macro.hpp"
+#include "module.hpp"
+#include "scanner.hpp"
+#include "generator.hpp"
+#include "filepath.hpp"
 
 class Parser{
   public:
@@ -31,22 +31,20 @@ class Parser{
 	Scanner		scanner;			// スキャンクラス
 	Generator	generator;			// コードジェネレータ
 	
-	int			StructAlignCount;	// alignのための疑似ラベル名
-	int			LoopLabel[32];		// ネストしたloop文でbreakするため
-	int			LoopLabelPoint;		// ネスト数
-	int			LocalLabelCounter;	// 条件分岐やループで内部的に使うラベル
-	int			StatementLevel;		// statementのレベル
-	LPSTR		lpFunctionName;		// 現在処理している関数名
-	Parameter	defaultlocal;		// ローカル変数用local == SS:EBP;
-	SegmentList*defaultsegment;		// 関数を割り付けるdefault segment
-	SegmentList*defaultdatasegment;	// 変数を割り付けるdefault segment
-	int			SysVarLocalValue;	// 関数内のローカル変数領域のバイト数
+	int		StructAlignCount;		// alignのための疑似ラベル名
+	int		LoopLabel[32];			// ネストしたloop文でbreakするため
+	int		LoopLabelPoint;			// ネスト数
+	int		LocalLabelCounter;		// 条件分岐やループで内部的に使うラベル
+	int		StatementLevel;			// statementのレベル
+	LPSTR		lpFunctionName;			// 現在処理している関数名
+	Parameter	defaultlocal;			// ローカル変数用local == SS:EBP;
+	SegmentList*	defaultsegment;			// 関数を割り付けるdefault segment
+	SegmentList*	defaultdatasegment;		// 変数を割り付けるdefault segment
+	int		SysVarLocalValue;		// 関数内のローカル変数領域のバイト数
 	
-	LPSTR		lpLogFileName;		// エラーメッセージ出力ファイル名			
+	LPSTR		lpLogFileName;			// エラーメッセージ出力ファイル名			
 	FILE*		lpLogFP;			// エラーメッセージ出力用ファイルポインタ
-	int			nErrorCount;		// 構文解析部で起きたエラーの数
-
-	//int			stackpoint;		// 関数が呼び出されたときのstackpointからaddしている量
+	int		nErrorCount;			// 構文解析部で起きたエラーの数
 
 	// 以下HRESULTがあるものは、正常終了時は0、下位のルーチンでエラーが起きたときは1、
 	// それ以外の数字は関数内部でのエラーという意味を持つ。（つまり!=0ならエラー）
@@ -90,13 +88,8 @@ class Parser{
 	void	DoStatement(void);
 	void	ContinueStatement(CompareType cmptype = C_JMP);
 	void	AssumeSegment(void);
-
-
-//	void	alt_statement(void);
-//	bool	case_block(DWORD dw); // ラベルID
 	void	StartParse(void);
-
-	void	Error(LPSTR str);
+	void	Error(const LPSTR str);
 
   public:
 	Parser(void);
@@ -115,7 +108,7 @@ class Parser{
 #endif
 
 	void	SetLogFile(LPSTR filename);
-	int		GetErrorCount(void){ return nErrorCount; }
+	int	GetErrorCount(void){ return nErrorCount; }
 };
 
 #endif

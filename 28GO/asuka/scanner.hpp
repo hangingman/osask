@@ -14,6 +14,8 @@
 #include <list>
 #include <map>
 #include <stack>
+#include <vector>
+#include <algorithm>
 
 using namespace std;
 
@@ -22,25 +24,25 @@ using namespace std;
 #include "tokendef.hpp"
 
 class ScannerSub{
-	int		nLine;					// 現在処理している行番号
+	int	nLine;					// 現在処理している行番号
 	Module	Mdl;					// 現在処理しているファイル
 	FILE*	lpLogFP;				// エラーメッセージ出力用ファイルポインタ
-	char	linebuf[1024];			// 現在処理している行のバッファ
+	char	linebuf[1024];				// 現在処理している行のバッファ
 	LPSTR	lpPos;					// 現在処理している行の中の位置
 	Token	token;					// トークンの種類
-	char	labelbuf[256];			// tokenがTK_LABEL等の時のバッファ
+	char	labelbuf[256];				// tokenがTK_LABEL等の時のバッファ
 	LONG	numbuf;					// tokenがTK_NUMの時のバッファ
 	bool	bPeeked;				// すでにPeekToken()でトークンを得ているか
-	int		nErrorCount;			// このソースで起こったエラーの数
+	int	nErrorCount;				// このソースで起こったエラーの数
 
 	void	Init(void);				// バッファの初期化
-	HRESULT	ReadLine(void);			// １行読み込む
-	bool	IsToken(LPSTR &lp,LPSTR lp2);	// 一致していればlp1をトークンの終わりまで進める
+	HRESULT	ReadLine(void);				// １行読み込む
+	bool	IsToken(LPSTR &lp, const LPSTR lp2);	// 一致していればlp1をトークンの終わりまで進める
 	void	CopyLabel(LPSTR& lpPos);		// lpPosから次のトークンまでコピー
 	HRESULT	NumCheck(LPSTR& lpPos);			// 調べて数値ならばnumbufに。そうでなければ戻り値：非0
-	void	GetQuotedLabel(LPSTR &lpPos);	// 引用ラベルを得る
-	Token	PeekToken2(void);				// PeekToken()の本体
-	void	Error(LPSTR str);				// エラーメッセージを表示
+	void	GetQuotedLabel(LPSTR &lpPos);		// 引用ラベルを得る
+	Token	PeekToken2(void);			// PeekToken()の本体
+	void	Error(LPSTR str);			// エラーメッセージを表示
 
   public:
 	ScannerSub(){ lpLogFP=stderr; nErrorCount=0; Init(); }

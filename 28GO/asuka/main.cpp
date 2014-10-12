@@ -1,4 +1,4 @@
-#include "parser.h"
+#include "parser.hpp"
 
 void usage(void){
 	puts("Asuka Ver1.1 by hideyosi");

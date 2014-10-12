@@ -1,7 +1,8 @@
 #include "generator.hpp"
-#ifdef LINUX
-#define ltoa(n,b,l) (sprintf(b, "%ld", n), b)
-#define itoa(n,b,l) (sprintf(b, "%d", n), b)
+
+#ifndef _WIN32
+   #define ltoa(n,b,l) (sprintf(b, "%ld", n), b)
+   #define itoa(n,b,l) (sprintf(b, "%d", n), b)
 #endif
 
 Generator::Generator(void){

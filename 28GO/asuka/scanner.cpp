@@ -1,9 +1,9 @@
-#include "scanner.h"
+#include "scanner.hpp"
 
 #ifdef WINVC
-HRESULT	Scanner::ReadFile(string& filename){
+   HRESULT	Scanner::ReadFile(string& filename){
 #else
-HRESULT	Scanner::ReadFile(string filename){
+   HRESULT	Scanner::ReadFile(string filename){
 #endif
 
 	ScannerSub* scannersubx = new ScannerSub;
@@ -18,16 +18,12 @@ Token	Scanner::GetToken(void){
 		token = files.top()->GetToken();
 		if(token == TK_INCLUDE){
 			nIncludeNest++;
-			files.top()->GetToken();	// includeの次の"ファイル名"を取り出す
+			files.top()->GetToken();	                // includeの次の"ファイル名"を取り出す
 			ReadFile(string(files.top()->GetLabel()));	// 括り文字付きで渡してる
 			continue;
 		}
-//		if(token == TK_DEFINE){
-//			files.top()->GetToken();	// includeの次の"ファイル名"を取り出す
-//			continue;
-//		}
 		if(token == TK_EOF){
-			if(nIncludeNest == 0) break;		// 本当に終わり
+			if(nIncludeNest == 0) break;		        // 本当に終わり
 			nErrorCount += files.top()->GetErrorCount();
 			DELETE_SAFE(files.top());
 			files.pop();
@@ -63,7 +59,7 @@ Token	Scanner::PeekToken(void){
 	return token;
 }
 
-bool	ScannerSub::IsToken(LPSTR &lp, LPSTR lp2){
+bool	ScannerSub::IsToken(LPSTR &lp, const LPSTR lp2){
 	bool	bReserved = false;		// はじめの文字が演算子でなければ予約語と見なす
 	unsigned char c;
 	LPSTR	lpx = lp;
@@ -195,7 +191,8 @@ void	ScannerSub::Init(void){
 	nLine = 0;
 	lpPos	= linebuf;
 	bPeeked = false;
-	strcpy(linebuf,"");
+    	vector<char> v1(linebuf, linebuf+sizeof(linebuf));
+	fill(v1.begin(), v1.end(), '\0');
 }
 
 HRESULT	ScannerSub::ReadLine(void){
@@ -304,9 +301,6 @@ Token	ScannerSub::PeekToken2(void){
 		if(IsToken(lpPos,"true"))	return TK_TRUE;
 		if(IsToken(lpPos,"false"))	return TK_FALSE;
 		if(IsToken(lpPos,"sizeof"))	return TK_SIZEOF;
-//		if(IsToken(lpPos,"code"))	return TK_CODE;
-//		if(IsToken(lpPos,"data"))	return TK_DATA;
-//		if(IsToken(lpPos,"local"))	return TK_LOCAL;
 		
 		// フラグなどの宣言
 		if(IsToken(lpPos,"CF"))		return TK_CF;
@@ -385,8 +379,6 @@ Token	ScannerSub::PeekToken2(void){
 		if(c=='['){ lpPos++; return TK_LSQ; }
 		if(c==']'){ lpPos++; return TK_RSQ; }
 		if(c=='='){ lpPos++; return TK_BECOME; }
-//		if(c=='#'){ lpPos++; return TK_SHARP; }
-//		if(c=='@'){ lpPos++; return TK_AT; }
 
 		// '〜' もしくは "〜"
 		if(c=='\''){ GetQuotedLabel(lpPos); return TK_QUOTE; }

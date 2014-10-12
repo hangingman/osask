@@ -1,8 +1,9 @@
 #include <string.h>
-#include "parser.h"
-#ifdef LINUX
-#define ltoa(n,b,l) (sprintf(b, "%ld", n), b)
-#define itoa(n,b,l) (sprintf(b, "%d", n), b)
+#include "parser.hpp"
+
+#ifndef _WIN32
+   #define ltoa(n,b,l) (sprintf(b, "%ld", n), b)
+   #define itoa(n,b,l) (sprintf(b, "%d", n), b)
 #endif
 
 Parser::Parser(void){
@@ -30,7 +31,6 @@ HRESULT	Parser::Sizeof(Parameter& param){
 	  case TK_UNSIGNED: case TK_SIGNED: scanner.GetToken(); break;
 	}
 	scanner.GetToken();
-//	if(scanner.PeekToken() == TK_STRUCT) scanner.GetToken(); // 「struct タグ名」を許可するための苦肉の策
 	tag = generator.FindTagList(scanner.GetLabel());
 	if(tag == NULL){
 		Error("Invalid type");
@@ -763,10 +763,8 @@ HRESULT	Parser::Cast(Parameter& param){
 	  case TK_OFFSET: 
 		scanner.GetToken(); param.ptype=TK_OFFSET;
 		if(generator.seg->use == TK_USE32) param.size=4; else param.size=2;
-//		if(param.seg != NULL){			// あやしい追加分
 			param.paramtype = P_REG;
 			param.pdepth = 0;
-//		}
 		if(scanner.GetToken() != TK_RPR){
 			Error("Missing \")\"");
 			return 4;
@@ -774,11 +772,9 @@ HRESULT	Parser::Cast(Parameter& param){
 		return 0;
 	  case TK_SEGMENT:
 		scanner.GetToken(); param.ptype=TK_SEGMENT; param.size=2;
-//		if(param.seg != NULL){			// あやしい追加分
 			param.paramtype = P_REG;
 			param.base = param.seg;
 			param.pdepth = 0;
-//		}
 		if(scanner.GetToken() != TK_RPR){
 			Error("Missing \")\"");
 			return 4;
@@ -786,7 +782,6 @@ HRESULT	Parser::Cast(Parameter& param){
 		return 0;
 	}
 	scanner.GetToken();
-//	if(scanner.PeekToken() == TK_STRUCT) scanner.GetToken(); // 「struct タグ名」を許可するための苦肉の策
 	tag = generator.FindTagList(scanner.GetLabel());
 	if(tag == NULL){
 		Error("Invalid type for cast or invalid type");
@@ -1052,14 +1047,7 @@ void	Parser::Statement(void){
 		DefineVariable();
 		break;
 	  case TK_STRUCT:
-//		scanner.GetToken();
-//		str = strdup(scanner.GetLabel());
-//		tag = generator.FindTagList(str);
-//		if(tag != NULL){
-//			DefineVariable();
-//		}else{
-			DefineStruct();
-//		}
+	        DefineStruct();
 		break;
 	  case TK_DEFAULT:
 		DefineDefault();
@@ -1271,10 +1259,6 @@ void	Parser::DefineVariable(void){
 	
 	strcpy(initialize, "");
 	
-//	if(StatementLevel == 0){
-//		Error("Cannot define value except for segment or function");
-//		return;
-//	}
 	if(scanner.PeekToken() == TK_ASMOUT){
 		AsmoutStatement();
 		return;
@@ -1646,7 +1630,6 @@ void	Parser::DefineInitial(LabelList* label, LPSTR initialize){
 		break;
 	  case TK_LBR:
 		Error("Not yet available initializing by {}");
-		//if(label->size == 0)
 		break;
 	}
 }
@@ -1654,7 +1637,6 @@ void	Parser::DefineInitial(LabelList* label, LPSTR initialize){
 void	Parser::DefineStruct(void){
 	TagList*	tag;
 	LPSTR			name;
-//	if(scanner.PeekToken() == TK_STRUCT) scanner.GetToken();	// struct タグ名関連での修正 from Statement()
 	if(scanner.GetToken() != TK_STRUCT) return;
 	if(scanner.GetToken() != TK_LABEL){
 
@@ -1702,7 +1684,6 @@ void	Parser::DefineMember(TagList* tag){
 		return;
 	}
 	token = scanner.GetToken();
-//	if(scanner.PeekToken() == TK_STRUCT) scanner.GetToken(); // 「struct タグ名」を許可するための苦肉の策
 	switch(token){
 	  case TK_UNSIGNED: initmember.bSigned=false; token=scanner.GetToken(); break;
 	  case TK_SIGNED:   initmember.bSigned=true;  token=scanner.GetToken(); break;
@@ -1817,12 +1798,6 @@ void	Parser::DefineSegment(void){
 		return;
 	}
 	name = strdup(scanner.GetLabel());
-// 全て同じパラメータなら複数書くことは許されているが、面倒なのでチェックなし
-//	seg = generator.FindSegmentList(name);
-//	if(seg != NULL){
-//		Error("Same segment name already exists");
-//		return;
-//	}
 	if(scanner.GetToken() != TK_LPR){
 		Error("Cannot find \"(\" after segment name");
 		return;
@@ -2444,7 +2419,7 @@ void	Parser::StartParse(void){
 	}
 }
 
-void	Parser::Error(LPSTR str){
+void	Parser::Error(const LPSTR str){
 	nErrorCount++;
 	fprintf(lpLogFP, "%s(%d):(Parser)%s \n", scanner.GetFileName().c_str(), scanner.GetScanline(), str);
 }

@@ -27,7 +27,7 @@ class stringx{
 
 // 文字列操作スタティックルーチン群
   public:
-	static size_type	strlen(char* s);
+	static size_type	strlen(const char* s);
 
 // string操作ルーチン群
   public:
@@ -43,13 +43,9 @@ class stringx{
 	string		cut(size_type pos, size_type n);
 	string		left(size_type pos){ return substr(0, pos); }
 	string		right(size_type pos){ return substr(pos+1, str.size()-pos-1); }
-//	void		fromdigit();
 	string		tolower();
 	string		toupper();
-	size_type	lastdelimiter(char* s);
-//	size_type	find(string s, size_type pos=0);
-//	size_type	search(string s, size_type pos=0){ return find(s, pos); }
-//	void		replace();
+	size_type	lastdelimiter(const char* s);
 	long		tolong(){ return atol(str.c_str()); }
 	double		todouble(){ return atof(str.c_str()); }
 };
