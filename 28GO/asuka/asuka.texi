@@ -36,6 +36,7 @@ Copyright @copyright{} 1990 Free Software Foundation, Inc.
 * Concept Index::
 * Asukaの特徴的な機能::
 * 簡易言語仕様::
+* サンプルコード::
 @end menu
 @comment -----------------------------------------------------------[END<<]
 
@@ -131,6 +132,35 @@ ASKAはニーモニックがC言語風なので、他のCPU、たとえばZ80版
 重要：コマンドプロンプトのプロパティ（command.comのショートカットの @* 
 　　　プロパティ）のメモリ－プロテクトモード(DPMI)メモリの合計を自動 @*
 　　　でなくて1024などにしてください。自動のままだと動きません。     @* 
+
+実際のところオブジェクトファイルを作成するには以下のようにMakefileを @*
+設定する必要がある。   @*
+
+@itemize @bullet
+@item
+プリプロセッサ(CPP)を実行してマクロを展開
+@item
+ASKAで386ASM形式のファイルを作成
+@item
+naskconvでnask向けのファイルを作成
+@item
+NASKでオブジェクトファイルを作成
+@end itemize
+
+@example
+%.ias : %.ask
+	$(CPP0) -P -o $*.ias $*.ask
+
+%.3as : %.ias
+	$(ASKA) $*.ias $*.3as
+
+%.nas : %.3as
+	$(NASKCNV) -l -s -w $*.3as $*.nas
+
+%.o : %.nas
+	$(NASK) $*.nas $*.o
+@end example
+
 @comment -----------------------------------------------------------[END<<]
 
 
@@ -620,6 +650,40 @@ label4:
 自動的に判別できず、ローカルスコープにしてしまいます。                      @* 
 
 @comment -----------------------------------------------------------[END<<]
+
+
+@comment -----------------------------------------------------------[START]
+@node    サンプルコード,Top, 簡易言語仕様,Top
+@comment node-name,     next,previous,    up
+@chapter サンプルコード
+
+・GNU アセンブラ(GAS)の構造
+@example
+.file   "ファイル名.s"
+.data					# ここに変数の定義を書く
+                                        # データを書く
+.text   				# ここから実行文が始まる
+.globl main			        # はじめに呼び出される関数を.globlで指定（globalではなくglobl)
+main:
+                                        # 命令を書く　
+@end example
+
+・Asukaの構造
+@example
+segment CODE(USE32, PARA);
+default(code == CODE);
+
+asmout("[FILE 'asuka-test1.ask']");     # ファイル名
+asmout("GLOBAL _main");                 # はじめに呼び出される関数を指定
+
+void main()
+@{
+                                        # 命令を書く
+@}
+@end example
+
+@comment -----------------------------------------------------------[END<<]
+
 
 
 @comment -----------------------------------------------------------[START]
