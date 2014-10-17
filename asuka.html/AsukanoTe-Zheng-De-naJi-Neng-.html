@@ -1,0 +1,93 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 5.2, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>Asukaのマニュアル: Asukaの特徴的な機能</title>
+
+<meta name="description" content="Asukaのマニュアル: Asukaの特徴的な機能">
+<meta name="keywords" content="Asukaのマニュアル: Asukaの特徴的な機能">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Concept-Index.html#Concept-Index" rel="index" title="Concept Index">
+<link href="Concept-Index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="index.html#Top" rel="up" title="Top">
+<link href="Jian-Yi-Yan-Yu-Shi-Yang-.html#g_t_7c21_6613_8a00_8a9e_4ed5_69d8" rel="next" title="簡易言語仕様">
+<link href="AsukanoShi-iFang-.html#Asuka_306e_4f7f_3044_65b9" rel="prev" title="Asukaの使い方">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.indentedblock {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smallindentedblock {margin-left: 3.2em; font-size: smaller}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style:oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nocodebreak {white-space:nowrap}
+span.nolinebreak {white-space:nowrap}
+span.roman {font-family:serif; font-weight:normal}
+span.sansserif {font-family:sans-serif; font-weight:normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="ja" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
+<a name="Asuka_306e_7279_5fb4_7684_306a_6a5f_80fd"></a>
+<div class="header">
+<p>
+Next: <a href="index.html#Top" accesskey="n" rel="next">Top</a>, Previous: <a href="AsukanoShi-iFang-.html#Asuka_306e_4f7f_3044_65b9" accesskey="p" rel="prev">Asukaの使い方</a>, Up: <a href="index.html#Top" accesskey="u" rel="up">Top</a> &nbsp; [<a href="Concept-Index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Concept-Index.html#Concept-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="AsukanoTe-Zheng-De-naJi-Neng-"></a>
+<h2 class="chapter">4 Asukaの特徴的な機能</h2>
+
+<p>ASKAでは、
+</p>
+<ul>
+<li> if～else～、loop～break、for、while、do～while、continueが使えます。
+</li><li> char、short、long、byte、word、dwordで変数宣言が出来ます。
+</li><li> 関数内でstaticキーワードを使うことで静的な変数が宣言できます。
+</li><li> 関数は戻り値、引数なしのvoid funcname();で宣言が出来ます。
+</li><li> 式文には=、+=、-=、*=、/=、&amp;=、|=、^=、&lt;&lt;=、&gt;&gt;=、=-、=~、が使えます。
+</li><li> 比較式には==、!=、&lt;、&lt;=、&gt;、&gt;=、が使えます。
+</li><li> 構造体による型定義が使えます。
+</li><li> ポインタや配列も使えます。
+</li><li> segmentによるセグメント定義もきちんと出来ます。
+</li><li> 現バージョンのASKAで補いきれていない386ASM本来のニーモニック命令も  <br>
+「asmkeyword(list, ...);」でサポート。上記で出来ない&quot;.386p&quot;などは<br>
+asmout(&quot;.386p&quot;);でサポート。
+</li><li> エイリアスというレジスタを変数に割り当てて使う事が出来ます。
+</li><li> ローカル変数が定義できます。
+</li></ul>
+
+<p>逆に、ASKAでは、
+</p>
+<ul>
+<li> ラベルの前方参照が出来ません。
+</li><li> 関数に引数を持たせることが出来ません。
+</li></ul>
+
+
+
+
+
+
+</body>
+</html>

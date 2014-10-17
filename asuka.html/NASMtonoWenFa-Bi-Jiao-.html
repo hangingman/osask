@@ -1,0 +1,99 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 5.2, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>Asukaのマニュアル: NASMとの文法比較</title>
+
+<meta name="description" content="Asukaのマニュアル: NASMとの文法比較">
+<meta name="keywords" content="Asukaのマニュアル: NASMとの文法比較">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Concept-Index.html#Concept-Index" rel="index" title="Concept Index">
+<link href="Concept-Index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="index.html#Top" rel="up" title="Top">
+<link href="AsukanoShi-iFang-.html#Asuka_306e_4f7f_3044_65b9" rel="next" title="Asukaの使い方">
+<link href="Asuka-tohaHe-ka_003f.html#Asuka-_3068_306f_4f55_304b_ff1f" rel="prev" title="Asuka とは何か？">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.indentedblock {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smallindentedblock {margin-left: 3.2em; font-size: smaller}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style:oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nocodebreak {white-space:nowrap}
+span.nolinebreak {white-space:nowrap}
+span.roman {font-family:serif; font-weight:normal}
+span.sansserif {font-family:sans-serif; font-weight:normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="ja" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
+<a name="NASM_3068_306e_6587_6cd5_6bd4_8f03"></a>
+<div class="header">
+<p>
+Next: <a href="AsukanoShi-iFang-.html#Asuka_306e_4f7f_3044_65b9" accesskey="n" rel="next">Asukaの使い方</a>, Previous: <a href="index.html#Top" accesskey="p" rel="prev">Top</a>, Up: <a href="index.html#Top" accesskey="u" rel="up">Top</a> &nbsp; [<a href="Concept-Index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Concept-Index.html#Concept-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="NASMtonoWenFa-Bi-Jiao-"></a>
+<h2 class="chapter">2 NASMとの文法比較</h2>
+<ul>
+<li> NASM (NASKも同じ：NASKについてはGOを参照)
+<div class="example">
+<pre class="example">　　　　XOR EAX,EAX
+　　　　XOR ECX.ECX
+loopsum:
+　　　　ADD EAX,ECX
+　　　　INC ECX
+　　　　CMP ECX,10
+　　　　JLE loopsum
+</pre></div>
+
+</li><li> ASKA
+<div class="example">
+<pre class="example">　　int sum == EAX, i == ECX;
+　　sum = 0; i = 0;
+　　do {
+　　　　sum += i;
+　　　　i++;
+　　} while (i &lt;= 10);
+</pre></div>
+
+</li><li> 一見するとASKAはC言語のように見えますが、結局はただのアセンブラで、<br>
+ASKAは上記NASMコードと全く同じコードを生成することを保障します。   <br>
+</li><li> ASKAはアセンブラなので、たとえばsum += i++;みたいなことはできません。<br>
+原則として一文＝一命例です。                                         <br>
+</li><li> ASKAはニーモニックがC言語風なので、他のCPU、たとえばZ80版になっても           <br>
+似たような記述で書けます。しかしもちろん、レジスタ数もレジスタ名も違いますし、<br> 
+それぞれの挙動だって微妙に違いますので、移植可能なわけではありません。        <br> 
+そもそも移植可能になることを目指した言語ではなく、単に文法をC言語風にした     <br> 
+アセンブラなのです。それ以上を期待してはいけません。                          <br> 
+</li><li> 逆にこの割り切りがあったからこそ、ASKAは実用的なレベルに到達したんだとも思っています。 <br>
+</li></ul>
+
+
+
+
+
+</body>
+</html>

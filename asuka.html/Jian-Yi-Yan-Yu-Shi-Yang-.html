@@ -1,0 +1,504 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 5.2, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>Asukaのマニュアル: 簡易言語仕様</title>
+
+<meta name="description" content="Asukaのマニュアル: 簡易言語仕様">
+<meta name="keywords" content="Asukaのマニュアル: 簡易言語仕様">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Concept-Index.html#Concept-Index" rel="index" title="Concept Index">
+<link href="Concept-Index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="index.html#Top" rel="up" title="Top">
+<link href="sanpurukodo.html#g_t_30b5_30f3_30d7_30eb_30b3_30fc_30c9" rel="next" title="サンプルコード">
+<link href="AsukanoTe-Zheng-De-naJi-Neng-.html#Asuka_306e_7279_5fb4_7684_306a_6a5f_80fd" rel="prev" title="Asukaの特徴的な機能">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.indentedblock {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smallindentedblock {margin-left: 3.2em; font-size: smaller}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style:oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nocodebreak {white-space:nowrap}
+span.nolinebreak {white-space:nowrap}
+span.roman {font-family:serif; font-weight:normal}
+span.sansserif {font-family:sans-serif; font-weight:normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="ja" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
+<a name="g_t_7c21_6613_8a00_8a9e_4ed5_69d8"></a>
+<div class="header">
+<p>
+Next: <a href="index.html#Top" accesskey="n" rel="next">Top</a>, Previous: <a href="AsukanoTe-Zheng-De-naJi-Neng-.html#Asuka_306e_7279_5fb4_7684_306a_6a5f_80fd" accesskey="p" rel="prev">Asukaの特徴的な機能</a>, Up: <a href="index.html#Top" accesskey="u" rel="up">Top</a> &nbsp; [<a href="Concept-Index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Concept-Index.html#Concept-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="Jian-Yi-Yan-Yu-Shi-Yang-"></a>
+<h2 class="chapter">5 簡易言語仕様</h2>
+
+<p>・インクルード
+</p><div class="example">
+<pre class="example">	include &quot;ファイル名&quot;
+</pre></div>
+<p>とすることでファイルを読み込むことが出来ます。           <br>
+また、includeの代わりに#includeでも同じ動作をします。   <br>
+</p>
+
+<p>・コメント
+</p><div class="example">
+<pre class="example">	// コメント文
+</pre></div>
+<p>とする事で//以降、改行が現れるまでの文がコメントアウトされます。これ     <br>
+らのコメント文は切り捨てられます。                                  <br>
+　また、C言語っぽく/* 〜 */もサポートしました。ただ、ネストが効くように <br>
+組んであるので注意が必要です。                                     <br>
+<br>
+<br>
+・式のパラメータ
+　式のパラメータはレジスタ(r)、メモリ参照(m)、即値(i)の３種類がありま   <br>
+す。それぞれ、<br>
+</p><div class="example">
+<pre class="example">	r:EAX, CX, DS, CR0
+	m:data, data[0], [EAX], [DS:EAX+EBX*2+&amp;data+~3], *(EAX+1)
+	i:0xffff,-1,100,0b0011,&amp;DATA,sizeof(TYPE),
+</pre></div>
+<p>などのようにかけます。また、変数やメモリ参照のデータ型を一時的に変え<br>
+たり定義する場合にはキャストを使うことが出来ます。<br>
+<br>
+※ここにキャスト関係、即値演算関係、[]内記述方式関係を書く<br>
+<br>
+<br>
+・式文
+　式文は
+</p><div class="example">
+<pre class="example">	rm  = rmi;	→	MOV	rm,rmi
+			→	MOVSX or MOVZX	(サイズが違うとき)
+	r   =   0;	→	XOR	r ,r
+	rm += rmi;	→	ADD	rm,rmi
+	rm +=   1;	→	INC	rm
+	rm -= rmi;	→	SUB	rm,rmi
+	rm -=   1;	→	DEC	rm
+	rm *=   1;	→	最適化により省略
+	reg*=   2;	→	ADD	reg,reg
+	rm *=   2;	→	SHL	rm,2
+	r32*=   3;	→	LEA	r32,[r32 * 2 + r32]
+	rm *=   4;	→	SHL	rm,2
+	r32*=   5;	→	LEA	r32,[r32 * 4 + r32]
+	rm *=   8;	→	SHL	rm,3
+	r32*=   9;	→	LEA	r32,[r32 * 8 + r32]
+	rm *=   1;	→	最適化により省略
+	rm *=   2;	→	SAR	rm,1	(unsignedの時はSHR)
+	rm *=   4;	→	SAR	rm,2	(unsignedの時はSHR)
+	rm *=   8;	→	SAR	rm,4	(unsignedの時はSHR)
+	rm &amp;= rmi;	→	AND	rm,rmi
+	rm |= rmi;	→	OR	rm,rmi
+	rm ^= rmi;	→	XOR	rm,rmi
+	rm&lt;&lt;= rmi;	→	SAL	rm,rmi	(unsignedの時はSHL)
+	reg&lt;&lt;=  1;	→	ADD	reg,reg
+	rm&gt;&gt;= rmi;	→	SAR	rm,rmi	(unsignedの時はSHR)
+	rm =- rmi;	→	NEG	rm
+	rm =~ rmi;	→	NOT	rm
+	rm++;		→	INC	rm
+	rm--;		→	DEC	rm
+</pre></div>
+
+<p>のようになります。インクリメントとデクリメント以外は左に１パラメータ、   <br> 
+右に１パラメータです。ただし、=-と=~は左と右のパラメータがまったく同    <br> 
+じでなければなりません。                                          <br> 
+＃現バージョンではチェックは行われていませんが・・・                  <br> 
+                                                               <br> 
+特殊な場合としてfar*で宣言されたラベルおよびエイリアスは、+=,-=,++,&ndash;  <br> 
+に限ってoffsetキャストをつけなくてもデフォルトでオフセットに演算が施    <br> 
+されます。また、左辺と右辺で同一のセグメントレジスタを指定したエイリ     <br> 
+アスの場合は、オフセットのみが代入されます。さらに、左辺がエイリアス     <br> 
+で右辺がメモリの時は例のようにL(segreg)命令を使ってデコードされます。   <br> 
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	int*	a == DS:EAX;
+	int*	b;
+	a = b			→	LDS	EAX,b
+</pre></div>
+
+<p>・比較式とif〜else文
+　比較式はif()文の中で使われていますが、演算子が違うこと以外は式文と
+まったく同じです。「==、!=、&lt;、&lt;=、&gt;、&gt;=」が使えます。
+　ただ、大小の比較の時に符号のありなしが重要になってくるので、変数の
+型等がない場合にはキャスト(unsigned)か(signed)をつけて明示的に符号の
+ありなしを宣言する必要があります。このとき、必ず左のパラメータの前に
+つけるようにしてください。それ以外はエラーとなります。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">						cmp	eax,0
+	if((unsigned)EAX &gt; 0){			jbe	#LL0000
+		
+						jmp	#LL0001
+	}else{				#LL0000:
+		
+	}				#LL0001:
+</pre></div>
+
+<p>ただしif〜gotoとif〜breakおよびif〜continueはラベルが最適化されてジ
+ャンプが２回おこなわれることはありません。
+</p>
+<p>例：
+	if((unsigned)EAX &gt; 0)			cmp	eax,0
+		goto label;			ja	#label
+</p>
+<p>また、比較する際に
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	if((unsigned)&gt;){			jbe	#LL0000
+		
+						jmp	#LL0001
+	}else{				#LL0000:
+		
+	}				#LL0001:
+</pre></div>
+
+<p>のように記述することもできます。これにより比較は行われずにフラグによ
+るジャンプのみを生成します。
+</p>
+<p>以下、参考として、比較文で使用できる形式を書きます。
+</p>
+<div class="example">
+<pre class="example">	a==b, a!=b, a&lt;b, a&lt;=b, a&gt;b, a&gt;=b	：cmp付き
+	==, !=, &lt;, &lt;=, &gt;, &gt;=			：cmp無し
+	==0, !=0				：cmp無し別バージョン
+	a, !a					：a!=0, a==0の別の書き方
+</pre></div>
+
+<p>・loop文
+　loop文は永久ループを作り出します。永久ループから抜けるためにはbreak
+文を使う必要があります。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	loop{				#LL0000:
+		
+						jmp	#LL0000
+	}				#LL0001:
+</pre></div>
+<br>
+<p>・break文<br>
+　break文はloop文から抜けるためにあります。ネストしたloopを一気に抜け<br>
+るためにbreakのあとに数字をつけることが出来ます。この数字は一気にloop<br>
+文を抜ける数を表します。つまり、数字をつけないただのbreak;文は&rsquo;1&rsquo;が省<br>
+略されていることになります。<br>
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	break;
+	break 2;
+</pre></div>
+
+<p>・for文<br>
+　同様に、for文は以下のようになります。<br>
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	for(ECX=0; ECX&lt;10; ECX++){		xor	ecx,ecx
+					#LL0000:
+						cmp	ecx,10
+						jge	#LL0001
+		
+						inc	ecx
+						jmp	#LL0000
+	}				#LL0001:
+</pre></div>
+
+<p>＃例文ではmov r,0  →  xor r,rの最適化をしています
+</p>
+
+<p>・while文
+</p>
+<p>同様に、while文は以下のようになります。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	while(EAX == 0){		#LL0000:
+						test	eax,eax
+						jne	#LL0001
+		
+						jmp	#LL0000
+	}				#LL0001:
+</pre></div>
+
+<p>＃例文ではcmp r,0  →  test r,rの最適化をしています
+</p>
+
+<p>・do〜while文
+</p>
+<p>同様に、do〜while文は以下のようになります。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	do{				#LL0000:
+		
+						test	eax,eax
+						je	#LL0000
+	}while(EAX == 0);		#LL0001:
+</pre></div>
+
+<p>＃例文ではcmp r,0  →  test r,rの最適化をしています
+</p>
+
+<p>・変数定義
+　変数定義は
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	char		a;	符号ありで1バイト
+	short		b;	符号ありで2バイト
+	long		c;	符号ありで4バイト
+	byte		d;	符号なしで1バイト
+	word		e;	符号なしで2バイト
+	dword		f;	符号なしで4バイト
+	long*		g;	デフォルトではfarポインタ
+	long near *	h;	nearキーワードをつければnearポインタ
+	dword		i[12];	dword型の配列12バイト
+	int		j;	符号ありで4バイト
+	unsigned int	k;	unsignedにより符号なしで4バイト
+</pre></div>
+
+<p>のようになります。ここで注意すべきは配列でしょう。通常のC言語では配列
+は「型の要素を何個確保するか」でしたが、ASKAでは単純に「何バイト確保
+するか」という意味になります。つまり、例文の意味は「dword型の配列を３
+要素確保する」という意味になります。
+　また、これがグローバルな定義ならば初期化が許されます。ただし、現在
+では構造体を初期化することは出来ません。配列の場合は&quot;&quot;を使った文字列
+のみ可能です。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	long	c = 1;
+</pre></div>
+
+<p>また、ローカルな定義だったら、現在では初期化は許されません。
+ローカル変数を使う場合、かなり制約があるので注意してください。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	void function()
+	{
+	    PUSH(EBP);     /* これは、組み込み関数 */
+	    ESP -= local;  /* localは、ASKAの特別な変数 */
+	    EBP = ESP;
+	
+	    int a, b;
+	    a = 3;
+	    b = ECX;
+	
+	    ESP = EBP + local;
+	    POP(EBP);
+	    return;
+	}
+</pre></div>
+
+<p>このように、スタックの管理をしっかりしないと暴走します。
+ソース中のlocalはシステム変数で、この関数で使われているローカル変数の
+総バイト数を表します。また、ローカル変数をデフォルトのSS:EBPに割り付けたく
+ない場合は、
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	default(local == SS:EBP - local);
+</pre></div>
+
+<p>の構文で変更することが出来ます。ちなみに、上記の方法はENTER,LEAVEを使う時の
+書き方です。
+</p>
+<p>※default == の式や、&amp;&amp;は廃止されました。
+</p>
+
+<p>ローカルな定義のエイリアスによるレジスタへの割付は、
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	long	c == EAX;
+</pre></div>
+
+<p>こうすることで、cをアクセスするとEAXをアクセスするのと同じ効果が得
+られます。一見あまり意味が内容に思えますが、利点として一つはレジスタ
+に名前を与える事が出来るために用途がはっきりするのと、もう一つは、
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	struct	Point{
+		long	x;
+		long	y;
+	};
+
+	Point*	p == DS:EAX;
+</pre></div>
+
+<p>のように構造体を定義してそのポインタのエイリアスを作ることで、
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	p-&gt;x = 7;			mov	DS:[EAX],7
+	p-&gt;y = 9;			mov	DS:[EAX+4],9
+</pre></div>
+
+<p>のように構造体にアクセスすることが出来るようになります。
+　これは、通常変数のポインタは参照できないという弱点を補うのに十分な
+拡張であると考えます。また、
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	void	[2];
+</pre></div>
+
+<p>で手動アラインを行うことが出来ます。
+</p>
+<p>さらに、staticキーワードを使うことで、関数内に静的変数を作り出す事が
+出来るようになりました。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	static long DATA::staticdata;
+</pre></div>
+
+<p>例の通り、必ず割り付けるセグメント名を明示してください。
+</p>
+<p>また、自動static変数とも言うべき、文字列自動割付がサポートされました。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	EAX = DATA::&quot;string\n&quot;;
+</pre></div>
+
+<p>このように、関数中に文字列を割り付けることが出来ます。
+</p>
+
+<p>・構造体定義
+　構造体はC言語と言うよりは、C++言語に近いかもしれません。もちろん関
+数を中に含めたりは出来ませんが、typedefでいちいち定義したりしなくても
+良いところがC言語の構造体に比べて便利です。書式はエイリアスの所を参照
+してください。
+</p>
+
+<p>・セグメント定義
+　関数や変数をどのセグメントに割り付けるかはしっかり定義しなければな
+りません。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	segment DATA(DWORD, PRIVATE, USE32, RW, 'DATA');
+</pre></div>
+
+<p>ここで、()内のパラメータは順序に関係ありません。好きなように書いて
+ください。また、グローバル変数はこのsegment命令内でしか書くことが出来
+ません。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	segment DATA(DWORD, PRIVATE, USE32, RW, 'DATA'){
+		long	a = 1;
+		dword	b;
+	}
+</pre></div>
+
+<p>・関数定義
+　関数は、まずそれを割り付けるセグメントが無ければなりません。上記の
+segment命令によってセグメントを作成してください。
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	segment CODE(DWORD, PRIVATE, USE32, ER, 'CODE');
+</pre></div>
+
+<p>そのあと、
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	void CODE::func(){
+		
+	}
+		または
+	void CODE::func(void){
+		
+	}
+</pre></div>
+
+<p>で関数を宣言することが出来ます。この関数の中にプログラムを書くことに
+なります。このとき、C言語のように自動でreturnを付けたりはしないので
+注意してください。
+　また、C言語と同じく、特別な関数としてmain()があります。これがプロ
+グラム内にあった場合、「end main」がアセンブラへの展開時に追加されま
+す。つまり、mainがエントリポイントになるわけです。
+</p>
+<p>他に関数のプロトタイプ宣言もサポートしてますので、
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">	void CODE::func();
+		または
+	void CODE::func(void);
+</pre></div>
+
+<p>と書くこともできます。
+</p>
+<p>・ラベル
+　ラベルは
+</p>
+<p>例：
+</p><div class="example">
+<pre class="example">label1:
+@label2:
+#label3:
+</pre></div>
+
+<div class="example">
+<pre class="example">void	main(){
+label4:
+@label5:
+#label6:
+}
+</pre></div>
+
+<p>の書き方があります。ここで@はグローバルスコープを意味し、#はローカルスコープを <br> 
+意味します。なにもつけないとデフォルトの意味になります。                     <br> 
+しかしグローバルスコープでローカルラベルは定義できないので、label3はエラーに   <br> 
+なります。                                                            <br> 
+                                                                     <br> 
+注意していただきたいのは、このラベルの使い方です。後方参照する場合には自動的に  <br> 
+グローバルかローカルか判断してくれるのでよいのですが、前方参照の場合には       <br> 
+自動的に判別できず、ローカルスコープにしてしまいます。                      <br> 
+</p>
+
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="index.html#Top" accesskey="n" rel="next">Top</a>, Previous: <a href="AsukanoTe-Zheng-De-naJi-Neng-.html#Asuka_306e_7279_5fb4_7684_306a_6a5f_80fd" accesskey="p" rel="prev">Asukaの特徴的な機能</a>, Up: <a href="index.html#Top" accesskey="u" rel="up">Top</a> &nbsp; [<a href="Concept-Index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Concept-Index.html#Concept-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>
