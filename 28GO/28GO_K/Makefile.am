@@ -7,12 +7,9 @@ ACLOCAL_AMFLAGS = -I m4
 GUIGUI_DEP_MODULES = \
 	  bin2obj    \
 	  cpyc	     \
-	  akusA	     \
 	  bin2ucc    \
 	  mtek2org   \
-	  nask       \
 	  bim2g01    \
-	  naskcnv0   \
 	  obj2bim    \
 	  sjisconv   \
 	  golib00    \
@@ -35,11 +32,21 @@ ASKA_DEP_MODULES =   \
 	  g01libc1
 
 #
+# Important modules for osask ( Asuka, nask, naskcnv )
+# Below modules must be built first
+#
+NASK_MODULES =       \
+	  nask       \
+	  akusA	     \
+	  naskcnv0
+
+#
 # Build module list
 #
 SUBDIRS = drv_osa               \
 	  go_lib                \
 	  drv_stdc              \
+	  $(NASK_MODULES)       \
 	  drv_w32               \
 	  $(ASKA_DEP_MODULES)   \
 	  $(GUIGUI_DEP_MODULES)
