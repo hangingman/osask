@@ -2,8 +2,10 @@ language: cpp
 compiler:
   - g++
   - clang++
+install:
+   - sudo apt-get install -qq gnulib
 before_script:
-  - ./bootstrap && ./configure && make
+  - autoreconf -i -I/usr/share/gnulib/m4 && ./configure && make
 script:
 branches:
   only:
