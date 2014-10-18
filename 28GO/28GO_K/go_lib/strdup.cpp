@@ -1,7 +1,7 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
 #include <go_stdlib.hpp>
-#include <string.h>
+#include <go_string.hpp>
 
 char *GO_strdup(const char *cs)
 {

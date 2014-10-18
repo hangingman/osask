@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdarg.h>
+#include <go_stdarg.hpp>
 #include <go_stdio.hpp>
 
 int GO_sprintf(char *s, const char *format, ...)

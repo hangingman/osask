@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <limits.h>
+#include <go_limits.hpp>
 
 unsigned long GO_strtoul0(const unsigned char **ps, int base, unsigned char *errflag);
 

@@ -1,7 +1,7 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
 #include <errno.h>
-#include <limits.h>
+#include <go_limits.hpp>
 
 unsigned long GO_strtoul0(const char **ps, int base, char *errflag);
 

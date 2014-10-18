@@ -1,5 +1,6 @@
-#include <stdio.h> /* fopen, fclose, fread, fwrite, fseek, ftell, NULL */
-#include <stdlib.h>	/* exit */
+#include <cstdio>  /* fopen, fclose, fread, fwrite, fseek, ftell, NULL */
+#include <cstdlib> /* exit */
+
 
 typedef unsigned char UCHAR;
 

@@ -1,9 +1,9 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
 #include <go_stdio.hpp>
-#include <stdarg.h>
-#include <limits.h>
-#include <string.h>
+#include <go_stdarg.hpp>
+#include <go_limits.hpp>
+#include <go_string.hpp>
 #include <inttypes.h>
 
 unsigned long GO_strtoul0(const char **ps, int base, char *errflag);

@@ -3,7 +3,7 @@
 #include <go_stdio.hpp>
 #include <go_stdlib.hpp>
 #include <stddef.h>
-#include <string.h>
+#include <go_string.hpp>
 
 size_t GO_fwrite(const void *ptr, size_t size, size_t nobj, GO_FILE *stream)
 {

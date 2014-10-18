@@ -1,7 +1,7 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
 #include <go_stdio.hpp>
-#include <string.h>
+#include <go_string.hpp>
 
 void *GOL_memmanrealloc(struct GOL_STR_MEMMAN *man, void *p0, size_t size)
 {
