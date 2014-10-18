@@ -43,8 +43,8 @@ NASK_MODULES =       \
 #
 # Build module list
 #
-SUBDIRS = drv_osa               \
-	  go_lib                \
+SUBDIRS = go_lib                \
+	  drv_osa               \
 	  drv_stdc              \
 	  $(NASK_MODULES)       \
 	  drv_w32               \

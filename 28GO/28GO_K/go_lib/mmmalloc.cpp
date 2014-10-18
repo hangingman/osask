@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdio.h>
+#include <go_stdio.hpp>
 
 void *GOL_memmanalloc(struct GOL_STR_MEMMAN *p, size_t size)
 {

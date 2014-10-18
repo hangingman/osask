@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdio.h>
+#include <go_stdio.hpp>
 
 int GO_fseek(GO_FILE *stream, long offset, int origin)
 {

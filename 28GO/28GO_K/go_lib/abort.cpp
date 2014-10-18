@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdlib.h>
+#include <go_stdlib.hpp>
 
 void GO_abort(void)
 {

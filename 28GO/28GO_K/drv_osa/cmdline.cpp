@@ -1,4 +1,4 @@
-#include "../include/string.h"
+#include "go_string.hpp"
 
 UCHAR **ConvCmdLine1(int *pargc, UCHAR *p)
 {

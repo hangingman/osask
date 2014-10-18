@@ -1,7 +1,7 @@
 /* K&Rからほぼそのまま引用 */
 
 #include <stddef.h>
-#include <stdio.h>
+#include <go_stdio.hpp>
 
 #define pV(i) (((char *) base) + (i) * size)
 

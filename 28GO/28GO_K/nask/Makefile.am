@@ -7,6 +7,9 @@ bin_PROGRAMS   = nask nasuka
 nask_SOURCES	= \
 nask.cpp
 
+nask_CXXFLAGS   = -I$(top_builddir)/28GO/28GO_K/include
+nask_LDADD	= ../drv_stdc/libdrvstdc.la ../go_lib/libgolib.la
+
 #nask_LDADD	= \
 #../drv_w32/libdrvw32.la
 

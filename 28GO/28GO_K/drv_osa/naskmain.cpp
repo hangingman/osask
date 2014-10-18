@@ -1,8 +1,8 @@
 /* copyright(C) 2003 H.Kawai (under KL-01). */
 
-#include "../include/stdio.h"
-#include "../include/stdlib.h"
-#include "../include/setjmp.h"
+#include "go_stdio.hpp"
+#include "go_stdlib.hpp"
+#include "setjmp.h"
 
 #define SIZ_WORK			(768 * 1024)
 #define SIZ_SYSWRK			(4 * 1024)

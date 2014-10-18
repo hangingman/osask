@@ -1,7 +1,7 @@
 
-#include "../include/setjmp.h"
-#include "../include/string.h"
-#include "stdlib.h"
+#include "setjmp.h"
+#include "go_string.hpp"
+#include "go_stdlib.hpp"
 #include "guigui00.hpp"
 
 int GOL_abortcode;

@@ -1,7 +1,7 @@
 /* copyright(C) 2003 H.Kawai (under KL-01). */
 
-#include "../include/stdio.h"
-#include "../include/setjmp.h"
+#include "go_stdio.hpp"
+#include "setjmp.h"
 
 extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 extern struct GOL_STR_MEMMAN GOL_memman, GOL_sysman;

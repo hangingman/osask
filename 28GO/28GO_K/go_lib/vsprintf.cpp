@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdio.h>
+#include <go_stdio.hpp>
 #include <stdarg.h>
 #include <limits.h>
 #include <string.h>

@@ -1,6 +1,6 @@
-noinst_LTLIBRARIES	= libdrvst.la
-libdrvst_la_LDFLAGS 	= -no-undefined -version-info 1:0:0
-libdrvst_la_SOURCES	= \
+noinst_LTLIBRARIES	= libdrvstdc.la
+libdrvstdc_la_LDFLAGS 	= -no-undefined -version-info 1:0:0
+libdrvstdc_la_SOURCES	= \
 cc1main.cpp		  \
 cc1pmain.cpp		  \
 cpp0main.cpp		  \

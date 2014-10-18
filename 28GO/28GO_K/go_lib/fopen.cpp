@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdio.h>
+#include <go_stdio.hpp>
 #include <errno.h>
 
 GO_FILE *GO_fopen(const char *filename, const char *mode)

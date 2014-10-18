@@ -1,8 +1,8 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <go_stdio.hpp>
+#include <go_stdlib.hpp>
+#include <go_string.hpp>
 
 size_t GO_fread(void *ptr, size_t size, size_t nobj, GO_FILE *stream)
 {

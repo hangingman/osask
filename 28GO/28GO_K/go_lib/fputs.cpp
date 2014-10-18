@@ -1,7 +1,7 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdio.h>
-#include <string.h>
+#include <go_stdio.hpp>
+#include <go_string.hpp>
 
 int GO_fputs(const char *s, GO_FILE *stream)
 {

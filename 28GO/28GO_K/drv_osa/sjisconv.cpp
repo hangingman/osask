@@ -6,9 +6,9 @@
 	-s:ShiftJISモード
 */
 
-#include "stdio.h"
-#include "../include/string.h"		/* strlen, strstr, strchr */
-#include "../include/setjmp.h"
+#include "go_stdio.hpp"
+#include "go_string.hpp" /* strlen, strstr, strchr */
+#include "setjmp.h"
 
 #define FLAG_E		0
 #define FLAG_S		1

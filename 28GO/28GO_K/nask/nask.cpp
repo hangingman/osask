@@ -17,11 +17,6 @@ typedef unsigned char UCHAR;
 
 #define	NL			"\n"
 
-typedef struct GO_STR_FILE {
-	UCHAR *p0, *p1, *p;
-	int dummy;
-} GO_FILE;
-
 extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 extern struct GOL_STR_MEMMAN GOL_memman, GOL_sysman;
 int GOL_retcode;
@@ -57,7 +52,9 @@ int main(int argc, char** argv)
 	return 0; /* ダミー */
 }
 
-#include "../drv_stdc/others.c"
-#include "../drv_stdc/wfile_b.c"
-#include "../drv_stdc/wfile_t.c"
-#include "../funcs/nasksub.c"
+#include "../drv_stdc/others.cpp"
+/**
+#include "../drv_stdc/wfile_b.cpp"
+#include "../drv_stdc/wfile_t.cpp"
+#include "../funcs/nasksub.cpp"
+*/

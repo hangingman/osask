@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdlib.h>
+#include <go_stdlib.hpp>
 #include <string.h>
 
 void *GO_calloc(size_t nobj, size_t size)

@@ -7,8 +7,8 @@
 	-e:execcmd系のインライン展開
 */
 
-#include "../include/string.h"		/* strlen, strstr, strchr */
-#include "../include/setjmp.h"
+#include "go_string.hpp"		/* strlen, strstr, strchr */
+#include "setjmp.h"
 
 #define FLAG_t		0
 #define FLAG_d		1

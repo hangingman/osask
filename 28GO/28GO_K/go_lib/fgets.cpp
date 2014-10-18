@@ -1,6 +1,6 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdio.h>
+#include <go_stdio.hpp>
 
 char *GO_fgets(char *s, int n, GO_FILE *stream)
 {

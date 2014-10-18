@@ -1,7 +1,7 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <go_stdio.hpp>
+#include <go_stdlib.hpp>
 
 /* 読んだ文字しか読み戻せないバージョン */
 /* 本来のungetcとは仕様が異なる */
