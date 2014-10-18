@@ -5,7 +5,7 @@ compiler:
 install:
    - sudo apt-get install -qq gnulib
 before_script:
-  - autoreconf -i -I/usr/share/gnulib/m4 && ./configure && make
+  - autoreconf -i -I/usr/share/gnulib/m4 -I `pwd`/m4 && ./configure && make
 script:
 branches:
   only:
