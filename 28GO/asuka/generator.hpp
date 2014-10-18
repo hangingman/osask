@@ -8,15 +8,12 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <string>
+#include <cstring>
 #include <iostream>
-
 #include <string>
 #include <list>
 #include <map>
 #include <stack>
-
-
 
 #include "macro.hpp"
 #include "module.hpp"
