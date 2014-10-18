@@ -1,4 +1,4 @@
-SUBDIRS = 28GO OSASK
+SUBDIRS = 28GO
 
 # ChangeLog
 dist-hook: changelog
