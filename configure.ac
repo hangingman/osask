@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.67])
 AC_INIT([osask], [4.7.0], [newserver002@gmail.com])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([-Wno-portability])
@@ -33,6 +33,7 @@ AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 AC_CHECK_DECLS([sys_siglist])
 AC_TYPE_UINT32_T
+AC_LIBTOOL_WIN32_DLL
 LT_INIT
 
 # Set bool value for Makefile.am
@@ -50,22 +51,19 @@ AX_CHECK_COMPILE_FLAG([-Wno-parentheses],[CXXFLAGS="$CXXFLAGS -Wno-parentheses"]
 
 # Checks for HostOS
 case "$host" in
-        *-*-mingw*|*-*-cygwin*)
+        *-*-mingw*|*-*-cygwin*|*-*-msys*)
 		AM_CONDITIONAL(USE_WINDOWS, true)
                 ;;
         *-*-linux*)
-		AC_DEFINE(USE_SYS_STAT_H, 1, [Use <sys/stat.h>])
 		AM_CONDITIONAL(USE_LINUX, true)
                 ;;
         *-*-darwin*)
-		AC_DEFINE(USE_SYS_STAT_H, 1, [Use <sys/stat.h>])
 		AM_CONDITIONAL(USE_MAC_OSX, true)
 		if test "${ax_cv_c_compiler_vendor}x" = "clangx"; then
 		   CXXFLAGS="$CXXFLAGS -stdlib=libc++"
 		fi
                 ;;
         *-*-*bsd*)
-		AC_DEFINE(USE_SYS_STAT_H, 1, [Use <sys/stat.h>])
 		AM_CONDITIONAL(USE_BSD, true)
                 ;;
         *)
