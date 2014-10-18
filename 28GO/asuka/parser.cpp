@@ -134,13 +134,13 @@ HRESULT	Parser::Selector(Parameter& param, LabelList* label){
 		param.paramtype = P_MEM;
 		if(generator.FindLocalLabelList(scanner.GetLabel()) != NULL){
 			if(label->bStatic == true){
-				strcat(buf, "__");
-				strcat(buf, lpFunctionName);
+				std::strcat(buf, "__");
+				std::strcat(buf, lpFunctionName);
 			}else{
-				strcat(buf, "#");
+				std::strcat(buf, "#");
 			}
 		}
-		strcat(buf, scanner.GetLabel());
+		std::strcat(buf, scanner.GetLabel());
 		if(param.bArray == true || param.type->bStruct == true){
 			param.bLabel = false; param.disp = dummy + "offset " + buf;
 		}else{
@@ -600,8 +600,8 @@ HRESULT	Parser::GetParameter(Parameter& param){
 		}
 		buf = new char[256];
 		sprintf(buf, "LL%04X", LocalLabelCounter);
-		strcat(buf, "__");
-		strcat(buf, lpFunctionName);
+		std::strcat(buf, "__");
+		std::strcat(buf, lpFunctionName);
 		LocalLabelCounter++;
 		stlabel = new LabelList;
 		stlabel->bArray = true;
@@ -628,8 +628,8 @@ HRESULT	Parser::GetParameter(Parameter& param){
 				}
 				buf = new char[256];
 				sprintf(buf, "LL%04X", LocalLabelCounter);
-				strcat(buf, "__");
-				strcat(buf, lpFunctionName);
+				std::strcat(buf, "__");
+				std::strcat(buf, lpFunctionName);
 				LocalLabelCounter++;
 				stlabel = new LabelList;
 				stlabel->bArray = true;
@@ -1012,9 +1012,9 @@ void	Parser::Statement(void){
 				while(scanner.PeekToken() != TK_RPR){
 					if(GetParameter(param) != 0){};	// skipline
 					generator.Param2LPSTR(buf2, param);
-					strcat(buf, buf2);
+					std::strcat(buf, buf2);
 					switch(scanner.PeekToken()){
-					  case TK_COMMA: scanner.GetToken(); strcat(buf, ","); break;
+					  case TK_COMMA: scanner.GetToken(); std::strcat(buf, ","); break;
 					  case TK_RPR:   break;
 					  default:
 						Error("Missing \",\"");
@@ -1410,8 +1410,8 @@ void	Parser::DefineVariable(void){
 			}
 			generator.AddLocalLabelList(str, label);
 			strcpy(buf, "__");
-			strcat(buf, lpFunctionName);
-			strcat(buf, str);
+			std::strcat(buf, lpFunctionName);
+			std::strcat(buf, str);
 			stlabel = new LabelList(label);
 			label->segment->AddStaticData(buf, stlabel, initialize);
 		}else{
@@ -1623,7 +1623,7 @@ void	Parser::DefineInitial(LabelList* label, LPSTR initialize){
 			label->size = size;
 		}else if(label->size > size){
 			sprintf(buf, ", %d dup(?)", label->size - size);
-			strcat(initialize, buf);
+			std::strcat(initialize, buf);
 		}else{
 			Error("Warning: array size too small for initialized magnitude");
 		}

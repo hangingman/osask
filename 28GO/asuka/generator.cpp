@@ -1,7 +1,7 @@
 #include "generator.hpp"
 
 #ifndef _WIN32
-   #define ltoa(n,b,l) (sprintf(b, "%ld", n), b)
+   #define ltoa(n,b,l) (sprintf(b, "%d", n), b)
    #define itoa(n,b,l) (sprintf(b, "%d", n), b)
 #endif
 
@@ -22,9 +22,9 @@ void	Generator::Param2LPSTR(LPSTR buf, Parameter& param){
 	if(param.paramtype != P_REG){
 		if(param.pdepth != 0){
 			switch(param.size){
-			  case 2: strcat(buf, "word ptr ");  break;
-			  case 4: strcat(buf, "dword ptr "); break;
-			  case 6: strcat(buf, "pword ptr "); break;
+			  case 2: std::strcat(buf, "word ptr ");  break;
+			  case 4: std::strcat(buf, "dword ptr "); break;
+			  case 6: std::strcat(buf, "pword ptr "); break;
 			  default: 
 				  Error("Internal Error: Invalid size");
 				  return;
@@ -32,9 +32,9 @@ void	Generator::Param2LPSTR(LPSTR buf, Parameter& param){
 		}else{
 			switch(param.size){
 			  case 0: break;
-			  case 1: strcat(buf, "byte ptr "); break;
-			  case 2: strcat(buf, "word ptr "); break;
-			  case 4: strcat(buf, "dword ptr "); break;
+			  case 1: std::strcat(buf, "byte ptr "); break;
+			  case 2: std::strcat(buf, "word ptr "); break;
+			  case 4: std::strcat(buf, "dword ptr "); break;
 			  default: 
 				  Error("Internal Error: Invalid size");
 				  return;
@@ -42,48 +42,48 @@ void	Generator::Param2LPSTR(LPSTR buf, Parameter& param){
 		}
 	}
 	switch(param.paramtype){
-	  case P_REG: strcat(buf, param.base->name); break;
+	  case P_REG: std::strcat(buf, param.base->name); break;
 	  case P_IMM:
-		strcat(buf, param.disp.c_str());
+		std::strcat(buf, param.disp.c_str());
 		if(param.ndisp != 0){
-			if(buf[0] != 0) strcat(buf, "+");
-			strcat(buf, ltoa(param.ndisp, buf2, 10));
+			if(buf[0] != 0) std::strcat(buf, "+");
+			std::strcat(buf, ltoa(param.ndisp, buf2, 10));
 		}
 		break;
 	  case P_MEM:
 		if(param.bLabel == true){
-			strcat(buf, param.disp.c_str());
+			std::strcat(buf, param.disp.c_str());
 		}else{
 			if(param.seg != NULL){
-				strcat(buf, param.seg->name);
-				strcat(buf, ":[");
+				std::strcat(buf, param.seg->name);
+				std::strcat(buf, ":[");
 			}else{
-				strcat(buf, "[");
+				std::strcat(buf, "[");
 			}
 			first = true;
 			if(param.base != NULL){
-				strcat(buf, param.base->name);
+				std::strcat(buf, param.base->name);
 				first = false;
 			}
 			if(param.index != NULL){
-				if(first == false) strcat(buf, "+");
-				strcat(buf, param.index->name);
+				if(first == false) std::strcat(buf, "+");
+				std::strcat(buf, param.index->name);
 				if(param.scale != 1){
-					strcat(buf, "*");
-					strcat(buf, ltoa(param.scale, buf2, 10));
+					std::strcat(buf, "*");
+					std::strcat(buf, ltoa(param.scale, buf2, 10));
 				}
 				first = false;
 			}
 			if(param.disp != ""){
-				if(first == false && param.disp.at(0) != '+' && param.disp.at(0) != '-') strcat(buf, "+");
-				strcat(buf, param.disp.c_str());
+				if(first == false && param.disp.at(0) != '+' && param.disp.at(0) != '-') std::strcat(buf, "+");
+				std::strcat(buf, param.disp.c_str());
 				first = false;
 			}
 			if(param.ndisp != 0){
-				if(first == false) strcat(buf, "+");
-				strcat(buf, ltoa(param.ndisp, buf2, 10));
+				if(first == false) std::strcat(buf, "+");
+				std::strcat(buf, ltoa(param.ndisp, buf2, 10));
 			}
-			strcat(buf, "]");
+			std::strcat(buf, "]");
 		}
 		break;
 	  default:
@@ -110,42 +110,42 @@ void	Generator::OpenSegment(SegmentList* segment){
 	char buf[256];
 	strcpy(buf, "");
 	switch(segment->align){
-	  case TK_BYTE:   strcat(buf, "BYTE ");   break;
-	  case TK_WORD:   strcat(buf, "WORD ");   break;
-	  case TK_DWORD:  strcat(buf, "DWORD ");  break;
-	  case TK_PARA:   strcat(buf, "PARA ");   break;
-	  case TK_PAGE:   strcat(buf, "PAGE ");   break;
-	  case TK_PAGE4K: strcat(buf, "PAGE4K "); break;
+	  case TK_BYTE:   std::strcat(buf, "BYTE ");   break;
+	  case TK_WORD:   std::strcat(buf, "WORD ");   break;
+	  case TK_DWORD:  std::strcat(buf, "DWORD ");  break;
+	  case TK_PARA:   std::strcat(buf, "PARA ");   break;
+	  case TK_PAGE:   std::strcat(buf, "PAGE ");   break;
+	  case TK_PAGE4K: std::strcat(buf, "PAGE4K "); break;
 	  default: 
 		Error("Internal Error: Invalid segment alignment");
 		return;
 	}
 	switch(segment->combine){
 	  case TK_PRIVATE:                          break;	// privateは指定なし
-	  case TK_PUBLIC:  strcat(buf, "PUBLIC ");  break;
-	  case TK_STACK:   strcat(buf, "STACK ");   break;
-	  case TK_COMMON:  strcat(buf, "COMMON ");  break;
+	  case TK_PUBLIC:  std::strcat(buf, "PUBLIC ");  break;
+	  case TK_STACK:   std::strcat(buf, "STACK ");   break;
+	  case TK_COMMON:  std::strcat(buf, "COMMON ");  break;
 	  default: 
 		Error("Internal Error: Invalid combination with segment alignment");
 		return;
 	}
 	switch(segment->use){
-	  case TK_USE32: strcat(buf, "USE32 "); break;
-	  case TK_USE16: strcat(buf, "USE16 "); break;
+	  case TK_USE32: std::strcat(buf, "USE32 "); break;
+	  case TK_USE16: std::strcat(buf, "USE16 "); break;
 	  default: 
 		Error("Internal Error: Invalid use of segment");
 		return;
 	}
 	switch(segment->access){
-	  case TK_RO: strcat(buf, "RO "); break;
-	  case TK_EO: strcat(buf, "EO "); break;
-	  case TK_ER: strcat(buf, "ER "); break;
-	  case TK_RW: strcat(buf, "RW "); break;
+	  case TK_RO: std::strcat(buf, "RO "); break;
+	  case TK_EO: std::strcat(buf, "EO "); break;
+	  case TK_ER: std::strcat(buf, "ER "); break;
+	  case TK_RW: std::strcat(buf, "RW "); break;
 	  default: 
 		Error("Internal Error: Invalid access segment");
 		return;
 	}
-	if(segment->segmentclass != NULL) strcat(buf, segment->segmentclass);
+	if(segment->segmentclass != NULL) std::strcat(buf, segment->segmentclass);
 	OutputMASM(segment->name, "segment", buf, "");
 }
 
@@ -188,12 +188,12 @@ void	Generator::OutputMASM(const LPSTR label, const LPSTR command, const LPSTR p
 	int		n = strlen(label);
 	char	buf[256];
 	strcpy(buf, label);
-	if(n < 7) strcat(buf, "\t\t\t");
-	else if(n < 15) strcat(buf, "\t\t");
-	else strcat(buf, "\t");
-	strcat(buf, command);
-	strcat(buf, "\t");
-	strcat(buf, param);
+	if(n < 7) std::strcat(buf, "\t\t\t");
+	else if(n < 15) std::strcat(buf, "\t\t");
+	else std::strcat(buf, "\t");
+	std::strcat(buf, command);
+	std::strcat(buf, "\t");
+	std::strcat(buf, param);
 
 #ifdef WINVC
 	if(comment[0] != NULL){
@@ -201,8 +201,8 @@ void	Generator::OutputMASM(const LPSTR label, const LPSTR command, const LPSTR p
 	if(comment[0] != '\0'){
 #endif
 
-		strcat(buf, "\t\t");
-		strcat(buf, comment);
+		std::strcat(buf, "\t\t");
+		std::strcat(buf, comment);
 	}
 	OutFile.PutLine(std::string(buf)+"\n");
 }
@@ -216,23 +216,23 @@ void	Generator::Call(Token ptype, LPSTR func){
 		Error("Internal Error: Allowed to use only 'near' or 'far' for Call");
 		return;
 	}
-	strcat(buf, " ptr ");
-	strcat(buf, func);
+	std::strcat(buf, " ptr ");
+	std::strcat(buf, func);
 	OutputMASM("", "call", buf, "");
 }
 
 void	Generator::GlobalLabel(LPSTR label){
 	char	buf[256];
 	strcpy(buf, label);
-	strcat(buf, ":");
+	std::strcat(buf, ":");
 	OutputMASM(buf, "", "", "");
 }
 
 void	Generator::LocalLabel(LPSTR label){
 	char	buf[256];
 	strcpy(buf, "#");
-	strcat(buf, label);
-	strcat(buf, ":");
+	std::strcat(buf, label);
+	std::strcat(buf, ":");
 	OutputMASM(buf, "", "", "");
 }
 
@@ -312,8 +312,8 @@ void	Generator::RegistBecome(Parameter& param1, Parameter& param2){
 				&& param2.paramtype == P_IMM && param2.ndisp == 0 && param2.disp == "0"){
 			Param2LPSTR(buf1, param1);
 			strcpy(buf, buf1);
-			strcat(buf, ",");
-			strcat(buf, buf1);
+			std::strcat(buf, ",");
+			std::strcat(buf, buf1);
 			OutputMASM("", "xor", buf, "");
 		}else if(param1.pdepth != 0 && param1.ptype == TK_FAR){
 			if(param2.pdepth != 0 && param2.ptype == TK_FAR
@@ -325,8 +325,8 @@ void	Generator::RegistBecome(Parameter& param1, Parameter& param2){
 				Param2LPSTR(buf1, param1);
 				Param2LPSTR(buf2, param2);
 				strcpy(buf, buf1);
-				strcat(buf, ",");
-				strcat(buf, buf2);
+				std::strcat(buf, ",");
+				std::strcat(buf, buf2);
 				OutputMASM("", "mov", buf, "");
 			}else if(param2.pdepth != 0 && param2.ptype == TK_FAR && param1.seg != NULL && param2.seg == NULL){
 				param1.paramtype = P_REG; param1.pdepth = 0;
@@ -334,8 +334,8 @@ void	Generator::RegistBecome(Parameter& param1, Parameter& param2){
 				Param2LPSTR(buf1, param1);
 				Param2LPSTR(buf2, param2);
 				strcpy(buf, buf1);
-				strcat(buf, ",");
-				strcat(buf, buf2);
+				std::strcat(buf, ",");
+				std::strcat(buf, buf2);
 				sprintf(command, "L%s", param1.seg->name);
 				OutputMASM("", command, buf, "");
 			}else{
@@ -346,8 +346,8 @@ void	Generator::RegistBecome(Parameter& param1, Parameter& param2){
 			Param2LPSTR(buf1, param1);
 			Param2LPSTR(buf2, param2);
 			strcpy(buf, buf1);
-			strcat(buf, ",");
-			strcat(buf, buf2);
+			std::strcat(buf, ",");
+			std::strcat(buf, buf2);
 			OutputMASM("", "mov", buf, "");
 		}
 	}else if(param1.size < param2.size){
@@ -362,8 +362,8 @@ void	Generator::RegistBecome(Parameter& param1, Parameter& param2){
 		Param2LPSTR(buf1, param1);
 		Param2LPSTR(buf2, param2);
 		strcpy(buf, buf1);
-		strcat(buf, ",");
-		strcat(buf, buf2);
+		std::strcat(buf, ",");
+		std::strcat(buf, buf2);
 		OutputMASM("", "mov", buf, "");
 	}else if(param1.size > param2.size){
 		if(param1.paramtype == P_MEM){
@@ -373,8 +373,8 @@ void	Generator::RegistBecome(Parameter& param1, Parameter& param2){
 		Param2LPSTR(buf1, param1);
 		Param2LPSTR(buf2, param2);
 		strcpy(buf, buf1);
-		strcat(buf, ",");
-		strcat(buf, buf2);
+		std::strcat(buf, ",");
+		std::strcat(buf, buf2);
 		if(param2.bSigned == true){
 			OutputMASM("", "movsx", buf, "");
 		}else{
@@ -456,7 +456,7 @@ void	Generator::RegistAdd(Parameter& param1, Parameter& param2){
 			}
 			Param2LPSTR(buf1, param1);
 			Param2LPSTR(buf2, param2);
-			strcpy(buf, buf1); strcat(buf, ","); strcat(buf, buf2);
+			strcpy(buf, buf1); std::strcat(buf, ","); std::strcat(buf, buf2);
 			OutputMASM("", "add", buf, "");
 		}
 	}else{
@@ -482,7 +482,7 @@ void	Generator::RegistSub(Parameter& param1, Parameter& param2){
 			}
 			Param2LPSTR(buf1, param1);
 			Param2LPSTR(buf2, param2);
-			strcpy(buf, buf1); strcat(buf, ","); strcat(buf, buf2);
+			strcpy(buf, buf1); std::strcat(buf, ","); std::strcat(buf, buf2);
 			OutputMASM("", "sub", buf, "");
 		}
 	}else{
@@ -507,30 +507,30 @@ void	Generator::RegistMul(Parameter& param1, Parameter& param2){
 			// 何もしない
 		}else if(param2.disp == "2" && param1.paramtype == P_REG && param1.base->type == R_GENERAL){
 			Param2LPSTR(buf1, param1);
-			strcpy(buf, buf1); strcat(buf, ","); strcat(buf, buf1);
+			strcpy(buf, buf1); std::strcat(buf, ","); std::strcat(buf, buf1);
 			OutputMASM("", "add", buf, "");
 		}else if((x = CheckPower2(atoi(param2.disp.c_str()))) != -1
 				&& (param1.paramtype == P_MEM || param1.paramtype == P_REG && param1.base->type == R_GENERAL)){
 			Param2LPSTR(buf1, param1);
-			strcpy(buf, buf1); strcat(buf, ","); strcat(buf, itoa(x, buf2, 10));
+			strcpy(buf, buf1); std::strcat(buf, ","); std::strcat(buf, itoa(x, buf2, 10));
 			OutputMASM("", "shl", buf, "");
 		}else if(param2.disp == "3" && param1.paramtype == P_REG && param1.base->type == R_GENERAL
 				&& param1.base->size == 4 && seg->use == TK_USE32){
 			Param2LPSTR(buf1, param1);
 			sprintf(buf2, "[%s*2 + %s]", param1.base->name, param1.base->name);
-			strcpy(buf, buf1); strcat(buf, ","); strcat(buf, buf2);
+			strcpy(buf, buf1); std::strcat(buf, ","); std::strcat(buf, buf2);
 			OutputMASM("", "lea", buf, "");
 		}else if(param2.disp == "5" && param1.paramtype == P_REG && param1.base->type == R_GENERAL
 				&& param1.base->size == 4 && seg->use == TK_USE32){
 			Param2LPSTR(buf1, param1);
 			sprintf(buf2, "[%s*4 + %s]", param1.base->name, param1.base->name);
-			strcpy(buf, buf1); strcat(buf, ","); strcat(buf, buf2);
+			strcpy(buf, buf1); std::strcat(buf, ","); std::strcat(buf, buf2);
 			OutputMASM("", "lea", buf, "");
 		}else if(param2.disp == "9" && param1.paramtype == P_REG && param1.base->type == R_GENERAL
 				&& param1.base->size == 4 && seg->use == TK_USE32){
 			Param2LPSTR(buf1, param1);
 			sprintf(buf2, "[%s*8 + %s]", param1.base->name, param1.base->name);
-			strcpy(buf, buf1); strcat(buf, ","); strcat(buf, buf2);
+			strcpy(buf, buf1); std::strcat(buf, ","); std::strcat(buf, buf2);
 			OutputMASM("", "lea", buf, "");
 		}else{
 			Error("*= allowed only when left value has 1,3,5,9 and 2^n (more conditions)");
@@ -556,7 +556,7 @@ void	Generator::RegistDiv(Parameter& param1, Parameter& param2){
 			// 何もしない
 		}else if((x = CheckPower2(atoi(param2.disp.c_str()))) != -1){
 			Param2LPSTR(buf, param1);
-			strcat(buf, ","); strcat(buf, itoa(x, buf1, 10));
+			std::strcat(buf, ","); std::strcat(buf, itoa(x, buf1, 10));
 			OutputMASM("", command, buf, "");
 		}else{
 			Error("/= allowed only when right value has 2^n (more conditions)");
@@ -574,8 +574,8 @@ void	Generator::RegistAnd(Parameter& param1, Parameter& param2){
 		Param2LPSTR(buf1, param1);
 		Param2LPSTR(buf2, param2);
 		strcpy(buf, buf1);
-		strcat(buf, ",");
-		strcat(buf, buf2);
+		std::strcat(buf, ",");
+		std::strcat(buf, buf2);
 		OutputMASM("", "and", buf, "");
 	}else{
 		Error("Invalid parameter size");
@@ -589,8 +589,8 @@ void	Generator::RegistOr(Parameter& param1, Parameter& param2){
 		Param2LPSTR(buf1, param1);
 		Param2LPSTR(buf2, param2);
 		strcpy(buf, buf1);
-		strcat(buf, ",");
-		strcat(buf, buf2);
+		std::strcat(buf, ",");
+		std::strcat(buf, buf2);
 		OutputMASM("", "or", buf, "");
 	}else{
 		Error("Invalid parameter size");
@@ -604,8 +604,8 @@ void	Generator::RegistXor(Parameter& param1, Parameter& param2){
 		Param2LPSTR(buf1, param1);
 		Param2LPSTR(buf2, param2);
 		strcpy(buf, buf1);
-		strcat(buf, ",");
-		strcat(buf, buf2);
+		std::strcat(buf, ",");
+		std::strcat(buf, buf2);
 		OutputMASM("", "xor", buf, "");
 	}else{
 		Error("Invalid parameter size");
@@ -620,15 +620,15 @@ void	Generator::RegistCmp(Parameter& param1, Parameter& param2){
 				&& param2.paramtype == P_IMM && param2.ndisp == 0 && param2.disp == "0"){
 			Param2LPSTR(buf1, param1);
 			strcpy(buf, buf1);
-			strcat(buf, ",");
-			strcat(buf, buf1);
+			std::strcat(buf, ",");
+			std::strcat(buf, buf1);
 			OutputMASM("", "test", buf, "");
 		}else{
 			Param2LPSTR(buf1, param1);
 			Param2LPSTR(buf2, param2);
 			strcpy(buf, buf1);
-			strcat(buf, ",");
-			strcat(buf, buf2);
+			std::strcat(buf, ",");
+			std::strcat(buf, buf2);
 			OutputMASM("", "cmp", buf, "");
 		}
 	}else{
@@ -648,8 +648,8 @@ void	Generator::RegistShl(Parameter& param1, Parameter& param2){
 				&& param2.paramtype == P_IMM && param2.ndisp == 0 && param2.disp == "1"){
 			Param2LPSTR(buf1, param1);
 			strcpy(buf, buf1);
-			strcat(buf, ",");
-			strcat(buf, buf1);
+			std::strcat(buf, ",");
+			std::strcat(buf, buf1);
 			OutputMASM("", "add", buf, "");
 		}else if(param2.paramtype == P_IMM && param2.ndisp == 0 && param2.disp == "0"){
 			// 何もしない
@@ -657,8 +657,8 @@ void	Generator::RegistShl(Parameter& param1, Parameter& param2){
 			Param2LPSTR(buf1, param1);
 			Param2LPSTR(buf2, param2);
 			strcpy(buf, buf1);
-			strcat(buf, ",");
-			strcat(buf, buf2);
+			std::strcat(buf, ",");
+			std::strcat(buf, buf2);
 			if(param1.bSigned == true){
 				OutputMASM("", "sal", buf, "");
 			}else{
@@ -684,8 +684,8 @@ void	Generator::RegistShr(Parameter& param1, Parameter& param2){
 			Param2LPSTR(buf1, param1);
 			Param2LPSTR(buf2, param2);
 			strcpy(buf, buf1);
-			strcat(buf, ",");
-			strcat(buf, buf2);
+			std::strcat(buf, ",");
+			std::strcat(buf, buf2);
 			if(param1.bSigned == true){
 				OutputMASM("", "sar", buf, "");
 			}else{
@@ -752,10 +752,10 @@ void	Generator::RegistVariable(LPSTR varname, LabelList* label, LPSTR initialize
 		}
 	}else if(label->bArray == true){
 		switch(label->type->size){
-		  case 1: strcat(buf, "db"); break;
-		  case 2: strcat(buf, "dw"); break;
-		  case 4: strcat(buf, "dd"); break;
-		  case 6: strcat(buf, "dp"); break;
+		  case 1: std::strcat(buf, "db"); break;
+		  case 2: std::strcat(buf, "dw"); break;
+		  case 4: std::strcat(buf, "dd"); break;
+		  case 6: std::strcat(buf, "dp"); break;
 		  default: 
 			  Error("Internal Error: Invalid size");
 			  return;
@@ -768,10 +768,10 @@ void	Generator::RegistVariable(LPSTR varname, LabelList* label, LPSTR initialize
 		OutputMASM(varname, buf, initialize, "");
 	}else{
 		switch(label->size){
-		  case 1: strcat(buf, "db"); break;
-		  case 2: strcat(buf, "dw"); break;
-		  case 4: strcat(buf, "dd"); break;
-		  case 6: strcat(buf, "dp"); break;
+		  case 1: std::strcat(buf, "db"); break;
+		  case 2: std::strcat(buf, "dw"); break;
+		  case 4: std::strcat(buf, "dd"); break;
+		  case 6: std::strcat(buf, "dp"); break;
 		  default: 
 			  Error("Internal Error: Invalid size");
 			  return;
@@ -856,7 +856,7 @@ void	Generator::GlobalJump(CompareType cmptype, LPSTR globallabel){
 void	Generator::LocalJump(CompareType cmptype, LPSTR locallabel){
 	char	buf[256];
 	strcpy(buf, "#");
-	strcat(buf, locallabel);
+	std::strcat(buf, locallabel);
 	switch(cmptype){
 	  case C_JA:  OutputMASM("", "ja" , buf, ""); break;
 	  case C_JAE: OutputMASM("", "jae", buf, ""); break;
@@ -880,7 +880,7 @@ void	Generator::LocalJump(CompareType cmptype, LPSTR locallabel){
 void	Generator::Jump(CompareType cmptype, LPSTR locallabel){
 	char	buf[256];
 	strcpy(buf, "#");
-	strcat(buf, locallabel);
+	std::strcat(buf, locallabel);
 	switch(cmptype){
 	  case C_JA:  OutputMASM("", "ja" , buf, ""); break;
 	  case C_JAE: OutputMASM("", "jae", buf, ""); break;
