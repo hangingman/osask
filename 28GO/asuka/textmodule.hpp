@@ -7,24 +7,24 @@
 
 #pragma warning(disable:4786)
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include <string>
 #include <list>
 #include <map>
 #include <stack>
 
-using namespace std;
+
 
 
 class	TextModule{
   public:
-// 以下二つにより、Stringの実体がstringかwstringかには依存しないようにする
-	typedef string					String;
+// 以下二つにより、Stringの実体がstd::stringかwstd::stringかには依存しないようにする
+	typedef std::string					String;
 	typedef	unsigned char			Letter;
 	typedef	long					SizeType;
-	typedef	list<String>			ListString;
+	typedef	std::list<String>			ListString;
 	typedef	ListString::iterator	LineData;
 
   protected:

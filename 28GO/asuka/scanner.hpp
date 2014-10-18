@@ -17,7 +17,7 @@
 #include <vector>
 #include <algorithm>
 
-using namespace std;
+
 
 #include "macro.hpp"
 #include "module.hpp"
@@ -49,9 +49,9 @@ class ScannerSub{
 	~ScannerSub(){}
 
 #ifdef WINVC
-	HRESULT	ReadFile(string& filename);// ファイルを読み込む
+	HRESULT	ReadFile(std::string& filename);// ファイルを読み込む
 #else
-	HRESULT	ReadFile(string filename);// ファイルを読み込む
+	HRESULT	ReadFile(std::string filename);// ファイルを読み込む
 #endif
 	
 	Token	GetToken(void);			// 次のtokenを得る（読み込みポインタ進める）
@@ -61,12 +61,12 @@ class ScannerSub{
 	LONG	GetNum(void){ return numbuf; }		// tokenがTK_NUMの時、その数値が得られる
 
 	int		GetScanline(void){ return nLine; }
-	string	GetFileName(void){ return Mdl.GetFileName(); }
+	std::string	GetFileName(void){ return Mdl.GetFileName(); }
 	void	SetLogFile(FILE* fp){ lpLogFP = fp; }
 	int		GetErrorCount(void){ return nErrorCount; }
 };
 
-typedef stack<ScannerSub*> StacklpScannerSub;
+typedef std::stack<ScannerSub*> StacklpScannerSub;
 
 class Scanner{
 	StacklpScannerSub files;
@@ -79,9 +79,9 @@ class Scanner{
 	~Scanner(){ while(!files.empty()){ DELETE_SAFE(files.top()); files.pop(); } }
 
 #ifdef WINVC
-	HRESULT	ReadFile(string& filename);// ファイルを読み込む
+	HRESULT	ReadFile(std::string& filename);// ファイルを読み込む
 #else
-	HRESULT	ReadFile(string filename);// ファイルを読み込む
+	HRESULT	ReadFile(std::string filename);// ファイルを読み込む
 #endif
 
 	Token	GetToken(void);		// 次のtokenを得る（読み込みポインタ進める）
@@ -91,7 +91,7 @@ class Scanner{
 	LONG	GetNum(void){ return files.top()->GetNum(); }
 								// tokenがTK_NUMの時、その数値が得られる
 	int		GetScanline(void){ return files.top()->GetScanline(); }
-	string	GetFileName(void){ return files.top()->GetFileName(); }
+	std::string	GetFileName(void){ return files.top()->GetFileName(); }
 	void	SetLogFile(FILE* fp){ lpLogFP = fp; }
 	int		GetErrorCount(void){ return nErrorCount; }
 };

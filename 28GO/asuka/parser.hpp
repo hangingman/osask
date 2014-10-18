@@ -6,8 +6,8 @@
 
 #pragma warning(disable:4786)
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 
 #include <string>
@@ -15,7 +15,7 @@
 #include <map>
 #include <stack>
 
-using namespace std;
+
 
 #include "macro.hpp"
 #include "module.hpp"
@@ -96,15 +96,15 @@ class Parser{
 	~Parser(){}
 	
 #ifdef WINVC
-	HRESULT	Compile(string& filename);
+	HRESULT	Compile(std::string& filename);
 #else
-	HRESULT	Compile(string filename);
+	HRESULT	Compile(std::string filename);
 #endif
 
 #ifdef WINVC
-	HRESULT	Compile(string& filename, string& outfilename);
+	HRESULT	Compile(std::string& filename, std::string& outfilename);
 #else
-	HRESULT	Compile(string filename, string outfilename);
+	HRESULT	Compile(std::string filename, std::string outfilename);
 #endif
 
 	void	SetLogFile(LPSTR filename);

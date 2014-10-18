@@ -1,9 +1,9 @@
 #include "scanner.hpp"
 
 #ifdef WINVC
-   HRESULT	Scanner::ReadFile(string& filename){
+   HRESULT	Scanner::ReadFile(std::string& filename){
 #else
-   HRESULT	Scanner::ReadFile(string filename){
+   HRESULT	Scanner::ReadFile(std::string filename){
 #endif
 
 	ScannerSub* scannersubx = new ScannerSub;
@@ -19,7 +19,7 @@ Token	Scanner::GetToken(void){
 		if(token == TK_INCLUDE){
 			nIncludeNest++;
 			files.top()->GetToken();	                // includeの次の"ファイル名"を取り出す
-			ReadFile(string(files.top()->GetLabel()));	// 括り文字付きで渡してる
+			ReadFile(std::string(files.top()->GetLabel()));	// 括り文字付きで渡してる
 			continue;
 		}
 		if(token == TK_EOF){
@@ -43,7 +43,7 @@ Token	Scanner::PeekToken(void){
 			nIncludeNest++;
 			files.top()->GetToken();	// 次に進める
 			files.top()->GetToken();	// includeの次の"ファイル名"を取り出す
-			ReadFile(string(files.top()->GetLabel()));	// 括り文字付きで渡してる
+			ReadFile(std::string(files.top()->GetLabel()));	// 括り文字付きで渡してる
 			continue;
 		}
 		if(token == TK_EOF){
@@ -191,7 +191,7 @@ void	ScannerSub::Init(void){
 	nLine = 0;
 	lpPos	= linebuf;
 	bPeeked = false;
-    	vector<char> v1(linebuf, linebuf+sizeof(linebuf));
+	std::vector<char> v1(linebuf, linebuf+sizeof(linebuf));
 	fill(v1.begin(), v1.end(), '\0');
 }
 
@@ -207,9 +207,9 @@ void	ScannerSub::Error(LPSTR str){
 }
 
 #ifdef WINVC
-HRESULT ScannerSub::ReadFile(string& filename){
+HRESULT ScannerSub::ReadFile(std::string& filename){
 #else
-HRESULT ScannerSub::ReadFile(string filename){
+HRESULT ScannerSub::ReadFile(std::string filename){
 #endif
 	Init();
 	return Mdl.ReadFile(filename);

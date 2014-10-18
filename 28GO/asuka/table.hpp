@@ -6,15 +6,15 @@
 
 #pragma warning(disable:4786)
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <list>
 #include <map>
 #include <stack>
 
-using namespace std;
+
 
 #include "macro.hpp"
 #include "module.hpp"
@@ -42,7 +42,7 @@ class RegisterList{
 	  { name=n; type=t; size=s; bBase=b; bIndex=i; }
 };
 
-typedef map<string, RegisterList*> MaplpRegisterList;
+typedef std::map<std::string, RegisterList*> MaplpRegisterList;
 
 class Register{
 	MaplpRegisterList	mapregister;
@@ -51,9 +51,9 @@ class Register{
 	Register(void);
 	~Register();
 	
-	void			Add(const LPSTR key, RegisterList* r){ string k=key; mapregister[k]=r; }
+	void			Add(const LPSTR key, RegisterList* r){ std::string k=key; mapregister[k]=r; }
 	RegisterList*	Find(const LPSTR key){
-		string k = key;
+		std::string k = key;
 		MaplpRegisterList::iterator it = mapregister.find(k);
 		if(it == mapregister.end()) return NULL; else return it->second;
 	}
@@ -68,7 +68,7 @@ class StaticDataList{
 	LPSTR			lpInit;
 };
 
-typedef list<StaticDataList> ListStaticDataList;
+typedef std::list<StaticDataList> ListStaticDataList;
 
 class SegmentList{
   public:
@@ -92,7 +92,7 @@ class SegmentList{
 	void	AddStaticData(LPSTR varname, LabelList* label, LPSTR initialize);
 };
 
-typedef map<string, SegmentList*> MaplpSegmentList;
+typedef std::map<std::string, SegmentList*> MaplpSegmentList;
 
 class Segment{
   public:
@@ -101,9 +101,9 @@ class Segment{
 	Segment(void);
 	~Segment();
 	
-	void			Add(LPSTR key, SegmentList* s){ string k=key; mapsegment[k]=s; }
+	void			Add(LPSTR key, SegmentList* s){ std::string k=key; mapsegment[k]=s; }
 	SegmentList*	Find(LPSTR key){
-		string k = key;
+		std::string k = key;
 		MaplpSegmentList::iterator it = mapsegment.find(k);
 		if(it == mapsegment.end()) return NULL; else return it->second;
 	}
@@ -131,7 +131,7 @@ class MemberList{
 	MemberList&	operator=(MemberList& label);
 };
 
-typedef map<string, MemberList*> MaplpMemberList;
+typedef std::map<std::string, MemberList*> MaplpMemberList;
 
 // typedefやはじめからある型は"type"というメンバを見る。typedefならmember->type!=NULL
 class TagList{
@@ -145,13 +145,13 @@ class TagList{
 
 	void			AddMemberList(const LPSTR n, bool bs, TagList* t, Token pt, int pd, bool ba, int s);
 	MemberList*		FindMemberList(const LPSTR key){
-		string k = key;
+		std::string k = key;
 		MaplpMemberList::iterator it = mapmember.find(k);
 		if(it == mapmember.end()) return NULL; else return it->second;
 	}
 };
 
-typedef map<string, TagList*> MaplpTagList;
+typedef std::map<std::string, TagList*> MaplpTagList;
 
 class Tag{
 	MaplpTagList	maptag;
@@ -160,9 +160,9 @@ class Tag{
 	Tag(void);
 	~Tag();
 	
-	void			Add(const LPSTR key, TagList* t){ string k=key; maptag[k]=t; }
+	void			Add(const LPSTR key, TagList* t){ std::string k=key; maptag[k]=t; }
 	TagList*		Find(const LPSTR key){
-		string k = key;
+		std::string k = key;
 		MaplpTagList::iterator it = maptag.find(k);
 		if(it == maptag.end()) return NULL; else return it->second;
 	}
@@ -183,7 +183,7 @@ class Parameter{
 	RegisterList*	base;
 	RegisterList*	index;
 	int		scale;		// 1, 2, 4, 8
-	string		disp;
+	std::string		disp;
 	int		ndisp;		// ここはメンバ検索の時のオフセットのためにある
 	bool		bLabel;		// P_MEMでもLabelかどうか
 	bool		bSigned;	// 符号あり型かどうか
@@ -231,7 +231,7 @@ class LabelList{
 	LabelList&	operator=(LabelList& label);
 };
 
-typedef map<string, LabelList*> MaplpLabelList;
+typedef std::map<std::string, LabelList*> MaplpLabelList;
 
 class Label{
 	MaplpLabelList	maplabel;
@@ -241,9 +241,9 @@ class Label{
 	~Label(){ Clear(); }
 	
 	void			Clear(void);
-	void			Add(const LPSTR key, LabelList* l){ string k=key; maplabel[k]=l; }
+	void			Add(const LPSTR key, LabelList* l){ std::string k=key; maplabel[k]=l; }
 	LabelList*		Find(const LPSTR key){
-		string k = key;
+		std::string k = key;
 		MaplpLabelList::iterator it = maplabel.find(k);
 		if(it == maplabel.end()) return NULL; else return it->second;
 	}

@@ -121,7 +121,7 @@ HRESULT	Parser::LocalAddress(Parameter& param){
 // paramの中身は壊される
 HRESULT	Parser::Selector(Parameter& param, LabelList* label){
 	char	buf[256];
-	string	dummy;
+	std::string	dummy;
 	strcpy(buf, "");
 	param.bSigned=label->bSigned; param.type=label->type; param.ptype =label->ptype;
 	param.pdepth =label->pdepth;  param.size=label->size; param.bArray=label->bArray;
@@ -557,7 +557,7 @@ HRESULT	Parser::Pointer(Parameter& param){
 }
 
 HRESULT	Parser::GetParameter(Parameter& param){
-	string			dummy;
+	std::string			dummy;
 	char			*buf, *initialize;
 	SegmentList*	seg;
 	LabelList*		stlabel;
@@ -2425,9 +2425,9 @@ void	Parser::Error(const LPSTR str){
 }
 
 #ifdef WINVC
-HRESULT		Parser::Compile(string& filename){
+HRESULT		Parser::Compile(std::string& filename){
 #else
-HRESULT		Parser::Compile(string filename){
+HRESULT		Parser::Compile(std::string filename){
 #endif
 
 	filepath	path;
@@ -2437,9 +2437,9 @@ HRESULT		Parser::Compile(string filename){
 }
 
 #ifdef WINVC
-HRESULT		Parser::Compile(string& filename, string& outfilename){
+HRESULT		Parser::Compile(std::string& filename, std::string& outfilename){
 #else
-HRESULT		Parser::Compile(string filename, string outfilename){
+HRESULT		Parser::Compile(std::string filename, std::string outfilename){
 #endif
 
 	if(scanner.ReadFile(filename) != 0) return -1;

@@ -6,34 +6,30 @@
 
 #pragma warning(disable:4786)
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <string>
+#include <cstdio>
+#include <cstdlib>
 #include <list>
 #include <map>
 #include <stack>
-
-using namespace std;
 
 #include "stringx.hpp"
 
 class filepath{
   public:
-	string	drive;
-	string	path;
-	string	name;
-	string	extention;
+	std::string	drive;
+	std::string	path;
+	std::string	name;
+	std::string	extention;
 
-	void	set(string&);
-	void	set(char* s){ string t=s; set(t);}
-	filepath&	operator=(string& s){ set(s); return *this; }
+	void	set(std::string&);
+	void	set(char* s){ std::string t=s; set(t);}
+	filepath&	operator=(std::string& s){ set(s); return *this; }
 	filepath&	operator=(char* s){ set(s); return *this; }
-	string	operator()(){ return getfullname(); }
-			operator string(){ return getfullname(); }
-	string	getfullpath();
-	string	getfilename();
-	string	getfullname();
+	std::string	operator()(){ return getfullname(); }
+			operator std::string(){ return getfullname(); }
+	std::string	getfullpath();
+	std::string	getfilename();
+	std::string	getfullname();
 };
 
 #endif

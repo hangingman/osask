@@ -1,7 +1,7 @@
 #include "filepath.hpp"
 
-void	filepath::set(string& s){
-	string	tmp1, tmp2;
+void	filepath::set(std::string& s){
+	std::string	tmp1, tmp2;
 	stringx	strx;
 	int		n;
 	strx = s;
@@ -33,18 +33,18 @@ void	filepath::set(string& s){
 	}
 }
 
-string	filepath::getfullpath(){
+std::string	filepath::getfullpath(){
 	if(drive == "") return path;
 	else return drive+":"+path;
 }
 
-string	filepath::getfilename(){
+std::string	filepath::getfilename(){
 	if(extention == "") return name;
 	else return name+"."+extention;
 }
 
-string	filepath::getfullname(){
-	string tmp;
+std::string	filepath::getfullname(){
+	std::string tmp;
 	tmp = getfullpath();
 	if(tmp != ""){
 		tmp += "\\";

@@ -167,7 +167,7 @@ LabelList*	Generator::FindLabelList(LPSTR key){
 	return label;
 }
 
-void	Generator::BeginGenerate(string& outfilename, Scanner* s){
+void	Generator::BeginGenerate(std::string& outfilename, Scanner* s){
 	scanner=s;
 	OutFileName = outfilename;
 	OutFile.New();
@@ -204,7 +204,7 @@ void	Generator::OutputMASM(const LPSTR label, const LPSTR command, const LPSTR p
 		strcat(buf, "\t\t");
 		strcat(buf, comment);
 	}
-	OutFile.PutLine(string(buf)+"\n");
+	OutFile.PutLine(std::string(buf)+"\n");
 }
 
 void	Generator::Call(Token ptype, LPSTR func){
@@ -968,5 +968,5 @@ LPSTR	Generator::ConstString(LPSTR str){
 }
 
 void	Generator::Asmout(LPSTR buf){
-	OutFile.PutLine(string(buf)+"\n");
+	OutFile.PutLine(std::string(buf)+"\n");
 }

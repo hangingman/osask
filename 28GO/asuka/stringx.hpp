@@ -1,53 +1,50 @@
 /*
-	文字列操作クラス　〜stringx.h〜		Ver.[2000/02/11]
+  文字列操作クラス　〜stringx.h〜		Ver.[2000/02/11]
 */
 #ifndef	__STRINGX_H
 #define	__STRINGX_H
 
 #pragma warning(disable:4786)
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <ctype.h>
-#include <string>
 #include <list>
 #include <map>
 #include <stack>
+#include <string>
 
-using namespace std;
+class stringx {
 
+public:
+     typedef std::string::size_type size_type;
 
-
-class stringx{
-  public:
-	typedef	string::size_type	size_type;
-
-  protected:
-	string		str;
+protected:
+     std::string	str;
 
 // 文字列操作スタティックルーチン群
-  public:
-	static size_type	strlen(const char* s);
+public:
+     static size_type	strlen(const char* s);
 
-// string操作ルーチン群
-  public:
-	void		set(string s){ str=s; }
-	string		get(){ return str; }
-	stringx&	operator=(string& s){ set(s); return *this; }
-	stringx&	operator=(char* s){ set(s); return *this; }
-	string		operator()(){ return get(); }
-				operator string(){ return get(); }
+// std::string操作ルーチン群
+public:
+     void		set(std::string s){ str=s; }
+     std::string	get(){ return str; }
+     stringx&		operator=(std::string& s){ set(s); return *this; }
+     stringx&		operator=(char* s){ set(s); return *this; }
+     std::string	operator()(){ return get(); }
+     operator 		std::string(){ return get(); }
 	
-	string		substr(size_type pos, size_type n);
-	string		copy(size_type pos, size_type n){ return substr(pos, n); }
-	string		cut(size_type pos, size_type n);
-	string		left(size_type pos){ return substr(0, pos); }
-	string		right(size_type pos){ return substr(pos+1, str.size()-pos-1); }
-	string		tolower();
-	string		toupper();
-	size_type	lastdelimiter(const char* s);
-	long		tolong(){ return atol(str.c_str()); }
-	double		todouble(){ return atof(str.c_str()); }
+     std::string	substr(size_type pos, size_type n);
+     std::string	copy(size_type pos, size_type n){ return substr(pos, n); }
+     std::string	cut(size_type pos, size_type n);
+     std::string	left(size_type pos){ return substr(0, pos); }
+     std::string	right(size_type pos){ return substr(pos+1, str.size()-pos-1); }
+     std::string	tolower();
+     std::string	toupper();
+     size_type		lastdelimiter(const char* s);
+     long		tolong(){ return atol(str.c_str()); }
+     double		todouble(){ return atof(str.c_str()); }
 };
 
 #endif

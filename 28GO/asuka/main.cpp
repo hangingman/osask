@@ -10,9 +10,9 @@ int main(int argc, char* argv[]){
 	if(argc < 2){
 		usage();
 	}else if(argc < 3){
-		return (int) parser.Compile(string(argv[1]));
+		return (int) parser.Compile(std::string(argv[1]));
 	}else{
-		return (int) parser.Compile(string(argv[1]), string(argv[2]));
+		return (int) parser.Compile(std::string(argv[1]), std::string(argv[2]));
 	}
 	return 0;
 }

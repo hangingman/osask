@@ -47,11 +47,15 @@ SUFFIXES = .ask .html
 	$(ASKA) $*.ask $*.o
 .ask.o:
 	$(ASKA) $< $@
+
+# doc gen
 .texi.html:
 	$(MAKEINFO) --html $<
 
 html: $(html_docs)
 
-
+# doc clean
+clean-local:
+	rm -rf $(html_docs)
 
 

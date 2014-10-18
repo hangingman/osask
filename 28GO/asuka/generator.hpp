@@ -8,7 +8,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <string>
 #include <iostream>
 
 #include <string>
@@ -16,7 +16,7 @@
 #include <map>
 #include <stack>
 
-using namespace std;
+
 
 #include "macro.hpp"
 #include "module.hpp"
@@ -36,7 +36,7 @@ class Generator{
 	Label			GlobalData;
 	bool			bExistMain;			// ソースファイル内にmain()が出てきたらtrue
 
-	string			OutFileName;			// コードを出力するファイル名
+	std::string			OutFileName;			// コードを出力するファイル名
 	TextModule		OutFile;			// コード出力用ファイルモジュール
 	Scanner*		scanner;			// Scannerのポインタ（Error()で使う）
 	FILE*			lpLogFP;			// エラーメッセージ出力用FP
@@ -68,7 +68,7 @@ class Generator{
 	Generator();
 	~Generator(){}
 	
-	void			BeginGenerate(string& outfilename, Scanner* s);
+	void			BeginGenerate(std::string& outfilename, Scanner* s);
 	void			EndGenerate(void);
 
 	RegisterList*		FindRegisterList(const LPSTR key){ return RegisterData.Find(key); }
