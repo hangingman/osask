@@ -1,10 +1,8 @@
 /* copyright(C) 2008 H.Kawai (under KL-01). */
 
-#include <guigui01.h>
-#include <string.h>
-#include "go_lib.h"
-//#include <stdio.h>
-//#include <stdlib.h>
+#include <guigui01.hpp>
+#include <go_string.hpp>
+#include <go_lib.hpp>
 
 #define SIZ_STDOUT			(16 * 1024)
 #define SIZ_STDERR			(16 * 1024)
@@ -15,8 +13,6 @@
 #define	MAX_TMPSIZ		(4 * 1024 * 1024)
 #define	MAX_BINSIZ		(2 * 1024 * 1024)
 #define	MAX_LSTSIZ		(4 * 1024 * 1024)
-
-//typedef unsigned char UCHAR;
 
 #define	NL			"\n"
 
@@ -37,7 +33,6 @@ void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, size_t size, void *p);
 struct bss_alloc {
 	UCHAR _stdout[SIZ_STDOUT];
 	UCHAR _stderr[SIZ_STDERR];
-//	UCHAR syswrk[SIZ_SYSWRK];
 	UCHAR work[SIZ_WORK];
 	UCHAR work1[MAX_SRCSIZ + MAX_TMPSIZ + MAX_BINSIZ + MAX_LSTSIZ];
 	UCHAR cmdlin[64 * 1024];
@@ -59,7 +54,7 @@ void G01Main()
 
 	g01_setcmdlin(cmdusg);
 
-	bss0 = jg01_malloc(sizeof (struct bss_alloc));
+	bss0 = reinterpret_cast<struct bss_alloc*>(jg01_malloc(sizeof (struct bss_alloc)));
 
 	GO_stdout.p0 = GO_stdout.p = bss0->_stdout;
 	GO_stdout.p1 = GO_stdout.p0 + SIZ_STDOUT;
@@ -67,7 +62,6 @@ void G01Main()
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
 	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* わざと少し小さくしておく */
 	GO_stderr.dummy = ~0;
-//	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
 
 	GOL_retcode = main1(bss0->work1);
@@ -80,22 +74,42 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
 UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1);
 void *GO_memcpy(void *s, const void *ct, unsigned int n);
 
-void errmsgout(const UCHAR *s)
+void errmsgout(const char* s)
 {
-	int l =	strlen(s);
-	char flag = 0;
-	GO_FILE *stream = &GO_stderr;
-	if (l >= stream->p1 - stream->p) {
-		l = stream->p1 - stream->p;
-		flag++;
-	}
-	if (l > 0) {
-		memcpy(stream->p, s, l);
-		stream->p += l;
-	}
-	if (flag)
-		GOL_sysabort(3 /* GO_TERM_ERROVER */);
-	return;
+     size_t l = strlen(s);
+     char flag = 0;
+     GO_FILE *stream = &GO_stderr;
+     if (l >= stream->p1 - stream->p) {
+	  l = stream->p1 - stream->p;
+	  flag++;
+     }
+     if (l > 0) {
+	  memcpy(stream->p, s, l);
+	  stream->p += l;
+     }
+     if (flag)
+	  GOL_sysabort(3 /* GO_TERM_ERROVER */);
+
+     return;
+}
+
+void errmsgout(const UCHAR* s)
+{
+     size_t l = strlen(reinterpret_cast<const char*>(s));
+     char flag = 0;
+     GO_FILE *stream = &GO_stderr;
+     if (l >= stream->p1 - stream->p) {
+	  l = stream->p1 - stream->p;
+	  flag++;
+     }
+     if (l > 0) {
+	  memcpy(stream->p, s, l);
+	  stream->p += l;
+     }
+     if (flag)
+	  GOL_sysabort(3 /* GO_TERM_ERROVER */);
+
+     return;
 }
 
 int nask_errors = 0;
@@ -123,7 +137,6 @@ over_listbuf:
 
 	tmp1 = LL(list0, list1, tmp0, tmp0 + MAX_TMPSIZ);
 	if (tmp1 == NULL) {
-//over_tmpbuf:
 		errmsgout("NASK : TMPBUF is not enough" NL);
 		return 19;
 	}
@@ -168,27 +181,27 @@ over_listbuf:
 
 void GOL_sysabort(unsigned char termcode)
 {
-	static char *termmsg[] = {
-		"",
-		"[TERM_WORKOVER]\n",
-		"[TERM_OUTOVER]\n",
-		"[TERM_ERROVER]\n",
-		"[TERM_BUGTRAP]\n",
-		"[TERM_SYSRESOVER]\n",
-		"[TERM_ABORT]\n"
-	};
+     const static char *termmsg[] = {
+	  "",
+	  "[TERM_WORKOVER]\n",
+	  "[TERM_OUTOVER]\n",
+	  "[TERM_ERROVER]\n",
+	  "[TERM_BUGTRAP]\n",
+	  "[TERM_SYSRESOVER]\n",
+	  "[TERM_ABORT]\n"
+     };
 
-	GO_stderr.p1 += 128; /* 予備に取っておいた分を復活 */
-	/* バッファを出力 */
-	if (termcode <= 6)
-		errmsgout(termmsg[termcode]);
-	if (GO_stderr.p > GO_stderr.p0)
-		g01_putstr1(GO_stderr.p - GO_stderr.p0, GO_stderr.p0);
-	if (termcode == 0) {
-		if (GOL_retcode == 0)
-			g01_exit_success();
-		else
-			g01_exit_failure_int32(GOL_retcode);
-	}
-	g01_exit_failure_int32(1);
+     GO_stderr.p1 += 128; /* 予備に取っておいた分を復活 */
+     /* バッファを出力 */
+     if (termcode <= 6)
+	  errmsgout(termmsg[termcode]);
+     if (GO_stderr.p > GO_stderr.p0)
+	  g01_putstr1(GO_stderr.p - GO_stderr.p0, GO_stderr.p0);
+     if (termcode == 0) {
+	  if (GOL_retcode == 0)
+	       g01_exit_success();
+	  else
+	       g01_exit_failure_int32(GOL_retcode);
+     }
+     g01_exit_failure_int32(1);
 }

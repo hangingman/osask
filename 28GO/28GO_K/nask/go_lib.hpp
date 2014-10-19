@@ -9,7 +9,6 @@
 
 typedef unsigned char UCHAR;
 typedef unsigned int UINT;
-//typedef UINT size_t;
 
 #define GO_TERM_NORMAL		0
 #define GO_TERM_WORKOVER	1
@@ -22,8 +21,6 @@ typedef unsigned int UINT;
 #define	GO_LANG_C			0
 #define GO_LANG_C89			1
 #define GO_LANG_CPP			2
-
-#define	NULL			((void *) 0)
 
 typedef struct GOL_STR_FILE {
 	UINT size;

@@ -1,10 +1,7 @@
 /* copyright(C) 2008 H.Kawai (under KL-01). */
 
-//#include <stdio.h>
-
-typedef unsigned int size_t;
-
-#include "go_lib.h"
+#include <go_stdio.hpp>
+#include "go_lib.hpp"
 
 void *GOL_memmanalloc(struct GOL_STR_MEMMAN *p, size_t size)
 {
@@ -62,7 +59,7 @@ void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, size_t size, void *p)
 /* pは既に十分にアラインされていること */
 {
 	man->u.s.bytes = sizeof (struct GOL_STR_MEMMAN);
-	man->u.s.next = p;
+	man->u.s.next = reinterpret_cast<struct GOL_STR_MEMMAN*>(p);
 	((struct GOL_STR_MEMMAN *) p)->u.s.bytes = size;
 	((struct GOL_STR_MEMMAN *) p)->u.s.next = NULL;
 	return p;

@@ -1,19 +1,17 @@
 /* copyright(C) 2003 H.Kawai (under KL-01). */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <go_stdio.hpp>
+#include <go_stdlib.hpp>
 
-#define SIZ_STDOUT			(16 * 1024)
-#define SIZ_STDERR			(16 * 1024)
-#define SIZ_WORK			(8 * 1024 * 1024)
-#define SIZ_SYSWRK			(1024 * 1024)
+#define SIZ_STDOUT		(16 * 1024)
+#define SIZ_STDERR		(16 * 1024)
+#define SIZ_WORK		(8 * 1024 * 1024)
+#define SIZ_SYSWRK		(1024 * 1024)
 
 #define	MAX_SRCSIZ		(2 * 1024 * 1024)
 #define	MAX_TMPSIZ		(4 * 1024 * 1024)
 #define	MAX_BINSIZ		(2 * 1024 * 1024)
 #define	MAX_LSTSIZ		(4 * 1024 * 1024)
-
-typedef unsigned char UCHAR;
 
 #define	NL			"\n"
 

@@ -1,8 +1,5 @@
-#include <cstdio>  /* fopen, fclose, fread, fwrite, fseek, ftell, NULL */
-#include <cstdlib> /* exit */
-
-
-typedef unsigned char UCHAR;
+#include <go_stdio.hpp>  /* fopen, fclose, fread, fwrite, fseek, ftell, NULL */
+#include <go_stdlib.hpp> /* exit */
 
 extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 
