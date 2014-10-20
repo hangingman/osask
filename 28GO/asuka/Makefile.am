@@ -1,5 +1,8 @@
 AUTOMAKE_OPTIONS        = color-tests subdir-objects
 
+# include rules
+include $(top_builddir)/rules.mk
+
 #
 # binary & sources
 #
@@ -48,14 +51,8 @@ SUFFIXES = .ask .html
 .ask.o:
 	$(ASKA) $< $@
 
-# doc gen
-.texi.html:
-	$(MAKEINFO) --html $<
-
 doc: $(html_docs)
 
 # doc clean
 clean-local:
 	rm -rf $(html_docs)
-
-
