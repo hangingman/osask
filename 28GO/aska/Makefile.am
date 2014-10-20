@@ -6,9 +6,9 @@ include $(top_builddir)/rules.mk
 #
 # binary & sources
 #
-ASKA		 = $(top_builddir)/28GO/asuka/asuka
-bin_PROGRAMS     = asuka
-asuka_SOURCES    = filepath.cpp   \
+ASKA		 = $(top_builddir)/28GO/aska/aska
+bin_PROGRAMS     = aska
+aska_SOURCES     = filepath.cpp   \
 	           filepath.hpp	  \
 		   generator.cpp  \
 		   generator.hpp  \
@@ -38,7 +38,7 @@ helloworld_SOURCES	= helloworld.ask
 #
 # documents output directory
 #
-html_docs               = asuka-doc.html
+html_docs               = aska-doc.html
 
 #
 # suffix rules
