@@ -44,7 +44,16 @@
 # For generating documents
 #
 CSS_PATH = $(top_builddir)/misc/google-code-prettify/prettify.css
+JS_PATH  = $(top_builddir)/misc/google-code-prettify/prettify.js
 
 # doc gen
 %.html : %.texi
 	$(MAKEINFO) --html --css-include=$(CSS_PATH) $<
+	@for file in $(shell find $* -name *.html); do                             \
+	   echo "Replace css info at $${file}...";                                 \
+	   $(SED) -i 's/<pre class="example"/<pre class="prettyprint"/g' $${file}; \
+	   $(SED) -i 's/<\/head>/<script type=\"text\/javascript\" src=\"prettify.js\"><\/script>\n<\/head>/g' $${file}; \
+	   $(SED) -i 's/<body /<body onload=\"prettyPrint()\" /g' $${file}; \
+	done
+	@echo "Copying prettify.js..."
+	cp -f $(JS_PATH) $*/
