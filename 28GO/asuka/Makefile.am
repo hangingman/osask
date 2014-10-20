@@ -52,7 +52,7 @@ SUFFIXES = .ask .html
 .texi.html:
 	$(MAKEINFO) --html $<
 
-html: $(html_docs)
+doc: $(html_docs)
 
 # doc clean
 clean-local:
