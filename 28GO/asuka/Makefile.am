@@ -36,9 +36,9 @@ TESTS			= helloworld
 helloworld_SOURCES	= helloworld.ask
 
 #
-# documents
+# documents output directory
 #
-html_docs               = asuka.html
+html_docs               = asuka-doc.html
 
 #
 # suffix rules
