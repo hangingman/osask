@@ -13,4 +13,6 @@ ll.cpp
 
 nask_CXXFLAGS   = -I$(top_builddir)/28GO/28GO_K/include \
 		  -I$(top_builddir)/28GO/28GO_K/g01libc1/g01lib_h
-nask_LDADD	= ../drv_stdc/libdrvstdc.la ../go_lib/libgolib.la
+nask_LDADD	= ../drv_stdc/libdrvstdc.la \
+		  ../go_lib/libgolib.la     \
+		  ../drv_osa/libdrvosa.la

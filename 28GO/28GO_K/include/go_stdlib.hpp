@@ -40,7 +40,7 @@ int GO_system(const char *s);
 /* #define GO_getenv(name) (GOL_sysabort(GO_TERM_BUGTRAP), NULL) */
 #define GO_getenv(name) ((char *) NULL)
 
-void *GO_bsearch(const void *key, const void *base,
+const void *GO_bsearch(const void *key, const void *base,
 	size_t n, size_t size, 
 	int (*cmp)(const void *keyval, const void *datum));
 
