@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include "go_lib.hpp"
 
 const int nask_LABELBUFSIZ = 256 * 1024;
@@ -3463,13 +3464,31 @@ UCHAR *setinstruct(UCHAR *s, UCHAR *t, UCHAR *inst)
      return skipspace(s, t);
 }
 
-static const char* cpu_name[] = {
-     "8086", "80186", "80286", "80286p", "i386", "i386p", "i486", "i486p",      /* 0〜7  */
-     "Pentium", "PentiumPro", "PentiumMMX", "Pentium2", "Pentium3", "Pentium4", /* 8〜13 */
+
+static const UCHAR* cpu_name[] = {
+     (const UCHAR*) "8086", 
+     (const UCHAR*) "80186", 
+     (const UCHAR*) "80286", 
+     (const UCHAR*) "80286p", 
+     (const UCHAR*) "i386", 
+     (const UCHAR*) "i386p", 
+     (const UCHAR*) "i486", 
+     (const UCHAR*) "i486p",	/* 0〜7	 */
+     (const UCHAR*) "Pentium", 
+     (const UCHAR*) "PentiumPro", 
+     (const UCHAR*) "PentiumMMX", 
+     (const UCHAR*) "Pentium2", 
+     (const UCHAR*) "Pentium3", 
+     (const UCHAR*) "Pentium4", /* 8〜13 */
      NULL
 };
 
-static const char *format_type[] = { "BIN", "WCOFF", NULL };
+
+static const UCHAR* format_type[] = { 
+     (const UCHAR*) "BIN", 
+     (const UCHAR*) "WCOFF", 
+     NULL 
+};
 
 UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
 /* NASKの文法に基づき、一文を分解する */
@@ -3477,8 +3496,9 @@ UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
 {
      int i, j, k;
      struct INST_TABLE *itp;
-     UCHAR instruct[OPCLENMAX], *p, *q, c, cc;
-     char** pq;
+     UCHAR instruct[OPCLENMAX], c, cc;
+     const UCHAR **pq;
+     UCHAR *p, *q;
 
      decode->instr = NULL; /* 空行もしくは注釈行 */
      decode->error = 0;
@@ -3523,7 +3543,7 @@ setting:
 			      src = p;
 			      i = 0;
 			      do {
-				   q = *pq++;
+				   q = const_cast<UCHAR*>(*pq++);
 				   do {
 					if (p >= status->src1)
 					     goto next_cpu;
@@ -3784,7 +3804,7 @@ struct STR_TERM *decode_expr(UCHAR **ps, UCHAR *s1, struct STR_TERM *expr, int *
      int prio0 = 0, prio1, i, j, k;
      static char symbols[] = "\"'+-*/%&|^(){}[]<>,;:";
      static struct STR_OPELIST {
-	  char str[2], prio, num;
+	  char str[3], prio, num;
      } opelist0[] = {
 	  { "|>", 12, 18 }, { "&>", 12, 17 },
 	  { "<<", 12, 16 }, { ">>", 12, 17 },
@@ -5005,7 +5025,7 @@ fin:
 }
 
 static char mc98_typ[7] = { 0x01, 0x41, 0x02, 0x62, 0x04, 0x64, 0x61 };
-static int mc98_min[7] = { 0,    -128, 0,      -0x10000, 0x80000000, 0x80000000, -0x100 };
+static int mc98_min[7] = { 0,    -128, 0,      -0x10000, static_cast<int>(0x80000000), static_cast<int>(0x80000000), -0x100 };
 static int mc98_max[7] = { 0xff, 0x7f, 0xffff, 0xffff,   0x7fffffff, 0x7fffffff, 0xff   };
 
 int microcode94(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def)

@@ -1,8 +1,5 @@
-//#include "../include/stdlib.h"	/* malloc/free */
-
-typedef unsigned int size_t;
-
-#include "go_lib.h"
+#include "go_stdlib.hpp"
+#include "go_lib.hpp"
 
 #define DEBUG		0
 
