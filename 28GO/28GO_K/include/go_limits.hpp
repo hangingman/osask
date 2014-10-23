@@ -1,8 +1,7 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#if (!defined(LIMITS_H))
-
-#define LIMITS_H	1
+#ifndef GO_LIMITS_HPP_
+#define GO_LIMITS_HPP_
 
 #define CHAR_BIT	8
 #define	CHAR_MAX	(+127)
@@ -20,4 +19,4 @@
 #define ULONG_MAX	UINT_MAX
 #define USHRT_MAX	(+0xffff)
 
-#endif
+#endif /* GO_LIMITS_HPP */

@@ -3,14 +3,14 @@
 // 2002/02/04 by Gaku : this is rough sketch
 //*****************************************************************************
 
-#include <stddef.h>
+#include <go_string.hpp>
 
 //=============================================================================
 // return the length of D
 //=============================================================================
-size_t GO_strlen (char *d)
+size_t GO_strlen (const char *d)
 {
-	char *tmp = d;
+	const char *tmp = d;
 
 	while ('\0' != *d)
 		d++;

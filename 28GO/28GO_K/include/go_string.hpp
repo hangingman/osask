@@ -1,12 +1,7 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#if (!defined(STRING_H))
-
-#define STRING_H	1
-
-#if (defined(__cplusplus))
-	extern "C" {
-#endif
+#ifndef GO_STRING_HPP_
+#define GO_STRING_HPP_
 
 #include "go_lib.hpp"
 
@@ -35,7 +30,6 @@ char *GO_strdup(const char *s);
 #define	strncpy(s, ct, n)		GO_strncpy(s, ct, n)
 #define	strcat(s, ct)			GO_strcat(s, ct)
 #define	strncat(s, ct, n)		GO_strncat(s, ct, n)
-/* #define strcmp(cs, ct)			GO_strcmp(cs, ct) */
 #define strcmp					GO_strcmp
 #define strncmp(cs, ct, n)		GO_strncmp(cs, ct, n)
 #define strchr(cs, c)			GO_strchr(cs, c)
@@ -45,7 +39,7 @@ char *GO_strdup(const char *s);
 #define strpbrk(s, accept)		GO_strpbrk(s, accept)
 
 #define	strstr(cs, ct)			GO_strstr(cs, ct)
-#define strlen(cs)				GO_strlen(cs)
+#define strlen(cs)			GO_strlen(cs)
 
 #define memcpy(s, ct, n)		GO_memcpy(s, ct, n)
 #define memmove(s, ct, n)		GO_memmove(s, ct, n)
@@ -54,8 +48,4 @@ char *GO_strdup(const char *s);
 #define memset(s, c, n)			GO_memset(s, c, n)
 #define strdup(s)				GO_strdup(s)
 
-#if (defined(__cplusplus))
-	}
-#endif
-
-#endif
+#endif /* GO_STRING_HPP */

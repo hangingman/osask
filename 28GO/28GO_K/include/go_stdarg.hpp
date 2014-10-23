@@ -1,15 +1,9 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
+#ifndef GO_STDARG_HPP_
+#define GO_STDARG_HPP_
+
 #include <cstdarg>
-
-#if (!defined(STDARG_H)) & 1
-
-#define STDARG_H	1
-
-#if (defined(__cplusplus))
-	extern "C" {
-#endif
-
 #include "go_lib.hpp"
 
 #ifndef va_start
@@ -35,8 +29,4 @@
 
 #define	va_list			__builtin_va_list
 
-#if (defined(__cplusplus))
-	}
-#endif
-
-#endif
+#endif /* GO_STDARG_HPP */

@@ -1,15 +1,10 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#if (!defined(STDIO_H))
+#ifndef GO_STDIO_HPP_
+#define GO_STDIO_HPP_
 
-#define STDIO_H	1
-
-#if (defined(__cplusplus))
-	extern "C" {
-#endif
-
+#include <cstdarg>
 #include "go_lib.hpp"
-#include "stdarg.h"
 
 typedef struct GO_STR_FILE {
 	UCHAR *p0, *p1, *p;
@@ -47,23 +42,23 @@ int GO_printf(const char *format, ...);
 #define	sprintf						GO_sprintf
 #define	sscanf						GO_sscanf
 #define	FILE						GO_FILE
-#define fputs(s, stream)			GO_fputs(s, stream)
-#define	EOF							(-1)
-#define fread(ptr, size, nobj, stream)	GO_fread(ptr, size, nobj, stream)
-#define ferror(stream)				0	/* GO_ferror(stream) */
-#define fputc(c, stream)			GO_fputc(c, stream)
-#define vsprintf(s, format, arg)	GO_vsprintf(s, format, arg)
-#define putc(c, stream)				GO_fputc(c, stream)
-#define fwrite(ptr, size, nobj, stream)	GO_fwrite(ptr, size, nobj, stream)
-#define getc(stream)				GO_fgetc(stream)
-#define	ungetc(c, stream)			GO_ungetc(c, stream)
-#define fclose(stream)				GO_fclose(stream)
-#define fseek(stream, offset, origin)	GO_fseek(stream, offset, origin)
-#define ftell(stream)				GO_ftell(stream)
-#define fopen(filename, mode)		GO_fopen(filename, mode)
-#define vfprintf(stream, format, arg)	GO_vfprintf(stream, format, arg)
-#define feof(stream)				GO_feof(stream)
-#define fgets(s, n, stream)			GO_fgets(s, n, stream)
+#define fputs(s, stream)		        	GO_fputs(s, stream)
+#define	EOF				        	(-1)
+#define fread(ptr, size, nobj, stream)	       		GO_fread(ptr, size, nobj, stream)
+#define ferror(stream)			        	0	/* GO_ferror(stream) */
+#define fputc(c, stream)		        	GO_fputc(c, stream)
+#define vsprintf(s, format, arg)	       		GO_vsprintf(s, format, arg)
+#define putc(c, stream)			        	GO_fputc(c, stream)
+#define fwrite(ptr, size, nobj, stream)	       		GO_fwrite(ptr, size, nobj, stream)
+#define getc(stream)			        	GO_fgetc(stream)
+#define	ungetc(c, stream)		        	GO_ungetc(c, stream)
+#define fclose(stream)			        	GO_fclose(stream)
+#define fseek(stream, offset, origin)	       		GO_fseek(stream, offset, origin)
+#define ftell(stream)			        	GO_ftell(stream)
+#define fopen(filename, mode)		       		GO_fopen(filename, mode)
+#define vfprintf(stream, format, arg)	       		GO_vfprintf(stream, format, arg)
+#define feof(stream)			        	GO_feof(stream)
+#define fgets(s, n, stream)		        	GO_fgets(s, n, stream)
 #define fscanf						GO_fscanf
 #define printf						GO_printf
 #define fflush(fp)
@@ -73,8 +68,4 @@ int GO_printf(const char *format, ...);
 #define SEEK_END	2
 #define BUFSIZ		512
 
-#if (defined(__cplusplus))
-	}
-#endif
-
-#endif
+#endif /* GO_STDIO_HPP */

@@ -1,15 +1,12 @@
 /* copyright(C) 2002 H.Kawai (under KL-01). */
 
-#if (!defined(GO_LIB_H))
+#ifndef GO_LIB_HPP_
+#define GO_LIB_HPP_
 
-#define GO_LIB_H	1
-#if (defined(__cplusplus))
-extern "C" {
-#endif
-
-     typedef unsigned char UCHAR;
-     typedef unsigned int  UINT;
 #include <stddef.h>   /* size_t */
+
+typedef unsigned char UCHAR;
+typedef unsigned int  UINT;
 
 #define GO_TERM_NORMAL		0
 #define GO_TERM_WORKOVER	1
@@ -115,8 +112,4 @@ extern "C" {
 
 #undef	_ATTRIB_NORETURN
 
-#if (defined(__cplusplus))
-}
-#endif
-
-#endif
+#endif /* GO_LIB_HPP */
