@@ -4,6 +4,11 @@
 #include <go_string.hpp>
 #include <go_lib.hpp>
 
+namespace osask_nask {
+  UCHAR *GOL_work0;
+  int GOL_retcode;
+}
+
 #define SIZ_STDOUT			(16 * 1024)
 #define SIZ_STDERR			(16 * 1024)
 #define SIZ_WORK			(8 * 1024 * 1024)
@@ -23,9 +28,6 @@ typedef struct GO_STR_FILE {
 
 GO_FILE GO_stdin, GO_stdout, GO_stderr;
 struct GOL_STR_MEMMAN GOL_memman /* , GOL_sysman */;
-int GOL_retcode;
-
-UCHAR *GOL_work0;
 int main1(UCHAR *src0);
 void GOL_sysabort(unsigned char termcode);
 void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, size_t size, void *p);
@@ -62,9 +64,9 @@ void G01Main()
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
 	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* わざと少し小さくしておく */
 	GO_stderr.dummy = ~0;
-	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
+	GOL_memmaninit(&GOL_memman, SIZ_WORK, osask_nask::GOL_work0 = bss0->work);
 
-	GOL_retcode = main1(bss0->work1);
+	osask_nask::GOL_retcode = main1(bss0->work1);
 	/* バッファを出力 */
 	GOL_sysabort(0);
 }
@@ -177,31 +179,4 @@ over_listbuf:
 	}
 
 	return 0;
-}
-
-void GOL_sysabort(unsigned char termcode)
-{
-     const static char *termmsg[] = {
-	  "",
-	  "[TERM_WORKOVER]\n",
-	  "[TERM_OUTOVER]\n",
-	  "[TERM_ERROVER]\n",
-	  "[TERM_BUGTRAP]\n",
-	  "[TERM_SYSRESOVER]\n",
-	  "[TERM_ABORT]\n"
-     };
-
-     GO_stderr.p1 += 128; /* 予備に取っておいた分を復活 */
-     /* バッファを出力 */
-     if (termcode <= 6)
-	  errmsgout(termmsg[termcode]);
-     if (GO_stderr.p > GO_stderr.p0)
-	  g01_putstr1(GO_stderr.p - GO_stderr.p0, GO_stderr.p0);
-     if (termcode == 0) {
-	  if (GOL_retcode == 0)
-	       g01_exit_success();
-	  else
-	       g01_exit_failure_int32(GOL_retcode);
-     }
-     g01_exit_failure_int32(1);
 }
