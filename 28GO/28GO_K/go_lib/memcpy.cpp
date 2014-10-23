@@ -8,7 +8,7 @@
 //=============================================================================
 // copy SZ bytes of S to D
 //=============================================================================
-void* GO_memcpy (void *d, void *s, size_t sz)
+void* GO_memcpy (void *d, const void *s, size_t sz)
 {
 	void *tmp = d;
 	char *dp = (char*)d;
