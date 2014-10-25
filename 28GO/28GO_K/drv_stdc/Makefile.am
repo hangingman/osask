@@ -4,6 +4,7 @@ libdrvstdc_la_SOURCES	= \
 cc1main.cpp		  \
 cc1pmain.cpp		  \
 cpp0main.cpp		  \
-drv_stdc.cpp
+drv_stdc.cpp		  \
+others.cpp
 
 AM_CXXFLAGS		= -I$(top_builddir)/28GO/28GO_K/include
