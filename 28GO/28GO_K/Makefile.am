@@ -11,11 +11,8 @@ GUIGUI_DEP_MODULES = \
 	  mtek2org   \
 	  bim2g01    \
 	  obj2bim    \
-	  sjisconv   \
-	  golib00    \
 	  osalink1   \
 	  rjcg01     \
-	  gas2nask   \
 	  makefont   \
 	  tekmin0    \
 	  tekmin1    \
@@ -36,17 +33,20 @@ ASKA_DEP_MODULES =   \
 # Below modules must be built first
 #
 NASK_MODULES =       \
-	  nask       \
-	  akusA	     \
-	  naskcnv0
+          gas2nask   \
+	  naskcnv0   \
+          sjisconv   \
+	  golib00    \
+	  golibc     \
+	  nask
 
 #
 # Build module list
 #
-SUBDIRS = go_lib                \
+SUBDIRS = $(NASK_MODULES)       \
+	  go_lib                \
 	  drv_osa               \
 	  drv_stdc              \
-	  $(NASK_MODULES)       \
 	  drv_w32               \
 	  $(ASKA_DEP_MODULES)   \
 	  $(GUIGUI_DEP_MODULES)

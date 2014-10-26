@@ -90,11 +90,6 @@ AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero         \
 # Below files add later...
 #
 
-# GCC is not yet build...
-# 28GO/28GO_G/gcc/Makefile
-# 28GO/28GO_G/intl/Makefile
-# 28GO/28GO_G/libiberty/Makefile
-
 # osask is not yet build
 # OSASK/Makefile
 # OSASK/bochs/Makefile
@@ -116,6 +111,12 @@ AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero         \
 # 28GO/bim2bin/dtk5s0r/Makefile
 
 AC_CONFIG_FILES([28GO/28GO_K/Makefile
+                 28GO/aska/Makefile
+                 28GO/28GO_K/gas2nask/Makefile
+                 28GO/28GO_K/naskcnv0/Makefile
+                 28GO/28GO_K/sjisconv/Makefile
+                 28GO/28GO_K/golib00/Makefile
+                 28GO/28GO_K/golibc/Makefile
                  28GO/28GO_K/nask/Makefile
                  28GO/28GO_K/akusA/Makefile
                  28GO/28GO_K/bim2g01/Makefile
@@ -130,24 +131,18 @@ AC_CONFIG_FILES([28GO/28GO_K/Makefile
                  28GO/28GO_K/drv_w32/Makefile
                  28GO/28GO_K/g01libc0/Makefile
                  28GO/28GO_K/g01libc1/Makefile
-                 28GO/28GO_K/gas2nask/Makefile
                  28GO/28GO_K/gg00libc/Makefile
                  28GO/28GO_K/go_lib/Makefile
-                 28GO/28GO_K/golib00/Makefile
-                 28GO/28GO_K/golibc/Makefile
                  28GO/28GO_K/hrblib0a/Makefile
                  28GO/28GO_K/imgtol/Makefile
                  28GO/28GO_K/makefont/Makefile
                  28GO/28GO_K/mtek2org/Makefile
-                 28GO/28GO_K/naskcnv0/Makefile
                  28GO/28GO_K/obj2bim/Makefile
                  28GO/28GO_K/osalink1/Makefile
                  28GO/28GO_K/rjcg01/Makefile
-                 28GO/28GO_K/sjisconv/Makefile
                  28GO/28GO_K/tekmin0/Makefile
                  28GO/28GO_K/tekmin1/Makefile
                  28GO/28GO_K/w32clibc/Makefile
-                 28GO/aska/Makefile
                  28GO/Makefile
                  28GO/bim2bin/Makefile
                  28GO/edimg/Makefile
