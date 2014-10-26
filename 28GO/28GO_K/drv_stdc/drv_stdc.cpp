@@ -6,6 +6,7 @@ extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 #include "go_lib.hpp"
 #include "others.hpp"
 #include "wfile_t.cpp"
+#include "others.cpp"
 #include "../funcs/cc1sub.cpp"
 
 void GOL_sysabort(UCHAR termcode)
