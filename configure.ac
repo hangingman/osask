@@ -19,8 +19,7 @@ AC_PROG_CPP
 
 # Checks for header files.
 AC_FUNC_ALLOCA
-AC_CHECK_HEADERS([langinfo.h libintl.h limits.h locale.h malloc.h stddef.h \
-		  stdlib.h string.h unistd.h utime.h wchar.h wctype.h])
+AC_CHECK_HEADERS([limits.h malloc.h stddef.h stdlib.h string.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL
@@ -72,22 +71,37 @@ case "$host" in
 esac
 
 # Checks for library functions.
-AC_FUNC_ERROR_AT_LINE
-AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
 AC_FUNC_MALLOC
-AC_FUNC_MBRTOWC
-AC_FUNC_MKTIME
-AC_FUNC_MMAP
 AC_FUNC_REALLOC
-AC_FUNC_STRTOD
-AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero         \
-		getcwd getpagesize memchr memmove mempcpy memset munmap	      \
-		nl_langinfo re_comp regcomp setenv setlocale sqrt stpcpy      \
-		strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk \
-		strrchr strspn strstr strtol strtoul tzset utime])
+
+# Generate base Makefile
+AC_CONFIG_FILES([Makefile])
 
 #
-# Below files add later...
+# Generate 20GO Makefiles
+#
+AC_CONFIG_FILES([20GO/Makefile
+                 20GO/toolstdc/Makefile])
+dnl              20GO/gcc/Makefile
+dnl              20GO/go_lib/Makefile
+dnl              20GO/intl/Makefile
+dnl              20GO/libiberty/Makefile
+dnl              20GO/drv_stdc/Makefile
+dnl		 20GO/nasklib/Makefile
+dnl		 20GO/w32clibc/Makefile])
+
+#
+# 28GO support, default is disable
+#
+AC_ARG_ENABLE([28go],
+    AS_HELP_STRING([--enable-28go], 
+    		   [Enable feature latest go tools]))
+    AS_IF([test "x$enable_28go" = "xyes"], 
+    	  [AC_DEFINE(USE_OSASK_28GO, 1, [when building feature latest go tools])
+])
+
+#
+# 28GO is difficult to build, below files add later...
 #
 
 # osask is not yet build
@@ -109,6 +123,8 @@ AC_CHECK_FUNCS([__argz_count __argz_next __argz_stringify btowc bzero         \
 # 28GO/bim2bin/dtk5f0r/Makefile
 # 28GO/bim2bin/dtk5s0d/Makefile
 # 28GO/bim2bin/dtk5s0r/Makefile
+
+if test "x$enable_28go" = "xyes"; then
 
 AC_CONFIG_FILES([28GO/28GO_K/Makefile
                  28GO/aska/Makefile
@@ -146,6 +162,7 @@ AC_CONFIG_FILES([28GO/28GO_K/Makefile
                  28GO/Makefile
                  28GO/bim2bin/Makefile
                  28GO/edimg/Makefile
-                 Makefile
 		 ])
+fi
+
 AC_OUTPUT
