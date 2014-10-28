@@ -13,59 +13,59 @@ static UCHAR *memtemp0, *memtemp1;
 static int mt_size0 = 0, mt_size1 = 0;
 
 struct STR_CC1MAIN {
-	UCHAR *cmdlin; /* '\0'偱廔傢傞 */
-	UCHAR *outname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *dest0, *dest1; /* 弌椡僼傽僀儖(dest0偼彂偒姺偊傜傟傞) */
-	UCHAR *err0, *err1; /* 僐儞僜乕儖儊僢僙乕僕(err0偼彂偒姺偊傜傟傞) */
+	UCHAR *cmdlin; /* '\0'で姜わる */
+	UCHAR *outname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *dest0, *dest1; /* 叫蜗ファイル(dest0は今き垂えられる) */
+	UCHAR *err0, *err1; /* コンソ〖ルメッセ〖ジ(err0は今き垂えられる) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
 
 struct STR_GAS2NASK {
-	UCHAR *cmdlin; /* '\0'偱廔傢傞 */
-	UCHAR *outname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *dest0, *dest1; /* 弌椡僼傽僀儖(dest0偼彂偒姺偊傜傟傞) */
-	UCHAR *err0, *err1; /* 僐儞僜乕儖儊僢僙乕僕(err0偼彂偒姺偊傜傟傞) */
+	UCHAR *cmdlin; /* '\0'で姜わる */
+	UCHAR *outname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *dest0, *dest1; /* 叫蜗ファイル(dest0は今き垂えられる) */
+	UCHAR *err0, *err1; /* コンソ〖ルメッセ〖ジ(err0は今き垂えられる) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
 
 struct STR_NASKMAIN {
-	UCHAR *cmdlin; /* '\0'偱廔傢傞 */
-	UCHAR *outname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *listname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *dest0, *dest1; /* 弌椡僼傽僀儖(dest0偼彂偒姺偊傜傟傞) */
-	UCHAR *list0, *list1; /* 弌椡僼傽僀儖(list0偼彂偒姺偊傜傟傞) */
-	UCHAR *err0, *err1; /* 僐儞僜乕儖儊僢僙乕僕(err0偼彂偒姺偊傜傟傞) */
+	UCHAR *cmdlin; /* '\0'で姜わる */
+	UCHAR *outname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *listname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *dest0, *dest1; /* 叫蜗ファイル(dest0は今き垂えられる) */
+	UCHAR *list0, *list1; /* 叫蜗ファイル(list0は今き垂えられる) */
+	UCHAR *err0, *err1; /* コンソ〖ルメッセ〖ジ(err0は今き垂えられる) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
 
 struct STR_OBJ2BIM {
-	UCHAR *cmdlin; /* '\0'偱廔傢傞 */
-	UCHAR *outname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *mapname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *dest0, *dest1; /* 弌椡僼傽僀儖(dest0偼彂偒姺偊傜傟傞) */
-	UCHAR *map0, *map1; /* 弌椡僼傽僀儖(map0偼彂偒姺偊傜傟傞) */
-	UCHAR *err0, *err1; /* 僐儞僜乕儖儊僢僙乕僕(err0偼彂偒姺偊傜傟傞) */
+	UCHAR *cmdlin; /* '\0'で姜わる */
+	UCHAR *outname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *mapname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *dest0, *dest1; /* 叫蜗ファイル(dest0は今き垂えられる) */
+	UCHAR *map0, *map1; /* 叫蜗ファイル(map0は今き垂えられる) */
+	UCHAR *err0, *err1; /* コンソ〖ルメッセ〖ジ(err0は今き垂えられる) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
 
 struct STR_BIM2BIN {
-	UCHAR *cmdlin; /* '\0'偱廔傢傞 */
-	UCHAR *outname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *dest0, *dest1; /* 弌椡僼傽僀儖(dest0偼彂偒姺偊傜傟傞) */
-	UCHAR *err0, *err1; /* 僐儞僜乕儖儊僢僙乕僕(err0偼彂偒姺偊傜傟傞) */
+	UCHAR *cmdlin; /* '\0'で姜わる */
+	UCHAR *outname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *dest0, *dest1; /* 叫蜗ファイル(dest0は今き垂えられる) */
+	UCHAR *err0, *err1; /* コンソ〖ルメッセ〖ジ(err0は今き垂えられる) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
 
-struct STR_SJISCONV { /* STR_GAS2NASK偲僐儞僷僠 */
-	UCHAR *cmdlin; /* '\0'偱廔傢傞 */
-	UCHAR *outname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *dest0, *dest1; /* 弌椡僼傽僀儖(dest0偼彂偒姺偊傜傟傞) */
-	UCHAR *err0, *err1; /* 僐儞僜乕儖儊僢僙乕僕(err0偼彂偒姺偊傜傟傞) */
+struct STR_SJISCONV { /* STR_GAS2NASKとコンパチ */
+	UCHAR *cmdlin; /* '\0'で姜わる */
+	UCHAR *outname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *dest0, *dest1; /* 叫蜗ファイル(dest0は今き垂えられる) */
+	UCHAR *err0, *err1; /* コンソ〖ルメッセ〖ジ(err0は今き垂えられる) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
@@ -118,32 +118,32 @@ void OsaskMain()
 	struct LIB_TEXTBOX *wintitle;
 	struct CONSOLE *stdout;
 
-	/* 儔僀僽儔儕偺弶婜壔(昁偢嵟弶偵傗傜側偗傟偽側傜側偄) */
+	/* ライブラリの介袋步(涩ず呵介にやらなければならない) */
 	lib_init(AUTO_MALLOC);
 
-	/* 僔僌僫儖儃僢僋僗弶婜壔 */
+	/* シグナルボックス介袋步 */
     sig_ptr = signalbox0 = lib_opensignalbox(256, AUTO_MALLOC, 0, REWIND_CODE);
 
-	/* 僂傿儞僪僂偺僆乕僾儞 */
+	/* ウィンドウのオ〖プン */
 	window = lib_openwindow(AUTO_MALLOC, 0x0200, 480, 240);
 	wintitle = lib_opentextbox(0x1000, AUTO_MALLOC, 0, 7, 1, 0, 0, window, 0x00c0, 0);
 
-	/* 僐儞僜乕儖偺僆乕僾儞 */
+	/* コンソ〖ルのオ〖プン */
 	stdin = stdout = copen(60, 15, window, 0,  0, 0, 15);
 
-	/* 僂傿儞僪僂僞僀僩儖側偳傪昞帵 */
+	/* ウィンドウタイトルなどを山绩 */
 	lib_putstring_ASCII(0x0000, 0, 0, wintitle,  0, 0, "osaskgo");
 
-	/* 僔僌僫儖掕媊 */
-	lib_definesignal1p0(0x7e - 0x20, 0x0100, 0x20, window, 128 + 0x20); /* ASCII僉儍儔僋僞乕擖椡 */
-	lib_definesignal1p0(0, 0x0100, 0xa0, window, 128 + '\n'); /* Enter擖椡 */
-	lib_definesignal1p0(0, 0x0100, 0xa1, window, 128 + '\b'); /* Backspace擖椡 */
+	/* シグナル年盗 */
+	lib_definesignal1p0(0x7e - 0x20, 0x0100, 0x20, window, 128 + 0x20); /* ASCIIキャラクタ〖掐蜗 */
+	lib_definesignal1p0(0, 0x0100, 0xa0, window, 128 + '\n'); /* Enter掐蜗 */
+	lib_definesignal1p0(0, 0x0100, 0xa1, window, 128 + '\b'); /* Backspace掐蜗 */
 	lib_definesignal0p0(0, 0, 0, 0);
 
 	memtemp0 = malloc(SIZ_MEMTEMP);
 	memtemp1 = malloc(SIZ_MEMTEMP);
 
-	/* 儊僀儞儖乕僾 */
+	/* メインル〖プ */
 	for (;;) {
 		int i, j;
 		UCHAR *p, *fp0, c;
@@ -171,9 +171,9 @@ void OsaskMain()
 			continue;
 		}
 		if (i == -1) {
-			/* 僐儅儞僪偑尒晅偐傜側偄 */
-			/* p傪僼傽僀儖柤偵曄姺偟偰僶僢僠僼傽僀儖偲偟偰僆乕僾儞 */
-			/* 偦偟偰堦峴偢偮execute偡傞 */
+			/* コマンドが斧烧からない */
+			/* pをファイル叹に恃垂してバッチファイルとしてオ〖プン */
+			/* そして办乖ずつexecuteする */
 			i = osamap(p, 0x210, 4096, fp0 + 516 * 1024, 0, 5 /* ReadOnly */);
 			if (i == -1) {
 				cputs("[ERROR : fail to open batch.]\n", stdout);
@@ -181,7 +181,7 @@ void OsaskMain()
 			}
 			p = fp0 + 516 * 1024;
 
-			/* i:僼傽僀儖僒僀僘, p:僼傽僀儖億僀儞僞 */
+			/* i:ファイルサイズ, p:ファイルポインタ */
 			while (i) {
 				if (*p <= ' ') {
 					i--;
@@ -201,7 +201,7 @@ void OsaskMain()
 						break;
 					cmdlinbuf0[j++] = c;
 					if (j > sizeof cmdlinbuf0 - 3) {
-						/* 僐儅儞僪儔僀儞偑挿偡偓傞 */
+						/* コマンドラインが墓すぎる */
 						do {
 							if (i == 0)
 								break;
@@ -296,7 +296,7 @@ int execute(UCHAR *p, struct CONSOLE *cons)
 				err = 1;
 			}
 		}
-		free(s); /* outname偑偁傞偺偱偙偺僞僀儈儞僌偱free偡傞 */
+		free(s); /* outnameがあるのでこのタイミングでfreeする */
 		free(q);
 put_termcode:
 		if (1 <= i && i <= 6)
@@ -330,7 +330,7 @@ put_termcode:
 				err = 1;
 			}
 		}
-		free(s); /* outname偑偁傞偺偱偙偺僞僀儈儞僌偱free偡傞 */
+		free(s); /* outnameがあるのでこのタイミングでfreeする */
 		free(q);
 		goto put_termcode;
 	}
@@ -370,7 +370,7 @@ put_termcode:
 				}
 			}
 		}
-		free(s); /* outname偑偁傞偺偱偙偺僞僀儈儞僌偱free偡傞 */
+		free(s); /* outnameがあるのでこのタイミングでfreeする */
 		free(t);
 		goto put_termcode;
 	}
@@ -408,7 +408,7 @@ put_termcode:
 			}
 		}
 		free(t);
-		free(s); /* outname偑偁傞偺偱偙偺僞僀儈儞僌偱free偡傞 */
+		free(s); /* outnameがあるのでこのタイミングでfreeする */
 		goto put_termcode;
 	}
 
@@ -434,7 +434,7 @@ put_termcode:
 				err = 1;
 			}
 		}
-		free(s); /* outname偑偁傞偺偱偙偺僞僀儈儞僌偱free偡傞 */
+		free(s); /* outnameがあるのでこのタイミングでfreeする */
 		free(q);
 		goto put_termcode;
 	}
@@ -464,7 +464,7 @@ put_termcode:
 				err = 1;
 			}
 		}
-		free(s); /* outname偑偁傞偺偱偙偺僞僀儈儞僌偱free偡傞 */
+		free(s); /* outnameがあるのでこのタイミングでfreeする */
 		free(q);
 		goto put_termcode;
 	}
@@ -513,13 +513,13 @@ int osaopen(UCHAR *f, int slot, int opt)
 	int sig;
 
 	setosaname(f);
-	lib_initmodulehandle0(0x0008, slot); /* user-dir偵弶婜壔 */
+	lib_initmodulehandle0(0x0008, slot); /* user-dirに介袋步 */
 	lib_steppath0(opt, slot, osaname, 16 /* sig */);
 
 	do {
 		sig = getsignalw();
 		if (128 <= sig && sig <= 255) {
-			/* 僐儞僜乕儖傊偺擖椡 */
+			/* コンソ〖ルへの掐蜗 */
 			cons_keyin(stdin, sig - 128);
 		}
 	} while (sig < 16 || 32 <= sig);
@@ -601,7 +601,7 @@ err:
 	do {
 		i = getsignalw();
 		if (128 <= i && i <= 255) {
-			/* 僐儞僜乕儖傊偺擖椡 */
+			/* コンソ〖ルへの掐蜗 */
 			cons_keyin(stdin, i - 128);
 		}
 	} while (i < 16 || 32 <= i);
@@ -619,7 +619,7 @@ skip:
 		*fp++ = buf[i];
 	}
 	lib_unmapmodule(0, 512 * 1024, lib_readCSd(0x0010));
-	lib_initmodulehandle0(0x0008, 0x220); /* user-dir偵弶婜壔 */
+	lib_initmodulehandle0(0x0008, 0x220); /* user-dirに介袋步 */
 
 	return 0;
 }
@@ -648,12 +648,12 @@ int osaoutb(UCHAR *f, int size, UCHAR *buf)
 err:
 		return -1;
 	}
-	/* -osacmp懳嶔  堦搙僼傽僀儖僒僀僘傪0偵偡傞 */
+	/* -osacmp滦忽  办刨ファイルサイズを0にする */
 	lib_resizemodule(0, 0x0220, 0, 16);
 	do {
 		i = getsignalw();
 		if (128 <= i && i <= 255) {
-			/* 僐儞僜乕儖傊偺擖椡 */
+			/* コンソ〖ルへの掐蜗 */
 			cons_keyin(stdin, i - 128);
 		}
 	} while (i < 16 || 32 <= i);
@@ -661,12 +661,12 @@ err:
 		goto err;
 	if (lib_readmodulesize(0x220) != 0)
 		goto err;
-	/* 埲崀偼捠忢 */
+	/* 笆惯は奶撅 */
 	lib_resizemodule(0, 0x0220, size, 16);
 	do {
 		i = getsignalw();
 		if (128 <= i && i <= 255) {
-			/* 僐儞僜乕儖傊偺擖椡 */
+			/* コンソ〖ルへの掐蜗 */
 			cons_keyin(stdin, i - 128);
 		}
 	} while (i < 16 || 32 <= i);
@@ -680,37 +680,37 @@ skip:
 		*fp++ = buf[i];
 	}
 	lib_unmapmodule(0, 512 * 1024, lib_readCSd(0x0010));
-	lib_initmodulehandle0(0x0008, 0x220); /* user-dir偵弶婜壔 */
+	lib_initmodulehandle0(0x0008, 0x220); /* user-dirに介袋步 */
 
 	return 0;
 }
 
 static int getsignalw()
-/* 0偑曉偝傟偨傜丄僔僌僫儖側偟 */
+/* 0が手されたら、シグナルなし */
 {
     int signal;
 	lib_waitsignal(0x0001, 0, 0);
 	if (*sig_ptr == REWIND_CODE) {
-		/* REWIND僔僌僫儖傪庴偗庢偭偨 */
-		/* 捈屻偺抣偺暘偩偗僔僌僫儖傪張棟偟偨偙偲偵偟偰丄億僀儞僞傪愭摢偵栠偡 */
+		/* REWINDシグナルを减け艰った */
+		/* 木稿の猛の尸だけシグナルを借妄したことにして、ポインタを黎片に提す */
 		lib_waitsignal(0x0000, *(sig_ptr + 1), 0);
 		sig_ptr = signalbox0;
 	}
 	signal = *sig_ptr++;
-	/* 侾僔僌僫儖庴偗庢偭偨偙偲傪儔僀僽儔儕偵捠抦 */
+	/* １シグナル减け艰ったことをライブラリに奶梦 */
 	lib_waitsignal(0x0000, 1, 0);
 	return signal;
 }
 
 void waitready(struct CONSOLE *cons)
-/* 擖椡偑姰椆偡傞偺傪懸偮 */
+/* 掐蜗が窗位するのを略つ */
 {
 	if (!cons_readyinput(cons)) {
 		cons_cursoron(cons);
 		do {
 			int sig = getsignalw();
 			if (128 <= sig && sig <= 255) {
-				/* 僐儞僜乕儖傊偺擖椡 */
+				/* コンソ〖ルへの掐蜗 */
 				cons_keyin(cons, sig - 128);
 			}
 		} while (!cons_readyinput(cons));
@@ -720,16 +720,16 @@ void waitready(struct CONSOLE *cons)
 }
 
 
-/* 娙堈僐儞僜乕儖儔僀僽儔儕 ver.0.0 */
+/* 词白コンソ〖ルライブラリ ver.0.0 */
 
-/* 偙偙偐傜壓偼丄暿僜乕僗偵傢偗偰儔僀僽儔儕壔偟偨曽偑傛偄偩傠偆丅 */
-/* 偟偐偟暘妱僐儞僷僀儖偵偮偄偰愢柧傪彂偔偺偑柺搢側偺偱丄
-	偙偙偱偼暘偗偢偵彂偄偨丅 */
+/* ここから布は、侍ソ〖スにわけてライブラリ步した数がよいだろう。 */
+/* しかし尸充コンパイルについて棱汤を今くのが烫泡なので、
+	ここでは尸けずに今いた。 */
 
 #define	CONS_IBUFSIZ	1024
 #define	CONS_EBUFSIZ	  64
 
-#if 0 /* lmt偑2偺傋偒偱側偔偰傕巊偊傞儅僋儘 */
+#if 0 /* lmtが2のべきでなくても蝗えるマクロ */
 
 	#define	CONS_MACRO_INCPTR(ptr, lmt)	\
 		if (++ptr == lmt) ptr = 0
@@ -739,7 +739,7 @@ void waitready(struct CONSOLE *cons)
 
 #endif
 
-#if 1 /* lmt偑2偺傋偒偺帪偩偗巊偊傞儅僋儘 */
+#if 1 /* lmtが2のべきの箕だけ蝗えるマクロ */
 
 	#define	CONS_MACRO_INCPTR(ptr, lmt)		ptr = (ptr + 1) & (lmt - 1)
 	#define	CONS_MACRO_DECPTR(ptr, lmt)		ptr = (ptr - 1) & (lmt - 1)
@@ -748,7 +748,7 @@ void waitready(struct CONSOLE *cons)
 
 struct CONSOLE *copen(const int x_size, const int y_size,
 	struct LIB_WINDOW *window, const int x0, const int y0, const int color, const int backcolor)
-/* 僐儞僜乕儖弶婜壔 */
+/* コンソ〖ル介袋步 */
 {
 	struct CONSOLE *cons = (struct CONSOLE *) malloc(sizeof (struct CONSOLE));
 	int i, j;
@@ -790,7 +790,7 @@ void cons_sub_erasecursor(struct CONSOLE *cons)
 }
 
 void cons_sub_scroll(struct CONSOLE *cons)
-/* 僗僋儘乕儖 */
+/* スクロ〖ル */
 {
 	char *s, *d;
 	int i, j, xsiz1 = cons->x_size + 1;
@@ -806,7 +806,7 @@ void cons_sub_scroll(struct CONSOLE *cons)
 }
 
 void cputc(int c, struct CONSOLE *cons)
-/* 僐儞僜乕儖堦暥帤弌椡 */
+/* コンソ〖ル办矢机叫蜗 */
 {
 	if (c == '\r')
 		goto skip;
@@ -835,10 +835,10 @@ skip:
 	return;
 }
 
-#if 0 /* 僐儞僷僋僩斉 */
+#if 0 /* コンパクト惹 */
 
 void cputs(const unsigned char *str, struct CONSOLE *cons)
-/* 僐儞僜乕儖僗僩儕儞僌弌椡 */
+/* コンソ〖ルストリング叫蜗 */
 {
 	while (*str)
 		cputc(cons, (int) *str++);
@@ -847,10 +847,10 @@ void cputs(const unsigned char *str, struct CONSOLE *cons)
 
 #endif
 
-#if 1 /* 崅懍斉 */
+#if 1 /* 光庐惹 */
 
 void cputs(const unsigned char *str, struct CONSOLE *cons)
-/* 僐儞僜乕儖僗僩儕儞僌弌椡 */
+/* コンソ〖ルストリング叫蜗 */
 {
 	unsigned char c;
 
@@ -900,13 +900,13 @@ void cputs(const unsigned char *str, struct CONSOLE *cons)
 #endif
 
 void cons_cursoron(struct CONSOLE *cons)
-/* 僇乕僜儖昞帵ON */
+/* カ〖ソル山绩ON */
 {
 	cons->curflag = 1;
 	cons_sub_putcursor(cons);
 
 	while (cons->ebuf_wptr != cons->ebuf_rptr) {
-		/* 僇乕僜儖旕昞帵拞偺擖椡傪僄僐乕僶僢僋 */
+		/* カ〖ソル润山绩面の掐蜗をエコ〖バック */
 		cons_keyin(cons, cons->echo_buf[cons->ebuf_rptr]);
 		CONS_MACRO_INCPTR(cons->ebuf_rptr, CONS_EBUFSIZ);
 	}
@@ -915,7 +915,7 @@ void cons_cursoron(struct CONSOLE *cons)
 }
 
 void cons_cursoroff(struct CONSOLE *cons)
-/* 僇乕僜儖昞帵OFF */
+/* カ〖ソル山绩OFF */
 {
 	cons->curflag = 0;
 	cons_sub_erasecursor(cons);
@@ -923,11 +923,11 @@ void cons_cursoroff(struct CONSOLE *cons)
 }
 
 const int cons_keyin(struct CONSOLE *cons, int c)
-/* 僐儞僜乕儖傊偺堦暥帤擖椡 */
-/* 擖椡偑僶僢僼傽偵擖傜側偐偭偨応崌偼丄旕楇傪曉偡 */
+/* コンソ〖ルへの办矢机掐蜗 */
+/* 掐蜗がバッファに掐らなかった眷圭は、润雾を手す */
 {
 	if (cons->curflag) {
-		/* 僇乕僜儖昞帵拞 */
+		/* カ〖ソル山绩面 */
 		int wp = cons->ibuf_wptr;
 		if (c == '\b' /* back space */) {
 			if (wp != cons->ibuf_rptr && cons->input_buf[wp - 1] != '\n'
@@ -957,7 +957,7 @@ const int cons_keyin(struct CONSOLE *cons, int c)
 			}
 		}
 	} else {
-		/* 僇乕僜儖旕昞帵拞 */
+		/* カ〖ソル润山绩面 */
 		int wp = cons->ebuf_wptr;
 		CONS_MACRO_INCPTR(wp, CONS_EBUFSIZ);
 		if (wp != cons->ebuf_rptr) {
@@ -971,13 +971,13 @@ const int cons_keyin(struct CONSOLE *cons, int c)
 }
 
 const int cons_readycgetc(struct CONSOLE *cons)
-/* input_buf偑嬻偱側偗傟偽旕楇傪曉偡 */
+/* input_bufが鄂でなければ润雾を手す */
 {
 	return cons->ibuf_wptr != cons->ibuf_rptr;
 }
 
 const int cons_readycgets(struct CONSOLE *cons)
-/* inbut_buf偵'\n'偑娷傑傟偰偄傟偽旕楇傪曉偡 */
+/* inbut_bufに'\n'が崔まれていれば润雾を手す */
 {
 	int r = cons->ibuf_rptr;
 	while (r != cons->ibuf_wptr) {
@@ -990,7 +990,7 @@ const int cons_readycgets(struct CONSOLE *cons)
 }
 
 const int cgetc(struct CONSOLE *cons)
-/* 僐儞僜乕儖偐傜偺堦暥帤擖椡 */
+/* コンソ〖ルからの办矢机掐蜗 */
 {
 	int c;
 	if (cons->ibuf_wptr == cons->ibuf_rptr)
@@ -1001,7 +1001,7 @@ const int cgetc(struct CONSOLE *cons)
 }
 
 void cgets(unsigned char *str, int n, struct CONSOLE *cons)
-/* 僐儞僜乕儖偐傜偺堦峴擖椡 */
+/* コンソ〖ルからの办乖掐蜗 */
 {
 	int rp = cons->ibuf_rptr;
 	n--;
@@ -1027,7 +1027,7 @@ const int cungetc(const int c, struct CONSOLE *cons)
 	return c;
 }
 
-/* GOL_sysabort偲偐偼丄cc1main.c偺傎偆偵偁傞 */
+/* GOL_sysabortとかは、cc1main.cのほうにある */
 
 #define	NL			"\r\n"
 #define	LEN_NL		2

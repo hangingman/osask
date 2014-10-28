@@ -3,7 +3,7 @@
 
 	usage : >gas2nask [-a] input-file output-file
 
-	-a:.text‚Ìbalign2‚ğíœ
+	-a:.text¤Îbalign2¤òºï½ü
 */
 
 #include "../include/string.h"		/* strlen, strstr, strchr */
@@ -25,10 +25,10 @@ struct STR_FLAGS {
 };
 
 struct STR_GAS2NASK {
-	UCHAR *cmdlin; /* '\0'‚ÅI‚í‚é */
-	UCHAR *outname; /* '\0'‚ÅI‚í‚é, work‚Ì‚Ç‚±‚©‚Ö‚Ìƒ|ƒCƒ“ƒ^ */
-	UCHAR *dest0, *dest1; /* o—Íƒtƒ@ƒCƒ‹(dest0‚Í‘‚«Š·‚¦‚ç‚ê‚é) */
-	UCHAR *err0, *err1; /* ƒRƒ“ƒ\[ƒ‹ƒƒbƒZ[ƒW(err0‚Í‘‚«Š·‚¦‚ç‚ê‚é) */
+	UCHAR *cmdlin; /* '\0'¤Ç½ª¤ï¤ë */
+	UCHAR *outname; /* '\0'¤Ç½ª¤ï¤ë, work¤Î¤É¤³¤«¤Ø¤Î¥İ¥¤¥ó¥¿ */
+	UCHAR *dest0, *dest1; /* ½ĞÎÏ¥Õ¥¡¥¤¥ë(dest0¤Ï½ñ¤­´¹¤¨¤é¤ì¤ë) */
+	UCHAR *err0, *err1; /* ¥³¥ó¥½¡¼¥ë¥á¥Ã¥»¡¼¥¸(err0¤Ï½ñ¤­´¹¤¨¤é¤ì¤ë) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
@@ -88,7 +88,7 @@ int gas2nask_main(struct STR_GAS2NASK *params)
 					while ('0' <= *p0 && *p0 <= '9')
 						p0++;
 					flags.opt[j] = p0 - param_p[j];
-					p0--; /* Ÿ‚Ìƒ‹[ƒv‚Ì‚½‚ß */
+					p0--; /* ¼¡¤Î¥ë¡¼¥×¤Î¤¿¤á */
 				}
 				if (*p0 == 'b') {
 					j = FLAG_b;

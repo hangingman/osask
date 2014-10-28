@@ -76,8 +76,8 @@ void GOL_sysabort(UCHAR termcode)
 		"[TERM_SYSRESOVER]\n",
 		"[TERM_ABORT]\n"
 	};
-	GO_stderr.p1 += 128; /* —\”õ‚Éæ‚Á‚Ä‚¨‚¢‚½•ª‚ğ•œŠˆ */
-	/* ƒoƒbƒtƒ@‚ğo—Í */
+	GO_stderr.p1 += 128; /* Í½È÷¤Ë¼è¤Ã¤Æ¤ª¤¤¤¿Ê¬¤òÉü³è */
+	/* ¥Ğ¥Ã¥Õ¥¡¤ò½ĞÎÏ */
 	if (writefile(GOL_outname, GO_stdout.p0, GO_stdout.p)) {
 		GO_fputs("GOL_sysabort:output error!\n", &GO_stderr);
 		termcode = 6;

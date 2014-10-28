@@ -38,7 +38,7 @@ UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR
 		if (p == src0)
 			break;
 		if (p - src0 > (int) (sizeof linebuf0) - 1) {
-			/* ’·‚·‚¬‚é...ˆ—‚É¢‚é‚Ì‚Å‚Æ‚è‚ ‚¦‚¸‘f’Ê‚è‚·‚é */
+			/* Ä¹¤¹¤®¤ë...½èÍı¤Ëº¤¤ë¤Î¤Ç¤È¤ê¤¢¤¨¤ºÁÇÄÌ¤ê¤¹¤ë */
 			output(p - src0, src0);
 			src0 = p;
 			continue;
@@ -49,18 +49,18 @@ UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR
 		} while (src0 < p);
 		*q = '\0';
 		if (strchr(linebuf, '\"'))
-			goto output; // •ÏŠ·‚µ‚È‚¢
+			goto output; // ÊÑ´¹¤·¤Ê¤¤
 
-		// •¶’†‚Éu"v‚ª–³‚©‚Á‚½‚Ì‚ÅA‰“—¶‚È‚­•ÏŠ·
+		// Ê¸Ãæ¤Ë¡Ö"¡×¤¬Ìµ¤«¤Ã¤¿¤Î¤Ç¡¢±óÎ¸¤Ê¤¯ÊÑ´¹
 
-		// segment•¶ŒŸo
+		// segmentÊ¸¸¡½Ğ
 		if (cwordsrch(linebuf, "SEGMENT")) {
 			output(15 + LEN_NL, cwordsrch(linebuf, "CODE")
 				? "[SECTION .text]" NL : "[SECTION .data]" NL);
 			continue;
 		}
 
-		// proc•¶ŒŸo
+		// procÊ¸¸¡½Ğ
 		if (p = cwordsrch(linebuf, "PROC")) {
 			farproc = (cwordsrch(p, "FAR") != NULL);
 			for (p = linebuf; *p <= ' '; p++);
@@ -75,15 +75,15 @@ UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR
 				p[2] = '\n';
 				p[3] = '\0';
 			#endif
-		//	goto output; // ‘¼‚Ì•ÏŠ·‚Í‚à‚¤‚µ‚È‚¢
+		//	goto output; // Â¾¤ÎÊÑ´¹¤Ï¤â¤¦¤·¤Ê¤¤
 		}
 
 		for (i = 0; ERASELIST[i]; i++) {
 			if (cwordsrch(linebuf, ERASELIST[i]))
-				goto noout; // ˆêØo—Í‚µ‚È‚¢
+				goto noout; // °ìÀÚ½ĞÎÏ¤·¤Ê¤¤
 		}
 
-		// ret•¶ŒŸo
+		// retÊ¸¸¡½Ğ
 		if (p = cwordsrch(linebuf, "RET")) {
 			p += 3;
 			for (q = p; *q; q++);
@@ -97,17 +97,17 @@ UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR
 			p[ 0] = farproc ? 'F' : 'N';
 		}
 
-		// ƒ[ƒJƒ‹ƒ‰ƒxƒ‹•ÏŠ·
+		// ¥í¡¼¥«¥ë¥é¥Ù¥ëÊÑ´¹
 		while (p = strchr(linebuf, '#')) {
 			*p = '.';
 		}
 
-		// LEA•¶ŒŸo
+		// LEAÊ¸¸¡½Ğ
 		if (p = cwordsrch(linebuf, "LEA"))
 			cnv_lea(p);
 
-		/* ŠÈˆÕ”»’è•û–@‚Åƒpƒ‰ƒ[ƒ^‚ğŒŸo */
-		/* EÅŒã‚É":"‚ª•t‚¢‚Ä‚¢‚éƒj[ƒ‚ƒjƒbƒN‚Íƒ‰ƒxƒ‹éŒ¾‚Æ‰ğß */
+		/* ´Ê°×È½ÄêÊıË¡¤Ç¥Ñ¥é¥á¡¼¥¿¤ò¸¡½Ğ */
+		/* ¡¦ºÇ¸å¤Ë":"¤¬ÉÕ¤¤¤Æ¤¤¤ë¥Ë¡¼¥â¥Ë¥Ã¥¯¤Ï¥é¥Ù¥ëÀë¸À¤È²ò¼á */
 		p = linebuf;
 		do {
 			while (*p != '\0' && *p <= ' ')
@@ -139,17 +139,17 @@ UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR
 			}
 		}
 
-		// ptrÁ‹
+		// ptr¾Ãµî
 		while (p = cwordsrch(linebuf, "PTR")) {
 			p[0] = p[1] = p[2] = ' ';
 		}
 
-		// offsetÁ‹
+		// offset¾Ãµî
 		while (p = cwordsrch(linebuf, "OFFSET")) {
 			p[0] = p[1] = p[2] = p[3] = p[4] = p[5] = ' ';
 		}
 
-		// dword, word, byteÁ‹ (‘å•¶š‚Íc‚·)
+		// dword, word, byte¾Ãµî (ÂçÊ¸»ú¤Ï»Ä¤¹)
 		if (flags.opt[FLAG_S] != 0 && strchr(linebuf, '[') == NULL) {
 			while (p = wordsrch(linebuf, "dword")) {
 				p[0] = ' ';
@@ -172,18 +172,18 @@ noout:
 }
 
 void cnv_lea(char *p)
-// LEA•¶ŒŸo
+// LEAÊ¸¸¡½Ğ
 {
 	char *q;
 
-	// LEA•¶‚©‚çƒZƒOƒƒ“ƒgƒI[ƒo[ƒ‰ƒCƒhƒvƒŠƒtƒBƒNƒX‚ğæ‚èœ‚­
+	// LEAÊ¸¤«¤é¥»¥°¥á¥ó¥È¥ª¡¼¥Ğ¡¼¥é¥¤¥É¥×¥ê¥Õ¥£¥¯¥¹¤ò¼è¤ê½ü¤¯
 	if ((q = strstr(p + 3, "S:[")) || (q = strstr(p + 3, "s:["))) {
 		q[-1] = ' '; // 'E', 'C', 'S', 'D', 'F', or 'G'
 		q[ 0] = ' '; // 'S'
 		q[ 1] = ' '; // ':'
 	}
 
-	// LEA•¶‚ÅA’è”MOV‚É•ÏŠ·‰Â”\‚È‚ç•ÏŠ·‚·‚é
+	// LEAÊ¸¤Ç¡¢Äê¿ôMOV¤ËÊÑ´¹²ÄÇ½¤Ê¤éÊÑ´¹¤¹¤ë
 	if (leaopt && (q = strchr(p + 3, '['))) {
 		char *q0 = q++;
 		do {
@@ -207,7 +207,7 @@ void cnv_lea(char *p)
 		}
 	}
 
-	// LEA•¶’†‚ÌudwordvAuwordvAubytev‚ÌÁ‹
+	// LEAÊ¸Ãæ¤Î¡Ödword¡×¡¢¡Öword¡×¡¢¡Öbyte¡×¤Î¾Ãµî
 	if (q = cwordsrch(p, "DWORD")) {
 		q[4] = ' ';
 		goto LEA_space4;
@@ -225,22 +225,22 @@ LEA_space4:
 }
 
 char *wordsrch(char *s, const char *t)
-// s‚Ì’†‚Ét‚ª‚ ‚é‚©‚Ç‚¤‚©‚ğ’²‚×‚é
-// strstr‚Æ‚Ìˆá‚¢‚ÍAwordsrch‚ª’PŒê’PˆÊ‚ÅŒŸõ‚·‚é‚±‚Æ‚Å‚ ‚é
+// s¤ÎÃæ¤Ët¤¬¤¢¤ë¤«¤É¤¦¤«¤òÄ´¤Ù¤ë
+// strstr¤È¤Î°ã¤¤¤Ï¡¢wordsrch¤¬Ã±¸ìÃ±°Ì¤Ç¸¡º÷¤¹¤ë¤³¤È¤Ç¤¢¤ë
 {
 	char *p = s, c;
 	int l = strlen(t);
 
 	for (p = s; p = strstr(p, t); p += l) {
 
-		// ’PŒê‚Ì¶‚ÍŒê‚ÌØ‚ê–Ú‚©H
+		// Ã±¸ì¤Îº¸¤Ï¸ì¤ÎÀÚ¤ìÌÜ¤«¡©
 		if (p > s) {
 			c = p[-1];
 			if (c > ' ' && c != ',')
 				continue;
 		}
 
-		// ’PŒê‚Ì‰E‚ÍŒê‚ÌØ‚ê–Ú‚©H
+		// Ã±¸ì¤Î±¦¤Ï¸ì¤ÎÀÚ¤ìÌÜ¤«¡©
 		c = p[l];
 		if (c <= ' ' || c == ',')
 			return p;
@@ -255,7 +255,7 @@ unsigned char tolower(unsigned char c)
 }
 
 char *cwordsrch(char *s, const char *c)
-// ‘å•¶š‚ğw’è‚·‚ê‚Î¬•¶š‚Å‚à’T‚·
+// ÂçÊ¸»ú¤ò»ØÄê¤¹¤ì¤Ğ¾®Ê¸»ú¤Ç¤âÃµ¤¹
 {
 	char *r, *p, l[100];
 

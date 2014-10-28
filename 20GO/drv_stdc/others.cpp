@@ -1,18 +1,18 @@
 /* for stdc */
 
-//	void GOLD_exit(int s);		/* ПIЧ╣В╖Вщ */
-int GOLD_getsize(const UCHAR *name); /* ГtГ@ГCГЛГTГCГYОцУ╛ */
+//	void GOLD_exit(int s);		/* ╜к╬╗д╣ды */
+int GOLD_getsize(const UCHAR *name); /* е╒ебедеые╡еде║╝ш╞└ */
 int GOLD_read(const UCHAR *name, int len, UCHAR *b0);
-	/* ГtГ@ГCГЛУ╟В▌НЮВ▌БAГoГCГiГКГВБ[ГhБA
-		ГTГCГYВЁМ─В╤ПoВ╡СдВ┼Т╝СOВ╔ГtГ@ГCГЛГ`ГFГbГNВ╡В─ВвВ─БA
-		ГtГ@ГCГЛГTГCГYВ╥В┴В╜ВшВЁЧvЛБВ╡В─ВнВщ */
+	/* е╒ебедеы╞╔д▀╣■д▀бве╨еде╩еъетб╝е╔бв
+		е╡еде║дЄ╕╞д╙╜╨д╖┬жд╟─╛┴░д╦е╒ебедеые┴езе├епд╖д╞ддд╞бв
+		е╒ебедеые╡еде║д╘д├д┐дъдЄ═╫╡сд╖д╞дпды */
 
 #if (defined(USE_SYS_STAT_H))
 
 #include <sys/stat.h>
 
 int GOLD_getsize(const UCHAR *name)
-/* ГtГ@ГCГЛГTГCГYОцУ╛ */
+/* е╒ебедеые╡еде║╝ш╞└ */
 {
 	FILE *fp;
 	struct stat st;

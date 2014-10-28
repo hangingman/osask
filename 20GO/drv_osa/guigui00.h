@@ -2,7 +2,7 @@
 #define __GUIGUI00_H
 
 /* gg00lib+ ver.0.8 */
-/* gg00lib9傪儀乕僗偵偟偰偄傞 */
+/* gg00lib9をベ〖スにしている */
 
 struct LIB_WORK {
 	int data[256 / 4];
@@ -46,8 +46,8 @@ int lib_execcmd1(int ret, int cmd, ...);
 void *malloc(const unsigned int nbytes);
 
 #if 0
-	/* 埲壓偺娭悢偼儅僋儘偱幚尰偝傟偰偄傞(崅懍壔偲僐儞僷僋僩壔偺偨傔) */
-	/* 堷悢偺宆側偳偑暘偐傝傗偡偄傛偆偵丄娭悢宆愰尵傪拹庍偲偟偰巆偟偰偁傞 */
+	/* 笆布の簇眶はマクロで悸附されている(光庐步とコンパクト步のため) */
+	/* 苞眶の房などが尸かりやすいように、簇眶房离咐を灭坚として荒してある */
 
 struct LIB_WORK *lib_init(struct LIB_WORK *work);
 void lib_init_nm(struct LIB_WORK *work);
@@ -423,7 +423,7 @@ void lib_settimertime2(int opt, int slot0, int slot1, unsigned int *time);
 	(void *) (tbox), (int) (col), (int) (bcol), (int) (base), (int) (len), \
 	(void *) (str), (int) 0x000c, 0x0000)
 
-/* <guigui00.h>夵椙寁夋偺偨傔偺捛婰 */
+/* <guigui00.h>猖紊纷茶のための纳淡 */
 
 #define lib_openwintitle(size, window) \
     lib_opentextbox(0x1000, 0, 0, size, 1, 0, 0, window, 0x00c0, 0)

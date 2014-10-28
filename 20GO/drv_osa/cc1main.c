@@ -15,10 +15,10 @@ UCHAR **ConvCmdLine1(int *pargc, UCHAR *p);
 void osaunmap();
 
 struct STR_CC1MAIN {
-	UCHAR *cmdlin; /* '\0'偱廔傢傞 */
-	UCHAR *outname; /* '\0'偱廔傢傞, work偺偳偙偐傊偺億僀儞僞 */
-	UCHAR *dest0, *dest1; /* 弌椡僼傽僀儖(dest0偼彂偒姺偊傜傟傞) */
-	UCHAR *err0, *err1; /* 僐儞僜乕儖儊僢僙乕僕(err0偼彂偒姺偊傜傟傞) */
+	UCHAR *cmdlin; /* '\0'で姜わる */
+	UCHAR *outname; /* '\0'で姜わる, workのどこかへのポインタ */
+	UCHAR *dest0, *dest1; /* 叫蜗ファイル(dest0は今き垂えられる) */
+	UCHAR *err0, *err1; /* コンソ〖ルメッセ〖ジ(err0は今き垂えられる) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
@@ -38,7 +38,7 @@ int cc1main(struct STR_CC1MAIN *str_cc1main)
 	GO_stderr.p1 = str_cc1main->err1;
 	GO_stderr.dummy = ~0;
 
-	/* 懡廳幚峴慾巭 (static傪嵞弶婜壔偡傟偽偱偒傞偑) */
+	/* 驴脚悸乖了贿 (staticを浩介袋步すればできるが) */
 //	if (execflag)
 //		return 7;
 //	execflag = 1;

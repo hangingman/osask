@@ -1,8 +1,8 @@
 /* "golib00.c":golib00wを標準ライブラリ仕様にしたもの */
 /* copyright(C) 2003 川合秀実  KL-01 */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 typedef unsigned char UCHAR;
 
@@ -37,17 +37,16 @@ struct str_works {
 	int flags;
 };
 
-static void cmdline0(UCHAR *s0, UCHAR *s1, struct str_works *work);
+static void cmdline0(char *s0, char *s1, struct str_works *work);
 static void libout(struct str_works *work);
-unsigned int GO_strlen(const UCHAR *s);
+unsigned int GO_strlen(const char* s);
 
-#include "../drv_stdc/others.h"
+#include "../drv_stdc/others.hpp"
 
-int main(int argc, UCHAR **argv)
+int main(int argc, char** argv)
 {
 	struct stack_alloc *pwork;
 	struct str_works works;
-	UCHAR *p0;
 	int i;
 
 	pwork = (struct stack_alloc *) malloc(sizeof (struct stack_alloc));
@@ -63,7 +62,7 @@ int main(int argc, UCHAR **argv)
 	works.flags = 0;
 
 	for (i = 1; i < argc; i++) {
-		p0 = argv[i];
+		char* p0 = argv[i];
 		cmdline0(p0, p0 + GO_strlen(p0), &works);
 	}
 	libout(&works);
@@ -71,8 +70,8 @@ int main(int argc, UCHAR **argv)
 	return 0;
 }
 
-#include "../drv_stdc/msgout_c.c"
-#include "../drv_stdc/wfile_b.c"
-#include "../drv_stdc/wfile_t.c"
-#include "../funcs/gostrlen.c"
-#include "../funcs/m_golib.c"
+#include "../drv_stdc/msgout_c.cpp"
+#include "../drv_stdc/wfile_b.cpp"
+#include "../drv_stdc/wfile_t.cpp"
+#include "../funcs/gostrlen.cpp"
+#include "../funcs/m_golib.cpp"

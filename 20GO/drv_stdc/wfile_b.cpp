@@ -1,7 +1,7 @@
 /* for stdc */
 
 int GOLD_write_b(const UCHAR *name, int len, const UCHAR *p0)
-/* バイナリモードでファイルに出力 */
+/* ･ﾐ･､･ﾊ･�･筍ｼ･ﾉ､ﾇ･ﾕ･｡･､･�､ﾋｽﾐﾎﾏ */
 {
 	int ll = 0;
 	FILE *fp;

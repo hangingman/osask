@@ -10,7 +10,7 @@ typedef struct _OVERLAPPED {
 } OVERLAPPED;
 
 typedef struct _STARTUPINFO {
-	DWORD cb; /* \‘¢‘Ì‚Ì‘å‚«‚³(=68) */
+	DWORD cb; /* ¹½Â¤ÂÎ¤ÎÂç¤­¤µ(=68) */
 	char *lpReserved;
 	char *lpDesktop, *lpTitle;
 	DWORD dwX, dwY;

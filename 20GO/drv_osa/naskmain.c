@@ -13,12 +13,12 @@ extern int GOL_abortcode;
 extern jmp_buf setjmp_env;
 
 struct STR_NASKMAIN {
-	UCHAR *cmdlin; /* '\0'‚ÅI‚í‚é */
-	UCHAR *outname; /* '\0'‚ÅI‚í‚é, work‚Ì‚Ç‚±‚©‚Ö‚Ìƒ|ƒCƒ“ƒ^ */
-	UCHAR *listname; /* '\0'‚ÅI‚í‚é, work‚Ì‚Ç‚±‚©‚Ö‚Ìƒ|ƒCƒ“ƒ^ */
-	UCHAR *dest0, *dest1; /* o—Íƒtƒ@ƒCƒ‹(dest0‚Í‘‚«Š·‚¦‚ç‚ê‚é) */
-	UCHAR *list0, *list1; /* o—Íƒtƒ@ƒCƒ‹(list0‚Í‘‚«Š·‚¦‚ç‚ê‚é) */
-	UCHAR *err0, *err1; /* ƒRƒ“ƒ\[ƒ‹ƒƒbƒZ[ƒW(err0‚Í‘‚«Š·‚¦‚ç‚ê‚é) */
+	UCHAR *cmdlin; /* '\0'¤Ç½ª¤ï¤ë */
+	UCHAR *outname; /* '\0'¤Ç½ª¤ï¤ë, work¤Î¤É¤³¤«¤Ø¤Î¥İ¥¤¥ó¥¿ */
+	UCHAR *listname; /* '\0'¤Ç½ª¤ï¤ë, work¤Î¤É¤³¤«¤Ø¤Î¥İ¥¤¥ó¥¿ */
+	UCHAR *dest0, *dest1; /* ½ĞÎÏ¥Õ¥¡¥¤¥ë(dest0¤Ï½ñ¤­´¹¤¨¤é¤ì¤ë) */
+	UCHAR *list0, *list1; /* ½ĞÎÏ¥Õ¥¡¥¤¥ë(list0¤Ï½ñ¤­´¹¤¨¤é¤ì¤ë) */
+	UCHAR *err0, *err1; /* ¥³¥ó¥½¡¼¥ë¥á¥Ã¥»¡¼¥¸(err0¤Ï½ñ¤­´¹¤¨¤é¤ì¤ë) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
@@ -41,19 +41,19 @@ int naskmain(struct STR_NASKMAIN *params)
 	UCHAR **argv, *tmp0;
 	UCHAR **argv1, **p;
 	GO_stdout.p0 = GO_stdout.p = params->err0;
-	GO_stdout.p1 = GO_stdout.p0; /* stdout‚Í‚È‚¢ */
+	GO_stdout.p1 = GO_stdout.p0; /* stdout¤Ï¤Ê¤¤ */
 	GO_stdout.dummy = ~0;
 	GO_stderr.p0 = GO_stderr.p = params->err0;
 	GO_stderr.p1 = params->err1;
 	GO_stderr.dummy = ~0;
 
-	/* ‘½dÀs‘j~ (static‚ğÄ‰Šú‰»‚·‚ê‚Î‚Å‚«‚é‚ª) */
+	/* Â¿½Å¼Â¹ÔÁË»ß (static¤òºÆ½é´ü²½¤¹¤ì¤Ğ¤Ç¤­¤ë¤¬) */
 //	if (execflag)
 //		return 7;
 //	execflag = 1;
 
-	nask_LABELBUFSIZ = 64 * 1024; /* ƒ‰ƒxƒ‹•¶š—ñ‚Ì‡Œv */
-	nask_L_LABEL0 = 1024; /* extern‚Í1000ŒÂ‚Ù‚Ç */
+	nask_LABELBUFSIZ = 64 * 1024; /* ¥é¥Ù¥ëÊ¸»úÎó¤Î¹ç·× */
+	nask_L_LABEL0 = 1024; /* extern¤Ï1000¸Ä¤Û¤É */
 	nask_maxlabels = 4 * 1024; /* 88*4k */
 
 	if (setjmp(setjmp_env)) {
@@ -69,7 +69,7 @@ int naskmain(struct STR_NASKMAIN *params)
 	argv = ConvCmdLine1(&argc, params->cmdlin);
 	params->errcode = main0(argc, argv, tmp0, params);
 skip:
-	/* ƒoƒbƒtƒ@‚ğo—Í */
+	/* ¥Ğ¥Ã¥Õ¥¡¤ò½ĞÎÏ */
 	GOL_sysabort(0);
 }
 

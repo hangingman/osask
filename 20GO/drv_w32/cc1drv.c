@@ -23,9 +23,9 @@ void *GOL_sysmalloc(unsigned int size);
 void GOL_callmain0();
 
 void mainCRTStartup(void)
-/* ‚©‚È‚ç‚¸A-oƒIƒvƒVƒ‡ƒ“‚ð•t‚¯‚é */
-/* ‚±‚±‚ÅA-oƒIƒvƒVƒ‡ƒ“‚Í”‚¬Žæ‚ç‚ê‚é */
-/* ‚µ‚©‚µ“ü—Íƒtƒ@ƒCƒ‹–¼‚Í‘‚­(•W€“ü—Í‚Å‚Ísize‚ª‘ª’è‚Å‚«‚È‚¢‚½‚ß) */
+/* ¤«¤Ê¤é¤º¡¢-o¥ª¥×¥·¥ç¥ó¤òÉÕ¤±¤ë */
+/* ¤³¤³¤Ç¡¢-o¥ª¥×¥·¥ç¥ó¤ÏÇí¤®¼è¤é¤ì¤ë */
+/* ¤·¤«¤·ÆþÎÏ¥Õ¥¡¥¤¥ëÌ¾¤Ï½ñ¤¯(É¸½àÆþÎÏ¤Ç¤Ïsize¤¬Â¬Äê¤Ç¤­¤Ê¤¤¤¿¤á) */
 {
 	struct bss_alloc bss_image;
 	struct bss_alloc *bss0 = (void *) ((((int) &bss_image) + 0x0f) & ~0x0f);
@@ -33,7 +33,7 @@ void mainCRTStartup(void)
 	GO_stdout.p1 = GO_stdout.p0 + SIZ_STDOUT;
 	GO_stdout.dummy = ~0;
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
-	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ‚í‚´‚Æ­‚µ¬‚³‚­‚µ‚Ä‚¨‚­ */
+	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ¤ï¤¶¤È¾¯¤·¾®¤µ¤¯¤·¤Æ¤ª¤¯ */
 	GO_stderr.dummy = ~0;
 	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);

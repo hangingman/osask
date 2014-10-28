@@ -24,9 +24,9 @@ void *GOL_sysmalloc(unsigned int size);
 void GOL_callmain(int argc, UCHAR **argv);
 
 int main(int argc, UCHAR **argv)
-/* Ç©Ç»ÇÁÇ∏ÅA-oÉIÉvÉVÉáÉìÇïtÇØÇÈ */
-/* Ç±Ç±Ç≈ÅA-oÉIÉvÉVÉáÉìÇÕîçÇ¨éÊÇÁÇÍÇÈ */
-/* ÇµÇ©Çµì¸óÕÉtÉ@ÉCÉãñºÇÕèëÇ≠(ïWèÄì¸óÕÇ≈ÇÕsizeÇ™ë™íËÇ≈Ç´Ç»Ç¢ÇΩÇﬂ) */
+/* §´§ §È§∫°¢-o•™•◊•∑•Á•Û§Ú…’§±§Î */
+/* §≥§≥§«°¢-o•™•◊•∑•Á•Û§œ«Ì§ÆºË§È§Ï§Î */
+/* §∑§´§∑∆˛Œœ•’•°•§•ÎÃæ§œΩÒ§Ø(…∏Ω‡∆˛Œœ§«§œsize§¨¬¨ƒÍ§«§≠§ §§§ø§·) */
 {
 	struct bss_alloc *bss0;
 	UCHAR **argv1, **p;
@@ -35,10 +35,10 @@ int main(int argc, UCHAR **argv)
 	GO_stdout.p1 = GO_stdout.p0 + SIZ_STDOUT;
 	GO_stdout.dummy = ~0;
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
-	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ÇÌÇ¥Ç∆è≠Çµè¨Ç≥Ç≠ÇµÇƒÇ®Ç≠ */
+	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* §Ô§∂§»æØ§∑æÆ§µ§Ø§∑§∆§™§Ø */
 	GO_stderr.dummy = ~0;
 	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
 	GOL_callmain(argc, argv);
-	return 0; /* É_É~Å[ */
+	return 0; /* •¿•ﬂ°º */
 }

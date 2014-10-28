@@ -1,7 +1,7 @@
 /* for w32 */
 
 int GOLD_write_b(const UCHAR *name, int len, const UCHAR *p0)
-/* バイナリモードでファイルに出力 */
+/* ･ﾐ･､･ﾊ･�･筍ｼ･ﾉ､ﾇ･ﾕ･｡･､･�､ﾋｽﾐﾎﾏ */
 {
 	HANDLE h;
 	int ll = 0;

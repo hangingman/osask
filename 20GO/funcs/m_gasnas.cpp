@@ -1,4 +1,4 @@
-/* ‚»‚ê‚¼‚ê‚Ìgas2nask‚ÉƒCƒ“ƒNƒ‹[ƒh‚³‚ê‚é */
+/* ¤½¤ì¤¾¤ì¤Îgas2nask¤Ë¥¤¥ó¥¯¥ë¡¼¥É¤µ¤ì¤ë */
 /*		Copyright(C) 2003 H.Kawai   (KL-01) */
 
 static UCHAR *checkparam(UCHAR *p);
@@ -237,7 +237,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		"1fdiv    FDIV",
 		"0fdivr   FDIV",
 		"1fsub    FSUB",
-		"0fsubr   FSUB", /* GO‚É‚Í•s—v */
+		"0fsubr   FSUB", /* GO¤Ë¤ÏÉÔÍ× */
 		"\0"
 	};
 
@@ -287,14 +287,14 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		output(LEN_NL, NL);
 	}
 
-	/* EXTERN’Šo */
+	/* EXTERNÃê½Ğ */
 	if (src0 > &src1[-1])
 		goto no_src;
 	if (src1[-1] != '\n') {
 		errflag = 1;
 		goto no_src;
 	}
-	/* ƒAƒ‹ƒSƒŠƒYƒ€Fƒg[ƒNƒ“‚Å‹æØ‚éB_‚Ån‚Ü‚éƒg[ƒNƒ“‚ğ“o˜^ */
+	/* ¥¢¥ë¥´¥ê¥º¥à¡§¥È¡¼¥¯¥ó¤Ç¶èÀÚ¤ë¡£_¤Ç»Ï¤Ş¤ë¥È¡¼¥¯¥ó¤òÅĞÏ¿ */
 	r = src0;
 	p = dest0_ + (dest1 - dest0_) / 2;
 	q = p;
@@ -327,7 +327,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 		if (flag2 == 0)
 			goto ext_skip2;
 		if (s - r != 0 && *s == ':' && *r == '_') {
-			/* ƒ‰ƒxƒ‹’è‹`ŒŸo */
+			/* ¥é¥Ù¥ëÄêµÁ¸¡½Ğ */
 			if (s - r > 255)
 				goto ext_skip0;
 			c = s - r;
@@ -347,7 +347,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 							goto ext_next_label2;
 					}
 					t[-1] = 0x01; /* internal */
-					goto ext_skip0; /* “ñd“o˜^‰ñ”ğ */
+					goto ext_skip0; /* Æó½ÅÅĞÏ¿²óÈò */
 				} while (t < q);
 				if (q + c + 2 > dest1)
 					goto err;
@@ -382,7 +382,7 @@ ext_skip0:
 			s = seek_token_end(r);
 			if (*r == '_') {
 				if (s - r > 255)
-					goto ext_skip1; /* ‚È‚ª‚·‚¬ */
+					goto ext_skip1; /* ¤Ê¤¬¤¹¤® */
 				c = s - r;
 				if (q > p) {
 					t = p;
@@ -397,7 +397,7 @@ ext_skip0:
 							if (r[i] != t[i])
 								goto ext_next_label;
 						}
-						goto ext_skip1; /* “ñd“o˜^‰ñ”ğ */
+						goto ext_skip1; /* Æó½ÅÅĞÏ¿²óÈò */
 					} while (t < q);
 				}
 				if (q + c + 2 > dest1)
@@ -431,13 +431,13 @@ ext_skip2:
 		} while (p < q);
 	}
 
-	/* ˆê”Ê•ÏŠ· */
+	/* °ìÈÌÊÑ´¹ */
 	flag2 = 1;
 	do {
-		/* í‚É•¶––‚É'\n'‚ª‚ ‚é‚±‚Æ‚ğ‘z’è‚µ‚Ä‚æ‚¢ */
+		/* ¾ï¤ËÊ¸Ëö¤Ë'\n'¤¬¤¢¤ë¤³¤È¤òÁÛÄê¤·¤Æ¤è¤¤ */
 		src0 = skipspace(src0);
 
-		/* ‹[—–½—ß */
+		/* µ¼»÷Ì¿Îá */
 		if (*src0 == '.') {
 			if (src0[1] == 'f' && src0[2] == 'i' && src0[3] == 'l' && src0[4] == 'e' && src0[5] <= ' ') {
 				/* .file */
@@ -510,10 +510,10 @@ ext_skip2:
 				goto skip;
 			}
 			if (src0[1] == 'd' && src0[2] == 'e' && src0[3] == 'f' && src0[4] <= ' ')
-				goto skip; /* .def ‚Í”ò‚Î‚· */
+				goto skip; /* .def ¤ÏÈô¤Ğ¤¹ */
 			if (src0[1] == 'p' && src0[2] == '2' && src0[3] == 'a' && src0[4] == 'l' && src0[5] == 'i' && src0[6] == 'g' &&
 					src0[7] == 'n' && src0[8] <= ' ')
-				goto skip; /* .p2align ‚Í”ò‚Î‚· */
+				goto skip; /* .p2align ¤ÏÈô¤Ğ¤¹ */
 			if (flag2 == 0)
 				goto skip;
 			if (src0[1] == 'b' && src0[2] == 'a' && src0[3] == 'l' && src0[4] == 'i' && src0[5] == 'g' && src0[6] == 'n'  && src0[7] <= ' ') {
@@ -591,9 +591,9 @@ ext_skip2:
 						if (c == 0x22)
 							break;
 						if (c == '\r')
-							break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+							break; /* ¥¨¥é¡¼¤À¤¬ÌÌÅİ¤Ê¤Î¤Ç¸«Æ¨¤·¤Æ¤ä¤ë */
 						if (c == '\n')
-							break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+							break; /* ¥¨¥é¡¼¤À¤¬ÌÌÅİ¤Ê¤Î¤Ç¸«Æ¨¤·¤Æ¤ä¤ë */
 						if (c != '\\') {
 							if (flag == 0) {
 								if (flag1)
@@ -607,9 +607,9 @@ ext_skip2:
 						}
 						c = *p++;
 						if (c == '\r')
-							break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+							break; /* ¥¨¥é¡¼¤À¤¬ÌÌÅİ¤Ê¤Î¤Ç¸«Æ¨¤·¤Æ¤ä¤ë */
 						if (c == '\n')
-							break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+							break; /* ¥¨¥é¡¼¤À¤¬ÌÌÅİ¤Ê¤Î¤Ç¸«Æ¨¤·¤Æ¤ä¤ë */
 						if (flag) {
 							output(1, "\x22");
 							flag = 0;
@@ -638,12 +638,12 @@ ext_skip2:
 					if (*src0 == ';')
 						break;
 					if (*src0++ != ',')
-						break; /* ƒGƒ‰[‚¾‚ª–Ê“|‚È‚Ì‚ÅŒ©“¦‚µ‚Ä‚â‚é */
+						break; /* ¥¨¥é¡¼¤À¤¬ÌÌÅİ¤Ê¤Î¤Ç¸«Æ¨¤·¤Æ¤ä¤ë */
 				}
 				output(LEN_NL, NL);
 				goto skip;
 			}
-			/* ŠY“–‚È‚µ */
+			/* ³ºÅö¤Ê¤· */
 			goto err_skip;
 		}
 
@@ -652,7 +652,7 @@ ext_skip2:
 		if (src0[0] == '/')
 			goto skip;
 
-		/* ’Êí–½—ß */
+		/* ÄÌ¾ïÌ¿Îá */
 		if (flag2 == 0)
 			goto skip;
 retry:
@@ -666,14 +666,14 @@ retry:
 			p++;
 		} while (*p > ' ');
 		if (p[-1] == ':') {
-			/* ƒ‰ƒxƒ‹’è‹` */
+			/* ¥é¥Ù¥ëÄêµÁ */
 			output(p - src0, src0);
 			src0 = skipspace(p);
 			goto retry;
 		}
 		output(1, "\t");
 
-		/* ƒpƒ‰ƒ[ƒ^‚È‚µ–½—ß */
+		/* ¥Ñ¥é¥á¡¼¥¿¤Ê¤·Ì¿Îá */
 		if (p - src0 <= 7 && (*p == '\r' || *p == '\n' || *p == ';')) {
 			for (i = 0; q = no_params[i], q[0] != '\0'; i++) {
 				for (j = 0; ; j++) {
@@ -690,12 +690,12 @@ retry:
 			}
 		}
 
-		/* ƒpƒ‰ƒ[ƒ^1‚Â–½—ß */
+		/* ¥Ñ¥é¥á¡¼¥¿1¤ÄÌ¿Îá */
 		if (p - src0 <= 8) {
 			for (i = 0; q = &one_param[i][1], q[-1] != '\0'; i++) {
 				for (j = 0; ; j++) {
 					if (&src0[j] == p && q[j] == ' ') {
-						r = checkparam(p); /* ƒRƒ“ƒ}‚©ƒZƒ~ƒRƒƒ“A\n‚Ü‚Å“Ç‚İ”ò‚Î‚· */
+						r = checkparam(p); /* ¥³¥ó¥Ş¤«¥»¥ß¥³¥í¥ó¡¢\n¤Ş¤ÇÆÉ¤ßÈô¤Ğ¤¹ */
 						if (r == NULL)
 							break;
 						if (*r == ',')
@@ -714,12 +714,12 @@ retry:
 			}
 		}
 
-		/* ƒVƒtƒgŒnƒpƒ‰ƒ[ƒ^1‚Â–½—ß */
+		/* ¥·¥Õ¥È·Ï¥Ñ¥é¥á¡¼¥¿1¤ÄÌ¿Îá */
 		if (p - src0 <= 8) {
 			for (i = 0; q = &one_shifts[i][1], q[-1] != '\0'; i++) {
 				for (j = 0; ; j++) {
 					if (&src0[j] == p && q[j] == ' ') {
-						r = checkparam(p); /* ƒRƒ“ƒ}‚©ƒZƒ~ƒRƒƒ“A\n‚Ü‚Å“Ç‚İ”ò‚Î‚· */
+						r = checkparam(p); /* ¥³¥ó¥Ş¤«¥»¥ß¥³¥í¥ó¡¢\n¤Ş¤ÇÆÉ¤ßÈô¤Ğ¤¹ */
 						if (r == NULL)
 							break;
 						if (*r == ',')
@@ -738,7 +738,7 @@ retry:
 			}
 		}
 
-		/* ƒpƒ‰ƒ[ƒ^2‚Â–½—ß(ŒğŠ·ƒ^ƒCƒv) */
+		/* ¥Ñ¥é¥á¡¼¥¿2¤ÄÌ¿Îá(¸ò´¹¥¿¥¤¥×) */
 		if (p - src0 <= 8) {
 			for (i = 0; q = &two_params[i][1], q[-1] != '\0'; i++) {
 				for (j = 0; ; j++) {
@@ -769,7 +769,7 @@ retry:
 			}
 		}
 
-		/* ƒpƒ‰ƒ[ƒ^3‚Â–½—ß(‹t‡ƒ^ƒCƒv) */
+		/* ¥Ñ¥é¥á¡¼¥¿3¤ÄÌ¿Îá(µÕ½ç¥¿¥¤¥×) */
 		if (p - src0 <= 8) {
 			for (i = 0; q = &three_params[i][1], q[-1] != '\0'; i++) {
 				for (j = 0; ; j++) {
@@ -807,7 +807,7 @@ retry:
 			}
 		}
 
-		/* ƒpƒ‰ƒ[ƒ^2‚Â–½—ß(ŒğŠ·ƒ^ƒCƒv, FDIV/FSUBê—p) */
+		/* ¥Ñ¥é¥á¡¼¥¿2¤ÄÌ¿Îá(¸ò´¹¥¿¥¤¥×, FDIV/FSUBÀìÍÑ) */
 		if (p - src0 <= 8) {
 			for (i = 0; q = &fdivfsub[i][1], q[-1] != '\0'; i++) {
 				for (j = 0; ; j++) {
@@ -844,7 +844,7 @@ retry:
 			}
 		}
 
-		/* ŠY“–‚È‚µ */
+		/* ³ºÅö¤Ê¤· */
 		output(LEN_NL, NL);
 		goto err_skip;
 
@@ -1015,7 +1015,7 @@ imm:
 			*dest0_++ = c;
 		}
 	}
-	if (i == 0) { /* call‚âjmp‚È‚Ç */
+	if (i == 0) { /* call¤äjmp¤Ê¤É */
 		i += 4;
 		if (*p == '*') {
 			p++;

@@ -69,7 +69,7 @@ too_many_object:
 	}
 	if (*obj->file0 != '!')
 		errout_s_NL("unknown file type: ", obj->name);
-	/* ƒ‰ƒCƒuƒ‰ƒŠ‚Ìƒ[ƒh */
+	/* ¥é¥¤¥Ö¥é¥ê¤Î¥í¡¼¥É */
 	p = obj->file0;
 	s = obj->file1;
 	t = &p[0x44];
@@ -262,7 +262,7 @@ static void libout(struct str_works *work)
 			for (i = 0; i < len; i++)
 				put32l(work->objs0[i].ofs);
 			put32l(len = work->label - work->label0);
-			/* –{—ˆ‚Íƒ\[ƒg‚µ‚Äo—Í‚·‚é‚Ì‚¾‚ªAè”²‚«‚Åƒ\[ƒg‚µ‚Ä‚¢‚È‚¢ */
+			/* ËÜÍè¤Ï¥½¡¼¥È¤·¤Æ½ĞÎÏ¤¹¤ë¤Î¤À¤¬¡¢¼êÈ´¤­¤Ç¥½¡¼¥È¤·¤Æ¤¤¤Ê¤¤ */
 			for (i = 0; i < len; i++)
 				put16l(work->label0[i].obj - work->objs0 + 1);
 			for (i = 0; i < len; i++)

@@ -1,7 +1,7 @@
 /* for stdc */
 
 int GOLD_write_t(const UCHAR *name, int len, const UCHAR *p0)
-/* テキストモードでファイルに出力。もしnameがNULLなら、標準出力へ出力 */
+/* ･ﾆ･ｭ･ｹ･ﾈ･筍ｼ･ﾉ､ﾇ･ﾕ･｡･､･�､ﾋｽﾐﾎﾏ｡｣､筅ｷname､ｬNULL､ﾊ､鬘｢ﾉｸｽ狄ﾐﾎﾏ､ﾘｽﾐﾎﾏ */
 {
 	int ll = 0;
 	FILE *fp = stdout;

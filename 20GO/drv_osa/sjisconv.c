@@ -3,7 +3,7 @@
 
 	usage : >sjisconv [-e] [-s] input-file output-file
 
-	-s:ShiftJISƒ‚[ƒh
+	-s:ShiftJIS¥â¡¼¥É
 */
 
 #include "../include/string.h"		/* strlen, strstr, strchr */
@@ -19,11 +19,11 @@ struct STR_FLAGS {
 	UCHAR opt[3];
 };
 
-struct STR_SJISCONV { /* STR_GAS2NASK‚ÆƒRƒ“ƒpƒ` */
-	UCHAR *cmdlin; /* '\0'‚ÅI‚í‚é */
-	UCHAR *outname; /* '\0'‚ÅI‚í‚é, work‚Ì‚Ç‚±‚©‚Ö‚Ìƒ|ƒCƒ“ƒ^ */
-	UCHAR *dest0, *dest1; /* o—Íƒtƒ@ƒCƒ‹(dest0‚Í‘‚«Š·‚¦‚ç‚ê‚é) */
-	UCHAR *err0, *err1; /* ƒRƒ“ƒ\[ƒ‹ƒƒbƒZ[ƒW(err0‚Í‘‚«Š·‚¦‚ç‚ê‚é) */
+struct STR_SJISCONV { /* STR_GAS2NASK¤È¥³¥ó¥Ñ¥Á */
+	UCHAR *cmdlin; /* '\0'¤Ç½ª¤ï¤ë */
+	UCHAR *outname; /* '\0'¤Ç½ª¤ï¤ë, work¤Î¤É¤³¤«¤Ø¤Î¥İ¥¤¥ó¥¿ */
+	UCHAR *dest0, *dest1; /* ½ĞÎÏ¥Õ¥¡¥¤¥ë(dest0¤Ï½ñ¤­´¹¤¨¤é¤ì¤ë) */
+	UCHAR *err0, *err1; /* ¥³¥ó¥½¡¼¥ë¥á¥Ã¥»¡¼¥¸(err0¤Ï½ñ¤­´¹¤¨¤é¤ì¤ë) */
 	UCHAR *work0, *work1;
 	int errcode;
 };
