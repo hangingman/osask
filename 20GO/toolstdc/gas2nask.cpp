@@ -1,18 +1,18 @@
-/* "gas2nask" (stdcî≈)
+/* "gas2nask" (stdcÁâà)
 	Copyright(C) 2003 H.Kawai
 
 	usage : >gas2nask [-a] input-file output-file
 
-	-a:.textÇÃbalign2ÇçÌèú
+	-a:.text„ÅÆbalign2„ÇíÂâäÈô§
 */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
-typedef unsigned char UCHAR;
 typedef unsigned int UINT;
 
-static UCHAR *dest0_, *dest1_;
+static char *dest0_, *dest1_;
 
 #define FLAG_t		0
 #define FLAG_d		1
@@ -22,34 +22,35 @@ static UCHAR *dest0_, *dest1_;
 #define FLAG_B		5
 #define FLAG_a		6
 
-#define	NL			"\n"
+#define	NL		"\n"
 #define	LEN_NL		1
 
 struct STR_FLAGS {
-	UCHAR opt[8];
+	char opt[8];
 };
 
 struct stack_alloc {
-	UCHAR ibuf[8 * 1024 * 1024];	
-	UCHAR obuf[8 * 1024 * 1024];
+	char ibuf[8 * 1024 * 1024];	
+	char obuf[8 * 1024 * 1024];
 };
 
-UCHAR *readfile(UCHAR *name, UCHAR *b0, UCHAR *b1);
-static void errout(UCHAR *s);
-static void errout_s_NL(UCHAR *s, UCHAR *t);
-static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR_FLAGS flags);
-unsigned int GO_strlen(const UCHAR *s);
+char *readfile(const char *name, char *b0, const char *b1);
+static void errout(const char *s);
+static void errout_s_NL(const char *s, const char *t);
+static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct STR_FLAGS flags);
+unsigned int GO_strlen(const char *s);
+int GOLD_write_t(const char* name, int len, const char* p0);
 
 static char errflag = 0;
 
-static UCHAR *param_p[6];
+static char *param_p[6];
 
-#include "../drv_stdc/others.h"
+#include "../drv_stdc/others.hpp"
 
 int main(int argc, char **argv)
 {
 	struct stack_alloc *pwork;
-	UCHAR *p0, *f, *src1, *filename, i = 0;
+	char *p0, *f, *src1, *filename, i = 0;
 	struct STR_FLAGS flags;
 	int j;
 
@@ -82,7 +83,7 @@ int main(int argc, char **argv)
 					while ('0' <= *p0 && *p0 <= '9')
 						p0++;
 					flags.opt[j] = p0 - param_p[j];
-					p0--; /* éüÇÃÉãÅ[ÉvÇÃÇΩÇﬂ */
+					p0--; /* Ê¨°„ÅÆ„É´„Éº„Éó„ÅÆ„Åü„ÇÅ */
 					continue;
 				}
 				if (*p0 == 'b') {
@@ -127,7 +128,7 @@ skip:
 	return errflag;
 }
 
-static void output(UINT l, UCHAR *s)
+static void output(UINT l, const char *s)
 {
 	if (l) {
 		if (dest0_ + l >= dest1_)
@@ -141,13 +142,13 @@ static void output(UINT l, UCHAR *s)
 	return;
 }
 
-void msgout0(int len, UCHAR *s)
+void msgout0(int len, char *s)
 {
 	GOLD_write_t(NULL, len, s);
 	return;
 }
 
-#include "../drv_stdc/msgout_c.c"
-#include "../drv_stdc/wfile_t.c"
-#include "../funcs/gostrlen.c"
-#include "../funcs/m_gasnas.c"
+#include "../drv_stdc/msgout_c.cpp"
+#include "../drv_stdc/wfile_t.cpp"
+#include "../funcs/gostrlen.cpp"
+#include "../funcs/m_gasnas.cpp"
