@@ -1,4 +1,4 @@
-static void escape(UCHAR *s, UCHAR c)
+static void escape(char *s, char c)
 {
 	s[0] = '\\';
 	s[3] = '0' + (c & 0x07);
@@ -8,9 +8,9 @@ static void escape(UCHAR *s, UCHAR c)
 	return;
 }
 
-static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR_FLAGS flags)
+static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct STR_FLAGS flags)
 {
-	UCHAR c;
+	char c;
 	if (flags.opt[FLAG_S]) {
 		while (src0 < src1) {
 			c = *src0++;
@@ -20,7 +20,7 @@ static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, str
 				*dest0++ = c;
 				continue;
 			}
-			if (0xa0 <= c && c <= 0xdf) { /* È¾³Ñ¤«¤Ê */
+			if (0xa0 <= c && c <= 0xdf) { /* åŠè§’ã‹ãª */
 escape1:
 				escape(dest0, c);
 				dest0 += 4;

@@ -18,7 +18,7 @@ void errout_s_NL(char *s, char *t)
 	GOLD_exit(1);
 }
 
-char *readfile(char *name, char *b0, char *b1)
+char *readfile(const char *name, char *b0, const char *b1)
 {
 	int bytes = GOLD_getsize(name);
 	if (bytes == -1)
