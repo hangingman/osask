@@ -1,13 +1,13 @@
 /* for stdc */
 
-int GOLD_getsize(const UCHAR *name);
-int GOLD_read(const UCHAR *name, int len, UCHAR *b0);
+int GOLD_getsize(const char *name);
+int GOLD_read(const char *name, int len, char *b0);
 
 #if (defined(USE_SYS_STAT_H))
 
 #include <sys/stat.h>
 
-int GOLD_getsize(const UCHAR *name)
+int GOLD_getsize(const char *name)
 {
 	FILE *fp;
 	struct stat st;
@@ -26,7 +26,7 @@ err:
 
 #else
 
-int GOLD_getsize(const UCHAR *name)
+int GOLD_getsize(const char *name)
 {
 	FILE *fp;
 	int len;
@@ -43,7 +43,7 @@ err:
 
 #endif
 
-int GOLD_read(const UCHAR *name, int len, UCHAR *b0)
+int GOLD_read(const char *name, int len, char *b0)
 {
 	FILE *fp;
 	int i;
