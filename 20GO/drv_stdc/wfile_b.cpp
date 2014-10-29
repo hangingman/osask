@@ -1,7 +1,6 @@
 /* for stdc */
 
-int GOLD_write_b(const UCHAR *name, int len, const UCHAR *p0)
-/* バイナリモードでファイルに出力 */
+int GOLD_write_b(const char* name, int len, const char* p0)
 {
 	int ll = 0;
 	FILE *fp;

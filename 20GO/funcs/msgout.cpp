@@ -1,16 +1,16 @@
-void msgout(UCHAR *s)
+void msgout(char *s)
 {
 	GOLD_write_t(NULL, GO_strlen(s), s);
 	return;
 }
 
-void errout(UCHAR *s)
+void errout(char *s)
 {
 	msgout(s);
 	GOLD_exit(1);
 }
 
-void errout_s_NL(UCHAR *s, UCHAR *t)
+void errout_s_NL(char *s, char *t)
 {
 	msgout(s);
 	msgout(t);
@@ -18,7 +18,7 @@ void errout_s_NL(UCHAR *s, UCHAR *t)
 	GOLD_exit(1);
 }
 
-UCHAR *readfile(UCHAR *name, UCHAR *b0, UCHAR *b1)
+char *readfile(char *name, char *b0, char *b1)
 {
 	int bytes = GOLD_getsize(name);
 	if (bytes == -1)

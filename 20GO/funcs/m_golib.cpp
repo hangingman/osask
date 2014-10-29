@@ -1,13 +1,13 @@
-static void cmdline(UCHAR *s0, UCHAR *s1, struct str_works *work);
-static UCHAR *copystr(UCHAR *s0, UCHAR *s1, struct str_works *work);
+static void cmdline(char *s0, char *s1, struct str_works *work);
+static char *copystr(char *s0, char *s1, struct str_works *work);
 static void registlabel(struct str_obj *obj, struct str_works *work);
-static int getdec(const UCHAR *p);
-static int get32l(const UCHAR *p);
-static int get32b(const UCHAR *p);
+static int getdec(const char *p);
+static int get32l(const char *p);
+static int get32b(const char *p);
 
-static UCHAR *copystr(UCHAR *s0, UCHAR *s1, struct str_works *work)
+static char *copystr(char *s0, char *s1, struct str_works *work)
 {
-	UCHAR *r = work->filebuf, *p = r;
+	char *r = work->filebuf, *p = r;
 	if (r + (s1 - s0) + 1 > work->filebuf1)
 		errout("filebuf over!" NL);
 	while (s0 < s1)
@@ -17,9 +17,9 @@ static UCHAR *copystr(UCHAR *s0, UCHAR *s1, struct str_works *work)
 	return r;
 }
 
-static void cmdline0(UCHAR *s0, UCHAR *s1, struct str_works *work)
+static void cmdline0(char *s0, char *s1, struct str_works *work)
 {
-	UCHAR *t, *p, *q, *r, *s;
+	char *t, *p, *q, *r, *s;
 	int len = s1 - s0;
 	int i, j;
 	struct str_obj *obj, *obj0;
@@ -100,9 +100,9 @@ skip:
 	return;
 }
 
-static void cmdline(UCHAR *s0, UCHAR *s1, struct str_works *work)
+static void cmdline(char *s0, char *s1, struct str_works *work)
 {
-	UCHAR *t;
+	char *t;
 	for (;;) {
 		while (s0 < s1 && *s0 <= ' ')
 			s0++;
@@ -117,22 +117,22 @@ static void cmdline(UCHAR *s0, UCHAR *s1, struct str_works *work)
 	return;
 }
 
-static int get32l(const UCHAR *p)
+static int get32l(const char *p)
 {
 	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 }
 
-static int get32b(const UCHAR *p)
+static int get32b(const char *p)
 {
 	return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
 }
 
 static void registlabel(struct str_obj *obj, struct str_works *work)
 {
-	UCHAR *q = obj->file0 + get32l(&obj->file0[0x08]), *s;
-	UCHAR *s0 = obj->file0 + get32l(&obj->file0[0x08])
+	char *q = obj->file0 + get32l(&obj->file0[0x08]), *s;
+	char *s0 = obj->file0 + get32l(&obj->file0[0x08])
 				+ get32l(&obj->file0[0x0c]) * 0x12;
-	UCHAR c;
+	char c;
 	int i, j, sec, k, m;
 	struct str_label *l;
 	for (i = get32l(&obj->file0[0x0c]); i > 0; i -= j, q += j * 0x12) {
@@ -169,10 +169,10 @@ static void registlabel(struct str_obj *obj, struct str_works *work)
 	}
 }
 
-UCHAR *iobuf_p;
-UCHAR *iobuf_p1;
+char *iobuf_p;
+char *iobuf_p1;
 
-static void putbuf(int len, const UCHAR *data)
+static void putbuf(int len, const char *data)
 {
 	if (iobuf_p + len > iobuf_p1)
 		errout("iobuf over!" NL);
@@ -181,19 +181,19 @@ static void putbuf(int len, const UCHAR *data)
 	return;
 }
 
-static UCHAR *puttag()
+static char *puttag()
 {
-	UCHAR *p = iobuf_p;
-	static UCHAR tag[60] =
+	char *p = iobuf_p;
+	static char tag[61] =
 		"/               " "0               "
 		"        0       " "0         `\n";
 	putbuf(60, tag);
 	return p;
 }
 
-static void putdec(UCHAR *p, int i)
+static void putdec(char *p, int i)
 {
-	UCHAR dec[10], *q = dec + 10;
+	char dec[10], *q = dec + 10;
 	do {
 		*--q = (i % 10) + '0';
 	} while (i /= 10);
@@ -205,7 +205,7 @@ static void putdec(UCHAR *p, int i)
 
 static void put32b(int i)
 {
-	UCHAR tmp[4];
+	char tmp[4];
 	tmp[0] = (i >> 24) & 0xff;
 	tmp[1] = (i >> 16) & 0xff;
 	tmp[2] = (i >>  8) & 0xff;
@@ -215,7 +215,7 @@ static void put32b(int i)
 
 static void put32l(int i)
 {
-	UCHAR tmp[4];
+	char tmp[4];
 	tmp[0] =  i        & 0xff;
 	tmp[1] = (i >>  8) & 0xff;
 	tmp[2] = (i >> 16) & 0xff;
@@ -225,7 +225,7 @@ static void put32l(int i)
 
 static void put16l(int i)
 {
-	UCHAR tmp[2];
+	char tmp[2];
 	tmp[0] =  i        & 0xff;
 	tmp[1] = (i >>  8) & 0xff;
 	putbuf(2, tmp);
@@ -234,7 +234,7 @@ static void put16l(int i)
 static void libout(struct str_works *work)
 {
 	int len, pass, i, j;
-	UCHAR *p;
+	char *p;
 	iobuf_p1 = work->iobuf1;
 	if (work->objs0 == work->objs) {
 		errout("usage : >golib00 [obj/lib-files] [commnad]" NL
@@ -332,7 +332,7 @@ fin:
 	return;
 }
 
-static int getdec(const UCHAR *p)
+static int getdec(const char *p)
 {
 	int i = 0;
 	while (*p == ' ')

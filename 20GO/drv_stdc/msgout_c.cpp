@@ -1,20 +1,18 @@
 /* for stdc */
-/* これを移植するのが面倒な場合は、"others.c"+"msgout.c"に置き換えればよい */
-/* こっちのほうがコンパクトだというだけ */
 
-void msgout(UCHAR *s)
+void msgout(const char* s)
 {
 	GOLD_write_t(NULL, GO_strlen(s), s);
 	return;
 }
 
-void errout(UCHAR *s)
+void errout(const char *s)
 {
 	msgout(s);
 	GOLD_exit(1);
 }
 
-void errout_s_NL(UCHAR *s, UCHAR *t)
+void errout_s_NL(const char *s, const char *t)
 {
 	msgout(s);
 	msgout(t);
@@ -22,7 +20,7 @@ void errout_s_NL(UCHAR *s, UCHAR *t)
 	GOLD_exit(1);
 }
 
-UCHAR *readfile(UCHAR *name, UCHAR *b0, UCHAR *b1)
+char* readfile(const char *name, char *b0, const char *b1)
 {
 	FILE *fp;
 	int bytes, len = b1 - b0;
