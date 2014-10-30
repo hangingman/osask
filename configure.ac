@@ -81,13 +81,13 @@ AC_CONFIG_FILES([Makefile])
 # Generate 20GO Makefiles
 #
 AC_CONFIG_FILES([20GO/Makefile
+   		 20GO/nasklib/Makefile
                  20GO/toolstdc/Makefile])
 dnl              20GO/gcc/Makefile
 dnl              20GO/go_lib/Makefile
 dnl              20GO/intl/Makefile
 dnl              20GO/libiberty/Makefile
 dnl              20GO/drv_stdc/Makefile
-dnl		 20GO/nasklib/Makefile
 dnl		 20GO/w32clibc/Makefile])
 
 #
