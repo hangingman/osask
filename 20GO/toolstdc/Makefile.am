@@ -11,5 +11,8 @@ bin_PROGRAMS	= golib00 sjisconv gas2nask nask naskcnv0
 golib00_SOURCES = golib00.cpp
 sjisconv_SOURCES= sjisconv.cpp
 gas2nask_SOURCES= gas2nask.cpp
+
 nask_SOURCES	= nask.cpp
+nask_LDADD	= ../nasklib/libnask.la
+
 naskcnv0_SOURCES= naskcnv0.cpp
