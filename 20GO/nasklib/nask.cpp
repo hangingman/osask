@@ -3,7 +3,7 @@
 /*   [OSASK 3978], [OSASK 3979]で光成さんの指摘を大いに参考にしました */
 /*	小柳さんのstring0に関する指摘も参考にしました */
 
-#include "../include/stdlib.h"	/* malloc/free */
+#include <cstdlib>	/* malloc/free */
 
 #define	DEBUG			0
 
@@ -11,11 +11,10 @@ int nask_LABELBUFSIZ = 256 * 1024;
 
 #define	UCHAR			unsigned char
 
-#define	OPCLENMAX		8	/* 足りなくなったら12にしてください */
-#define MAX_SECTIONS	8
-
+#define	OPCLENMAX		12	/* 足りなくなったら12にしてください */
+#define MAX_SECTIONS		8
 #define E_LABEL0		16
-int nask_L_LABEL0 = 16384; /* externラベルは16300個程度使える */
+int nask_L_LABEL0 = 16384; 	/* externラベルは16300個程度使える */
 int nask_maxlabels = 64 * 1024; /* 64K個(LL:88*64k) */
 
 static void setdec(unsigned int i, int n, UCHAR *s);
@@ -24,11 +23,9 @@ static void sethex0(unsigned int i, int n, UCHAR *s);
 static void *cmalloc(int size)
 {
 	int i;
-	char *p = malloc(size);
-//	if (p) {
-		for (i = 0; i < size; i++)
-			p[i] = 0;
-//	}
+	char *p = reinterpret_cast<char*>(malloc(size));
+	for (i = 0; i < size; i++)
+		p[i] = 0;
 	return p;
 }
 
@@ -229,11 +226,8 @@ UCHAR *LL_skipcode(UCHAR *p);
 /* リマーク[DW](e8) : 4バイト出力[]つき */
 
 #define	REM_ADDR		0xe0
-//#define	REM_BYTE		0xe1	/* 廃止 */
-//#define	REM_WORD		0xe2	/* 廃止 */
-//#define	REM_DWRD		0xe4	/* 廃止 */
-#define	REM_ADDR_ERR	0xe5
-#define	REM_RANGE_ERR	0xe8
+#define	REM_ADDR_ERR		0xe5
+#define	REM_RANGE_ERR		0xe8
 #define REM_3B			0xf1
 #define REM_4B			0xf2
 #define REM_8B			0xf6
@@ -294,28 +288,35 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	struct INST_TABLE *itp;
 	struct STR_IFDEFBUF *ifdef;
 	struct STR_TERM *expr;
-	static int tbl_o16o32[4] =
-		{ 0, 0x10000000 /* O16(暗黙) */, 0, 0x20000000 /* O32(暗黙) */ };
+	static int tbl_o16o32[4] = { 0, 0x10000000 /* O16(暗黙) */, 0, 0x20000000 /* O32(暗黙) */ };
 	struct STR_SECTION *sectable, *section;
+
+	/**
+	 * ここはもっとC++らしく書き直したい
+	 */
 	nextlabelid = nask_L_LABEL0;
-	status = malloc(sizeof (*status));
-	decode = malloc(sizeof (*decode));
-	ifdef = malloc(sizeof (*ifdef));
-	status->expression = malloc(EXPR_MAXLEN * sizeof (struct STR_TERM));
-	status->mem_expr = malloc(EXPR_MAXLEN * sizeof (struct STR_TERM));
-	sectable = cmalloc(MAX_SECTIONS * sizeof (struct STR_SECTION));
-	ifdef->bp0 = malloc(256);
+	status = reinterpret_cast<struct STR_STATUS *>( malloc(sizeof (*status)) );
+	decode = reinterpret_cast<struct STR_DECODE *>( malloc(sizeof (*decode)) );
+	ifdef  = reinterpret_cast<struct STR_IFDEFBUF *>( malloc(sizeof (*ifdef))  );
+	status->expression   = reinterpret_cast<struct STR_TERM*>
+		(malloc(EXPR_MAXLEN * sizeof (struct STR_TERM)));
+	status->mem_expr     = reinterpret_cast<struct STR_TERM*>
+		(malloc(EXPR_MAXLEN * sizeof (struct STR_TERM)));
+	sectable             = reinterpret_cast<struct STR_SECTION*>
+		(cmalloc(MAX_SECTIONS * sizeof (struct STR_SECTION)));
+	ifdef->bp0           = reinterpret_cast<unsigned char*>(malloc(256));
 	ifdef->bp1 = ifdef->bp0 + 256;
-	labelbuf = labelbuf0 = malloc(nask_LABELBUFSIZ);
-	locallabelbuf = locallabelbuf0 = malloc(256);
+	labelbuf = labelbuf0 = reinterpret_cast<unsigned char*>(malloc(nask_LABELBUFSIZ));
+	locallabelbuf = locallabelbuf0 = reinterpret_cast<unsigned char*>(malloc(256));
+
 	for (i = 0; i < 9; i++)
-		ifdef->expr[i] = malloc(EXPR_MAXSIZ);
-	labelflags = malloc(nask_maxlabels);
+		ifdef->expr[i] = reinterpret_cast<unsigned char*>(malloc(EXPR_MAXSIZ));
+
+	labelflags = reinterpret_cast<unsigned char*>(malloc(nask_maxlabels));
+
 	for (i = 0; i < nask_maxlabels; i++)
 		labelflags[i] = 0;
 	for (i = 0; i < MAX_SECTIONS; i++) {
-	//	sectable[i].name[0] = '\0';
-	//	sectable[i].total_len = 0;
 		sectable[i].align0 = -1;
 		sectable[i].align1 = 1;
 		sectable[i].dollar_label2 = 0xffffffff;
@@ -336,7 +337,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	status->file_len = 0;
 
 	if (dest0 + 5 > dest1)
-		dest0 = NULL;
+		dest0 = nullptr;
 	if (dest0 == NULL)
 		goto overrun;
 
@@ -345,9 +346,6 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	dest0[2] = 0;
 	dest0[3] = 0x68; /* 68-00 Intel-endian */
 	dest0[4] = 0x00;
-//	dest0[5] = 0x58; /* ORG */
-//	dest0[6] = 0x00; /* 0 */
-//	dest0[7] = 0x00;
 	dest0 += 5;
 
 	status->expr_status.dollar_label2 = 0xffffffff;
@@ -364,16 +362,14 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		/* ラインスタート出力 */
 		/* f7, src - src0, src0 */
 		if (dest0 + 9 + 6 /* $の分 */ > dest1)
-			dest0 = NULL;
+			dest0 = nullptr;
 		if (dest0 == NULL)
 			goto overrun;
 		dest0[0] = 0xf7; /* line start */
 		put4b(src - src0, &dest0[1]);
-		put4b((int) src0, &dest0[5]);
+		put4b((intptr_t) src0, &dest0[5]);
 		dest0 += 9;
 		ifdef->bp = ifdef->bp0;
-	//	if (decode->dollar != 0 && status->expr_status.dollar_label0 == 0xffffffff)
-	//		status->expr_status.dollar_label0 = nextlabelid++;
 		if ((i = status->expr_status.dollar_label0) != 0xffffffff) {
 			if (labelflags[i] == 0) {
 				dest0[0] = 0x0e;
@@ -451,7 +447,6 @@ err:
 					bp[1] = itp->param[2 + i];
 					bp += 2;
 				}
-			//	c = 0; /* mod nnn r/m なし */
 				break;
 
 			case OPE_M:
@@ -526,8 +521,6 @@ err:
 					decode->error = 3; /* data size error */
 					goto err;
 				}
-			//	if (j == 3)
-			//		goto err3;
 				if ((k & j) == 0)
 					goto err3;
 
@@ -541,8 +534,6 @@ err:
 				}
 				if (i > 4)
 					goto err3;
-			//	if (i == 3)
-			//		goto err3;
 				if ((k & i) == 0)
 					goto err3;
 		ope_mr_mem:
@@ -558,12 +549,6 @@ err:
 					if (j == 0)
 						goto err4;
 				}
-			//	if (j == 0) {
-			//		tmret = testmem0(status, decode->gp_mem, &decode->prefix);
-			//		if (tmret == 0)
-			//			goto err5; /* addressing error */
-			//		prefix_def |= tmret & 0x03;
-			//	}
 				j = itp->param[2] & 0x07;
 				for (i = 0; i < j; i++) {
 					bp[0] = SHORT_DB1; /* 0x31 */
@@ -578,10 +563,6 @@ err:
 					i &= 0x0f;
 					if ((itp->param[2] & 0x20) == 0) {
 						decode->prefix |= (tbl_o16o32 - 1)[i];
-					//	if (i == 2)
-					//		decode->prefix |= 0x10000000; /* O16(暗黙) */
-					//	if (i == 4)
-					//		decode->prefix |= 0x20000000; /* O32(暗黙) */
 					}
 					if (itp->param[2] & 0x10) {
 						if (i != 1)
@@ -619,10 +600,6 @@ err:
 				if (i > 4)
 					goto err3;
 				decode->prefix |= (tbl_o16o32 - 1)[i];
-			//	if (i == 2)
-			//		decode->prefix |= 0x10000000; /* O16(暗黙) */
-			//	if (i == 4)
-			//		decode->prefix |= 0x20000000; /* O32(暗黙) */
 				j = 0;
 				if (i != 1)
 					j++; /* j = 1; */
@@ -657,16 +634,12 @@ err:
 					bp[4] = 0x7d; /* imm8 || none */
 				}
 				bp += 5;
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-			//	break;
 				goto setc;
 
 			case OPE_RET: /* RET, RETF, RETN */
 				bp[0] = SHORT_DB1; /* 0x31 */
-			//	c = 0; /* mod nnn r/m なし */
 				if (decode->flag == 0) {
 					/* オペランドなし */
-				//	bp[0] = SHORT_DB1; /* 0x31 */
 					bp[1] = itp->param[1] | 0x01;
 					bp += 2;
 					break;
@@ -684,7 +657,6 @@ err:
 		OPE_RET_notopt:
 					if (defnumexpr(ifdef, status->expression, 0x75 & 0x07, 0x9a & 0x07))
 						goto err2;
-				//	bp[0] = SHORT_DB1; /* 0x31 */
 					bp[1] = itp->param[1];
 					bp += 2;
 				} else {
@@ -718,7 +690,6 @@ err:
 				bp[1] = itp->param[1];
 				bp[2] = 0x7c; /* オペランド(デフォルト:itp->param[2]) */
 				bp += 3;
-			//	c = 0; /* mod nnn r/m なし */
 				break;
 
 			case OPE_INT: /* INT */
@@ -747,13 +718,11 @@ err:
 					*bp++ = 0x7c; /* 自動選択されたオペコード */
 				}
 				*bp++ = 0x7d; /* imm8 || none */
-			//	c = 0; /* mod nnn r/m なし */
 				break;
 
 			case OPE_PUSH: /* PUSH, POP, INC, DEC */
 				if (decode->gparam[0] & 0xc0)
 					goto err2; /* rangeがついていた */
-			//	c = 0; /* mod nnn r/m なし */
 				decode->gp_mem = decode->gparam[0];
 				decode->gp_reg = (itp->param[1] & 0x07) << 9;
 				bp[0] = SHORT_DB1; /* 0x31 */
@@ -762,12 +731,6 @@ err:
 					if (decode->gvalue[0] < 16) {
 						/* reg16/reg32 */
 						decode->prefix |= (tbl_o16o32 - 1)[decode->gparam[0] & 0x0f];
-					//	i = 0x10000000; /* O16(暗黙) */
-					//	if (decode->gvalue[0] < 8) {
-					//	//	i = 0x20000000; /* O32(暗黙) */
-					//		i <<= 1;
-					//	}
-					//	decode->prefix |= i;
 						bp[1] = itp->param[2] | (decode->gvalue[0] & 0x07);
 						bp += 2;
 						goto outbp;
@@ -804,10 +767,6 @@ err:
 					}
 					goto err2;
 				case 0x10: /* mem */
-				//	tmret = testmem0(status, decode->gp_mem, &decode->prefix);
-				//	if (tmret == 0)
-				//		goto err5; /* addressing error */
-				//	prefix_def |= tmret & 0x03;
 					c = decode->gparam[0] & 0x0f;
 					bp[1] = 0;
 					if (itp->param[1] & 0x08) {
@@ -885,11 +844,6 @@ err:
 						goto err2;
 					/* mem,imm */
 					decode->gp_mem = decode->gparam[0];
-				//	tmret = testmem0(status, decode->gp_mem = decode->gparam[0], &decode->prefix);
-				//	if (tmret == 0)
-				//		goto err5; /* addressing error */
-				//	prefix_def |= tmret & 0x03;
-				//	decode->flag = 0;
 					bp[1] = 0xc6;
 					decode->gp_reg = 0x00 << 9;
 					bp[2] = 0x78;
@@ -916,7 +870,6 @@ err:
 					tmret = testmem0(status, decode->gp_mem, &decode->prefix);
 					if (tmret == 0)
 						goto err5; /* addressing error */
-				//	prefix_def |= tmret & 0x03;
 					decode->flag = 0;
 				} else if ((decode->gp_mem & 0x30) != 0x00)
 					goto err4; /* immが来てはいけない */
@@ -942,8 +895,6 @@ err:
 						bp[1] = c;
 						bp[2] = 0x7a; /* disp */
 						bp += 3;
-					//	c = 3 ^ decode->flag; /* mod nnn r/m あり */
-					//	goto outbp;
 						goto setc;
 					}
 				}
@@ -1015,9 +966,6 @@ err:
 									bp[1] |= 0x01;
 								bp[2] = 0x7c;
 								bp += 3;
-							//	c == 1 >> 9e(6);
-							//	c == 2 >> 9b(3);
-							//	9 - c * 3
 								if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 9 - c * 3))
 									goto err2; /* パラメータエラー */
 								c = 0; /* mod nnn r/m なし */
@@ -1064,8 +1012,6 @@ err:
 					bp[2] = 0x7a;
 					bp[3] = 0x7c;
 					bp += 4;
-				//	c = 3 ^ decode->flag; /* mod nnn r/m あり */
-				//	goto outbp;
 					goto setc;
 				}
 				i = 0; /* direction-bit */
@@ -1129,7 +1075,6 @@ err:
 						bp[1] = 0x90 | ((decode->gp_mem >> 9) & 0x07);
 						bp += 2;
 						decode->prefix |= (tbl_o16o32 - 1)[decode->gp_reg & 0x0f];
-					//	c = 0; /* mod nnn r/m なし */
 						goto outbp;
 					}
 				}
@@ -1209,15 +1154,12 @@ err:
 						if ((j = decode->gp_mem & decode->gp_reg & 0x0f) == 0)
 							goto err3; /* data size error */
 						decode->prefix |= (tbl_o16o32 - 1)[j];
-					//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-					//	goto outbp;
 						goto setc;
 					}
 					/* imm */
 					decode->gparam[2] = decode->gparam[1];
 					decode->gparam[1] = decode->gparam[0];
 					decode->gvalue[1] = decode->gvalue[0];
-				//	decode->flag = 3;
 				}
 				{
 					/* reg,mem/reg,imm型 */
@@ -1300,8 +1242,6 @@ err:
 				if (j != 1)
 					s[1] |= 0x01;
 				decode->prefix |= (tbl_o16o32 - 1)[j];
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-			//	goto outbp;
 				goto setc;
 
 			case OPE_MOVZX:
@@ -1372,8 +1312,6 @@ err:
 						goto err2; /* パラメータエラー */
 					bp += 8;
 				}
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-			//	goto outbp;
 				goto setc;
 
 			case OPE_LOOP:
@@ -1516,8 +1454,6 @@ err:
 				if (j > 4)
 					goto err3; /* data size error */
 				decode->prefix |= (tbl_o16o32 - 1)[j];
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
-			//	goto outbp;
 				goto setc;
 
 			case OPE_ENTER: /* imm16, imm8 */
@@ -1540,7 +1476,6 @@ err:
 				getparam0(decode->prm_p[0], status);
 				if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x9a & 0x07 /* USHORT */))
 					goto err2; /* パラメータエラー */
-			//	c = 0; /* mod nnn r/m なし */
 				goto outbp;
 
 			case OPE_ALIGN: /* ALIGN, ALIGNB */
@@ -1599,10 +1534,6 @@ err:
 							0xff, 0xff, 0, 0xff, 1, 0xff, 0xff, 0xff,
 							2, 0xff, 3, 0xff, 0xff, 0xff, 0xff, 0xfe
 						};
-					//	tmret = testmem0(status, decode->gp_mem, &decode->prefix);
-					//	if (tmret == 0)
-					//		goto err5; /* addressing error */
-					//	prefix_def |= tmret & 0x03;
 						c = sizelist[decode->gp_mem & 0x0f];
 						if (c == 0xff)
 							goto err3; /* data size error */
@@ -1653,8 +1584,6 @@ err:
 				bp[3] = 0x79;
 				bp[4] = 0x7a;
 				bp += 5;
-			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */
-			//	goto outbp;
 				goto setc;
 
 			case OPE_FPUP:
@@ -1688,19 +1617,15 @@ err:
 					bp[1] = itp->param[7];
 					bp += 2;
 				}
-			//	c = 0; /* mod nnn r/m なし */
 				goto outbp;
 
 			case OPE_ORG:
 				if ((decode->gparam[0] & 0xf0) != 0x20)
 					goto err4; /* data type error */
-			//	if (status->optimize == 0)
-			//		dest0 = putprefix(dest0, dest1, decode->prefix, prefix_def, 0);
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 					goto overrun;
-			//	bp = buf;
 				if (dest0 + EXPR_MAXSIZ + 1 > dest1)
-					dest0 = NULL;
+					dest0 = nullptr;
 				if (dest0 == NULL)
 					goto overrun;
 				*dest0++ = 0x58;
@@ -1732,7 +1657,6 @@ err:
 				bp[2] = SHORT_DB1; /* 0x31 */
 				bp[3] = 0xc8 + ((decode->gparam[0] >> 9) & 0x07);
 				bp += 4;
-			//	c = 0; /* mod nnn r/m なし */
 				goto outbp;
 
 			case OPE_RESB:
@@ -1771,13 +1695,10 @@ err:
 					goto err2; /* パラメータエラー */
 				if ((decode->gparam[0] & 0xf0) != 0x20)
 					goto err4; /* data type error */
-			//	if (status->optimize == 0)
-			//		dest0 = putprefix(dest0, dest1, decode->prefix, prefix_def, 0);
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 					goto overrun;
-			//	bp = buf;
 				if (dest0 + EXPR_MAXSIZ > dest1)
-					dest0 = NULL;
+					dest0 = nullptr;
 				if (dest0 == NULL)
 					goto overrun;
 		equ_put_expr:
@@ -1904,7 +1825,6 @@ err:
 				c = j & 0x06;
 				if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x9b & 0x07 /* non-over SHORT */))
 					goto err2; /* パラメータエラー */
-			//	s = skipspace(s, status->src1);
 				j = getparam(&s, status->src1, &i, status->expression,
 					status->mem_expr, &status->ofsexpr, &status->expr_status);
 				if ((j & 0x30) != 0x20)
@@ -1968,14 +1888,14 @@ err:
 					/* ローカルラベルも使えるが、.から始まる名前のままGLOBALになるので注意 */
 					/* もし複数回GLOBAL/EXTERNする危険性を回避したければ、フラグを作ってチェックせよ */
 					if (dest0 + 15 > dest1) {
-						dest0 = NULL;
+						dest0 = nullptr;
 						goto overrun;
 					}
 					dest0[0] = REM_8B; /* 0xf6 */
 					dest0[1] = itp->param[1];
 					dest0[2] = i & 0xff;
 					dest0[3] = (i >> 8) & 0xff;
-					put4b((int) bp, &dest0[4]);
+					put4b((intptr_t) bp, &dest0[4]);
 					if (itp->param[1] == 1) { /* GLOBAL */
 						dest0[8] = 0x0f;
 						dest0[9] = 3;
@@ -2017,8 +1937,6 @@ err:
 					goto err2;
 				j = getparam(&s, status->src1, &i, status->expression,
 					status->mem_expr, &status->ofsexpr, &status->expr_status);
-			//	if (j == 0)
-			//		goto err2;
 				if ((j & 0xf0) != 0x20)
 					goto err2;
 				ifdef->vb[8] = 0x84;
@@ -2049,7 +1967,6 @@ err:
 					/* 必要ならエラーも出力する */
 				if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 					goto overrun;
-			//	bp = buf;
 				for (;;) {
 					s = skipspace(s, status->src1);
 					if (s < status->src1) {
@@ -2076,7 +1993,7 @@ err:
 							if (*s == c)
 								break;
 							if (dest0 + 5 > dest1)
-								dest0 = NULL;
+								dest0 = nullptr;
 							if (dest0 == NULL)
 								goto overrun;
 							if (k == 0) {
@@ -2098,8 +2015,6 @@ err:
 			ope_db_expr:
 					j = getparam(&s, status->src1, &i, status->expression,
 						status->mem_expr, &status->ofsexpr, &status->expr_status);
-				//	if (j == 0)
-				//		goto err2;
 					if ((j & 0xf0) != 0x20)
 						goto err2;
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, itp->param[2] & 0x07))
@@ -2110,7 +2025,7 @@ err:
 					c = ifdef->vb[0x7c & 0x07];
 					if ((c & 0x80) == 0 /* const */) {
 						if (dest0 + c + 1 > dest1)
-							dest0 = NULL;
+							dest0 = nullptr;
 						if (dest0 == NULL)
 							goto overrun;
 						*dest0++ = (c &= 0x1f) | 0x30;
@@ -2121,7 +2036,7 @@ err:
 					} else {
 						/* expr */
 						if (dest0 + k + 2 > dest1)
-							dest0 = NULL;
+							dest0 = nullptr;
 						if (dest0 == NULL)
 							goto overrun;
 						dest0[0] = (c & 0x1f) + 0x37; /* 38～3b */
@@ -2143,11 +2058,9 @@ err:
 						goto err2;
 					s = skipspace(s + 1, status->src1);
 				}
-			//	goto skip_equ;
 
 			case OPE_END:
 				src = src1;
-			//	c = 0; /* mod nnn r/m なし */
 				goto outbp;
 
 			case 0xe7: /* SECTION */
@@ -2177,7 +2090,7 @@ flush_ifdefbuf:
 		/* ifdefbufを出力 */
 		i = ifdef->bp - ifdef->bp0;
 		if (dest0 + i > dest1)
-			dest0 = NULL;
+			dest0 = nullptr;
 		if (dest0 == NULL)
 			goto overrun;
 		for (j = 0; j < i; j++)
@@ -2186,12 +2099,11 @@ flush_ifdefbuf:
 
 		if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
 			goto overrun;
-	//	bp = buf;
 
 		if (itp != NULL && itp->param[0] == 0xe7) {
 			/* section */
 			if (dest0 + 14 > dest1)
-				dest0 = NULL;
+				dest0 = nullptr;
 			if (dest0 == NULL)
 				goto overrun;
 			dest0[0] = REM_3B; /* 0xf1 */
@@ -2246,12 +2158,10 @@ flush_ifdefbuf:
 		}
 skip_equ:
 		src0 = src;
-	//	if (dest0 == NULL)
-	//		goto overrun;
 	}
 skip_end:
 	if (dest0 + (6 + 3) * MAX_SECTIONS + 9 > dest1)
-		dest0 = NULL;
+		dest0 = nullptr;
 	if (dest0 == NULL)
 		goto overrun;
 
@@ -2261,10 +2171,7 @@ skip_end:
 	put4b(0, &dest0[1]);
 	put4b(0, &dest0[5]);
 	dest0 += 9;
-
-//	section->dollar_label0 = status->expr_status.dollar_label0;
 	section->dollar_label1 = status->expr_status.dollar_label1;
-//	section->dollar_label2 = status->expr_status.dollar_label2;
 
 	for (i = 0; i < MAX_SECTIONS; i++) {
 		if (sectable[i].name[0] == '\0')
@@ -2285,7 +2192,7 @@ skip_end:
 		}
 	}
 	section->total_len += dest0 - section->p;
-	src = malloc(i = dest0 - dest00);
+	src = reinterpret_cast<unsigned char*>(malloc(i = dest0 - dest00));
 	for (j = 0; j < i; j++)
 		src[j] = dest00[j];
 	sectable[0].p0 = sectable[0].p = dest00;
@@ -2320,7 +2227,7 @@ skip_end:
 		if (c == 0xff)
 			c = sectable[j].align1;
 		if (dest0 + 8 > dest1) {
-			dest0 == NULL;
+			dest0 = nullptr;
 			goto overrun;
 		}
 		dest0[0] = REM_4B;
@@ -2345,7 +2252,7 @@ skip_end:
 		dest0 += 8;
 	}
 	if (dest0 + 11 > dest1) {
-		dest0 == NULL;
+		dest0 = nullptr;
 		goto overrun;
 	}
 	if (status->file_len > 18 * 255 - 1)
@@ -2357,7 +2264,7 @@ skip_end:
 	dest0[4] = 0; /* file */
 	dest0[5] = status->file_len;
 	dest0[6] = 0;
-	put4b((int) status->file_p, &dest0[7]);
+	put4b((intptr_t) status->file_p, &dest0[7]);
 	dest0 += 11;
 
 overrun:
@@ -2381,7 +2288,7 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 	int j, k;
 	UCHAR *s, c;
 	if (dest0 + len > dest1)
-		dest0 = NULL;
+		dest0 = nullptr;
 	if (dest0 == NULL)
 		goto fin;
 	for (j = 0; j < len; ) {
@@ -2400,8 +2307,6 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 			continue;
 		}
 
-	//	if (c == 0x30)
-	//		continue;
 		if (0x31 <= c && c <= 0x37) {
 			*dest0++ = c;
 			c -= 0x30;
@@ -2416,7 +2321,7 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 			s = ifdef->expr[8];
 			k = ifdef->dat[8];
 			if (dest0 + len + k + 4 > dest1)
-				dest0 = NULL;
+				dest0 = nullptr;
 			if (dest0 == NULL)
 				goto fin;
 			put4b(-1, dest0 + 1); /* 長さ不定 */
@@ -2443,7 +2348,7 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 				continue;
 			if ((c & 0x80) == 0 /* const */) {
 				if (dest0 + len + (c & 0x1f) > dest1)
-					dest0 = NULL;
+					dest0 = nullptr;
 				if (dest0 == NULL)
 					goto fin;
 				*dest0++ = (c &= 0x1f) | 0x30;
@@ -2455,7 +2360,7 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDE
 			}
 			/* expr */
 			if (dest0 + len + k > dest1)
-				dest0 = NULL;
+				dest0 = nullptr;
 			if (dest0 == NULL)
 				goto fin;
 			dest0[0] = (c & 0x1f) + 0x37; /* 38～3b */
@@ -2489,10 +2394,12 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 /* listがあふれても続行 */
 {
 	int len, linecount = 0, srcl, i, addr, secno, file_len, g_symbols = 0, e_symbols = 0;
-	struct STR_OUTPUT_SECTION *sectable = malloc(MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION));
+	struct STR_OUTPUT_SECTION *sectable = reinterpret_cast<struct STR_OUTPUT_SECTION*>(
+		malloc(MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION)));
+
 	UCHAR *srcp, *file_p, *string0, *dest = dest0;
-	UCHAR *lbuf0 = malloc(1024), *lbuf;
-	UCHAR *ebuf0 = malloc(32), *ebuf; /* エラーバッファ */
+	UCHAR *lbuf0 = reinterpret_cast<UCHAR*>(malloc(1024)), *lbuf;
+	UCHAR *ebuf0 = reinterpret_cast<UCHAR*>(malloc(32))  , *ebuf; /* エラーバッファ */
 
 	UCHAR c, status, adrflag, cc, format, file_aux;
 		/* 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み */
@@ -2591,7 +2498,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 			0x80, 0x00, 0x10, 0xc0 /* +0x88: flags, default_align = 1 */
 		};
 		if (dest + sizeof (header) > dest1) {
-			dest = NULL;
+			dest = nullptr;
 			goto error;
 		}
 		for (i = 0; i < sizeof (header); i++)
@@ -2606,7 +2513,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 			srcp++;
 			c -= SHORT_DB0;
 			if (dest + 8 > dest1) {
-				dest = NULL;
+				dest = nullptr;
 				goto error;
 			}
 			if (format == 0 /* BIN */)
@@ -2632,9 +2539,9 @@ dest_out_skip:
 			if (format == 0) { /* BIN */
 				if (sectable[secno].align > 0) {
 					i = 1 << (sectable[secno].align);
-					while (((int) dest) & (i - 1)) {
+					while (((intptr_t) dest) & (i - 1)) {
 						if (dest >= dest1) {
-							dest = NULL;
+							dest = nullptr;
 							goto error;
 						}
 						*dest++ = '\0';
@@ -2705,7 +2612,7 @@ dest_out_skip:
 			}
 		}
 		if (dest > dest1) {
-			dest = NULL;
+			dest = nullptr;
 			goto error;
 		}
 
@@ -2713,7 +2620,7 @@ dest_out_skip:
 		put4b(dest - dest0, &dest0[0x08]);
 		put4b(i = file_aux + 7 + e_symbols + g_symbols, &dest0[0x0c]);
 		if (dest + i * 18 > dest1) {
-			dest = NULL;
+			dest = nullptr;
 			goto error;
 		}
 		for (i = 0; i < sizeof (common_symbols0); i++)
@@ -2772,7 +2679,7 @@ dest_out_skip:
 					} else {
 						put4b(dest - string0, &ebuf[4]);
 						if (dest + len + 1 > dest1) {
-							dest = NULL;
+							dest = nullptr;
 							goto error;
 						}
 						do {
@@ -2831,28 +2738,99 @@ skip_relative_relocation:
 	secno = 0;
 	addr = 0;
 	ebuf = ebuf0;
-	for (;;) {
-		lbuf = lbuf0;
-		c = *src0;
-		if (c == REM_3B && src0[1] == 0) {
-			sectable[secno].p = src0;
-			sectable[secno].addr = addr;
-			secno = src0[2];
-			src0 = sectable[secno].p;
-			addr = sectable[secno].addr;
-		}
+for (;;) {
+	lbuf = lbuf0;
+	c = *src0;
+	if (c == REM_3B && src0[1] == 0) {
+		sectable[secno].p = src0;
+		sectable[secno].addr = addr;
+		secno = src0[2];
+		src0 = sectable[secno].p;
+		addr = sectable[secno].addr;
+	}
 
-		if (c == 0xf7) {	/* switchで書いたら、lcc-win32が死んでしまった */
-			/* line start */
-			if (status == 1) {
-				len = -9;
-				status = 2;
+	if (c == 0xf7) {	/* switchで書いたら、lcc-win32が死んでしまった */
+		/* line start */
+		if (status == 1) {
+			len = -9;
+			status = 2;
+		}
+		if (status == 2) {
+			/* (MAX_LISTLEN - len)個のスペースを出力 */
+			if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
+				*list0 = '\0';
+				list0 = nullptr;
 			}
+			if (list0) {
+				do {
+					*list0++ = ' ';
+					len++;
+				} while (len < MAX_LISTLEN);
+				while (srcl--)
+					*list0++ = *srcp++;
+			}
+		}
+		if (status == 3)
+			*lbuf++ = '\n';
+		if ((len = ebuf - ebuf0) != 0) {
+			/* エラー出力 */
+			static const char *errmsg[] = {
+				"      >> [ERROR #001] syntax error.\n",
+				"      >> [ERROR #002] parameter error.\n",
+				"      >> [ERROR #003] data size error.\n",
+				"      >> [ERROR #004] data type error.\n",
+				"      >> [ERROR #005] addressing error.\n",
+				"      >> [ERROR #006] TIMES error.\n",
+				"      >> [ERROR #007] label definition error.\n",
+				"      >> [ERROR #008] data range error.\n",
+				"      >> [ERROR #009] expression error.\n",	/* 不定値エラー(delta != 0) */
+				"      >> [ERROR #010] expression error.\n",
+				"      >> [ERROR #011] expression error.\n",
+				"      >> [ERROR #012] expression error.\n" /* 未定義ラベル参照 */
+			};
+			nask_errors += len;
+			for (i = 0; i < len; i++) {
+				ebuf = (UCHAR*) errmsg[ebuf0[i] - 0xe1];
+				while ((*lbuf++ = *ebuf++) != '\n');
+			}
+			ebuf = ebuf0;
+		}
+		srcl = get4b(&src0[1]);
+		srcp = (UCHAR *) get4b(&src0[5]);
+		if (srcl) {
+			setdec(++linecount, 6, &lbuf[0]);
+			lbuf[6] = ' ';
+			lbuf += 7;
+		}
+		len = 0;
+		src0 += 9;
+		status = 1;
+		adrflag = 0;
+	} else if (c == 0x5a) {
+		/* ORG */
+		addr = get4b(&src0[1]);
+		src0 += 5;
+	} else if (c == 0x68) {
+		src0 += 2; /* 読み飛ばす */
+	} else if (c == REM_ADDR) {
+		status = 2;
+		sethex0(addr, 8, &lbuf[0]);
+		lbuf[8] = ' ';
+		lbuf += 9;
+		src0++;
+		adrflag = 1;
+	} else if (SHORT_DB1 <= c && c <= SHORT_DB4) {
+		if (status == 1) {
+			for (i = 0; i < 9; i++)
+				*lbuf++ = ' ';
+			status = 2;
+		}
+		if (len + 1 + (c - 0x30) * 2 > MAX_LISTLEN) {
 			if (status == 2) {
 				/* (MAX_LISTLEN - len)個のスペースを出力 */
 				if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
 					*list0 = '\0';
-					list0 = NULL;
+					list0 = nullptr;
 				}
 				if (list0) {
 					do {
@@ -2862,205 +2840,126 @@ skip_relative_relocation:
 					while (srcl--)
 						*list0++ = *srcp++;
 				}
-			}
-			if (status == 3)
+			} else
 				*lbuf++ = '\n';
-			if ((len = ebuf - ebuf0) != 0) {
-				/* エラー出力 */
-				static char *errmsg[] = {
-					"      >> [ERROR #001] syntax error.\n",
-					"      >> [ERROR #002] parameter error.\n",
-					"      >> [ERROR #003] data size error.\n",
-					"      >> [ERROR #004] data type error.\n",
-					"      >> [ERROR #005] addressing error.\n",
-					"      >> [ERROR #006] TIMES error.\n",
-					"      >> [ERROR #007] label definition error.\n",
-					"      >> [ERROR #008] data range error.\n",
-					"      >> [ERROR #009] expression error.\n",	/* 不定値エラー(delta != 0) */
-					"      >> [ERROR #010] expression error.\n",
-					"      >> [ERROR #011] expression error.\n",
-					"      >> [ERROR #012] expression error.\n" /* 未定義ラベル参照 */
-				};
-				nask_errors += len;
-				for (i = 0; i < len; i++) {
-					ebuf = errmsg[ebuf0[i] - 0xe1];
-					while ((*lbuf++ = *ebuf++) != '\n');
-				}
-				ebuf = ebuf0;
-			}
-			srcl = get4b(&src0[1]);
-			srcp = (UCHAR *) get4b(&src0[5]);
-			if (srcl) {
-				setdec(++linecount, 6, &lbuf[0]);
-				lbuf[6] = ' ';
-				lbuf += 7;
-			}
+			for (i = 0; i < 7 + 9; i++)
+				lbuf[i] = ' ';
+			if (adrflag)
+				sethex0(addr, 8, &lbuf[7]);
+			lbuf += 9 + 7;
+			status = 3;
 			len = 0;
-			src0 += 9;
-			status = 1;
-			adrflag = 0;
-		} else if (c == 0x5a) {
-			/* ORG */
-			addr = get4b(&src0[1]);
-			src0 += 5;
-		} else if (c == 0x68) {
-			src0 += 2; /* 読み飛ばす */
-		} else if (c == REM_ADDR) {
+		}
+		src0++;
+		for (i = c - SHORT_DB1 /* 0x31 */; i >= 0; i--) {
+			sethex0(src0[i], 2, &lbuf[0]);
+			lbuf += 2;
+			len += 2;
+			addr++;
+		}
+		src0 += c - SHORT_DB0; /* - 0x30 */
+		*lbuf++ = ' ';
+		len++;
+	} else if (0x2e <= c && c <= 0x2f && 1 <= sectable[secno].flags && sectable[secno].flags <= 2) { /* reloc data */
+		if (status == 1) {
+			for (i = 0; i < 9; i++)
+				*lbuf++ = ' ';
 			status = 2;
-			sethex0(addr, 8, &lbuf[0]);
-			lbuf[8] = ' ';
-			lbuf += 9;
-			src0++;
-			adrflag = 1;
-		} else if (SHORT_DB1 <= c && c <= SHORT_DB4) {
-			if (status == 1) {
-				for (i = 0; i < 9; i++)
-					*lbuf++ = ' ';
-				status = 2;
-			}
-			if (len + 1 + (c - 0x30) * 2 > MAX_LISTLEN) {
-			//	if (status == 1) {
-			//		len = -9;
-			//		status = 2;
-			//	}
-				if (status == 2) {
-					/* (MAX_LISTLEN - len)個のスペースを出力 */
-					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
-						*list0 = '\0';
-						list0 = NULL;
-					}
-					if (list0) {
-						do {
-							*list0++ = ' ';
-							len++;
-						} while (len < MAX_LISTLEN);
-						while (srcl--)
-							*list0++ = *srcp++;
-					}
-				} else
-					*lbuf++ = '\n';
-				for (i = 0; i < 7 + 9; i++)
-					lbuf[i] = ' ';
-				if (adrflag)
-					sethex0(addr, 8, &lbuf[7]);
-				lbuf += 9 + 7;
-				status = 3;
-				len = 0;
-			}
-			src0++;
-			for (i = c - SHORT_DB1 /* 0x31 */; i >= 0; i--) {
-				sethex0(src0[i], 2, &lbuf[0]);
-				lbuf += 2;
-				len += 2;
-				addr++;
-			}
-			src0 += c - SHORT_DB0; /* - 0x30 */
-			*lbuf++ = ' ';
-			len++;
-		} else if (0x2e <= c && c <= 0x2f && 1 <= sectable[secno].flags && sectable[secno].flags <= 2) { /* reloc data */
-			if (status == 1) {
-				for (i = 0; i < 9; i++)
-					*lbuf++ = ' ';
-				status = 2;
-			}
-			if (len + 11 > MAX_LISTLEN) {
-			//	if (status == 1) {
-			//		len = -9;
-			//		status = 2;
-			//	}
-				if (status == 2) {
-					/* (MAX_LISTLEN - len)個のスペースを出力 */
-					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
-						*list0 = '\0';
-						list0 = NULL;
-					}
-					if (list0) {
-						do {
-							*list0++ = ' ';
-							len++;
-						} while (len < MAX_LISTLEN);
-						while (srcl--)
-							*list0++ = *srcp++;
-					}
-				} else
-					*lbuf++ = '\n';
-				for (i = 0; i < 7 + 9; i++)
-					lbuf[i] = ' ';
-				if (adrflag)
-					sethex0(addr, 8, &lbuf[7]);
-				lbuf += 9 + 7;
-				status = 3;
-				len = 0;
-			}
-			src0 += 9;
-			i = get4b(&dest0[sectable[secno].flags * 40]) + addr;
-			lbuf[0] = '[';
-			sethex0(get4b(&dest0[i]), 8, &lbuf[1]);
-			lbuf[9] = ']';
-			lbuf[10] = ' ';
-			lbuf += 11;
-			len += 11;
-			addr += 4;
-		} else if (c == 0x0c) {
-			/* EQU (1) */
-			/* 必ず status == 1 */
-			lbuf[0] = ' ';
-			lbuf[1] = '=';
-			lbuf[2] = ' ';
-			sethex0(get4b(&src0[1]), 8, &lbuf[3]);
-			lbuf[11] = ' ';
-			len = -9 + 12;
-			lbuf += 12;
-			src0 += 5;
-			status = 2;
-		} else if (c == 0x0d) {
-			/* EQU (2) */
-			/* 必ず status == 1 */
-			lbuf[0] = ' ';
-			lbuf[1] = '=';
-			lbuf[2] = ' ';
-			lbuf[3] = '[';
-			sethex0(get4b(&src0[1]), 8, &lbuf[4]);
-			lbuf[12] = ']';
-			lbuf[13] = ' ';
-			len = -9 + 14;
-			lbuf += 14;
-			src0 += 5;
-			status = 2;
-		} else if (0xe1 <= c && c <= 0xec) {
-			/* エラーコード */
-			*ebuf++ = c;
-			src0++;
-		} else if (c == 0x30 /* SHORT_DB0 */) {
-			src0++; /* 読み飛ばす */
-		} else if (0xf0 <= c && c <= 0xf7) {
-			src0 += c - (0xf0 - 2);
-		} else if (c == 0x2c) {
-			src0 += 4;
-		} else {
-			#if (DEBUG)
-				fprintf(stderr, "output:%02X\n", c);
-			#endif
-			src0++;
 		}
-		i = lbuf - lbuf0;
-		if (list0 + i >= list1) {
-			*list0 = '\0';
-			list0 = NULL;
+		if (len + 11 > MAX_LISTLEN) {
+			if (status == 2) {
+				/* (MAX_LISTLEN - len)個のスペースを出力 */
+				if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
+					*list0 = '\0';
+					list0 = nullptr;
+				}
+				if (list0) {
+					do {
+						*list0++ = ' ';
+						len++;
+					} while (len < MAX_LISTLEN);
+					while (srcl--)
+						*list0++ = *srcp++;
+				}
+			} else
+				*lbuf++ = '\n';
+			for (i = 0; i < 7 + 9; i++)
+				lbuf[i] = ' ';
+			if (adrflag)
+				sethex0(addr, 8, &lbuf[7]);
+			lbuf += 9 + 7;
+			status = 3;
+			len = 0;
 		}
-		if (list0) {
-			lbuf = lbuf0;
-			while (i--)
-				*list0++ = *lbuf++;
-		}
-		if (c == 0xf7) {
-			cc = 0;
-			for (i = -8; i < 0; i++)
-				cc |= src0[i]; 
-			if (cc == 0)
-				break;
-		}
+		src0 += 9;
+		i = get4b(&dest0[sectable[secno].flags * 40]) + addr;
+		lbuf[0] = '[';
+		sethex0(get4b(&dest0[i]), 8, &lbuf[1]);
+		lbuf[9] = ']';
+		lbuf[10] = ' ';
+		lbuf += 11;
+		len += 11;
+		addr += 4;
+	} else if (c == 0x0c) {
+		/* EQU (1) */
+		/* 必ず status == 1 */
+		lbuf[0] = ' ';
+		lbuf[1] = '=';
+		lbuf[2] = ' ';
+		sethex0(get4b(&src0[1]), 8, &lbuf[3]);
+		lbuf[11] = ' ';
+		len = -9 + 12;
+		lbuf += 12;
+		src0 += 5;
+		status = 2;
+	} else if (c == 0x0d) {
+		/* EQU (2) */
+		/* 必ず status == 1 */
+		lbuf[0] = ' ';
+		lbuf[1] = '=';
+		lbuf[2] = ' ';
+		lbuf[3] = '[';
+		sethex0(get4b(&src0[1]), 8, &lbuf[4]);
+		lbuf[12] = ']';
+		lbuf[13] = ' ';
+		len = -9 + 14;
+		lbuf += 14;
+		src0 += 5;
+		status = 2;
+	} else if (0xe1 <= c && c <= 0xec) {
+		/* エラーコード */
+		*ebuf++ = c;
+		src0++;
+	} else if (c == 0x30 /* SHORT_DB0 */) {
+		src0++; /* 読み飛ばす */
+	} else if (0xf0 <= c && c <= 0xf7) {
+		src0 += c - (0xf0 - 2);
+	} else if (c == 0x2c) {
+		src0 += 4;
+	} else {
+#if (DEBUG)
+		fprintf(stderr, "output:%02X\n", c);
+#endif
+		src0++;
 	}
+	i = lbuf - lbuf0;
+	if (list0 + i >= list1) {
+		*list0 = '\0';
+		list0 = nullptr;
+	}
+	if (list0) {
+		lbuf = lbuf0;
+		while (i--)
+			*list0++ = *lbuf++;
+	}
+	if (c == 0xf7) {
+		cc = 0;
+		for (i = -8; i < 0; i++)
+			cc |= src0[i]; 
+		if (cc == 0)
+			break;
+	}
+}
 error:
 	list1[1] = 1; /* over */
 	if (list0) {
@@ -3150,7 +3049,7 @@ UCHAR *putprefix(UCHAR *dest0, UCHAR *dest1, int prefix, int bits, int opt)
 	}
 	i = bp - buf;
 	if (dest0 + i > dest1)
-		dest0 = NULL;
+		dest0 = nullptr;
 	if (dest0) {
 		for (j = 0; j < i; j++)
 			dest0[j] = buf[j];
@@ -3487,16 +3386,16 @@ static struct INST_TABLE instruction[] = {
 /* このテーブルは必ず大文字で */
 
 static struct INST_TABLE setting_table[] = {
-	{ "BITS",		SUP_8086, 0xe0 }, /* セクションが切り替わると連動する(セクション外でやるとデフォルト) */
+	{ "BITS",	SUP_8086, 0xe0 }, /* セクションが切り替わると連動する(セクション外でやるとデフォルト) */
 	{ "INSTRSET",	SUP_8086, 0xe1 },
 	{ "OPTIMIZE",	SUP_8086, 0xe2 }, /* 0:最適化なし, 1:最適化あり */
-	{ "FORMAT",		SUP_8086, 0xe3 }, /* BIN, COFF */
+	{ "FORMAT",	SUP_8086, 0xe3 }, /* BIN, COFF */
 	{ "PADDING",	SUP_8086, 0xe4 }, /* set, len, byte, byte, byte,... */
-	{ "PADSET",		SUP_8086, 0xe5 }, /* セクションが切り替わると連動する(セクション外でやるとデフォルト) */
-	{ "OPTION",		SUP_8086, 0xe6 },
+	{ "PADSET",	SUP_8086, 0xe5 }, /* セクションが切り替わると連動する(セクション外でやるとデフォルト) */
+	{ "OPTION",	SUP_8086, 0xe6 },
 	{ "SECTION",	SUP_8086, 0xe7 },
 	{ "ABSOLUTE",	SUP_8086, 0xe8 },
-	{ "FILE",		SUP_8086, 0xe9 },
+	{ "FILE",	SUP_8086, 0xe9 },
 	{ "", 0, 0 }
 };
 
@@ -3511,7 +3410,7 @@ UCHAR *setinstruct(UCHAR *s, UCHAR *t, UCHAR *inst)
 		if ('a' <= c && c <= 'z')
 			c += 'A' - 'a';
 		if (inst >= i1)
-			return NULL;
+			return nullptr;
 		*inst++ = c;
 	}
 	while (inst < i1)
@@ -3520,12 +3419,24 @@ UCHAR *setinstruct(UCHAR *s, UCHAR *t, UCHAR *inst)
 }
 
 static unsigned char *cpu_name[] = {
-	"8086", "80186", "80286", "80286p", "i386", "i386p", "i486", "i486p", /* 0～7 */
-	"Pentium", "PentiumPro", "PentiumMMX", "Pentium2", "Pentium3", "Pentium4", /* 8～13 */
+	(UCHAR*) "8086", 
+	(UCHAR*) "80186", 
+	(UCHAR*) "80286", 
+	(UCHAR*) "80286p", 
+	(UCHAR*) "i386", 
+	(UCHAR*) "i386p", 
+	(UCHAR*) "i486", 
+	(UCHAR*) "i486p", /* 0～7 */
+	(UCHAR*) "Pentium", 
+	(UCHAR*) "PentiumPro", 
+	(UCHAR*) "PentiumMMX", 
+	(UCHAR*) "Pentium2", 
+	(UCHAR*) "Pentium3", 
+	(UCHAR*) "Pentium4", /* 8～13 */
 	NULL
 };
 
-static unsigned char *format_type[] = { "BIN", "WCOFF", NULL };
+static unsigned char *format_type[] = { (UCHAR*)"BIN", (UCHAR*)"WCOFF", NULL };
 
 UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
 /* NASKの文法に基づき、一文を分解する */
@@ -3535,11 +3446,10 @@ UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
 	struct INST_TABLE *itp;
 	UCHAR instruct[OPCLENMAX], *p, **pq, *q, c, cc;
 
-	decode->instr = NULL; /* 空行もしくは注釈行 */
+	decode->instr = nullptr; /* 空行もしくは注釈行 */
 	decode->error = 0;
 	decode->prefix = 0;
-	decode->label = NULL;
-//	decode->dollar = 0;
+	decode->label = nullptr;
 setting:
 	src = skipspace(src, status->src1);
 	if (src >= status->src1)
@@ -3748,18 +3658,15 @@ research:
 						if (*q == '$') {
 			need_dollar0:
 							status->expr_status.dollar_label0 = nextlabelid++;
-					//		decode->dollar = 1;
 							break;
 						}
 					}
 				}
 				if ((c = itp->param[0]) != 0) {
-				//	src = skipspace(p, status->src1);
 					src = p;
 					if (c == PREFIX) {
-						decode->instr = NULL;
+						decode->instr = nullptr;
 						decode->prefix |= 1 << itp->param[1];
-					//	src = p;
 						if (src < status->src1 && *src != '\n' && *src != ';')
 							goto research; /* 何かが続いていれば、さらに検索 */
 						goto skipline;
@@ -3807,12 +3714,9 @@ research:
 		decode->label = src; /* ラベル発見 */
 		while (*src > ' ' && src < status->src1)
 			src++;
-	//	c = src[-1];
 		src = skipspace(src, status->src1);
 		if (src >= status->src1 || *src == '\n' || *src == ';') {
-		//	if (c == ':')
-				goto skipline; /* ラベル定義 */
-		//	goto error1;
+			goto skipline; /* ラベル定義 */
 		}
 		goto research;
 	}
@@ -3846,7 +3750,7 @@ struct STR_TERM *decode_expr(UCHAR **ps, UCHAR *s1, struct STR_TERM *expr, int *
 	int prio0 = 0, prio1, i, j, k;
 	static char symbols[] = "\"'+-*/%&|^(){}[]<>,;:";
 	static struct STR_OPELIST {
-		char str[2], prio, num;
+		char str[3], prio, num;
 	} opelist0[] = {
 		{ "|>", 12, 18 }, { "&>", 12, 17 },
 		{ "<<", 12, 16 }, { ">>", 12, 17 },
@@ -3882,7 +3786,6 @@ struct STR_TERM *decode_expr(UCHAR **ps, UCHAR *s1, struct STR_TERM *expr, int *
 		SUP_8086,	"BYTE", "WORD", "SHORT", "NEAR", "FAR", "NOSPLIT", "$", "$$",
 		SUP_8086,	"DWORD", "", "", "", "QWORD", "..$", "TWORD", "TO",
 		SUP_8086,	"ST0", "ST1", "ST2", "ST3", "ST4", "ST5", "ST6", "ST7",	/* 80-87 */
-	//	SUP_MMX,	"MM0", "MM1", "MM2", "MM3", "MM4", "MM5", "MM6", "MM7",	/* 88-95 */
 		0, 			"", "", "", "", "", "", "", ""
 	};
 	struct STR_KEYWORD *pkw;
@@ -3900,7 +3803,7 @@ single:
 	if (c == '+') {
 		/* 単項プラス */
 		expr->value = 0; /* s+ */
-single1:
+	single1:
 		expr->term_type = 1; /* operator */
 		expr++;
 		goto single;
@@ -3909,17 +3812,11 @@ single1:
 		/* 単項マイナス */
 		expr->value = 1; /* s- */
 		goto single1;
-	//	expr->term_type = 1; /* operator */
-	//	expr++;
-	//	goto single;
 	}
 	if (c == '~') {
 		/* 単項NOT */
 		expr->value = 2; /* s~ */
 		goto single1;
-	//	expr->term_type = 1; /* operator */
-	//	expr++;
-	//	goto single;
 	}
 
 	/* 第1項 */
@@ -3998,9 +3895,9 @@ token_end:
 	if (d == '$' && k >= 2 /* && '0' <= t[1] && t[1] <= '9' */) {
 		t++;
 		k--;
-num_hex:
+	num_hex:
 		j = 16;
-num_all:
+	num_all:
 		i = 0;
 		do {
 			d = *t++;
@@ -4018,7 +3915,7 @@ num_all:
 				goto error;
 			i = i * j + d;
 		} while (--k);
-constant:
+	constant:
 		expr->term_type = 0; /* constant */
 		expr->value = i;
 		expr++;
@@ -4059,7 +3956,7 @@ find_keyword:
 	} 
 	if (i < 24) {
 		/* reg32, reg16, reg8 */
-term_reg:
+	term_reg:
 		expr->term_type = 2; /* reg */
 		expr->value = i;
 		expr++;
@@ -4077,11 +3974,9 @@ term_reg:
 	}
 	if (i < 64)
 		goto term_reg;
-//	if (i == 64 || i == 65)
-//		i += 36 - 64;
 	if (i < 66) {
 		/* datawidth */
-datawidth:
+	datawidth:
 		if (status->datawidth != -1)
 			goto error;
 		status->datawidth = i - 63;
@@ -4099,15 +3994,6 @@ datawidth:
 		status->nosplit = 1;
 		goto single;
 	}
-//	if (i < 72) {
-//		/* $, $$ */
-//		expr->term_type = 3; /* label */
-//		expr->value = - 16 + 70 - i; /* -16:$, -17:$$ */
-//		expr++;
-//		if (i == 70)
-//			status->use_dollar = 1;
-//		goto search_oper;
-//	}
 	if (i < 78) {
 		i += 63 + 4 - 72;
 		goto datawidth;
@@ -4118,24 +4004,20 @@ datawidth:
 		status->to_flag++;
 		goto single;
 	}
-//	if (i < 96) {
-		/* STx, MMx */
-		i += 72 - 80;
-		goto term_reg;
-//	}
+	i += 72 - 80;
+	goto term_reg;
 
 symbol:
 	if (c == '(') {
 		/* 括弧 */
 		expr = decode_expr(&s, s1, expr, NULL, status);
-	//	s = skipspace(s, s1);
 		c = '\0';
 		if (s < s1)
 			c = *s++;
 		if (c != ')')
-			expr = NULL;
+			expr = nullptr;
 		if (expr == NULL)
-			return NULL;
+			return nullptr;
 	} else if (c == 0x22 || c == 0x27) {
 		/* " ' */
 		i = 0;
@@ -4153,11 +4035,9 @@ symbol:
 		}
 	} else {
 		s--;
-error:
-		expr = NULL;
+	error:
+		expr = nullptr;
 		goto fin;
-	//	*ps = s;
-	//	return NULL;
 	}
 
 search_oper:
@@ -4189,12 +4069,9 @@ search_oper:
 
 new_operator:
 	if (prio0 >= prio1) {
-	//	if (priority)
-			*priority = - prio1; /* 親の演算子変更を通知 */
+		*priority = - prio1; /* 親の演算子変更を通知 */
 		expr->value = c;
 		goto fin;
-	//	*ps = s;
-	//	return expr; /* 一番最後の後ろが新演算子 */
 	}
 
 	/* 演算子を前に出す */
@@ -4208,7 +4085,6 @@ new_operator:
 
 	/* 第2項 */
 	expr = decode_expr(&s, s1, expr, &prio1, status);
-//	s = skipspace(s, s1);
 	if (prio1 < 0) {
 		prio1 = - prio1;
 		c = expr->value;
@@ -4233,7 +4109,6 @@ fin:
 void init_ofsexpr(struct STR_OFSEXPR *ofsexpr)
 {
 	ofsexpr->scale[0] = ofsexpr->scale[1] = ofsexpr->disp = 0;
-//	ofsexpr->extlabel = 0;
 	ofsexpr->reg[0] = ofsexpr->reg[1] = 0xff;
 	ofsexpr->dispflag = ofsexpr->err = 0;
 	return;
@@ -4270,11 +4145,6 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 			}
 			ofsexpr->err |= tmp.err;
 			ofsexpr->dispflag |= tmp.dispflag;
-		//	if (i >= 5) {
-		//		/* - * % // %% & | << >> */
-		//		if (tmp.extlabel)
-		//			goto err1;
-		//	}
 			if (i >= 6) {
 				/* * / % // %% & | ^ << >> */
 				if (tmp.reg[0] != 0xff)
@@ -4292,15 +4162,12 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 						ofsexpr->disp = j;
 						ofsexpr->scale[0] = ofsexpr->scale[1] = 0;
 						ofsexpr->reg[0] = ofsexpr->reg[1] = 0xff;
-					//	ofsexpr->extlabel = 0;
 						ofsexpr->dispflag = 0;
 						return;
 					}
 					if (7 <= i && i <= 10 && j == 0)
 						goto err1; /* /0, %0, //0, %%0 */
 					/* ^ の相殺は判定が複雑なのでやってない */
-				//	if (ofsexpr->extlabel)
-				//		goto err1;
 					if (i == 8 || i == 10 || i == 12 || i == 13 || i == 14) {
 						/* % %% & | ^ */
 						if (ofsexpr->reg[0] != 0xff)
@@ -4323,10 +4190,8 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 			ofsexpr->scale[1] *= -1;
 			ofsexpr->disp *= -1;
 			break;
-		//	if (ofsexpr->extlabel) {
 	err1:
 				ofsexpr->err |= 1;
-		//	}
 			break;
 		case 2: /* 単項 ~ */
 			ofsexpr->disp ^= -1;
@@ -4361,11 +4226,6 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 				}
 			}
 			ofsexpr->disp += tmp.disp;
-		//	if (tmp.extlabel) {
-		//		if (ofsexpr->extlabel)
-		//			goto err1;
-		//		ofsexpr->extlabel = tmp.extlabel;
-		//	}
 			break;
 		case 5: /* 二項 - */
 			tmp.scale[0] *= -1;
@@ -4440,8 +4300,6 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 		break;
 	case 2: /* register */
 		init_ofsexpr(ofsexpr);
-	//	if (i >= 64)
-	//		goto err1;
 		ofsexpr->reg[0] = i;
 		ofsexpr->scale[0] = 1;
 		break;
@@ -4477,7 +4335,7 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 
 /*	status->support = 
 	status->glabel_len = 0;
-	status->glabel = NULL;
+	status->glabel = nullptr;
 */
 	status->datawidth = -1; /* -1(default), 1(byte), 2(word), 4(dword) */
 	status->seg_override = -1; /* -1(default), 0～5 */
@@ -4535,17 +4393,7 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 	if (ofsexpr->reg[0] == 0xff) {
 		/* 定数 */
 		i = ofsexpr->disp;
-	//	if (status->datawidth == -1) {
-	//		ret &= 0xf0;
-	//		if (-128 <= i && i <= 127)
-	//			ret |= 0x01;
-	//		else if (-0x8000 <= i && i <= 0x7fff)
-	//			ret |= 0x02;
-	//		else
-	//			ret |= 0x04;
-	//	} else {
-			ret |= status->datawidth & 0x0f;
-	//	}
+		ret |= status->datawidth & 0x0f;
 		ret |= 0x20;
 		if (ofsexpr->dispflag != 0 /* || ofsexpr->extlabel != 0 */)
 			rethigh |= 0x02;
@@ -4617,10 +4465,6 @@ int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, 
 	UCHAR nosplit, reg[2], tmp;
 	int seg, ret = 0, scale[2], i;
 
-//	if ((gparam & 0x30) == 0) {
-//		/* reg */
-//		return 0x30;
-//	}
 	nosplit = (gparam >> 15) & 0x01;
 	seg = (1 << ((gparam >> 12) & 0x07)) & 0x7f; /* bit12-14:(mem):seg (7:default, 0～5:seg) */
 	calc_ofsexpr(ofsexpr, &expr, nosplit);
@@ -4691,15 +4535,12 @@ disponly_a32:
 					goto error;
 			} else {
 				/* 両方のscaleが1 */
-			//	tmp = 0xff;
 				if ((ofsexpr->reg[0] & 0x80) != 0 && (ofsexpr->reg[1] & 0x80) == 0) {
 					/* reg[0]はスケールされていて、reg[1]はされていない */
 					tmp = reg[0];
 					reg[0] = reg[1];
 					reg[1] = tmp;
 				}
-			//	if ((ofsexpr->reg[0] & 0x80) == 0 && (ofsexpr->reg[1] & 0x80) != 0)
-			//		tmp = 0;
 				/* 勝手な交換を阻止したければ、NOSPLITを書け */
 				if (status->optimize >= 1 && nosplit == 0) {
 					/* EBPがベースなら交換 */
@@ -4778,7 +4619,7 @@ error:
 		if (tmp == 4)
 			goto error;
 	}
-	ret |= (int) tmp << 14 | (int) (reg[1] & 0x07) << 11;
+	ret |= (intptr_t) tmp << 14 | (intptr_t) (reg[1] & 0x07) << 11;
 
 fin:
 	*prefix |= seg << 5;
@@ -4792,7 +4633,6 @@ void putmodrm(struct STR_IFDEFBUF *ifdef, int tmret, int gparam,
 {
 	UCHAR width, mod2 = 0x80;
 	UCHAR mod, tmret1 = (tmret >> 8) & 0xff, nobase = tmret & 0x80;
-//	struct STR_TERM *expr = status->mem_expr;
 	static int mcode[] = {
 		0x82,	0x01 /* UCHAR, const */, 0x80 /* 16bit/32bit */,
 				0x01 /* UCHAR, const */, 0x40 /* 8bit */,
@@ -4810,7 +4650,6 @@ void putmodrm(struct STR_IFDEFBUF *ifdef, int tmret, int gparam,
 		goto fin;
 	}
 	/* mem */
-//	calc_ofsexpr(ofsexpr, &expr, 0);
 	width = (gparam >> 9) & 0x07;
 	mod = 0x82; /* word/byte/zero */
 	if (tmret & 0x10) {
@@ -4920,7 +4759,6 @@ err2:
 		if (dsiz <= 4) {
 			ifdef->vb[vba] = dsiz; /* zero/UCHAR/USHORT/UINT, const */
 			if (dsiz != 0) {
-			//	ifdef->bp = bp;
 				if (defnumexpr(ifdef, expr0, vba, (dsiz2mc98 - 1)[dsiz]))
 					goto err2; /* パラメータエラー */
 				bp = ifdef->bp;
@@ -5007,7 +4845,6 @@ err2:
 		if (dsiz <= 4) {
 			ifdef->vb[vba] = dsiz; /* zero/UCHAR/USHORT/UINT, const */
 			if (dsiz != 0) {
-			//	ifdef->bp = bp;
 				if (defnumexpr(ifdef, expr0, vba, (dsiz2mc98 - 1)[dsiz]))
 					goto err2; /* パラメータエラー */
 				bp = ifdef->bp;
@@ -5073,7 +4910,7 @@ fin:
 }
 
 static char mc98_typ[7] = { 0x01, 0x41, 0x02, 0x62, 0x04, 0x64, 0x61 };
-static int mc98_min[7] = { 0,    -128, 0,      -0x10000, 0x80000000, 0x80000000, -0x100 };
+static int mc98_min[7] = { 0,    -128, 0,      -0x10000, static_cast<int>(0x80000000), static_cast<int>(0x80000000), -0x100 };
 static int mc98_max[7] = { 0xff, 0x7f, 0xffff, 0xffff,   0x7fffffff, 0x7fffffff, 0xff   };
 
 int microcode94(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def)
@@ -5135,9 +4972,6 @@ int defnumexpr(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, UCHAR vb, UCHA
 	ifdef->vb[vb] = mc98_typ[def];
 	if (ofsexpr.dispflag != 0) {
 		/* ラベル検出 */
-	//	if (ofsexpr.scale[0]) {
-	//		return 1; /* レジスタを含んでいればエラー */
-	//	}
 		ifdef->vb[vb] |= 0x80;
 		expr = expr0;
 		ifdef->dat[vb] = put_expr(ifdef->expr[vb], &expr) - ifdef->expr[vb];
@@ -5180,9 +5014,7 @@ int label2id(int len, UCHAR *label, int extflag)
 
 	if (label[0] == '.' && ((len >= 2 && label[1] != '.') || len == 1)) {
 		/* local label */
-	//	s = locallabelbuf;
 		i = len;
-	//	s += *s;
 		len += locallabelbuf - locallabelbuf0;
 		do {
 			i--;
@@ -5231,7 +5063,7 @@ UCHAR *id2label(int id)
 		if (i == id)
 			goto fin;
 	}
-	s = NULL;
+	s = nullptr;
 fin:
 	return s;
 }
@@ -5290,7 +5122,6 @@ skip_single_plus:
 			c--;
 			*s++ = i & 0xff;
 		}
-	//	break;
 	}
 	*pexpr = expr;
 	return s;

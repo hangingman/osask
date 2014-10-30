@@ -1,13 +1,13 @@
-#include "../include/stdio.h"
+#include <cstdio>
 
 #define DEBUG		0
 
-UCHAR *LL_skip_expr(UCHAR *p);
-UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
+char *LL_skip_expr(char *p);
+char *LL_skip_mc30(char *s, char *bytes, char flag);
 
-UCHAR *LL_skipcode(UCHAR *p)
+char *LL_skipcode(char *p)
 {
-	UCHAR c, len;
+	char c, len;
 retry:
 	c = *p++;
 	if (0x30 <= c && c <= 0x37) {
@@ -109,9 +109,9 @@ fin:
 	return p;
 }
 
-UCHAR *LL_skip_expr(UCHAR *expr)
+char *LL_skip_expr(char *expr)
 {
-	UCHAR c;
+	char c;
 	c = *expr++;
 	if (c <= 6) {
 		/* ’è” */
@@ -158,10 +158,10 @@ fin:
 	return expr;
 }
 
-UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag)
+char *LL_skip_mc30(char *s, char *bytes, char flag)
 {
 	static char mc98_width[] = { 1, 1, 2, 2, 4, 4, 1 };
-	UCHAR c;
+	char c;
 
 	c = *s++;
 	#if (DEBUG)
