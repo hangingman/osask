@@ -1,7 +1,7 @@
 char *nask(char *src0, char *src1, char *dest0, char *dest1);
 char *LL(char *src0, char *src1, char *dest0, char *dest1);
 char *output(char *src0, char *src1, char *dest0, char *dest1, char *list0, char *list1);
-void *GO_memcpy(void *s, const void *ct, unsigned int n);
+void *GO_memcpy(void *s, const void *ct, size_t n);
 
 void errmsgout(const char *s)
 {
