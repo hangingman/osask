@@ -4,6 +4,7 @@
 /*	¬–ö‚³‚ñ‚Ìstring0‚ÉŠÖ‚·‚éw“E‚àQl‚É‚µ‚Ü‚µ‚½ */
 
 #include <cstdlib>	/* malloc/free */
+#include <cstdint>
 
 #define	DEBUG			0
 
