@@ -38,6 +38,8 @@ aclocal.m4
 
 # osask
 aska
+nask
+naskcnv0
 gas2nask
 golib00
 sjisconv

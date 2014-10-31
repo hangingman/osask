@@ -5,26 +5,26 @@ struct GOL_STR_DIR;
 
 typedef struct GOL_STR_FILE {
 	unsigned int size;
-	UCHAR *p0;
+	char *p0;
 	unsigned int linkcount;
 	void *p_sys;
 } GOL_FILE;
 
 int GOL_retcode = 0;
-UCHAR *GOL_outname = NULL;
+char *GOL_outname = NULL;
 void *GOL_sysmalloc(unsigned int size);
-int main1(int argc, UCHAR **argv);
+int main1(int argc, char **argv);
 int GO_fputs(const char *s, GO_FILE *stream);
 
 void GOLD_eixt(int s);
-int GOLD_getsize(const UCHAR *name);
-int GOLD_read(const UCHAR *name, int len, UCHAR *b0);
-int GOLD_write_t(const UCHAR *name, int len, const UCHAR *p0);
+int GOLD_getsize(const char *name);
+int GOLD_read(const char *name, int len, char *b0);
+int GOLD_write_t(const char *name, int len, const char *p0);
 void GOL_sysabort(unsigned char termcode);
 
-void GOL_callmain(int argc, UCHAR **argv)
+void GOL_callmain(int argc, char **argv)
 {
-	UCHAR **argv1, **p;
+	char **argv1, **p;
 	p = argv1 = GOL_sysmalloc((argc + 1) * sizeof (char *));
 	for (;;) {
 		if ((*p = *argv) == NULL)
@@ -54,16 +54,16 @@ void GOL_close(GOL_FILE *gfp)
 	return;
 }
 
-GOL_FILE *GOL_open(struct GOL_STR_DIR *dir, const UCHAR *name)
+GOL_FILE *GOL_open(struct GOL_STR_DIR *dir, const char *name)
 {
 	GOL_FILE *gfp;
 	int bytes;
-	UCHAR *p;
+	char *p;
 	bytes = GOLD_getsize(name);
 	if (bytes == -1)
 		goto err;
 	gfp = (struct GOL_STR_FILE *) GOL_sysmalloc(sizeof (struct GOL_STR_FILE));
-	p = gfp->p0 = (UCHAR *) GOL_sysmalloc(bytes);
+	p = gfp->p0 = (char *) GOL_sysmalloc(bytes);
 	gfp->linkcount = 1;
 	if (GOLD_read(name, bytes, p)) {
 		GOL_close(gfp);
@@ -75,7 +75,7 @@ err:
 	return (GOL_FILE *) ~0;
 }
 
-UCHAR *GOL_stepdir(struct GOL_STR_DIR **dir, const UCHAR *path)
+char *GOL_stepdir(struct GOL_STR_DIR **dir, const char *path)
 {
-	return (UCHAR *) path;
+	return (char *) path;
 }

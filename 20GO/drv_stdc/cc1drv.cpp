@@ -1,35 +1,35 @@
 #include <stdlib.h>	/* malloc */
 
-typedef unsigned char UCHAR;
+typedef unsigned char char;
 
 typedef struct GO_STR_FILE {
-	UCHAR *p0, *p1, *p;
+	char *p0, *p1, *p;
 	int dummy;
 } GO_FILE;
 
 extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 extern struct GOL_STR_MEMMAN GOL_memman, GOL_sysman;
-UCHAR *GOL_work0;
+char *GOL_work0;
 
 struct bss_alloc {
-	UCHAR _stdout[SIZ_STDOUT];
-	UCHAR _stderr[SIZ_STDERR];
-	UCHAR syswrk[SIZ_SYSWRK];
-	UCHAR work[SIZ_WORK];
+	char _stdout[SIZ_STDOUT];
+	char _stderr[SIZ_STDERR];
+	char syswrk[SIZ_SYSWRK];
+	char work[SIZ_WORK];
 };
 
-void GOL_sysabort(UCHAR termcode);
+void GOL_sysabort(char termcode);
 void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, unsigned int size, void *p);
 void *GOL_sysmalloc(unsigned int size);
-void GOL_callmain(int argc, UCHAR **argv);
+void GOL_callmain(int argc, char **argv);
 
-int main(int argc, UCHAR **argv)
+int main(int argc, char **argv)
 /* かならず、-oオプションを付ける */
 /* ここで、-oオプションは剥ぎ取られる */
 /* しかし入力ファイル名は書く(標準入力ではsizeが測定できないため) */
 {
 	struct bss_alloc *bss0;
-	UCHAR **argv1, **p;
+	char **argv1, **p;
 	bss0 = (struct bss_alloc *) malloc(sizeof (struct bss_alloc));
 	GO_stdout.p0 = GO_stdout.p = bss0->_stdout;
 	GO_stdout.p1 = GO_stdout.p0 + SIZ_STDOUT;

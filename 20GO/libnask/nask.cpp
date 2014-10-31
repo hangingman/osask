@@ -10,16 +10,14 @@
 
 int nask_LABELBUFSIZ = 256 * 1024;
 
-#define	UCHAR			unsigned char
-
 #define	OPCLENMAX		12	/* 足りなくなったら12にしてください */
 #define MAX_SECTIONS		8
 #define E_LABEL0		16
 int nask_L_LABEL0 = 16384; 	/* externラベルは16300個程度使える */
 int nask_maxlabels = 64 * 1024; /* 64K個(LL:88*64k) */
 
-static void setdec(unsigned int i, int n, UCHAR *s);
-static void sethex0(unsigned int i, int n, UCHAR *s);
+static void setdec(unsigned int i, int n, char *s);
+static void sethex0(unsigned int i, int n, char *s);
 
 static void *cmalloc(int size)
 {
@@ -31,9 +29,9 @@ static void *cmalloc(int size)
 }
 
 struct INST_TABLE {
-	UCHAR opecode[OPCLENMAX];
+	char opecode[OPCLENMAX];
 	unsigned int support;
-	UCHAR param[8];
+	unsigned char param[8];
 };
 
 struct STR_SECTION {
@@ -41,15 +39,15 @@ struct STR_SECTION {
 	unsigned int dollar_label1; /* ..$ */
 	unsigned int dollar_label2; /* $$ */
 	int total_len;
-	UCHAR *p0, *p; /* ソート用のポインタ */
-	UCHAR name[17], name_len;
-	signed char align0, align1; /* -1は未設定 */
+	char *p0, *p; /* ソート用のポインタ */
+	char name[17], name_len;
+	char align0, align1; /* -1は未設定 */
 };
 
 struct STR_OUTPUT_SECTION {
-	UCHAR *p, *d0, *reloc_p;
+	char *p, *d0, *reloc_p;
 	int addr, relocs;
-	UCHAR align, flags;
+	char align, flags;
 };
 
 extern int nask_errors;
@@ -113,7 +111,7 @@ extern int nask_errors;
 	/* param[1]のbit6 : デフォルトプリフィックスDS */
 	/* param[1]のbit7 : デフォルトプリフィックスSS */
 
-static UCHAR table_prms[] = {
+static char table_prms[] = {
 	0, 0, 0 /* NO_PARAM */, 2 /* OPE_MR */, 2 /* OPE_RM */,
 	1 /* OPE_M */, 2 /* OPE_SHIFT */, 9 /* OPE_RET */, 9 /* OPE_AAMD */,
 	1 /* OPE_INT */, 1 /* OPE_PUSH */, 2 /* OPE_MOV */, 2 /* OPE_ADD */,
@@ -127,14 +125,14 @@ static UCHAR table_prms[] = {
 };
 
 struct STR_DECODE {
-	UCHAR *label, *param;
+	char *label, *param;
 	struct INST_TABLE *instr;
 	unsigned int prm_t[3];
-	UCHAR *prm_p[3];
+	char *prm_p[3];
 	int prefix;
 	int gparam[3], gvalue[3], gp_mem, gp_reg;
 	struct STR_SECTION *sectable;
-	UCHAR error, flag /* , dollar */;
+	char error, flag /* , dollar */;
 };
 /* flagのbit0はmem/regがregかどうかをあらわす */
 
@@ -145,14 +143,14 @@ struct STR_TERM {
 
 struct STR_OFSEXPR {
 	int scale[2], disp;
-	unsigned char reg[2], dispflag; /* 0xffのとき、unknown, regが127以下なら、スケール無し */
-	unsigned char err;
+	char reg[2], dispflag; /* 0xffのとき、unknown, regが127以下なら、スケール無し */
+	char err;
 };
 
 struct STR_DEC_EXPR_STATUS {
 	unsigned int support;
 	int glabel_len;
-	UCHAR *glabel;
+	char *glabel;
 	signed char datawidth; /* -1(default), 1(byte), 2(word), 4(dword) */
 	signed char seg_override; /* -1(default), 0～5 */
 	signed char range; /* -1(default), 0(short), 1(near), 2(far) */
@@ -166,30 +164,30 @@ struct STR_DEC_EXPR_STATUS {
 };
 
 struct STR_STATUS {
-	UCHAR *src1; /* ファイル終端ポインタ */
+	char *src1; /* ファイル終端ポインタ */
 	unsigned int support, file_len;
 	char bits, optimize, format, option;
 	struct STR_DEC_EXPR_STATUS expr_status;
 	struct STR_OFSEXPR ofsexpr;
 	struct STR_TERM *expression, *mem_expr;
-	UCHAR *file_p;
+	char *file_p;
 };
 
 struct STR_IFDEFBUF {
 	/* 条件付き定義用バッファ構造体 */
-	UCHAR *bp, *bp0, *bp1; /* range-error用バッファ */
-	UCHAR vb[12]; /* bit0-4:バイト数, bit7:exprフラグ, bit5-6:レンジチェック */
+	char *bp, *bp0, *bp1; /* range-error用バッファ */
+	char vb[12]; /* bit0-4:バイト数, bit7:exprフラグ, bit5-6:レンジチェック */
 	int dat[12];
-	UCHAR *expr[12];
+	char *expr[12];
 };
 
-UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode);
-UCHAR *putprefix(UCHAR *dest0, UCHAR *dest1, int prefix, int bits, int opt);
-void put4b(unsigned int i, UCHAR *p);
-unsigned int get4b(UCHAR *p);
-struct STR_TERM *decode_expr(UCHAR **ps, UCHAR *s1, struct STR_TERM *expr, int *priority, struct STR_DEC_EXPR_STATUS *status);
+char *decoder(struct STR_STATUS *status, char *src, struct STR_DECODE *decode);
+char *putprefix(char *dest0, char *dest1, int prefix, int bits, int opt);
+void put4b(unsigned int i, char *p);
+unsigned int get4b(char *p);
+struct STR_TERM *decode_expr(char **ps, char *s1, struct STR_TERM *expr, int *priority, struct STR_DEC_EXPR_STATUS *status);
 void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nosplit);
-int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr, 
+int getparam(char **ps, char *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr, 
 	struct STR_OFSEXPR *ofsexpr, struct STR_DEC_EXPR_STATUS *status);
 int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, int *prefix);
 void putmodrm(struct STR_IFDEFBUF *ifdef, int tmret, int gparam,
@@ -197,20 +195,20 @@ void putmodrm(struct STR_IFDEFBUF *ifdef, int tmret, int gparam,
 int microcode90(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def, signed char dsiz);
 int microcode91(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def, signed char dsiz);
 int microcode94(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def);
-int defnumexpr(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, UCHAR vb, UCHAR def);
-int getparam0(UCHAR *s, struct STR_STATUS *status);
-int getconst(UCHAR **ps, struct STR_STATUS *status, int *p);
+int defnumexpr(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, char vb, char def);
+int getparam0(char *s, struct STR_STATUS *status);
+int getconst(char **ps, struct STR_STATUS *status, int *p);
 int testmem0(struct STR_STATUS *status, int gparam, int *prefix);
-static UCHAR *labelbuf0, *labelbuf;
-static UCHAR *locallabelbuf0 /* 256bytes */, *locallabelbuf;
+static char *labelbuf0, *labelbuf;
+static char *locallabelbuf0 /* 256bytes */, *locallabelbuf;
 static int nextlabelid;
-int label2id(int len, UCHAR *label, int extflag);
-UCHAR *id2label(int id);
-UCHAR *put_expr(UCHAR *s, struct STR_TERM **pexpr);
-UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDEFBUF *ifdef);
+int label2id(int len, char *label, int extflag);
+char *id2label(int id);
+char *put_expr(char *s, struct STR_TERM **pexpr);
+char *flush_bp(int len, char *buf, char *dest0, char *dest1, struct STR_IFDEFBUF *ifdef);
 struct STR_TERM *rel_expr(struct STR_TERM *expr, struct STR_DEC_EXPR_STATUS *status);
-UCHAR *LL_skip_expr(UCHAR *p);
-UCHAR *LL_skipcode(UCHAR *p);
+char *LL_skip_expr(char *p);
+char *LL_skipcode(char *p);
 
 #define	defnumconst(ifdef, imm, virbyte, typecode) ifdef->vb[(virbyte) & 0x07] = typecode; ifdef->dat[(virbyte) & 0x07] = imm
 
@@ -240,17 +238,17 @@ UCHAR *LL_skipcode(UCHAR *p);
 #define	EXPR_MAXSIZ		2048
 #define	EXPR_MAXLEN		1000
 
-UCHAR *skipspace(UCHAR *s, UCHAR *t)
+char *skipspace(char *s, char *t)
 {
 	while (s < t && *s != '\n' && *s <= ' ')
 		s++;
 	return s;
 }
 
-UCHAR *putimm(int i, UCHAR *p)
+char *putimm(int i, char *p)
 /* 最大6バイト出力 */
 {
-	UCHAR c = 6;
+	char c = 6;
 	if (i >= 0) {
 		if (i <= 0xff)
 			c = 0x00;
@@ -278,12 +276,12 @@ UCHAR *putimm(int i, UCHAR *p)
 	return p;
 }
 
-UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
+char *nask(char *src0, char *src1, char *dest0, char *dest1)
 /* dest1を返す(NULLならあふれた) */
 {
 	int i, j, k, prefix_def, tmret;
-	UCHAR buf[2 * 8], *bp; /* bufは適当にmallocした方がいいかも */
-	UCHAR *src, c, *s, *labelflags, *dest00 = dest0;
+	char buf[2 * 8], *bp; /* bufは適当にmallocした方がいいかも */
+	char *src, c, *s, *labelflags, *dest00 = dest0;
 	struct STR_STATUS *status;
 	struct STR_DECODE *decode;
 	struct INST_TABLE *itp;
@@ -305,15 +303,15 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		(malloc(EXPR_MAXLEN * sizeof (struct STR_TERM)));
 	sectable             = reinterpret_cast<struct STR_SECTION*>
 		(cmalloc(MAX_SECTIONS * sizeof (struct STR_SECTION)));
-	ifdef->bp0           = reinterpret_cast<unsigned char*>(malloc(256));
+	ifdef->bp0           = reinterpret_cast<char*>(malloc(256));
 	ifdef->bp1 = ifdef->bp0 + 256;
-	labelbuf = labelbuf0 = reinterpret_cast<unsigned char*>(malloc(nask_LABELBUFSIZ));
-	locallabelbuf = locallabelbuf0 = reinterpret_cast<unsigned char*>(malloc(256));
+	labelbuf = labelbuf0 = reinterpret_cast<char*>(malloc(nask_LABELBUFSIZ));
+	locallabelbuf = locallabelbuf0 = reinterpret_cast<char*>(malloc(256));
 
 	for (i = 0; i < 9; i++)
-		ifdef->expr[i] = reinterpret_cast<unsigned char*>(malloc(EXPR_MAXSIZ));
+		ifdef->expr[i] = reinterpret_cast<char*>(malloc(EXPR_MAXSIZ));
 
-	labelflags = reinterpret_cast<unsigned char*>(malloc(nask_maxlabels));
+	labelflags = reinterpret_cast<char*>(malloc(nask_maxlabels));
 
 	for (i = 0; i < nask_maxlabels; i++)
 		labelflags[i] = 0;
@@ -546,7 +544,7 @@ err:
 						goto err;
 					}
 				}
-				if (itp->param[2] & (UCHAR) 0x80) { /* no-mem */
+				if (itp->param[2] & (char) 0x80) { /* no-mem */
 					if (j == 0)
 						goto err4;
 				}
@@ -623,7 +621,7 @@ err:
 						if (microcode94(ifdef, status->expression, mcode))
 							goto err2;
 					} else if ((decode->gparam[1] & 0x0f) == 0x01) {
-						defnumconst(ifdef, 0xc0 | j, 0x74, 0x01 /* UCHAR, const */);
+						defnumconst(ifdef, 0xc0 | j, 0x74, 0x01 /* char, const */);
 						if (defnumexpr(ifdef, status->expression, 0x75 & 0x07, 0x98 & 0x07))
 							goto err2;
 					} else
@@ -677,7 +675,7 @@ err:
 
 			case OPE_AAMD: /* AAM, AAD */
 				if (decode->flag == 0) {
-					defnumconst(ifdef, itp->param[2], 0x74, 0x01 /* UCHAR, const */);
+					defnumconst(ifdef, itp->param[2], 0x74, 0x01 /* char, const */);
 				} else if (decode->flag == 1) {
 					if ((decode->gparam[0] & 0xf0) != 0x20)
 						goto err2; /* immではない || rangeがついていた */
@@ -793,8 +791,8 @@ err:
 					/* PUSH */
 					{
 						static int mcode[] = {
-							0x54,	0x01 /* UCHAR, const */, 0x68 /* 16bit/32bit */,
-									0x01 /* UCHAR, const */, 0x6a /* 8bit */
+							0x54,	0x01 /* char, const */, 0x68 /* 16bit/32bit */,
+									0x01 /* char, const */, 0x6a /* 8bit */
 						};
 						c = decode->gparam[0] & 0x0f;
 						mcode[0] = 0x54; /* word/byte mode */
@@ -956,8 +954,8 @@ err:
 						if ((decode->gvalue[0] & 0x07) == 0) {
 							/* EAX, AX, AL */
 							static int mcode[] = {
-								0x5c,	0x01 /* UCHAR, const */, 0x05, 0x00 /* null */,         0x00 /* 32bit */,
-										0x01 /* UCHAR, const */, 0x83, 0x01 /* UCHAR, const */, 0xc0 /* 8bit */
+								0x5c,	0x01 /* char, const */, 0x05, 0x00 /* null */,         0x00 /* 32bit */,
+										0x01 /* char, const */, 0x83, 0x01 /* char, const */, 0xc0 /* 8bit */
 							};
 							if (c <= 2) {
 								/* AL, AXなので話は簡単 */
@@ -998,8 +996,8 @@ err:
 							goto err2; /* パラメータエラー */
 					} else {
 						static int mcode[] = {
-							0x54,	0x01 /* UCHAR, const */, 0x81 /* 16bit/32bit */,
-									0x01 /* UCHAR, const */, 0x83 /* 8bit */
+							0x54,	0x01 /* char, const */, 0x81 /* 16bit/32bit */,
+									0x01 /* char, const */, 0x83 /* 8bit */
 						};
 						mcode[0] = 0x54; /* 16bit */
 						if (c == 4)
@@ -1165,8 +1163,8 @@ err:
 				{
 					/* reg,mem/reg,imm型 */
 					static int mcode[] = {
-						0x54,	0x01 /* UCHAR, const */, 0x69 /* 16bit/32bit */,
-								0x01 /* UCHAR, const */, 0x6b /* 8bit */
+						0x54,	0x01 /* char, const */, 0x69 /* 16bit/32bit */,
+								0x01 /* char, const */, 0x6b /* 8bit */
 					};
 					if ((decode->gparam[2] & 0xf0) != 0x20) /* not imm */
 						goto err4; /* data type error */
@@ -1214,7 +1212,7 @@ err:
 					bp[4] = 0x7a; /* disp */
 					bp += 5;
 				} else {
-					static UCHAR table[] = {
+					static char table[] = {
 						0x9e /* dummy */ & 0x07, 0x9e /* byte */ & 0x07, 0x9b /* word */ & 0x07,
 						0x9b /* dummy */ & 0x07, 0x9d /* dword */ & 0x07
 					};
@@ -1309,7 +1307,7 @@ err:
 					if ((decode->gparam[2] & 0xf0) != 0x20) /* immではない || rangeがついていた */
 						goto err4; /* data type error */
 					bp[7] = 0x7c; /* imm8 */
-					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x98 & 0x07 /* UCHAR */))
+					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x98 & 0x07 /* char */))
 						goto err2; /* パラメータエラー */
 					bp += 8;
 				}
@@ -1378,8 +1376,8 @@ err:
 				}
 				if (i) {
 					static int mcode[] = {
-						0x00,	0x01 /* UCHAR, const */, 0x0f, 0x01 /* UCHAR, const */, 0x00 /* 16/32bit */,
-								0x01 /* UCHAR, const */, 0x00, 0x00 /* null */,         0x00 /* 8bit */
+						0x00,	0x01 /* char, const */, 0x0f, 0x01 /* char, const */, 0x00 /* 16/32bit */,
+								0x01 /* char, const */, 0x00, 0x00 /* null */,         0x00 /* 8bit */
 					};
 					c = 2;
 					mcode[0] = 0x54; /* word/byte mode */
@@ -1443,7 +1441,7 @@ err:
 					bp[3] = 0xba;
 					bp[7] = 0x7c; /* imm8 */
 					bp += 8;
-					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x98 & 0x07 /* UCHAR */))
+					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x98 & 0x07 /* char */))
 						goto err2; /* パラメータエラー */
 				}
 				/* データサイズを確定 */
@@ -1472,7 +1470,7 @@ err:
 				bp[2] = 0x7c;
 				bp[3] = 0x7d;
 				bp += 4;
-				if (defnumexpr(ifdef, status->expression, 0x7d & 0x07, 0x98 & 0x07 /* UCHAR */))
+				if (defnumexpr(ifdef, status->expression, 0x7d & 0x07, 0x98 & 0x07 /* char */))
 					goto err2; /* パラメータエラー */
 				getparam0(decode->prm_p[0], status);
 				if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, 0x9a & 0x07 /* USHORT */))
@@ -1788,8 +1786,8 @@ err:
 					if (itp->param[4]) {
 						/* JMP SHORT/NEAR */
 						static int mcode[] = {
-							0x54,	0x01 /* UCHAR, const */, 0xe9 /* 16bit/32bit */,
-									0x01 /* UCHAR, const */, 0xeb /* 8bit */
+							0x54,	0x01 /* char, const */, 0xe9 /* 16bit/32bit */,
+									0x01 /* char, const */, 0xeb /* 8bit */
 						};
 						mcode[0] &= 0x54;
 						if (c & 4)
@@ -2193,7 +2191,7 @@ skip_end:
 		}
 	}
 	section->total_len += dest0 - section->p;
-	src = reinterpret_cast<unsigned char*>(malloc(i = dest0 - dest00));
+	src = reinterpret_cast<char*>(malloc(i = dest0 - dest00));
 	for (j = 0; j < i; j++)
 		src[j] = dest00[j];
 	sectable[0].p0 = sectable[0].p = dest00;
@@ -2284,10 +2282,10 @@ overrun:
 	return dest0;
 }
 
-UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, struct STR_IFDEFBUF *ifdef)
+char *flush_bp(int len, char *buf, char *dest0, char *dest1, struct STR_IFDEFBUF *ifdef)
 {
 	int j, k;
-	UCHAR *s, c;
+	char *s, c;
 	if (dest0 + len > dest1)
 		dest0 = nullptr;
 	if (dest0 == NULL)
@@ -2390,19 +2388,19 @@ fin:
 
 #define MAX_LISTLEN		32
 
-UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1)
+char *output(char *src0, char *src1, char *dest0, char *dest1, char *list0, char *list1)
 /* dest1を返す(NULLならあふれた) */
 /* listがあふれても続行 */
 {
-	int len, linecount = 0, srcl, i, addr, secno, file_len, g_symbols = 0, e_symbols = 0;
+	int len, linecount = 0, srcl = 0, i, addr, secno, file_len, g_symbols = 0, e_symbols = 0;
 	struct STR_OUTPUT_SECTION *sectable = reinterpret_cast<struct STR_OUTPUT_SECTION*>(
 		malloc(MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION)));
 
-	UCHAR *srcp, *file_p, *string0, *dest = dest0;
-	UCHAR *lbuf0 = reinterpret_cast<UCHAR*>(malloc(1024)), *lbuf;
-	UCHAR *ebuf0 = reinterpret_cast<UCHAR*>(malloc(32))  , *ebuf; /* エラーバッファ */
+	char *srcp, *file_p, *string0, *dest = dest0;
+	char *lbuf0 = reinterpret_cast<char*>(malloc(1024)), *lbuf;
+	char *ebuf0 = reinterpret_cast<char*>(malloc(32))  , *ebuf; /* エラーバッファ */
 
-	UCHAR c, status, adrflag, cc, format, file_aux;
+	char c, status, adrflag, cc, format, file_aux;
 		/* 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み */
 
 	/* アライン情報検索 */
@@ -2432,7 +2430,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 		if (srcp[0] == REM_8B) {
 			if (srcp[1] == 0) { /* file */
 				file_len = srcp[2];
-				file_p = (UCHAR *) get4b(&srcp[4]);
+				file_p = reinterpret_cast<char*>( get4b(&srcp[4]) );
 				file_aux = (file_len + (1 + 17)) / 18;
 			}
 			if (srcp[1] == 1)
@@ -2452,7 +2450,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 
 	/* バイナリー出力 */
 	if (format == 1) { /* WCOFF */
-		static UCHAR header[140] = {
+		static unsigned char header[140] = {
 			/* file header */
 			0x4c, 0x01, /* signature */
 			0x03, 0x00, /* sections == 3 */
@@ -2559,14 +2557,14 @@ dest_out_skip:
 		srcp = LL_skipcode(srcp);
 	} while (srcp < src1);
 	if (format == 1) { /* WCOFF */
-		static UCHAR common_symbols0[18 * 1 - 1] = {
+		static unsigned char common_symbols0[18 * 1 - 1] = {
 			'.', 'f', 'i', 'l', 'e', 0, 0, 0, /* name */
 			0, 0, 0, 0, /* value */
 			0xfe, 0xff, /* debugging symbol */
 			0, 0, /* T_NULL */
 			103 /* , 0 */ /* file name, numaux = 0 */
 		};
-		static UCHAR common_symbols1[18 * 6] = {
+		static char common_symbols1[18 * 6] = {
 			'.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
 			0, 0, 0, 0, /* value */
 			0x01, 0x00, /* section 1 */
@@ -2665,7 +2663,7 @@ dest_out_skip:
 			if (srcp[0] == REM_8B) {
 				if (1 <= srcp[1] && srcp[1] <= 2) {
 					len = srcp[2] | srcp[3] << 8;
-					lbuf = (UCHAR *) get4b(&srcp[4]);
+					lbuf = reinterpret_cast<char*>( get4b(&srcp[4]) );
 					ebuf = file_p + ((srcp[10] | srcp[11] << 8) - E_LABEL0) * 18; /* EXTERN */
 					if (srcp[1] == 1) { /* GLOBAL */
 						ebuf = file_p + g_symbols;
@@ -2791,13 +2789,13 @@ for (;;) {
 			};
 			nask_errors += len;
 			for (i = 0; i < len; i++) {
-				ebuf = (UCHAR*) errmsg[ebuf0[i] - 0xe1];
+				ebuf = (char*) errmsg[ebuf0[i] - 0xe1];
 				while ((*lbuf++ = *ebuf++) != '\n');
 			}
 			ebuf = ebuf0;
 		}
 		srcl = get4b(&src0[1]);
-		srcp = (UCHAR *) get4b(&src0[5]);
+		srcp = reinterpret_cast<char*>( get4b(&src0[5]) );
 		if (srcl) {
 			setdec(++linecount, 6, &lbuf[0]);
 			lbuf[6] = ' ';
@@ -2973,7 +2971,7 @@ error:
 	return dest;
 }
 
-UCHAR *putprefix(UCHAR *dest0, UCHAR *dest1, int prefix, int bits, int opt)
+char *putprefix(char *dest0, char *dest1, int prefix, int bits, int opt)
 {
 	/* prefix:
 		bit 0:REP/REPZ
@@ -3006,8 +3004,8 @@ UCHAR *putprefix(UCHAR *dest0, UCHAR *dest1, int prefix, int bits, int opt)
 		アドレス出力マークを出力
 		下位から参照して、プリフィックス列を出力(bit0-10)
 	*/
-	UCHAR buf[3 * 16 + 1], *bp;
-	static UCHAR code[11] = {
+	char buf[3 * 16 + 1], *bp;
+	static unsigned char code[11] = {
 		0xf3 /* bit 0:REP/REPZ */,
 		0xf2 /* bit 1:REPNZ */,
 		0xf0 /* bit 2:LOCK */,
@@ -3400,9 +3398,9 @@ static struct INST_TABLE setting_table[] = {
 	{ "", 0, 0 }
 };
 
-UCHAR *setinstruct(UCHAR *s, UCHAR *t, UCHAR *inst)
+char *setinstruct(char *s, char *t, char *inst)
 {
-	UCHAR c, *i1 = inst + OPCLENMAX;
+	char c, *i1 = inst + OPCLENMAX;
 	while (s < t) {
 		c = *s;
 		if (c <= ' ')
@@ -3419,33 +3417,33 @@ UCHAR *setinstruct(UCHAR *s, UCHAR *t, UCHAR *inst)
 	return skipspace(s, t);
 }
 
-static unsigned char *cpu_name[] = {
-	(UCHAR*) "8086", 
-	(UCHAR*) "80186", 
-	(UCHAR*) "80286", 
-	(UCHAR*) "80286p", 
-	(UCHAR*) "i386", 
-	(UCHAR*) "i386p", 
-	(UCHAR*) "i486", 
-	(UCHAR*) "i486p", /* 0～7 */
-	(UCHAR*) "Pentium", 
-	(UCHAR*) "PentiumPro", 
-	(UCHAR*) "PentiumMMX", 
-	(UCHAR*) "Pentium2", 
-	(UCHAR*) "Pentium3", 
-	(UCHAR*) "Pentium4", /* 8～13 */
+static char *cpu_name[] = {
+	(char*) "8086", 
+	(char*) "80186", 
+	(char*) "80286", 
+	(char*) "80286p", 
+	(char*) "i386", 
+	(char*) "i386p", 
+	(char*) "i486", 
+	(char*) "i486p", /* 0～7 */
+	(char*) "Pentium", 
+	(char*) "PentiumPro", 
+	(char*) "PentiumMMX", 
+	(char*) "Pentium2", 
+	(char*) "Pentium3", 
+	(char*) "Pentium4", /* 8～13 */
 	NULL
 };
 
-static unsigned char *format_type[] = { (UCHAR*)"BIN", (UCHAR*)"WCOFF", NULL };
+static char *format_type[] = { (char*)"BIN", (char*)"WCOFF", NULL };
 
-UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
+char *decoder(struct STR_STATUS *status, char *src, struct STR_DECODE *decode)
 /* NASKの文法に基づき、一文を分解する */
 /* 次の行へのポインタを返す */
 {
 	int i, j, k;
 	struct INST_TABLE *itp;
-	UCHAR instruct[OPCLENMAX], *p, **pq, *q, c, cc;
+	char instruct[OPCLENMAX], *p, **pq, *q, c, cc;
 
 	decode->instr = nullptr; /* 空行もしくは注釈行 */
 	decode->error = 0;
@@ -3730,7 +3728,7 @@ error1:
 /* "label  hoge" もラベルを登録するが、エラー1 */
 /* "hoge"はラベルを登録せずにエラー1 */
 
-void put4b(unsigned int i, UCHAR *p)
+void put4b(unsigned int i, char *p)
 {
 	p[0] =  i        & 0xff;
 	p[1] = (i >>  8) & 0xff;
@@ -3739,14 +3737,14 @@ void put4b(unsigned int i, UCHAR *p)
 	return;
 }
 
-unsigned int get4b(UCHAR *p)
+unsigned int get4b(char *p)
 {
 	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
 }
 
-struct STR_TERM *decode_expr(UCHAR **ps, UCHAR *s1, struct STR_TERM *expr, int *priority, struct STR_DEC_EXPR_STATUS *status)
+struct STR_TERM *decode_expr(char **ps, char *s1, struct STR_TERM *expr, int *priority, struct STR_DEC_EXPR_STATUS *status)
 {
-	UCHAR *s = *ps, c, d, *t, buf8[8];
+	char *s = *ps, c, d, *t, buf8[8];
 	struct STR_TERM *expr0 = expr, *pterm;
 	int prio0 = 0, prio1, i, j, k;
 	static char symbols[] = "\"'+-*/%&|^(){}[]<>,;:";
@@ -4315,7 +4313,7 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 	return;
 }
 
-int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr, 
+int getparam(char **ps, char *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr, 
 	struct STR_OFSEXPR *ofsexpr, struct STR_DEC_EXPR_STATUS *status)
 /* 返値について
 	bit0-3:datawidth(バイト数, 15は不定)
@@ -4332,7 +4330,7 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 {
 	struct STR_TERM *pe, *expr;
 	int i;
-	UCHAR ret, ret2, rethigh, *s = *ps;
+	char ret, ret2, rethigh, *s = *ps;
 
 /*	status->support = 
 	status->glabel_len = 0;
@@ -4463,7 +4461,7 @@ int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, 
 */
 {
 	struct STR_TERM *expr = status->mem_expr;
-	UCHAR nosplit, reg[2], tmp;
+	char nosplit, reg[2], tmp;
 	int seg, ret = 0, scale[2], i;
 
 	nosplit = (gparam >> 15) & 0x01;
@@ -4632,15 +4630,15 @@ fin:
 void putmodrm(struct STR_IFDEFBUF *ifdef, int tmret, int gparam,
 	struct STR_STATUS *status, /* struct STR_OFSEXPR *ofsexpr, */ int ttt)
 {
-	UCHAR width, mod2 = 0x80;
-	UCHAR mod, tmret1 = (tmret >> 8) & 0xff, nobase = tmret & 0x80;
+	char width, mod2 = 0x80;
+	char mod, tmret1 = (tmret >> 8) & 0xff, nobase = tmret & 0x80;
 	static int mcode[] = {
-		0x82,	0x01 /* UCHAR, const */, 0x80 /* 16bit/32bit */,
-				0x01 /* UCHAR, const */, 0x40 /* 8bit */,
-				0x01 /* UCHAR, const */, 0x00 /* 0bit */
+		0x82,	0x01 /* char, const */, 0x80 /* 16bit/32bit */,
+				0x01 /* char, const */, 0x40 /* 8bit */,
+				0x01 /* char, const */, 0x00 /* 0bit */
 	};
 
-	ifdef->vb[0 /* 0x78(mod r/m) */] = 0x01; /* UCHAR, const */
+	ifdef->vb[0 /* 0x78(mod r/m) */] = 0x01; /* char, const */
 	ifdef->vb[1 /* 0x79(sib) */] = 0x00; /* null */
 	ifdef->vb[2 /* 0x7a(disp) */] = 0x00; /* null */
 	ttt &= 0x07;
@@ -4707,7 +4705,7 @@ base_ebp:
 			mod |= tmret1 & 0x07;
 		} else {
 			/* sibあり */
-			ifdef->vb[1 /* 0x79(sib) */] = 0x01; /* UCHAR, const */
+			ifdef->vb[1 /* 0x79(sib) */] = 0x01; /* char, const */
 			ifdef->dat[1 /* 0x79(sib) */] = tmret1;
 			mod |= 0x04;
 		}
@@ -4745,9 +4743,9 @@ int microcode90(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def, sig
 {
 	struct STR_OFSEXPR ofsexpr;
 	struct STR_TERM *expr0 = expr;
-	UCHAR idx, vbc = def[0], c;
+	char idx, vbc = def[0], c;
 	int vba = vbc & 0x07, vbb = (vbc >> 4) & 0x07;
-	UCHAR *bp = ifdef->bp;
+	char *bp = ifdef->bp;
 	calc_ofsexpr(&ofsexpr, &expr, 0); /* 式の評価 */
 	if (ofsexpr.err) {
 err2:
@@ -4758,7 +4756,7 @@ err2:
 		return 3; /* data size error */
 	if (ofsexpr.dispflag != 0) {
 		if (dsiz <= 4) {
-			ifdef->vb[vba] = dsiz; /* zero/UCHAR/USHORT/UINT, const */
+			ifdef->vb[vba] = dsiz; /* zero/char/USHORT/UINT, const */
 			if (dsiz != 0) {
 				if (defnumexpr(ifdef, expr0, vba, (dsiz2mc98 - 1)[dsiz]))
 					goto err2; /* パラメータエラー */
@@ -4805,7 +4803,7 @@ err2:
 		if ((vbc & 0x80 /* zero-bit */) != 0 && ofsexpr.disp == 0)
 			dsiz = 0;
 	}
-	ifdef->vb[vba] = dsiz; /* zero/UCHAR/USHORT/UINT, const */
+	ifdef->vb[vba] = dsiz; /* zero/char/USHORT/UINT, const */
 set_vbb:
 	idx = 1;
 	if (dsiz == 1)
@@ -4831,9 +4829,9 @@ int microcode91(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def, sig
 {
 	struct STR_OFSEXPR ofsexpr;
 	struct STR_TERM *expr0 = expr;
-	UCHAR idx, vbc = def[0], c, d;
+	char idx, vbc = def[0], c, d;
 	int vba = vbc & 0x07, vbb = (vbc >> 4) & 0x07;
-	UCHAR *bp = ifdef->bp;
+	char *bp = ifdef->bp;
 	calc_ofsexpr(&ofsexpr, &expr, 0); /* 式の評価 */
 	if (ofsexpr.err) {
 err2:
@@ -4844,7 +4842,7 @@ err2:
 		return 3; /* data size error */
 	if (ofsexpr.dispflag != 0) {
 		if (dsiz <= 4) {
-			ifdef->vb[vba] = dsiz; /* zero/UCHAR/USHORT/UINT, const */
+			ifdef->vb[vba] = dsiz; /* zero/char/USHORT/UINT, const */
 			if (dsiz != 0) {
 				if (defnumexpr(ifdef, expr0, vba, (dsiz2mc98 - 1)[dsiz]))
 					goto err2; /* パラメータエラー */
@@ -4893,7 +4891,7 @@ err2:
 		if ((vbc & 0x80 /* zero-bit */) != 0 && ofsexpr.disp == 0)
 			dsiz = 0;
 	}
-	ifdef->vb[vba] = dsiz; /* zero/UCHAR/USHORT/UINT, const */
+	ifdef->vb[vba] = dsiz; /* zero/char/USHORT/UINT, const */
 set_vbb:
 	idx = 1;
 	if (dsiz == 1)
@@ -4925,7 +4923,7 @@ int microcode94(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, int *def)
 {
 	struct STR_OFSEXPR ofsexpr;
 	int j = def[0], vb[2];
-	UCHAR idx;
+	char idx;
 	int i = j >> 8, k;
 	vb[0] = j;
 	vb[1] = j >> 4;
@@ -4960,7 +4958,7 @@ err:
 	return 0;
 }
 
-int defnumexpr(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, UCHAR vb, UCHAR def)
+int defnumexpr(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, char vb, char def)
 /* レジスタは無視する */
 {
 	struct STR_OFSEXPR ofsexpr;
@@ -4984,14 +4982,14 @@ int defnumexpr(struct STR_IFDEFBUF *ifdef, struct STR_TERM *expr, UCHAR vb, UCHA
 	return 0;
 }
 
-int getparam0(UCHAR *s, struct STR_STATUS *status)
+int getparam0(char *s, struct STR_STATUS *status)
 {
 	int i;
 	return getparam(&s, status->src1, &i, status->expression,
 		status->mem_expr, &status->ofsexpr, &status->expr_status);
 }
 
-int getconst(UCHAR **ps, struct STR_STATUS *status, int *p)
+int getconst(char **ps, struct STR_STATUS *status, int *p)
 {
 	int ret;
 	ret = getparam(ps, status->src1, p, status->expression,
@@ -5007,10 +5005,10 @@ int testmem0(struct STR_STATUS *status, int gparam, int *prefix)
 /* ラベル構造 */
 /* id(4bytes), len(1bytes), ... */
 
-int label2id(int len, UCHAR *label, int extflag)
+int label2id(int len, char *label, int extflag)
 {
 	int i;
-	UCHAR *s, c;
+	char *s, c;
 	static int extlabelnext = E_LABEL0;
 
 	if (label[0] == '.' && ((len >= 2 && label[1] != '.') || len == 1)) {
@@ -5055,9 +5053,9 @@ fin:
 	return get4b(s - 5);
 }
 
-UCHAR *id2label(int id)
+char *id2label(int id)
 {
-	UCHAR *s;
+	char *s;
 	for (s = labelbuf0; s < labelbuf; s += *s + 1) {
 		int i = get4b(s);
 		s += 4;
@@ -5069,7 +5067,7 @@ fin:
 	return s;
 }
 
-UCHAR *put_expr(UCHAR *s, struct STR_TERM **pexpr)
+char *put_expr(char *s, struct STR_TERM **pexpr)
 {
 	static char ll_ope_list[] = {
 		0x10 * 0, 0x11, 0x12, 0, /* s+, s-, s~, null */
@@ -5080,7 +5078,7 @@ UCHAR *put_expr(UCHAR *s, struct STR_TERM **pexpr)
 	};
 	struct STR_TERM *expr = *pexpr;
 	int i, j;
-	UCHAR c;
+	char c;
 
 skip_single_plus:
 	j = expr->term_type;
@@ -5164,7 +5162,7 @@ struct STR_TERM *rel_expr(struct STR_TERM *expr, struct STR_DEC_EXPR_STATUS *sta
 	return expr1 + 2;
 }
 
-static void setdec(unsigned int i, int n, UCHAR *s)
+static void setdec(unsigned int i, int n, char *s)
 {
 	s += n;
 	do {
@@ -5178,7 +5176,7 @@ static void setdec(unsigned int i, int n, UCHAR *s)
 	return;
 }
 
-static void sethex0(unsigned int i, int n, UCHAR *s)
+static void sethex0(unsigned int i, int n, char *s)
 {
 	s += n;
 	do {

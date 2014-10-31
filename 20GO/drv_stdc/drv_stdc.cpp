@@ -1,10 +1,10 @@
 #include <stdio.h> /* fopen, fclose, fread, fwrite, fseek, ftell, NULL */
 #include <stdlib.h>	/* exit */
 
-typedef unsigned char UCHAR;
+typedef unsigned char char;
 
 typedef struct GO_STR_FILE {
-	UCHAR *p0, *p1, *p;
+	char *p0, *p1, *p;
 	int dummy;
 } GO_FILE;
 
@@ -15,9 +15,9 @@ extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 #include "others.c"
 #include "../funcs/cc1sub.c"
 
-void GOL_sysabort(UCHAR termcode)
+void GOL_sysabort(char termcode)
 {
-	static const UCHAR *termmsg[] = {
+	static const char *termmsg[] = {
 		"",
 		"[TERM_WORKOVER]\n",
 		"[TERM_OUTOVER]\n",

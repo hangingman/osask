@@ -4,16 +4,16 @@ void cnv_lea(char *p);
 
 static char leaopt = 0;
 
-UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR_FLAGS flags)
+char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct STR_FLAGS flags)
 {
-	UCHAR *p, *q;
+	char *p, *q;
 	int obj = 0, i, c;
-	UCHAR farproc = 0;
-	static char *ERASELIST[] = {
+	char farproc = 0;
+	static const char *ERASELIST[] = {
 		"ENDP", "ENDS", "END", "ASSUME", NULL
 	};
-	static UCHAR linebuf0[1000];
-	UCHAR *linebuf = linebuf0;
+	static char linebuf0[1000];
+	char *linebuf = linebuf0;
 
 	leaopt = flags.opt[FLAG_L];
 	dest0_ = dest0;
