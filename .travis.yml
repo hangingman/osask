@@ -26,9 +26,10 @@ install:
   - if [ "$CXX" == "clang++" ]; then export CXX="clang++-3.4"; fi
 
 before_script:
-  - autoreconf -i -I/usr/share/gnulib/m4 -I `pwd`/m4 && ./configure
+  - autoreconf -i -I/usr/share/gnulib/m4 -I `pwd`/m4
 
-#script:
+script:
+  - ./configure && make check
 
 branches:
   only:
