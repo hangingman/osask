@@ -12,33 +12,16 @@
 # Example: include $(top_builddir)/rules.mk
 #
 
-# TODO: Set command relative path
 #
-# GAS2NASK	= gas2nask
-# NASK		= nask
-# LIBRARIAN	= golib00w
-# ASKA		= aska
-# NASKCNV	= naskcnv0
+# Set GO Tools path, $(EXEEXT) will be automatically put by automake
+#
+SUFFIXES = .html .ask .ias .3as
 
-# gas  -> nask
-%.nas : %.s
-	$(GAS2NASK) -a $*.s $*.nas
-
-# nask -> obj
-%.o : %.nas
-	$(NASK) $*.nas $*.o
-
-# ask  -> ias ( preprocessed )
-%.ias : %.ask Makefile
-	$(CPP) -o $*.ias $*.ask
-
-# ask -> asm ( i386 asm )
-%.3as : %.ias Makefile
-	$(ASKA) $*.ias $*.3as
-
-# asm -> nask
-%.nas : %.3as Makefile
-	$(NASKCNV) $*.3as $*.nas
+GAS2NASK	= $(top_builddir)/20GO/toolstdc/gas2nask$(EXEEXT)
+NASK		= $(top_builddir)/20GO/toolstdc/nask$(EXEEXT)
+LIBRARIAN	= $(top_builddir)/20GO/toolstdc/golib00w$(EXEEXT)
+ASKA		= $(top_builddir)/28GO/aska/aska$(EXEEXT)
+NASKCNV		= $(top_builddir)/20GO/toolstdc/naskcnv0$(EXEEXT)
 
 #
 # For generating documents

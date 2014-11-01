@@ -29,7 +29,7 @@ before_script:
   - autoreconf -i -I/usr/share/gnulib/m4 -I `pwd`/m4
 
 script:
-  - ./configure && make check
+  - ./configure && make
 
 branches:
   only:

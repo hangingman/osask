@@ -6,7 +6,6 @@ include $(top_builddir)/rules.mk
 #
 # binary & sources
 #
-ASKA		 = $(top_builddir)/28GO/aska/aska
 bin_PROGRAMS     = aska
 aska_SOURCES     = filepath.cpp   \
 	           filepath.hpp	  \
@@ -31,9 +30,9 @@ aska_SOURCES     = filepath.cpp   \
 #
 # tests & sources
 #
-check_PROGRAMS          = helloworld
-TESTS			= helloworld
-helloworld_SOURCES	= helloworld.ask
+check_PROGRAMS          = asuka-test1
+TESTS			= asuka-test1
+asuka_test1_SOURCES	= asuka-test1.ask
 
 #
 # documents output directory
@@ -43,16 +42,19 @@ html_docs               = aska-doc.html
 #
 # suffix rules
 #
-SUFFIXES = .ask .html
-.PHONY: html
-
-.ask:
-	$(ASKA) $*.ask $*.o
-.ask.o:
-	$(ASKA) $< $@
-
 doc: $(html_docs)
 
 # doc clean
 clean-local:
 	rm -rf $(html_docs)
+# 
+# TODO: why this rule can't include hmm...
+#
+.ask.ias:
+	$(CPP)  - < $*.ask > $*.ias
+.ias.3as:
+	$(ASKA) $*.ias $*.3as
+.3as.nas:
+	$(NASKCNV) $*.3as $*.nas
+.nas.o:
+	$(NASK) $*.nas $*.o
