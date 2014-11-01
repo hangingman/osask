@@ -7,35 +7,21 @@ os: Windows Server 2012
 
 clone_folder: c:\projects\osask
 
-init:
-  - git config --global core.autocrlf input
-
 environment:
   matrix:
-    - tbs_arch: "x86"
-      tbs_tools: "mingw"
-      tbs_static_runtime: 1
-    
-    - tbs_arch: "x64"
-      tbs_tools: "mingw"
-      tbs_static_runtime: 1
+  - Build: mingw
+
+init:
+  - git config --global core.autocrlf input
 
 install:
   - cinst mingw-get
   - set PATH=%PATH%;C:\MinGW\msys\1.0\bin;C:\MinGW\bin
   - mingw-get install mingw-developer-toolkit
-  - mingw-get install msys-zip
-  - mingw-get install msys-unzip
 
 platform:
   - x86
-  - x64
-
-# to disable automatic builds ( disable MSbuild )
-build: off
 
 # Use MinGW make
 build_script:
-  - if [%tbs_tools%]==[mingw] if [%tbs_arch%]==[x86] SET PATH=C:\MinGW\bin;%PATH%
-  - if [%tbs_tools%]==[mingw] if [%tbs_arch%]==[x64] SET PATH=C:\mingw64\bin;%PATH%
   - bash ./bootstrap && bash ./configure && make
