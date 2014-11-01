@@ -78,12 +78,15 @@ AC_FUNC_REALLOC
 AC_CONFIG_FILES([Makefile])
 
 #
-# Generate 20GO Makefiles
+# Generate common Go Tools Makefiles
 #
 AC_CONFIG_FILES([20GO/Makefile
    		 20GO/libnask/Makefile
                  20GO/libgo/Makefile
-                 20GO/toolstdc/Makefile])
+                 20GO/toolstdc/Makefile
+                 28GO/Makefile
+                 28GO/28GO_K/Makefile
+                 28GO/aska/Makefile])
 dnl              20GO/gcc/Makefile
 dnl              20GO/intl/Makefile
 dnl              20GO/libiberty/Makefile
@@ -124,11 +127,12 @@ AC_ARG_ENABLE([28go],
 # 28GO/bim2bin/dtk5s0d/Makefile
 # 28GO/bim2bin/dtk5s0r/Makefile
 
+#  
+# Generate developed Go Tools Makefiles
+#
 if test "x$enable_28go" = "xyes"; then
 
-AC_CONFIG_FILES([28GO/28GO_K/Makefile
-                 28GO/aska/Makefile
-                 28GO/28GO_K/gas2nask/Makefile
+AC_CONFIG_FILES([28GO/28GO_K/gas2nask/Makefile
                  28GO/28GO_K/naskcnv0/Makefile
                  28GO/28GO_K/sjisconv/Makefile
                  28GO/28GO_K/golib00/Makefile
@@ -159,7 +163,6 @@ AC_CONFIG_FILES([28GO/28GO_K/Makefile
                  28GO/28GO_K/tekmin0/Makefile
                  28GO/28GO_K/tekmin1/Makefile
                  28GO/28GO_K/w32clibc/Makefile
-                 28GO/Makefile
                  28GO/bim2bin/Makefile
                  28GO/edimg/Makefile
 		 ])

@@ -1,4 +1,4 @@
-SUBDIRS = 20GO
+SUBDIRS = 20GO 28GO
 
 # ChangeLog
 dist-hook: changelog
