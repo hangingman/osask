@@ -1,9 +1,14 @@
+# branches to build
+branches:
+  only:
+    - master
+
+os: Windows Server 2012
+
+clone_folder: c:\projects\osask
+
 init:
   - git config --global core.autocrlf input
-
-platform:
-  - x86
-  - x64
 
 environment:
   matrix:
@@ -16,17 +21,15 @@ environment:
       tbs_static_runtime: 1
 
 install:
-  # Since the AppVeyor VMs have Git installed, they have MSYS1
-  - sh --login /c/projects/pipe/scripts/appveyor
-  - ps: if($env:tbs_arch -eq 'x64') {
-          $env:vcvar_arg = 'x86_amd64';
-        }
-        elseif($env:tbs_arch -eq 'x86') {
-          $env:vcvar_arg = 'x86';
-        }  
   - cinst mingw-get
   - set PATH=%PATH%;C:\MinGW\msys\1.0\bin;C:\MinGW\bin
   - mingw-get install mingw-developer-toolkit
+  - mingw-get install msys-zip
+  - mingw-get install msys-unzip
+
+platform:
+  - x86
+  - x64
 
 # to disable automatic builds ( disable MSbuild )
 build: off
