@@ -1,6 +1,9 @@
 #include <cstdio>
 
-#define DEBUG		0
+#if (DEBUG)
+	#include "go.hpp"
+//#include "../include/stdio.h"
+#endif
 
 char *LL_skip_expr(char *p);
 char *LL_skip_mc30(char *s, char *bytes, char flag);

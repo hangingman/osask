@@ -4,11 +4,10 @@
 /* 方針：遅くてもいいから、とりあえず動くこと！ */
 /* アルゴリズムに凝るのは、動くようになってから */
 
-#define	DEBUG			0
-
 #include "../include/stdlib.h"
 
 #if (DEBUG)
+	#include "go.hpp"
 	#include "../include/stdio.h"
 #endif
 
@@ -478,7 +477,7 @@ static char *skip_expr(char *expr)
 
 /* ラベルの定義方法:
 	一般式
-	80 variable-sum, 0000bbaa(aa:項数-1, bb:最初の番号), 
+	80 variable-sum, 0000bbaa(aa:項数-1, bb:最初の番号),
 	84〜87 sum, i - 1, expr, expr, ...
 
   ・80〜8f:LLが内部処理用に使う
@@ -598,7 +597,7 @@ char *LL_define_VB(struct STR_LL_VB *virtualbyte, char *s)
 	virtualbyte->expr = s;
 	s = skip_expr(s);
 fin:
-	return s;	
+	return s;
 
 	#if (DEBUG)
 dberr0:
@@ -644,7 +643,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 	subsect0 = reinterpret_cast<struct STR_SUBSECTION*>(
 		malloc(nask_maxlabels /* == MAXSUBSETCS */ * sizeof (struct STR_SUBSECTION))
 		);
-	
+
 	value = reinterpret_cast<struct STR_VALUE*>(
 		malloc(sizeof (struct STR_VALUE))
 		);

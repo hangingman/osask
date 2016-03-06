@@ -6,7 +6,10 @@
 #include <cstdlib>	/* malloc/free */
 #include <cstdint>
 
-#define	DEBUG			0
+#if (DEBUG)
+	#include "go.hpp"
+	#include "../include/stdio.h"
+#endif
 
 int nask_LABELBUFSIZ = 256 * 1024;
 
@@ -187,7 +190,7 @@ void put4b(unsigned int i, char *p);
 unsigned int get4b(char *p);
 struct STR_TERM *decode_expr(char **ps, char *s1, struct STR_TERM *expr, int *priority, struct STR_DEC_EXPR_STATUS *status);
 void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nosplit);
-int getparam(char **ps, char *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr, 
+int getparam(char **ps, char *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr,
 	struct STR_OFSEXPR *ofsexpr, struct STR_DEC_EXPR_STATUS *status);
 int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, int *prefix);
 void putmodrm(struct STR_IFDEFBUF *ifdef, int tmret, int gparam,
@@ -577,7 +580,7 @@ err:
 				bp[2] = 0x7a; /* disp */
 				bp += 3;
 	setc:
-				c = 3 ^ decode->flag; /* mod nnn r/m あり */ 				
+				c = 3 ^ decode->flag; /* mod nnn r/m あり */
 				break;
 
 			case OPE_SHIFT: /* mem/reg, imm8|CL */
@@ -2954,7 +2957,7 @@ for (;;) {
 	if (c == 0xf7) {
 		cc = 0;
 		for (i = -8; i < 0; i++)
-			cc |= src0[i]; 
+			cc |= src0[i];
 		if (cc == 0)
 			break;
 	}
@@ -3418,19 +3421,19 @@ char *setinstruct(char *s, char *t, char *inst)
 }
 
 static char *cpu_name[] = {
-	(char*) "8086", 
-	(char*) "80186", 
-	(char*) "80286", 
-	(char*) "80286p", 
-	(char*) "i386", 
-	(char*) "i386p", 
-	(char*) "i486", 
+	(char*) "8086",
+	(char*) "80186",
+	(char*) "80286",
+	(char*) "80286p",
+	(char*) "i386",
+	(char*) "i386p",
+	(char*) "i486",
 	(char*) "i486p", /* 0～7 */
-	(char*) "Pentium", 
-	(char*) "PentiumPro", 
-	(char*) "PentiumMMX", 
-	(char*) "Pentium2", 
-	(char*) "Pentium3", 
+	(char*) "Pentium",
+	(char*) "PentiumPro",
+	(char*) "PentiumMMX",
+	(char*) "Pentium2",
+	(char*) "Pentium3",
 	(char*) "Pentium4", /* 8～13 */
 	NULL
 };
@@ -3952,7 +3955,7 @@ find_keyword:
 	if (32 <= i && i <= 33) {
 		/* FS, GS */
 		i -= 4;
-	} 
+	}
 	if (i < 24) {
 		/* reg32, reg16, reg8 */
 	term_reg:
@@ -4313,7 +4316,7 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 	return;
 }
 
-int getparam(char **ps, char *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr, 
+int getparam(char **ps, char *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr,
 	struct STR_OFSEXPR *ofsexpr, struct STR_DEC_EXPR_STATUS *status)
 /* 返値について
 	bit0-3:datawidth(バイト数, 15は不定)
@@ -4332,7 +4335,7 @@ int getparam(char **ps, char *s1, int *p, struct STR_TERM *expression, struct ST
 	int i;
 	char ret, ret2, rethigh, *s = *ps;
 
-/*	status->support = 
+/*	status->support =
 	status->glabel_len = 0;
 	status->glabel = nullptr;
 */

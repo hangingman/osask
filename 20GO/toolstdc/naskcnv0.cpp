@@ -32,7 +32,7 @@ struct STR_FLAGS {
 };
 
 struct stack_alloc {
-	char ibuf[8 * 1024 * 1024];	
+	char ibuf[8 * 1024 * 1024];
 	char obuf[8 * 1024 * 1024];
 };
 
@@ -90,6 +90,8 @@ int main(int argc, char **argv)
 
 static void output(UINT l, const char *s)
 {
+	printf("Output: %s", &s);
+
 	if (l) {
 		if (dest0_ + l >= dest1_)
 			dest0_ = NULL;
