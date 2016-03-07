@@ -4,41 +4,42 @@
 #include <cstdio>
 #include <cstdlib>
 
+typedef unsigned char UCHAR;
+
 #define NL			"\n"
 
 struct str_obj {
-	char *name;
-	char *file0, *file1;
+	UCHAR *name;
+	UCHAR *file0, *file1;
 	int ofs;
 };
 
 struct str_label {
-	char *s0;
-	char *s1; /* point to '\0' */
+	UCHAR *s0;
+	UCHAR *s1; /* point to '\0' */
 	struct str_obj *obj;
 };
 
 struct stack_alloc {
 	struct str_label label[32 * 1024];
 	struct str_obj objs[16 * 1024];
-	char filebuf[8 * 1024 * 1024];
-	char iobuf[8 * 1024 * 1024];
-	char for_align[16];
+	UCHAR filebuf[8 * 1024 * 1024];
+	UCHAR iobuf[8 * 1024 * 1024];
+	UCHAR for_align[16];
 };
 
 struct str_works {
 	struct str_label *label0, *label1, *label;
 	struct str_obj *objs0, *objs1, *objs;
-	char *filebuf0, *filebuf1, *filebuf;
-	char *iobuf0, *iobuf1;
-	char *libname, *extname;
+	UCHAR *filebuf0, *filebuf1, *filebuf;
+	UCHAR *iobuf0, *iobuf1;
+	UCHAR *libname, *extname;
 	int flags;
 };
 
 static void cmdline0(char *s0, char *s1, struct str_works *work);
 static void libout(struct str_works *work);
 unsigned int GO_strlen(const char* s);
-int GOLD_write_t(const char* name, int len, const char* p0);
 
 #include "../drv_stdc/others.hpp"
 

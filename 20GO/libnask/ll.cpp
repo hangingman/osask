@@ -17,6 +17,8 @@ extern int nask_maxlabels;
 
 #define	MAXSIGMAS				  4
 
+#define	UCHAR			unsigned char
+
 struct STR_SIGMA {
 	int scale;
 	unsigned int subsect, terms;
@@ -39,24 +41,24 @@ struct STR_VALUE {
 
 struct STR_LABEL {
 	struct STR_VALUE value;
-	char *define; /* これがNULLだと、extlabel */
+	UCHAR *define; /* これがNULLだと、extlabel */
 };
 
 struct STR_SUBSECTION {
 	unsigned int min, delta, unsolved; /* unsolved == 0 なら最適化の必要なし */
-	char *sect0, *sect1;
+	UCHAR *sect0, *sect1;
 };
 
-static struct STR_LABEL* label0;
-static struct STR_SUBSECTION* subsect0;
+static struct STR_LABEL *label0;
+static struct STR_SUBSECTION *subsect0;
 
 unsigned int solve_subsection(struct STR_SUBSECTION *subsect, char force);
-char *skip_mc30(char *s, char *bytes, char flag);
+UCHAR *skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
 void calcsigma(struct STR_VALUE *value);
 void addsigma(struct STR_VALUE *value, struct STR_SIGMA sigma);
-char *LL_skip_expr(char *p);
-char *LL_skip_mc30(char *s, char *bytes, char flag);
-char *LL_skipcode(char *p);
+UCHAR *LL_skip_expr(UCHAR *p);
+UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
+UCHAR *LL_skipcode(UCHAR *p);
 
 void init_value(struct STR_VALUE *value)
 {
@@ -72,14 +74,14 @@ void init_value(struct STR_VALUE *value)
 	return;
 }
 
-unsigned int get_id(int len, char **ps, int i)
+unsigned int get_id(int len, UCHAR **ps, int i)
 /* len = 0〜3 */
 {
-	union UINT_char {
+	union UINT_UCHAR {
 		unsigned int i;
-		char c[4];
+		UCHAR c[4];
 	} u;
-	char *s = *ps;
+	UCHAR *s = *ps;
 	u.i = i;
 	i = 0;
 	do {
@@ -89,9 +91,9 @@ unsigned int get_id(int len, char **ps, int i)
 	return u.i;
 }
 
-void calc_value0(struct STR_VALUE *value, char **pexpr);
+void calc_value0(struct STR_VALUE *value, UCHAR **pexpr);
 
-void calc_value(struct STR_VALUE *value, char **pexpr)
+void calc_value(struct STR_VALUE *value, UCHAR **pexpr)
 {
 	calc_value0(value, pexpr);
 	if (value->sigma[0].scale)
@@ -102,8 +104,16 @@ void calc_value(struct STR_VALUE *value, char **pexpr)
 void enable_label(struct STR_LABEL *label)
 {
 	struct STR_VALUE value;
-	char *t;
+	UCHAR *t;
 
+//	if (label->value.flags & VFLG_CALC) {
+//		label->value.flags |= VFLG_SLFREF;
+//		return;
+//	}
+//	init_value(&value);
+//	value.label[0] = label - label0; /* for EXTERN */
+//	value.scale[0] = 1;
+//	value.flags |= label->value.flags & VFLG_EXTERN;
 	if ((t = label->define) != NULL) {
 		label->value.flags |= VFLG_CALC;
 		calc_value0(&value, &t);
@@ -121,9 +131,9 @@ void enable_label(struct STR_LABEL *label)
 	return;
 }
 
-void calc_value0(struct STR_VALUE *value, char **pexpr)
+void calc_value0(struct STR_VALUE *value, UCHAR **pexpr)
 {
-	char *expr = *pexpr, c, *t;
+	UCHAR *expr = *pexpr, c, *t;
 	int i, j, k;
 	struct STR_VALUE tmp, tmp2;
 	struct STR_SUBSECTION *subsect;
@@ -466,7 +476,7 @@ fin:
 	return;
 }
 
-static char *skip_expr(char *expr)
+static UCHAR *skip_expr(UCHAR *expr)
 {
 	return LL_skip_expr(expr);
 }
@@ -562,16 +572,16 @@ static char *skip_expr(char *expr)
 /* ↑こういうややこしいことはやらない */
 /* スキップコマンドを作って対処する */
 
-static char table98typlen[] = { 0x38, 0x38, 0x39, 0x39, 0x3b, 0x3b, 0x38 };
-static char table98range [] = { 0x00, 0x02, 0x00, 0x03, 0x00, 0x03, 0x03 };
+static UCHAR table98typlen[] = { 0x38, 0x38, 0x39, 0x39, 0x3b, 0x3b, 0x38 };
+static UCHAR table98range [] = { 0x00, 0x02, 0x00, 0x03, 0x00, 0x03, 0x03 };
 
 struct STR_LL_VB {
-	char *expr, typlen, range;
+	UCHAR *expr, typlen, range;
 };
 
-char *LL_define_VB(struct STR_LL_VB *virtualbyte, char *s)
+UCHAR *LL_define_VB(struct STR_LL_VB *virtualbyte, UCHAR *s)
 {
-	char c;
+	UCHAR c;
 	virtualbyte->typlen = c = *s++;
 	#if (DEBUG)
 		if (c < 0x30)
@@ -607,13 +617,13 @@ dberr0:
 	#endif
 }
 
-char *lccbug_LL_mc90_func(char *src0, struct STR_LL_VB *vbb, struct STR_LL_VB *vbc, char len, char c)
+UCHAR *lccbug_LL_mc90_func(UCHAR *src0, struct STR_LL_VB *vbb, struct STR_LL_VB *vbc, char len, char c)
 {
 	do {
 		if (c != 0) {
-			src0 = skip_mc30(src0, nullptr, 1);
+			src0 = skip_mc30(src0, NULL, 1);
 			if (vbc)
-				src0 = skip_mc30(src0, nullptr, 1);
+				src0 = skip_mc30(src0, NULL, 1);
 		} else {
 			src0 = LL_define_VB(vbb, src0);
 			if (vbc)
@@ -624,7 +634,7 @@ char *lccbug_LL_mc90_func(char *src0, struct STR_LL_VB *vbb, struct STR_LL_VB *v
 	return src0;
 }
 
-char *LL(char *src0, char *src1, char *dest0, char *dest1)
+UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 /* なおsrcに書き込みをするので要注意 */
 /* 新dest1を返す */
 {
@@ -634,23 +644,12 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 	struct STR_VALUE *value, *labelvalue;
 	struct STR_LL_VB virtualbyte[8], *vba, *vbb, *vbc;
 	signed int times_count;
-	char *s, *times_src0, *times_dest0, c, len, range;
+	UCHAR *s, *times_src0, *times_dest0, c, len, range;
 
-	label0 = reinterpret_cast<struct STR_LABEL*>(
-		malloc(nask_maxlabels * sizeof (struct STR_LABEL))
-		);
-
-	subsect0 = reinterpret_cast<struct STR_SUBSECTION*>(
-		malloc(nask_maxlabels /* == MAXSUBSETCS */ * sizeof (struct STR_SUBSECTION))
-		);
-
-	value = reinterpret_cast<struct STR_VALUE*>(
-		malloc(sizeof (struct STR_VALUE))
-		);
-
-	labelvalue = reinterpret_cast<struct STR_VALUE*>(
-		malloc(sizeof (struct STR_VALUE))
-		);
+	label0 = malloc(nask_maxlabels * sizeof (struct STR_LABEL));
+	subsect0 = malloc(nask_maxlabels /* == MAXSUBSETCS */ * sizeof (struct STR_SUBSECTION));
+	value = malloc(sizeof (struct STR_VALUE));
+	labelvalue = malloc(sizeof (struct STR_VALUE));
 
 	/* ラベル式を登録する */
 //	l0 = 0; /* 現在のアドレスはl0からlc個の和 */
@@ -660,7 +659,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 	label = label0;
 	for (unsolved = nask_maxlabels; unsolved > 0; label++, unsolved--) {
 		label->value.flags = 0; /* enableを消すため */
-		label->define = nullptr;
+		label->define = NULL;
 	}
 
 	/* 切り分ける */
@@ -758,7 +757,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 			c = *src0++;
 			if (dest0 + 64 >= dest1) {
 	error:
-				return nullptr; /* buffer overrun */
+				return NULL; /* buffer overrun */
 			}
 			if (c == 0x2d) {
 				/* EQU */
@@ -997,7 +996,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 				vbb = &virtualbyte[(len >> 4) & 0x07];
 				vbc = vbb + 1;
 				if (c == 0x90)
-					vbc = nullptr;
+					vbc = NULL;
 				vba->typlen = 0x37 + (src0[1] & 0x0f);
 				vba->range = 0x03; /* non-overflow */
 				if (vba->typlen == 1)
@@ -1011,9 +1010,9 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 #if 0
 				do {
 					if (c != 0) {
-						src0 = skip_mc30(src0, nullptr, 1);
+						src0 = skip_mc30(src0, NULL, 1);
 						if (vbc)
-							src0 = skip_mc30(src0, nullptr, 1);
+							src0 = skip_mc30(src0, NULL, 1);
 					} else {
 						src0 = LL_define_VB(vbb, src0);
 						if (vbc)
@@ -1036,7 +1035,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 				vbb = &virtualbyte[(len >> 4) & 0x07];
 				vbc = vbb + 1;
 				if (c == 0x94)
-					vbc = nullptr;
+					vbc = NULL;
 				vba->expr = src0 + 3;
 				c = src0[0] & 0x0f;
 				src0 = skip_expr(vba->expr);
@@ -1057,14 +1056,14 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 						}
 						src0 = LL_define_VB(vbb, src0);
 					} else {
-						src0 = skip_mc30(src0, nullptr, 0);
-						src0 = skip_mc30(src0, nullptr, 1);
+						src0 = skip_mc30(src0, NULL, 0);
+						src0 = skip_mc30(src0, NULL, 1);
 					}
 					if (vbc) {
 						if (c == 0)
 							src0 = LL_define_VB(vbc, src0);
 						else
-							src0 = skip_mc30(src0, nullptr, 1);
+							src0 = skip_mc30(src0, NULL, 1);
 					}
 				} while (--len);
 				continue;
@@ -1110,7 +1109,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 }
 
 
-char* skip_mc30(char *s, char *bytes, char flag)
+UCHAR *skip_mc30(UCHAR *s, UCHAR *bytes, char flag)
 {
 	return LL_skip_mc30(s, bytes, flag);
 }
@@ -1125,7 +1124,7 @@ unsigned int solve_subsection(struct STR_SUBSECTION *subsect, char force)
 	unsigned int unsolved = 0, min = 0, delta = 0;
 	int i;
 	struct STR_VALUE value, tmp;
-	char *s, *t, c, d, e, f, g, h;
+	UCHAR *s, *t, c, d, e, f, g, h;
 
 	for (s = subsect->sect0; s < subsect->sect1; ) {
 		c = *s++;
@@ -1223,7 +1222,7 @@ skipmc30:
 		if (c < 0x78) {
 			/* 0x70〜0x77:virtual byte定義 */
 			vba = &vb[c & 0x07];
-			s = skip_mc30(s, reinterpret_cast<char*>(&vba->min), 1);
+			s = skip_mc30(s, &vba->min, 1);
 			vba->max = vba->min;
 			continue;
 		}
@@ -1250,7 +1249,7 @@ skipmc30:
 			vbb = &vb[(c >> 4) & 0x07];
 			vbc = vbb + 1;
 			if (d == 0x90)
-				vbc = nullptr;
+				vbc = NULL;
 			if (((e = s[0]) & 0x0f) != 0x0f) {
 				/* 既に解決済み */
 				d = s[1];
@@ -1267,7 +1266,7 @@ skipmc30:
 					d *= 2;
 				}
 				do {
-					s = skip_mc30(s, nullptr, 1);
+					s = skip_mc30(s, NULL, 1);
 				} while (--d);
 				continue;
 			}
@@ -1370,7 +1369,7 @@ skipmc30:
 			vbb = &vb[(c >> 4) & 0x07];
 			vbc = vbb + 1;
 			if (d == 0x94)
-				vbc = nullptr;
+				vbc = NULL;
 			if (((g = s[0]) & 0x0f) != 0x0f) {
 				/* 既に解決済み */
 				d = s[1];
@@ -1380,16 +1379,16 @@ skipmc30:
 				vbb->min = vbb->max = (d >> 4) & 0x0f;
 				if (vbc)
 					vbc->min = vbc->max = (g >> 4) & 0x0f;
-				s = skip_mc30(s, nullptr, 0);
-				s = skip_mc30(s, nullptr, 1);
+				s = skip_mc30(s, NULL, 0);
+				s = skip_mc30(s, NULL, 1);
 				if (vbc)
-					s = skip_mc30(s, nullptr, 1);
+					s = skip_mc30(s, NULL, 1);
 				while (--e) {
 					s = skip_expr(s);
-					s = skip_mc30(s, nullptr, 0);
-					s = skip_mc30(s, nullptr, 1);
+					s = skip_mc30(s, NULL, 0);
+					s = skip_mc30(s, NULL, 1);
 					if (vbc)
-						s = skip_mc30(s, nullptr, 1);
+						s = skip_mc30(s, NULL, 1);
 				}
 				continue;
 			}
@@ -1397,12 +1396,12 @@ skipmc30:
 			s += 3;
 			calc_value(&value, &s);
 			c = *s++; /* len */
-			s = skip_mc30(s, reinterpret_cast<char*>(&vba->min), 0);
-			s = skip_mc30(s, reinterpret_cast<char*>(&vbb->min), 1);
+			s = skip_mc30(s, &vba->min, 0);
+			s = skip_mc30(s, &vbb->min, 1);
 			vba->max = vba->min;
 			vbb->max = vbb->min;
 			if (vbc) {
-				s = skip_mc30(s, reinterpret_cast<char*>(&vbc->min), 1);
+				s = skip_mc30(s, &vbc->min, 1);
 				vbc->max = vbc->min;
 			}
 			f = 0;
@@ -1488,7 +1487,7 @@ dberr0:
   94も似たような形式に変更(aの自動定義はない)。
   [94] [式] [ba] [case] [def0] [def1] [case] [def0] [def1] ...
   また以下を定義
-  [98] = [38 00 08 00] char
+  [98] = [38 00 08 00] UCHAR
   [99] = [38 02 08 00] SCHAR
   [9a] = [39 00 08 00] USHORT
   [9b] = [39 03 08 00] non-overflow SHORT
@@ -1580,7 +1579,7 @@ retry:
 			sigma.terms -= value->sigma[i].terms;
 			sigma.subsect += value->sigma[i].terms;
 			if ((value->sigma[i].scale += sigma.scale) == 0) {
-	delete_case:
+	delete:
 				for (j = i; j <= MAXSIGMAS - 2; j++)
 					value->sigma[j] = value->sigma[j + 1];
 				value->sigma[MAXSIGMAS - 1].scale = 0;
@@ -1594,7 +1593,7 @@ retry:
 						if (value->sigma[i - 1].scale == value->sigma[i].scale) {
 							if (value->sigma[i - 1].subsect + value->sigma[i - 1].terms == value->sigma[i].subsect) {
 								value->sigma[i - 1].terms += value->sigma[i].terms;
-								goto delete_case;
+								goto delete;
 							}
 						}
 					}

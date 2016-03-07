@@ -1,22 +1,24 @@
 /* copyright(C) 2003 H.Kawai (under KL-01). */
 
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 
-#define SIZ_STDOUT		(16 * 1024)
-#define SIZ_STDERR		(16 * 1024)
-#define SIZ_WORK		(8 * 1024 * 1024)
-#define SIZ_SYSWRK		(1024 * 1024)
+#define SIZ_STDOUT			(16 * 1024)
+#define SIZ_STDERR			(16 * 1024)
+#define SIZ_WORK			(8 * 1024 * 1024)
+#define SIZ_SYSWRK			(1024 * 1024)
 
 #define	MAX_SRCSIZ		(2 * 1024 * 1024)
 #define	MAX_TMPSIZ		(4 * 1024 * 1024)
 #define	MAX_BINSIZ		(2 * 1024 * 1024)
 #define	MAX_LSTSIZ		(4 * 1024 * 1024)
 
+typedef unsigned char UCHAR;
+
 #define	NL			"\n"
 
 typedef struct GO_STR_FILE {
-	char *p0, *p1, *p;
+	UCHAR *p0, *p1, *p;
 	int dummy;
 } GO_FILE;
 
@@ -24,22 +26,22 @@ extern GO_FILE GO_stdin, GO_stdout, GO_stderr;
 extern struct GOL_STR_MEMMAN GOL_memman, GOL_sysman;
 int GOL_retcode;
 
-char *GOL_work0;
-int main1(int argc, char **argv, char *src0);
-unsigned int GO_strlen(const char *s);
+UCHAR *GOL_work0;
+int main1(int argc, UCHAR **argv, UCHAR *src0);
 void GOL_sysabort(unsigned char termcode);
 void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, size_t size, void *p);
 
 struct bss_alloc {
-	char _stdout[SIZ_STDOUT];
-	char _stderr[SIZ_STDERR];
-	char work[SIZ_WORK];
-	char work1[MAX_SRCSIZ + MAX_TMPSIZ + MAX_BINSIZ + MAX_LSTSIZ];
+	UCHAR _stdout[SIZ_STDOUT];
+	UCHAR _stderr[SIZ_STDERR];
+//	UCHAR syswrk[SIZ_SYSWRK];
+	UCHAR work[SIZ_WORK];
+	UCHAR work1[MAX_SRCSIZ + MAX_TMPSIZ + MAX_BINSIZ + MAX_LSTSIZ];
 };
 
-#include "../drv_stdc/others.hpp"
+#include "../drv_stdc/others.h"
 
-int main(int argc, char **argv)
+int main(int argc, UCHAR **argv)
 {
 	struct bss_alloc *bss0 = (struct bss_alloc *) malloc(sizeof (struct bss_alloc));
 	GO_stdout.p0 = GO_stdout.p = bss0->_stdout;
@@ -48,6 +50,7 @@ int main(int argc, char **argv)
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
 	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* ÇÌÇ¥Ç∆è≠Çµè¨Ç≥Ç≠ÇµÇƒÇ®Ç≠ */
 	GO_stderr.dummy = ~0;
+//	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
 
 	GOL_retcode = main1(argc, argv, bss0->work1);
@@ -56,7 +59,7 @@ int main(int argc, char **argv)
 	return 0; /* É_É~Å[ */
 }
 
-#include "../drv_stdc/others.cpp"
-#include "../drv_stdc/wfile_b.cpp"
-#include "../drv_stdc/wfile_t.cpp"
-#include "../funcs/nasksub.cpp"
+#include "../drv_stdc/others.c"
+#include "../drv_stdc/wfile_b.c"
+#include "../drv_stdc/wfile_t.c"
+#include "../funcs/nasksub.c"

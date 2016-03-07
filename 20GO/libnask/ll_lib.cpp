@@ -1,16 +1,16 @@
-#include <cstdio>
+#include "../include/stdio.h"
 
 #if (DEBUG)
 	#include "go.hpp"
 //#include "../include/stdio.h"
 #endif
 
-char *LL_skip_expr(char *p);
-char *LL_skip_mc30(char *s, char *bytes, char flag);
+UCHAR *LL_skip_expr(UCHAR *p);
+UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
 
-char *LL_skipcode(char *p)
+UCHAR *LL_skipcode(UCHAR *p)
 {
-	char c, len;
+	UCHAR c, len;
 retry:
 	c = *p++;
 	if (0x30 <= c && c <= 0x37) {
@@ -112,9 +112,9 @@ fin:
 	return p;
 }
 
-char *LL_skip_expr(char *expr)
+UCHAR *LL_skip_expr(UCHAR *expr)
 {
-	char c;
+	UCHAR c;
 	c = *expr++;
 	if (c <= 6) {
 		/* ’è” */
@@ -161,10 +161,10 @@ fin:
 	return expr;
 }
 
-char *LL_skip_mc30(char *s, char *bytes, char flag)
+UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag)
 {
 	static char mc98_width[] = { 1, 1, 2, 2, 4, 4, 1 };
-	char c;
+	UCHAR c;
 
 	c = *s++;
 	#if (DEBUG)

@@ -7,46 +7,49 @@
 	-s:余計なdword、word、byteを削除
 */
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
+#include <stdio.h>
+#include <stdlib.h>
 char *GO_strstr(const char *cs, const char *ct);
 unsigned int GO_strlen(const char *cs);
 char *GO_strchr(const char *cs, int c);
-int GOLD_write_t(const char* name, int len, const char* p0);
-
+#define	strstr(cs, ct)			GO_strstr(cs, ct)
+#define strlen(cs)				GO_strlen(cs)
+#define strchr(cs, c)			GO_strchr(cs, c)
+typedef unsigned char UCHAR;
 typedef unsigned int UINT;
 
-#define	NL		"\n"
+#define	NL			"\n"
 #define	LEN_NL		1
 
-static char *dest0_, *dest1_;
+//	static char errflag = 0;
+static UCHAR *dest0_, *dest1_;
 
 #define FLAG_W		0
 #define FLAG_L		1
 #define FLAG_S		2
 
 struct STR_FLAGS {
-	char opt[3];
+	UCHAR opt[3];
 };
 
 struct stack_alloc {
-	char ibuf[8 * 1024 * 1024];
-	char obuf[8 * 1024 * 1024];
+	UCHAR ibuf[8 * 1024 * 1024];
+//	UCHAR filename[1000];
+	UCHAR obuf[8 * 1024 * 1024];
+//	UCHAR for_align[16];
 };
 
-char* readfile(const char *name, char *b0, const char *b1);
-static void errout(const char *s);
-static void errout_s_NL(const char *s, const char *t);
-static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct STR_FLAGS flags);
+UCHAR *readfile(UCHAR *name, UCHAR *b0, UCHAR *b1);
+static void errout(UCHAR *s);
+static void errout_s_NL(UCHAR *s, UCHAR *t);
+static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR_FLAGS flags);
 
-#include "../drv_stdc/others.hpp"
+#include "../drv_stdc/others.h"
 
-int main(int argc, char **argv)
+int main(int argc, UCHAR **argv)
 {
 	struct stack_alloc *pwork;
-	char *p0, *filename, *src1, i = 0;
+	UCHAR *p0, *filename, *src1, i = 0;
 	struct STR_FLAGS flags;
 	int j;
 
@@ -85,10 +88,11 @@ int main(int argc, char **argv)
 	if (GOLD_write_t(filename, src1 - pwork->obuf, pwork->obuf))
 		errout_s_NL("can't write file: ", filename);
 
+//	return errflag;
 	return 0;
 }
 
-static void output(UINT l, const char *s)
+static void output(UINT l, UCHAR *s)
 {
 	printf("Output: %s", &s);
 
@@ -104,6 +108,6 @@ static void output(UINT l, const char *s)
 	return;
 }
 
-#include "../drv_stdc/msgout_c.cpp"
-#include "../drv_stdc/wfile_t.cpp"
-#include "../funcs/m_naskcv.cpp"
+#include "../drv_stdc/msgout_c.c"
+#include "../drv_stdc/wfile_t.c"
+#include "../funcs/m_naskcv.c"

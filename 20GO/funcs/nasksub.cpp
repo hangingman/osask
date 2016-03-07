@@ -1,9 +1,9 @@
-char *nask(char *src0, char *src1, char *dest0, char *dest1);
-char *LL(char *src0, char *src1, char *dest0, char *dest1);
-char *output(char *src0, char *src1, char *dest0, char *dest1, char *list0, char *list1);
-void *GO_memcpy(void *s, const void *ct, size_t n);
+UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
+UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
+UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1);
+void *GO_memcpy(void *s, const void *ct, unsigned int n);
 
-void errmsgout(const char *s)
+void errmsgout(const UCHAR *s)
 {
 	int l =	GO_strlen(s);
 	char flag = 0;
@@ -21,7 +21,7 @@ void errmsgout(const char *s)
 	return;
 }
 
-void errmsgout_s_NL(const char *msg, const char *s)
+void errmsgout_s_NL(const UCHAR *msg, const UCHAR *s)
 {
 	errmsgout(msg);
 	errmsgout(s);
@@ -31,10 +31,10 @@ void errmsgout_s_NL(const char *msg, const char *s)
 
 int nask_errors = 0;
 
-int main1(int argc, char **argv, char *src0)
+int main1(int argc, UCHAR **argv, UCHAR *src0)
 {
-	char *src1, *dest0, *dest1;
-	char *tmp0, *tmp1, *list0, *list1;
+	UCHAR *src1, *dest0, *dest1;
+	UCHAR *tmp0, *tmp1, *list0, *list1;
 	int len;
 
 	tmp0 = src0 + MAX_SRCSIZ;
@@ -99,7 +99,9 @@ over_tmpbuf:
 	}
 
 	if (nask_errors) {
-		char strbuf[16];
+//		GO_spritf(src0, "NASK : %d errors." NL, nask_errors);
+//		errmsgout(src0);
+		UCHAR strbuf[16];
 		len = nask_errors;
 		errmsgout("NASK : ");
 		src1 = &strbuf[15];
@@ -117,7 +119,7 @@ over_tmpbuf:
 
 void GOL_sysabort(unsigned char termcode)
 {
-	static const char *termmsg[] = {
+	static char *termmsg[] = {
 		"",
 		"[TERM_WORKOVER]\n",
 		"[TERM_OUTOVER]\n",

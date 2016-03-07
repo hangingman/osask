@@ -1,13 +1,18 @@
 /* for stdc */
 
-int GOLD_getsize(const char *name);
-int GOLD_read(const char *name, int len, char *b0);
+//	void GOLD_exit(int s);		/* 終了する */
+int GOLD_getsize(const UCHAR *name); /* ファイルサイズ取得 */
+int GOLD_read(const UCHAR *name, int len, UCHAR *b0);
+	/* ファイル読み込み、バイナリモード、
+		サイズを呼び出し側で直前にファイルチェックしていて、
+		ファイルサイズぴったりを要求してくる */
 
 #if (defined(USE_SYS_STAT_H))
 
 #include <sys/stat.h>
 
-int GOLD_getsize(const char *name)
+int GOLD_getsize(const UCHAR *name)
+/* ファイルサイズ取得 */
 {
 	FILE *fp;
 	struct stat st;
@@ -26,7 +31,7 @@ err:
 
 #else
 
-int GOLD_getsize(const char *name)
+int GOLD_getsize(const UCHAR *name)
 {
 	FILE *fp;
 	int len;
@@ -43,7 +48,7 @@ err:
 
 #endif
 
-int GOLD_read(const char *name, int len, char *b0)
+int GOLD_read(const UCHAR *name, int len, UCHAR *b0)
 {
 	FILE *fp;
 	int i;

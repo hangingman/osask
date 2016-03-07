@@ -16,4 +16,3 @@ nask_SOURCES	= nask.cpp
 nask_LDADD	= ../libnask/libnask.la ../libgo/libgo.la
 
 naskcnv0_SOURCES= naskcnv0.cpp
-naskcnv0_LDADD	= ../libgo/libgo.la
