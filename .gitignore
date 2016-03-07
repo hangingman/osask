@@ -1,40 +1,82 @@
-*.o
-*.lo
-*.log
-*.html
-*.tex
-*Makefile
-Makefile
-configure
-intl/*
-po/*
-*/Makefile.in
-.deps
+
+# Created by https://www.gitignore.io/api/autotools,c++
+
+### Autotools ###
+# http://www.gnu.org/software/automake
+
 Makefile.in
-autom4te*
-autom4te*/*
-*.libs
-*.Plo
-*.Po
-*.dll
-*.dylib
-*.a
-*.la
-*.lai
-*.so
-*.so.*
-*~
-*.exe
-compile
+.dirstamp
+
+# http://www.gnu.org/software/autoconf
+
+/autom4te.cache
+/autoscan.log
+/autoscan-*.log
+/aclocal.m4
+/compile
+/config.h.in
+/configure
+/configure.scan
+/depcomp
+/install-sh
+/missing
+/stamp-h1
+/ltmain.sh
+m4/*.m4
 config.*
-depcomp
-install-sh
+*.Po
+*.Plo
+Makefile
 libtool
-ltmain.sh
-missing
-stamp-h1
-test-driver
-aclocal.m4
+
+**/*/autom4te.cache
+**/*/autoscan.log
+**/*/autoscan-*.log
+**/*/aclocal.m4
+**/*/compile
+**/*/config.h.in
+**/*/configure
+**/*/configure.scan
+**/*/depcomp
+**/*/install-sh
+**/*/missing
+**/*/stamp-h1
+**/*/ltmain.sh
+**/*/*.h.in
+**/*/m4/*.m4
+**/*/.libs
+expat_config.h
+stamp-h
+
+### C++ ###
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
 
 # osask
 aska
