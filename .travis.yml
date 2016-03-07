@@ -2,7 +2,6 @@ language: cpp
 
 os:
   - linux
-  - osx
 
 compiler:
   - g++
@@ -37,4 +36,4 @@ branches:
 
 notifications:
   email:
-    - newserver002@gmail.com
+    - idiotpanzer@gmail.com
