@@ -14,27 +14,27 @@
 #define FLAG_S		1
 
 struct STR_FLAGS {
-	char opt[3];
+	UCHAR opt[3];
 };
 
 struct stack_alloc {
-	char ibuf[8 * 1024 * 1024];	
-	char obuf[8 * 1024 * 1024];
+	UCHAR ibuf[8 * 1024 * 1024];
+	UCHAR obuf[8 * 1024 * 1024];
 };
 
-char* readfile(const char *name, char *b0, const char *b1);
-unsigned int GO_strlen(const char *s);
-void errout(const char *s);
-void errout_s_NL(const char *s, const char *t);
-static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct STR_FLAGS flags);
-int GOLD_write_t(const char* name, int len, const char* p0);
+UCHAR* readfile(UCHAR *name, UCHAR *b0, UCHAR *b1);
+unsigned int GO_strlen(const UCHAR *s);
+void errout(UCHAR *s);
+void errout_s_NL(UCHAR *s, UCHAR *t);
+static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR_FLAGS flags);
+int GOLD_write_t(const UCHAR* name, int len, const UCHAR* p0);
 
 #include "../drv_stdc/others.hpp"
 
-int main(int argc, char **argv)
+int main(int argc, UCHAR **argv)
 {
 	struct stack_alloc *pwork;
-	char *p0, *filename, *src1, i = 0;
+	UCHAR *p0, *filename, *src1, i = 0;
 	struct STR_FLAGS flags;
 
 	pwork = (struct stack_alloc *) malloc(sizeof (struct stack_alloc));

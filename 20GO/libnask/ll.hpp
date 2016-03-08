@@ -1,0 +1,165 @@
+#include <cstdio>
+#include <memory>
+
+#if (DEBUG)
+	#include "go.hpp"
+#endif
+
+typedef unsigned char UCHAR;
+
+constexpr unsigned int INVALID_DELTA = 0x40000000;
+constexpr size_t       MAXSIGMAS     = 4;
+
+constexpr unsigned int VFLG_ERROR    = 0x01; /* エラー */
+constexpr unsigned int VFLG_SLFREF   = 0x02; /* 自己参照エラー */
+constexpr unsigned int VFLG_UNDEF    = 0x04; /* 未定義エラー */
+constexpr unsigned int VFLG_EXTERN   = 0x10; /* 外部ラベル */
+constexpr unsigned int VFLG_CALC     = 0x20; /* 計算中 */
+constexpr unsigned int VFLG_ENABLE   = 0x40; /* STR_LABELで有効なことを示す */
+
+struct STR_SIGMA {
+	int scale;
+	unsigned int subsect, terms;
+     	STR_SIGMA& operator=(std::unique_ptr<STR_SIGMA>& value) {
+		this->scale = value->scale;
+		this->subsect = value->subsect;
+		this->terms = value->terms;
+		return *this;
+     	}
+};
+
+struct STR_VALUE {
+	int min;
+	unsigned int delta, flags;
+	std::array<int, 2> scale;
+	std::array<unsigned int, 2> label;
+	std::array<struct STR_SIGMA, MAXSIGMAS> sigma;
+
+     	STR_VALUE& operator=(std::unique_ptr<STR_VALUE>& value) {
+		this->min = value->min;
+		this->delta = value->delta;
+		this->flags = value->flags;
+		this->scale = value->scale;
+		this->label = value->label;
+		this->sigma = value->sigma;
+		return *this;
+     	}
+	STR_VALUE& assign_sigma(size_t index, std::unique_ptr<STR_SIGMA>& value) {
+		this->sigma[index] = value;
+		return *this;
+	}
+};
+
+struct STR_LABEL {
+	struct STR_VALUE value;
+	UCHAR *define; /* これがNULLだと、extlabel */
+	STR_LABEL& assign_value(std::unique_ptr<STR_VALUE>& value) {
+		this->value = value;
+		return *this;
+	}
+};
+
+struct STR_SUBSECTION {
+	unsigned int min, delta, unsolved; /* unsolved == 0 なら最適化の必要なし */
+	UCHAR *sect0, *sect1;
+};
+
+static struct STR_LABEL* label0;
+static struct STR_SUBSECTION* subsect0;
+
+static std::array<UCHAR, 7> table98typlen = { 0x38, 0x38, 0x39, 0x39, 0x3b, 0x3b, 0x38 };
+static std::array<UCHAR, 7> table98range  = { 0x00, 0x02, 0x00, 0x03, 0x00, 0x03, 0x03 };
+
+struct STR_LL_VB {
+	UCHAR *expr, typlen, range;
+};
+
+UCHAR *LL_skip_expr(UCHAR *p);
+UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
+UCHAR *LL_skipcode(UCHAR *p);
+
+unsigned int solve_subsection(struct STR_SUBSECTION *subsect, char force);
+UCHAR *skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
+void init_value(STR_VALUE* value);
+void calcsigma(std::unique_ptr<STR_VALUE>& value);
+void addsigma(std::unique_ptr<STR_VALUE>& value, struct STR_SIGMA sigma);
+void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr);
+
+/* ラベルの定義方法:
+	一般式
+	80 variable-sum, 0000bbaa(aa:項数-1, bb:最初の番号),
+	84～87 sum, i - 1, expr, expr, ...
+
+  ・80～8f:LLが内部処理用に使う
+	80～83:variable参照(1～4バイト)
+	88～8f:sum(variable), (1～4, 1～4) : 最初は項数-1, 次は最初の番号
+		{ "|>", 12, 18 }, { "&>", 12, 17 },
+		{ "<<", 12, 16 }, { ">>", 12, 17 },
+		{ "//", 14,  9 }, { "%%", 14, 10 },
+		{ "+",  13,  4 }, { "-",  13,  5 },
+		{ "*",  14,  6 }, { "/",  14,  7 },
+		{ "%",  14,  8 }, { "^",   7, 14 },
+		{ "&",   8, 12 }, { "|",   6, 13 },
+		{ "",    0,  0 }
+
+	s+
+	s-
+	s~
+
+	+, -, *, <<, /u, %u, /s, %s
+	>>u, >>s, &, |, ^
+
+
+	< 文法 >
+
+最初はヘッダ。
+・ヘッダサイズ(DW) = 12
+・バージョンコード(DW)
+・ラベル総数(DW)
+
+
+  ・38:式の値をDBにして設置
+  ・39:式の値をDWにして設置
+  ・3a:式の値を3バイトで設置
+  ・3b:式の値をDDにして設置
+  以下、・3fまである。
+  ・40～47:ブロックコマンド。if文などの後続文をブロック化する(2～9)。
+  ・48:バイトブロック（ブロック長がバイトで後続）。
+  ・49:ワードブロック。
+  ・4a:バイトブロック。
+  ・4b:ダブルワードブロック。
+  ・4c:排他的if開始。
+  ・4d:選択的if開始。
+  ・4e:選択的バウンダリーif開始。変数設定の直後、バウンダリー値が続く。
+  ・4f:endif。
+  排他的ifは、endifが来るまでいくつも並べられる。endifが来るまで、
+  全てelse-ifとして扱われる。最後にelseを作りたければ、条件を定数1にせよ。
+  ・ターミネーターはラベル定義で0xffffffff。
+
+  ・58:ORG
+
+  ・60:アライン。バイトの埋め方は個別に設定する。・・・これは排他的ifでも記述できる。
+
+  ・70～77:可変長バイト宣言(文法上では40～4bが後続することを許すが、サポートしていない。許されるのは30～3f)
+  ・78～7f:可変長バイト参照
+
+  ・80～8f:LLが内部処理用に使う
+	80～83:variable参照(1～4バイト)
+	88～8f:sum(variable), (1～4, 1～4) : 最初は項数-1, 次は最初の番号
+
+
+  if文中では、可変長バイト宣言しかできない。
+
+	ORGについて。本来引数は式であってよいが、このバージョンでは定数式を仮定している。
+
+
+
+
+*/
+
+/* ibuf, obufの基礎構造 */
+/* シグネチャー8バイト, 総長4バイト, リザーブ4バイト */
+/* メインデータレングス4B, メインデータスタート4B */
+
+/* ↑こういうややこしいことはやらない */
+/* スキップコマンドを作って対処する */
