@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include <memory>
 
 #if (DEBUG)
@@ -6,6 +7,22 @@
 #endif
 
 typedef unsigned char UCHAR;
+typedef unsigned int  UINT;
+
+// on 64 bit sizeof(char*) is 8 and sizeof(int) is 4
+// on 32 bit sizeof(char*) is 4 and sizeof(int) is 4
+// Suck
+typedef union {
+	UINT integer;
+	UCHAR byte[4];
+} nask32bitInt;
+
+// See also: http://en.cppreference.com/w/cpp/string/byte/memcpy
+static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
+	nask32bitInt* t;
+	std::memcpy(t->byte, uchar, sizeof t->byte);
+	return t;
+};
 
 constexpr unsigned int INVALID_DELTA = 0x40000000;
 constexpr size_t       MAXSIGMAS     = 4;
