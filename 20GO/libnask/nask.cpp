@@ -162,7 +162,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			} while (++s < src1);
 			i = label2id(s - decode->label, decode->label, 0);
 			if (labelflags[i]) {
-				//*bp++ = 0xe7;
+				(*bp++).integer = 0xe7;
 				bp->byte[1] = 0xe7;
 				c = 0; /* mod nnn r/m なし */
 				goto outbp;
@@ -462,9 +462,9 @@ err:
 					/* 最適化する */
 					if (microcode94(ifdef, status->expression, mcode))
 						goto err2;
-					*bp++ = 0x7c; /* 自動選択されたオペコード */
+					(*bp++).integer = 0x7c; /* 自動選択されたオペコード */
 				}
-				*bp++ = 0x7d; /* imm16 || none */
+				(*bp++).integer = 0x7d; /* imm16 || none */
 				break;
 
 			case OPE_AAMD: /* AAM, AAD */
@@ -509,9 +509,9 @@ err:
 					/* 最適化する */
 					if (microcode94(ifdef, status->expression, mcode))
 						goto err2;
-					*bp++ = 0x7c; /* 自動選択されたオペコード */
+					(*bp++).integer = 0x7c; /* 自動選択されたオペコード */
 				}
-				*bp++ = 0x7d; /* imm8 || none */
+				(*bp++).integer = 0x7d; /* imm8 || none */
 			//	c = 0; /* mod nnn r/m なし */
 				break;
 
@@ -820,7 +820,7 @@ err:
 						mcode[0] = 0x54; /* 16bit */
 						if (c == 4)
 							mcode[0] = 0x5c; /* 32bit */
-						*bp++ = 0x7d;
+						(*bp++).integer = 0x7d;
 						if (microcode90(ifdef, status->expression, mcode, decode->gparam[1] & 0x0f))
 							goto err2; /* パラメータエラー */
 					}
@@ -1056,7 +1056,7 @@ err:
 						bp->byte[4] = 0x7a; /* disp */
 						bp += 5;
 					}
-					*bp++ = 0x7c;
+					(*bp++).integer = 0x7c;
 					if (defnumexpr(ifdef, status->expression, 0x7c & 0x07, table[j]))
 						goto err2; /* パラメータエラー */
 				}
@@ -1520,7 +1520,7 @@ err:
 				bp->byte[6] = 0x30 | itp->param[1];
 				bp += 7;
 				do {
-					*bp++ = 0x00;
+					(*bp++).integer = 0x00;
 				} while (--i);
 				ifdef->vb[8] = 0x84;
 				expr = status->expression;
@@ -1746,10 +1746,10 @@ err:
 						dest0[9] = 3;
 						bp = &dest0[10];
 						put4b(j, &dest0[11]);
-						*bp = 0x07;
+						bp->integer = 0x07;
 						dest0 += 11;
 						do {
-							(*bp)++;
+							*bp++;
 							dest0++;
 						} while (j >>= 8);
 					} else { /* EXTERN */
