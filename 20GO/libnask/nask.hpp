@@ -190,6 +190,7 @@ static UCHAR *labelbuf0, *labelbuf;
 static UCHAR *locallabelbuf0 /* 256bytes */, *locallabelbuf;
 static int nextlabelid;
 
+UCHAR *skipspace(UCHAR *s, UCHAR *t);
 UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode);
 UCHAR *putprefix(UCHAR *dest0, UCHAR *dest1, int prefix, int bits, int opt);
 void put4b(UINT i, UCHAR *p);

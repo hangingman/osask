@@ -5,7 +5,6 @@ UCHAR *skipspace(UCHAR *s, UCHAR *t)
 	while (s < t && *s != '\n' && *s <= ' ')
 		s++;
 	return s;
-
 }
 
 UCHAR *putimm(int i, UCHAR *p)
