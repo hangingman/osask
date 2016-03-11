@@ -4,10 +4,14 @@
 
 template <class T> void address_cout(T t);
 void test_skipspace();
+void test_putimm();
+void test_nask();
 
 int main(int args, char** argv) {
      puts ("Start nask unit tests...");
      test_skipspace();
+     test_putimm();
+     test_nask();
      puts ("Finish nask unit tests...");
      return 0;
 }
@@ -34,4 +38,15 @@ void test_skipspace() {
      } else {
 	  puts("=== [SUCCESS] ===");
      }
+}
+
+void test_putimm() {
+}
+
+void test_nask() {
+     puts("** It would be better creating child elements with smart-pointer");
+     std::unique_ptr<STR_STATUS> status(new STR_STATUS());
+     std::unique_ptr<STR_TERM> expression(new STR_TERM());
+     status->expression = expression.get();
+     address_cout(&status->expression);
 }

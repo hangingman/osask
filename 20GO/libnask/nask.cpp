@@ -1,41 +1,47 @@
 #include "nask.hpp"
 
-UCHAR *skipspace(UCHAR *s, UCHAR *t)
+//
+// ポインタSからポインタTまでの間のスペースを飛ばして
+// 最初の"スペースではない"データまで移動
+//
+UCHAR* skipspace(UCHAR *s, UCHAR *t)
 {
-	while (s < t && *s != '\n' && *s <= ' ')
-		s++;
-	return s;
+     while (s < t && *s != '\n' && *s <= ' ')
+	  s++;
+     return s;
 }
 
-UCHAR *putimm(int i, UCHAR *p)
-/* 最大6バイト出力 */
+//
+// IMM(測値)を出力する、最大6バイト出力
+//
+UCHAR* putimm(int i, UCHAR *p)
 {
-	UCHAR c = 6;
-	if (i >= 0) {
-		if (i <= 0xff)
-			c = 0x00;
-		else if (i <= 0xffff)
-			c = 0x02;
-		else if (i <= 0xffffff)
-			c = 0x04;
-	} else {
-		if (i >= -0x100)
-			c = 0x01;
-		else if (i >= -0x10000)
-			c = 0x03;
-		else if (i >= -0x1000000)
-			c = 0x05;
-	}
-	p[0] = c;
-	p[1] = i & 0xff;
-	c >>= 1;
-	p += 2;
-	while (c) {
-		i >>= 8;
-		c--;
-		*p++ = i & 0xff;
-	}
-	return p;
+     UCHAR c = 6;
+     if (i >= 0) {
+	  if (i <= 0xff)
+	       c = 0x00;
+	  else if (i <= 0xffff)
+	       c = 0x02;
+	  else if (i <= 0xffffff)
+	       c = 0x04;
+     } else {
+	  if (i >= -0x100)
+	       c = 0x01;
+	  else if (i >= -0x10000)
+	       c = 0x03;
+	  else if (i >= -0x1000000)
+	       c = 0x05;
+     }
+     p[0] = c;
+     p[1] = i & 0xff;
+     c >>= 1;
+     p += 2;
+     while (c) {
+	  i >>= 8;
+	  c--;
+	  *p++ = i & 0xff;
+     }
+     return p;
 }
 
 UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
@@ -52,25 +58,28 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	nextlabelid = nask_L_LABEL0;
 
 	std::unique_ptr<STR_STATUS> status(new STR_STATUS());
+	std::unique_ptr<STR_TERM> expression(new STR_TERM());
+	std::unique_ptr<STR_TERM> mem_expr(new STR_TERM());
+	status->expression = expression.get();
+	status->mem_expr = mem_expr.get();
+
 	std::unique_ptr<STR_DECODE> decode(new STR_DECODE());
 	std::unique_ptr<STR_IFDEFBUF> ifdef(new STR_IFDEFBUF());
-	#warning "Write test code !"
-	//status->expression = malloc(EXPR_MAXLEN * sizeof (struct STR_TERM));
-	//status->mem_expr = malloc(EXPR_MAXLEN * sizeof (struct STR_TERM));
-	std::array<STR_SECTION, MAX_SECTIONS> sectable;
-	#warning "Write test code !"
-	//ifdef->bp0 = malloc(256);
+	std::unique_ptr<UCHAR> bp0(new UCHAR());
+	ifdef->bp0 = bp0.get();
 	ifdef->bp1 = ifdef->bp0 + 256;
+	for (i = 0; i < ifdef->expr.size(); i++) {
+	     std::unique_ptr<UCHAR> expr(new UCHAR(EXPR_MAXSIZ));
+	     ifdef->expr[i] = expr.get();
+	}
+
+	std::array<STR_SECTION, MAX_SECTIONS> sectable;
 	std::unique_ptr<UCHAR> labelbuf(new UCHAR(nask_LABELBUFSIZ));
 	std::unique_ptr<UCHAR> labelbuf0(new UCHAR(nask_LABELBUFSIZ));
-	//for (i = 0; i < 9; i++)
-	// 	ifdef->expr[i] = malloc(EXPR_MAXSIZ);
 	std::array<UCHAR, nask_maxlabels> labelflags;
 	for (i = 0; i < nask_maxlabels; i++)
 		labelflags[i] = 0;
 	for (i = 0; i < MAX_SECTIONS; i++) {
-	//	sectable[i].name[0] = '\0';
-	//	sectable[i].total_len = 0;
 		sectable[i].align0 = -1;
 		sectable[i].align1 = 1;
 		sectable[i].dollar_label2 = 0xffffffff;
