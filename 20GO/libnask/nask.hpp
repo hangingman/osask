@@ -136,7 +136,7 @@ struct STR_DECODE {
 	std::array<int, 3> gparam;
 	std::array<int, 3> gvalue;
 	int gp_mem, gp_reg;
-	struct STR_SECTION *sectable;
+	struct STR_SECTION* sectable;
 	UCHAR error, flag /* , dollar */;
 };
 /* flag‚Ìbit0‚Ímem/reg‚ªreg‚©‚Ç‚¤‚©‚ð‚ ‚ç‚í‚· */
