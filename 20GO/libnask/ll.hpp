@@ -27,12 +27,12 @@ static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
 constexpr unsigned int INVALID_DELTA = 0x40000000;
 constexpr size_t       MAXSIGMAS     = 4;
 
-constexpr unsigned int VFLG_ERROR    = 0x01; /* �G���[ */
-constexpr unsigned int VFLG_SLFREF   = 0x02; /* ���ȎQ�ƃG���[ */
-constexpr unsigned int VFLG_UNDEF    = 0x04; /* ����`�G���[ */
-constexpr unsigned int VFLG_EXTERN   = 0x10; /* �O�����x�� */
-constexpr unsigned int VFLG_CALC     = 0x20; /* �v�Z�� */
-constexpr unsigned int VFLG_ENABLE   = 0x40; /* STR_LABEL�ŗL���Ȃ��Ƃ����� */
+constexpr unsigned int VFLG_ERROR    = 0x01; /* エラー */
+constexpr unsigned int VFLG_SLFREF   = 0x02; /* 自己参照エラー */
+constexpr unsigned int VFLG_UNDEF    = 0x04; /* 未定義エラー */
+constexpr unsigned int VFLG_EXTERN   = 0x10; /* 外部ラベル */
+constexpr unsigned int VFLG_CALC     = 0x20; /* 計算中 */
+constexpr unsigned int VFLG_ENABLE   = 0x40; /* STR_LABELで有効なことを示す */
 
 struct STR_SIGMA {
 	int scale;
@@ -69,7 +69,7 @@ struct STR_VALUE {
 
 struct STR_LABEL {
 	struct STR_VALUE value;
-	UCHAR *define; /* ���ꂪNULL���ƁAextlabel */
+	UCHAR *define; /* これがNULLだと、extlabel */
 	STR_LABEL& assign_value(std::unique_ptr<STR_VALUE>& value) {
 		this->value = value;
 		return *this;
@@ -77,7 +77,7 @@ struct STR_LABEL {
 };
 
 struct STR_SUBSECTION {
-	unsigned int min, delta, unsolved; /* unsolved == 0 �Ȃ�œK���̕K�v�Ȃ� */
+	unsigned int min, delta, unsolved; /* unsolved == 0 なら最適化の必要なし */
 	UCHAR *sect0, *sect1;
 };
 
@@ -102,14 +102,14 @@ void calcsigma(std::unique_ptr<STR_VALUE>& value);
 void addsigma(std::unique_ptr<STR_VALUE>& value, struct STR_SIGMA sigma);
 void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr);
 
-/* ���x���̒�`���@:
-	��ʎ�
-	80 variable-sum, 0000bbaa(aa:����-1, bb:�ŏ��̔ԍ�),
-	84�`87 sum, i - 1, expr, expr, ...
+/* ラベルの定義方法:
+	一般式
+	80 variable-sum, 0000bbaa(aa:項数-1, bb:最初の番号),
+	84〜87 sum, i - 1, expr, expr, ...
 
-  �E80�`8f:LL�����������p�Ɏg��
-	80�`83:variable�Q��(1�`4�o�C�g)
-	88�`8f:sum(variable), (1�`4, 1�`4) : �ŏ��͍���-1, ���͍ŏ��̔ԍ�
+  ・80〜8f:LLが内部処理用に使う
+	80〜83:variable参照(1〜4バイト)
+	88〜8f:sum(variable), (1〜4, 1〜4) : 最初は項数-1, 次は最初の番号
 		{ "|>", 12, 18 }, { "&>", 12, 17 },
 		{ "<<", 12, 16 }, { ">>", 12, 17 },
 		{ "//", 14,  9 }, { "%%", 14, 10 },
@@ -127,56 +127,56 @@ void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr);
 	>>u, >>s, &, |, ^
 
 
-	< ���@ >
+	< 文法 >
 
-�ŏ��̓w�b�_�B
-�E�w�b�_�T�C�Y(DW) = 12
-�E�o�[�W�����R�[�h(DW)
-�E���x������(DW)
-
-
-  �E38:���̒l��DB�ɂ��Đݒu
-  �E39:���̒l��DW�ɂ��Đݒu
-  �E3a:���̒l��3�o�C�g�Őݒu
-  �E3b:���̒l��DD�ɂ��Đݒu
-  �ȉ��A�E3f�܂ł���B
-  �E40�`47:�u���b�N�R�}���h�Bif���Ȃǂ̌㑱�����u���b�N������(2�`9)�B
-  �E48:�o�C�g�u���b�N�i�u���b�N�����o�C�g�Ō㑱�j�B
-  �E49:���[�h�u���b�N�B
-  �E4a:�o�C�g�u���b�N�B
-  �E4b:�_�u�����[�h�u���b�N�B
-  �E4c:�r���Iif�J�n�B
-  �E4d:�I��Iif�J�n�B
-  �E4e:�I��I�o�E���_���[if�J�n�B�ϐ��ݒ�̒���A�o�E���_���[�l�������B
-  �E4f:endif�B
-  �r���Iif�́Aendif������܂ł��������ׂ���Bendif������܂ŁA
-  �S��else-if�Ƃ��Ĉ�����B�Ō��else����肽����΁A������萔1�ɂ���B
-  �E�^�[�~�l�[�^�[�̓��x����`��0xffffffff�B
-
-  �E58:ORG
-
-  �E60:�A���C���B�o�C�g�̖��ߕ��͌ʂɐݒ肷��B�E�E�E����͔r���Iif�ł��L�q�ł���B
-
-  �E70�`77:�ϒ��o�C�g�錾(���@��ł�40�`4b���㑱���邱�Ƃ��������A�T�|�[�g���Ă��Ȃ��B�������̂�30�`3f)
-  �E78�`7f:�ϒ��o�C�g�Q��
-
-  �E80�`8f:LL�����������p�Ɏg��
-	80�`83:variable�Q��(1�`4�o�C�g)
-	88�`8f:sum(variable), (1�`4, 1�`4) : �ŏ��͍���-1, ���͍ŏ��̔ԍ�
+最初はヘッダ。
+・ヘッダサイズ(DW) = 12
+・バージョンコード(DW)
+・ラベル総数(DW)
 
 
-  if�����ł́A�ϒ��o�C�g�錾�����ł��Ȃ��B
+  ・38:式の値をDBにして設置
+  ・39:式の値をDWにして設置
+  ・3a:式の値を3バイトで設置
+  ・3b:式の値をDDにして設置
+  以下、・3fまである。
+  ・40〜47:ブロックコマンド。if文などの後続文をブロック化する(2〜9)。
+  ・48:バイトブロック（ブロック長がバイトで後続）。
+  ・49:ワードブロック。
+  ・4a:バイトブロック。
+  ・4b:ダブルワードブロック。
+  ・4c:排他的if開始。
+  ・4d:選択的if開始。
+  ・4e:選択的バウンダリーif開始。変数設定の直後、バウンダリー値が続く。
+  ・4f:endif。
+  排他的ifは、endifが来るまでいくつも並べられる。endifが来るまで、
+  全てelse-ifとして扱われる。最後にelseを作りたければ、条件を定数1にせよ。
+  ・ターミネーターはラベル定義で0xffffffff。
 
-	ORG�ɂ��āB�{�������͎��ł����Ă悢���A���̃o�[�W�����ł͒萔�������肵�Ă���B
+  ・58:ORG
+
+  ・60:アライン。バイトの埋め方は個別に設定する。・・・これは排他的ifでも記述できる。
+
+  ・70〜77:可変長バイト宣言(文法上では40〜4bが後続することを許すが、サポートしていない。許されるのは30〜3f)
+  ・78〜7f:可変長バイト参照
+
+  ・80〜8f:LLが内部処理用に使う
+	80〜83:variable参照(1〜4バイト)
+	88〜8f:sum(variable), (1〜4, 1〜4) : 最初は項数-1, 次は最初の番号
+
+
+  if文中では、可変長バイト宣言しかできない。
+
+	ORGについて。本来引数は式であってよいが、このバージョンでは定数式を仮定している。
 
 
 
 
 */
 
-/* ibuf, obuf�̊�b�\�� */
-/* �V�O�l�`���[8�o�C�g, ����4�o�C�g, ���U�[�u4�o�C�g */
-/* ���C���f�[�^�����O�X4B, ���C���f�[�^�X�^�[�g4B */
+/* ibuf, obufの基礎構造 */
+/* シグネチャー8バイト, 総長4バイト, リザーブ4バイト */
+/* メインデータレングス4B, メインデータスタート4B */
 
-/* ������������₱�������Ƃ͂��Ȃ� */
-/* �X�L�b�v�R�}���h������đΏ����� */
+/* ↑こういうややこしいことはやらない */
+/* スキップコマンドを作って対処する */

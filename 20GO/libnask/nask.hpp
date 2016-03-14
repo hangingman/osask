@@ -1,7 +1,7 @@
 /* "nask.c" */
-/* copyright(C) 2003 H.Kawai(ì‡GÀ) */
-/*   [OSASK 3978], [OSASK 3979]‚ÅŒõ¬‚³‚ñ‚Ìw“E‚ğ‘å‚¢‚ÉQl‚É‚µ‚Ü‚µ‚½ */
-/*	¬–ö‚³‚ñ‚Ìstring0‚ÉŠÖ‚·‚éw“E‚àQl‚É‚µ‚Ü‚µ‚½ */
+/* copyright(C) 2003 H.Kawai(å·åˆç§€å®Ÿ) */
+/*   [OSASK 3978], [OSASK 3979]ã§å…‰æˆã•ã‚“ã®æŒ‡æ‘˜ã‚’å¤§ã„ã«å‚è€ƒã«ã—ã¾ã—ãŸ */
+/*	å°æŸ³ã•ã‚“ã®string0ã«é–¢ã™ã‚‹æŒ‡æ‘˜ã‚‚å‚è€ƒã«ã—ã¾ã—ãŸ */
 
 #include <cstdlib>	/* malloc/free */
 #include <cstdint>
@@ -13,11 +13,11 @@
 #endif
 
 static constexpr unsigned int nask_LABELBUFSIZ = 256 * 1024;
-static constexpr unsigned int OPCLENMAX    = 12; /* ‘«‚è‚È‚­‚È‚Á‚½‚ç12‚É‚µ‚Ä‚­‚¾‚³‚¢ */
+static constexpr unsigned int OPCLENMAX    = 12; /* è¶³ã‚Šãªããªã£ãŸã‚‰12ã«ã—ã¦ãã ã•ã„ */
 static constexpr unsigned int MAX_SECTIONS = 8;
 static constexpr unsigned int E_LABEL0     = 16;
-static constexpr int nask_L_LABEL0         = 16384; /* externƒ‰ƒxƒ‹‚Í16300ŒÂ’ö“xg‚¦‚é */
-static constexpr int nask_maxlabels        = 64 * 1024; /* 64KŒÂ(LL:88*64k) */
+static constexpr int nask_L_LABEL0         = 16384; /* externãƒ©ãƒ™ãƒ«ã¯16300å€‹ç¨‹åº¦ä½¿ãˆã‚‹ */
+static constexpr int nask_maxlabels        = 64 * 1024; /* 64Kå€‹(LL:88*64k) */
 
 static void setdec(unsigned int i, int n, UCHAR *s);
 static void sethex0(unsigned int i, int n, UCHAR *s);
@@ -42,9 +42,9 @@ struct STR_SECTION {
 	UINT dollar_label1; /* ..$ */
 	UINT dollar_label2; /* $$ */
 	int total_len;
-	UCHAR *p0, *p; /* ƒ\[ƒg—p‚Ìƒ|ƒCƒ“ƒ^ */
+	UCHAR *p0, *p; /* ã‚½ãƒ¼ãƒˆç”¨ã®ãƒã‚¤ãƒ³ã‚¿ */
 	UCHAR name[17], name_len;
-	signed char align0, align1; /* -1‚Í–¢İ’è */
+	signed char align0, align1; /* -1ã¯æœªè¨­å®š */
 };
 
 struct STR_OUTPUT_SECTION {
@@ -68,11 +68,11 @@ constexpr UCHAR SUP_Pentium2    = 0;
 constexpr UCHAR SUP_Pentium3    = 0;
 constexpr UCHAR SUP_Pentium4    = 0;
 
-constexpr UCHAR PREFIX          = 0x01;       /* param[1]‚ªƒvƒŠƒtƒBƒbƒNƒX”Ô† */
-constexpr UCHAR NO_PARAM	= 0x02;       /* param[1]‚Ì‰ºˆÊ4bit‚ªƒIƒyƒR[ƒhƒoƒCƒg” */
-constexpr UCHAR OPE_MR		= 0x03;       /* mem/reg,regŒ^ */ /* [1]:datawidth, [2]:len */
-constexpr UCHAR OPE_RM		= 0x04;       /* reg,mem/regŒ^ */
-constexpr UCHAR OPE_M		= 0x05;       /* mem/regŒ^ */
+constexpr UCHAR PREFIX          = 0x01;       /* param[1]ãŒãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹ç•ªå· */
+constexpr UCHAR NO_PARAM	= 0x02;       /* param[1]ã®ä¸‹ä½4bitãŒã‚ªãƒšã‚³ãƒ¼ãƒ‰ãƒã‚¤ãƒˆæ•° */
+constexpr UCHAR OPE_MR		= 0x03;       /* mem/reg,regå‹ */ /* [1]:datawidth, [2]:len */
+constexpr UCHAR OPE_RM		= 0x04;       /* reg,mem/regå‹ */
+constexpr UCHAR OPE_M		= 0x05;       /* mem/regå‹ */
 constexpr UCHAR OPE_SHIFT       = 0x06;       /* ROL, ROR, RCL, RCR, SHL, SAL, SHR, SAR */
 constexpr UCHAR OPE_RET         = 0x07;       /* RET, RETF, RETN */
 constexpr UCHAR OPE_AAMD        = 0x08;	      /* AAM, AAD */
@@ -105,14 +105,14 @@ constexpr UCHAR OPE_TIMES	= 0x47;	      /* TIMES */
 constexpr UCHAR OPE_DB		= 0x48;	      /* DB, DW, DD, DQ, DT */
 constexpr UCHAR OPE_END	        = 0x49;
 
-/* NO_PARAM—p */
+/* NO_PARAMç”¨ */
 constexpr UCHAR OPE16           = 0x10;
 constexpr UCHAR OPE32           = 0x20;
 constexpr UCHAR DEF_DS          = 0x40;
-/* param[1]‚Ìbit4 : ope32 */
-/* param[1]‚Ìbit5 : ope16 */
-/* param[1]‚Ìbit6 : ƒfƒtƒHƒ‹ƒgƒvƒŠƒtƒBƒbƒNƒXDS */
-/* param[1]‚Ìbit7 : ƒfƒtƒHƒ‹ƒgƒvƒŠƒtƒBƒbƒNƒXSS */
+/* param[1]ã®bit4 : ope32 */
+/* param[1]ã®bit5 : ope16 */
+/* param[1]ã®bit6 : ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹DS */
+/* param[1]ã®bit7 : ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆãƒ—ãƒªãƒ•ã‚£ãƒƒã‚¯ã‚¹SS */
 
 static constexpr std::array<UCHAR, 65> table_prms = {
 	0, 0, 0 /* NO_PARAM */, 2 /* OPE_MR */, 2 /* OPE_RM */,
@@ -139,7 +139,7 @@ struct STR_DECODE {
 	struct STR_SECTION* sectable;
 	UCHAR error, flag /* , dollar */;
 };
-/* flag‚Ìbit0‚Ímem/reg‚ªreg‚©‚Ç‚¤‚©‚ğ‚ ‚ç‚í‚· */
+/* flagã®bit0ã¯mem/regãŒregã‹ã©ã†ã‹ã‚’ã‚ã‚‰ã‚ã™ */
 
 struct STR_TERM {
 	int term_type;
@@ -148,7 +148,7 @@ struct STR_TERM {
 
 struct STR_OFSEXPR {
 	int scale[2], disp;
-	unsigned char reg[2], dispflag; /* 0xff‚Ì‚Æ‚«Aunknown, reg‚ª127ˆÈ‰º‚È‚çAƒXƒP[ƒ‹–³‚µ */
+	unsigned char reg[2], dispflag; /* 0xffã®ã¨ãã€unknown, regãŒ127ä»¥ä¸‹ãªã‚‰ã€ã‚¹ã‚±ãƒ¼ãƒ«ç„¡ã— */
 	unsigned char err;
 };
 
@@ -157,7 +157,7 @@ struct STR_DEC_EXPR_STATUS {
 	int glabel_len;
 	UCHAR *glabel;
 	signed char datawidth; /* -1(default), 1(byte), 2(word), 4(dword) */
-	signed char seg_override; /* -1(default), 0`5 */
+	signed char seg_override; /* -1(default), 0ã€œ5 */
 	signed char range; /* -1(default), 0(short), 1(near), 2(far) */
 	char nosplit; /* 0(default), 1(nosplit) */
 	char use_dollar;  /* 0(no use), 1(use) */
@@ -169,7 +169,7 @@ struct STR_DEC_EXPR_STATUS {
 };
 
 struct STR_STATUS {
-	UCHAR *src1; /* ƒtƒ@ƒCƒ‹I’[ƒ|ƒCƒ“ƒ^ */
+	UCHAR *src1; /* ãƒ•ã‚¡ã‚¤ãƒ«çµ‚ç«¯ãƒã‚¤ãƒ³ã‚¿ */
 	UINT support, file_len;
 	char bits, optimize, format, option;
 	struct STR_DEC_EXPR_STATUS expr_status;
@@ -179,9 +179,9 @@ struct STR_STATUS {
 };
 
 struct STR_IFDEFBUF {
-	/* ğŒ•t‚«’è‹`—pƒoƒbƒtƒ@\‘¢‘Ì */
-	UCHAR *bp, *bp0, *bp1; /* range-error—pƒoƒbƒtƒ@ */
-	std::array<UCHAR, 12> vb; /* bit0-4:ƒoƒCƒg”, bit7:exprƒtƒ‰ƒO, bit5-6:ƒŒƒ“ƒWƒ`ƒFƒbƒN */
+	/* æ¡ä»¶ä»˜ãå®šç¾©ç”¨ãƒãƒƒãƒ•ã‚¡æ§‹é€ ä½“ */
+	UCHAR *bp, *bp0, *bp1; /* range-errorç”¨ãƒãƒƒãƒ•ã‚¡ */
+	std::array<UCHAR, 12> vb; /* bit0-4:ãƒã‚¤ãƒˆæ•°, bit7:exprãƒ•ãƒ©ã‚°, bit5-6:ãƒ¬ãƒ³ã‚¸ãƒã‚§ãƒƒã‚¯ */
 	std::array<int, 12> dat;
 	std::array<UCHAR*, 12> expr;
 };
@@ -220,21 +220,21 @@ UCHAR *LL_skipcode(UCHAR *p);
 
 #define	defnumconst(ifdef, imm, virbyte, typecode) ifdef->vb[(virbyte) & 0x07] = typecode; ifdef->dat[(virbyte) & 0x07] = imm
 
-/* ƒŠƒ}[ƒNNL(f8) : ƒ‰ƒCƒ“ƒXƒ^[ƒg, 4ƒoƒCƒg‚ÌƒŒƒ“ƒOƒX, 4ƒoƒCƒg‚Ìƒ|ƒCƒ“ƒ^ ƒoƒCƒg—ñ‚ğ•À‚×‚é */
-/* ƒŠƒ}[ƒNADR(e0) : ƒAƒhƒŒƒXo—Í */
-/* ƒŠƒ}[ƒNBY(e1) : 1ƒoƒCƒgo—Í */
-/* ƒŠƒ}[ƒNWD(e2) : 2ƒoƒCƒgo—Í */
-/* ƒŠƒ}[ƒN3B(e3) : 3ƒoƒCƒgo—Í */
-/* ƒŠƒ}[ƒNDW(e4) : 4ƒoƒCƒgo—Í */
-/* ƒŠƒ}[ƒN[BY](e5) : 1ƒoƒCƒgo—Í[]‚Â‚« */
-/* ƒŠƒ}[ƒN[WD](e6) : 2ƒoƒCƒgo—Í[]‚Â‚« */
-/* ƒŠƒ}[ƒN[3B](e7) : 3ƒoƒCƒgo—Í[]‚Â‚« */
-/* ƒŠƒ}[ƒN[DW](e8) : 4ƒoƒCƒgo—Í[]‚Â‚« */
+/* ãƒªãƒãƒ¼ã‚¯NL(f8) : ãƒ©ã‚¤ãƒ³ã‚¹ã‚¿ãƒ¼ãƒˆ, 4ãƒã‚¤ãƒˆã®ãƒ¬ãƒ³ã‚°ã‚¹, 4ãƒã‚¤ãƒˆã®ãƒã‚¤ãƒ³ã‚¿ ãƒã‚¤ãƒˆåˆ—ã‚’ä¸¦ã¹ã‚‹ */
+/* ãƒªãƒãƒ¼ã‚¯ADR(e0) : ã‚¢ãƒ‰ãƒ¬ã‚¹å‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯BY(e1) : 1ãƒã‚¤ãƒˆå‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯WD(e2) : 2ãƒã‚¤ãƒˆå‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯3B(e3) : 3ãƒã‚¤ãƒˆå‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯DW(e4) : 4ãƒã‚¤ãƒˆå‡ºåŠ› */
+/* ãƒªãƒãƒ¼ã‚¯[BY](e5) : 1ãƒã‚¤ãƒˆå‡ºåŠ›[]ã¤ã */
+/* ãƒªãƒãƒ¼ã‚¯[WD](e6) : 2ãƒã‚¤ãƒˆå‡ºåŠ›[]ã¤ã */
+/* ãƒªãƒãƒ¼ã‚¯[3B](e7) : 3ãƒã‚¤ãƒˆå‡ºåŠ›[]ã¤ã */
+/* ãƒªãƒãƒ¼ã‚¯[DW](e8) : 4ãƒã‚¤ãƒˆå‡ºåŠ›[]ã¤ã */
 
 constexpr UINT REM_ADDR      = 0xe0;
-constexpr UINT REM_BYTE      = 0xe1; /* ”p~ */
-constexpr UINT REM_WORD      = 0xe2; /* ”p~ */
-constexpr UINT REM_DWRD      = 0xe4; /* ”p~ */
+constexpr UINT REM_BYTE      = 0xe1; /* å»ƒæ­¢ */
+constexpr UINT REM_WORD      = 0xe2; /* å»ƒæ­¢ */
+constexpr UINT REM_DWRD      = 0xe4; /* å»ƒæ­¢ */
 constexpr UINT REM_ADDR_ERR  = 0xe5;
 constexpr UINT REM_RANGE_ERR = 0xe8;
 constexpr UINT REM_3B	     = 0xf1;
