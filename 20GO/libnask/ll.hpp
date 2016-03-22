@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <array>
 
 #if (DEBUG)
 	#include "go.hpp"

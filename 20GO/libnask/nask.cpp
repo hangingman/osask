@@ -121,8 +121,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		}
 		status->expr_status.dollar_label0 = status->expr_status.dollar_label1;
 		status->expr_status.dollar_label1 = 0xffffffff;
-		#warning "FIXME"
-		//bp = buf;
+		bp = ucharToNask32bitIntPtr(buf);
 		ifdef->vb[8] = 0; /* for TIMES */
 		src = decoder(status.get(), src0, decode.get());
 		/* ラインスタート出力 */
@@ -425,9 +424,10 @@ err:
 					bp->byte[1] = 0x78; /* mod nnn r/m */
 					bp->byte[2] = 0x79; /* sib */
 					bp->byte[3] = 0x7a; /* disp */
-					// ???
-					#warning "???"
+					#warning "Check it later, bp should be incremented"
+					bp++;
 					//bp->byte[4] = 0x7d; /* imm8 || none */
+					bp->byte[0] = 0x7d; /* imm8 || none */
 				}
 				bp += 5;
 			//	c = 3 ^ decode->flag; /* mod nnn r/m あり */
@@ -2096,7 +2096,6 @@ skip_end:
 		if (c == 0xff)
 			c = sectable[j].align1;
 		if (dest0 + 8 > dest1) {
-			dest0 == NULL;
 			goto overrun;
 		}
 		dest0[0] = REM_4B;
@@ -2121,7 +2120,6 @@ skip_end:
 		dest0 += 8;
 	}
 	if (dest0 + 11 > dest1) {
-		dest0 == NULL;
 		goto overrun;
 	}
 	if (status->file_len > 18 * 255 - 1)
