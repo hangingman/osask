@@ -14,7 +14,6 @@
 #define	MAX_LSTSIZ		(4 * 1024 * 1024)
 
 typedef unsigned char UCHAR;
-
 #define	NL			"\n"
 
 typedef struct GO_STR_FILE {

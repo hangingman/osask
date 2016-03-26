@@ -17,6 +17,7 @@ size_t GO_strspn(const char *s, const char *accept);
 size_t GO_strcspn(const char *s, const char *reject);
 char *GO_strpbrk(const char *s, const char *accept);
 char *GO_strstr(const char *cs, const char *ct);
+size_t GO_strlen(const UCHAR *cs);
 size_t GO_strlen(const char *cs);
 
 void *GO_memcpy(void *s, const void *ct, size_t n);

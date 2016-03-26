@@ -1,7 +1,23 @@
+#include "go_string.hpp"
+#include <iostream>
+
 UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
 UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
 UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1);
-void *GO_memcpy(void *s, const void *ct, unsigned int n);
+void errmsgout(const UCHAR* s);
+void errmsgout(const char* s);
+void errmsgout_s_NL(const UCHAR *msg, const UCHAR *s);
+void errmsgout_s_NL(const char* msg, const char* s);
+
+void errmsgout_s_NL(const char* msg, const UCHAR* s)
+{
+	errmsgout_s_NL(reinterpret_cast<const UCHAR*>(msg), s);
+}
+
+void errmsgout(const char* s)
+{
+	errmsgout(reinterpret_cast<const char*>(s));
+}
 
 void errmsgout(const UCHAR *s)
 {
@@ -16,16 +32,15 @@ void errmsgout(const UCHAR *s)
 		GO_memcpy(stream->p, s, l);
 		stream->p += l;
 	}
-	if (flag)
+	if (flag) {
 		GOL_sysabort(3 /* GO_TERM_ERROVER */);
+	}
 	return;
 }
 
 void errmsgout_s_NL(const UCHAR *msg, const UCHAR *s)
 {
-	errmsgout(msg);
-	errmsgout(s);
-	errmsgout(NL);
+	std::cerr << msg << s << std::endl;
 	return;
 }
 
@@ -99,8 +114,6 @@ over_tmpbuf:
 	}
 
 	if (nask_errors) {
-//		GO_spritf(src0, "NASK : %d errors." NL, nask_errors);
-//		errmsgout(src0);
 		UCHAR strbuf[16];
 		len = nask_errors;
 		errmsgout("NASK : ");
@@ -119,7 +132,7 @@ over_tmpbuf:
 
 void GOL_sysabort(unsigned char termcode)
 {
-	static char *termmsg[] = {
+	static const char *termmsg[] = {
 		"",
 		"[TERM_WORKOVER]\n",
 		"[TERM_OUTOVER]\n",

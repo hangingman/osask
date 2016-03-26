@@ -17,7 +17,6 @@ static constexpr unsigned int OPCLENMAX    = 12; /* 足りなくなったら12�
 static constexpr unsigned int MAX_SECTIONS = 8;
 static constexpr unsigned int E_LABEL0     = 16;
 static constexpr int nask_L_LABEL0         = 16384; /* externラベルは16300個程度使える */
-static constexpr int nask_maxlabels        = 64 * 1024; /* 64K個(LL:88*64k) */
 
 /* リマークNL(f8) : ラインスタート, 4バイトのレングス, 4バイトのポインタ バイト列を並べる */
 /* リマークADR(e0) : アドレス出力 */

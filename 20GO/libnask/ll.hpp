@@ -35,6 +35,8 @@ constexpr unsigned int VFLG_EXTERN   = 0x10; /* 外部ラベル */
 constexpr unsigned int VFLG_CALC     = 0x20; /* 計算中 */
 constexpr unsigned int VFLG_ENABLE   = 0x40; /* STR_LABELで有効なことを示す */
 
+static constexpr int nask_maxlabels  = 64 * 1024; /* 64K個(LL:88*64k) */
+
 struct STR_SIGMA {
 	int scale;
 	unsigned int subsect, terms;

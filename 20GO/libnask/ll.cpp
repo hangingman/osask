@@ -12,8 +12,6 @@
 	#include <cstdio>
 #endif
 
-extern int nask_maxlabels;
-
 UCHAR *LL_skipcode(UCHAR *p)
 {
 	UCHAR c, len;
