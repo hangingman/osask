@@ -30,18 +30,24 @@ UCHAR *GOL_work0;
 int main1(int argc, UCHAR **argv, UCHAR *src0);
 void GOL_sysabort(unsigned char termcode);
 void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, size_t size, void *p);
+int nask_main(int argc, UCHAR **argv);
 
 struct bss_alloc {
 	UCHAR _stdout[SIZ_STDOUT];
 	UCHAR _stderr[SIZ_STDERR];
-//	UCHAR syswrk[SIZ_SYSWRK];
 	UCHAR work[SIZ_WORK];
 	UCHAR work1[MAX_SRCSIZ + MAX_TMPSIZ + MAX_BINSIZ + MAX_LSTSIZ];
 };
 
-#include "../drv_stdc/others.h"
+#include "../drv_stdc/others.hpp"
 
-int main(int argc, UCHAR **argv)
+// メイン関数の定義は上書きできない
+int main(int argc, char** argv)
+{
+	nask_main(argc, reinterpret_cast<UCHAR**>(argv));
+}
+
+int nask_main(int argc, UCHAR **argv)
 {
 	struct bss_alloc *bss0 = (struct bss_alloc *) malloc(sizeof (struct bss_alloc));
 	GO_stdout.p0 = GO_stdout.p = bss0->_stdout;
@@ -50,7 +56,6 @@ int main(int argc, UCHAR **argv)
 	GO_stderr.p0 = GO_stderr.p = bss0->_stderr;
 	GO_stderr.p1 = GO_stderr.p0 + (SIZ_STDERR - 128); /* わざと少し小さくしておく */
 	GO_stderr.dummy = ~0;
-//	GOL_memmaninit(&GOL_sysman, SIZ_SYSWRK, bss0->syswrk);
 	GOL_memmaninit(&GOL_memman, SIZ_WORK, GOL_work0 = bss0->work);
 
 	GOL_retcode = main1(argc, argv, bss0->work1);
@@ -59,7 +64,8 @@ int main(int argc, UCHAR **argv)
 	return 0; /* ダミー */
 }
 
-#include "../drv_stdc/others.c"
-#include "../drv_stdc/wfile_b.c"
-#include "../drv_stdc/wfile_t.c"
-#include "../funcs/nasksub.c"
+// なんでこういうことするかなあ？コードを再利用する場合、ライブラリを作るべきですよ？
+#include "../drv_stdc/others.cpp"
+#include "../drv_stdc/wfile_b.cpp"
+#include "../drv_stdc/wfile_t.cpp"
+#include "../funcs/nasksub.cpp"

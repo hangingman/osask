@@ -35,7 +35,7 @@ int GOLD_getsize(const UCHAR *name)
 {
 	FILE *fp;
 	int len;
-	fp = fopen(name, "rb");
+	fp = fopen(reinterpret_cast<const char*>(name), "rb");
 	if (fp == NULL)
 		goto err;
 	fseek(fp, 0, SEEK_END);
@@ -52,7 +52,7 @@ int GOLD_read(const UCHAR *name, int len, UCHAR *b0)
 {
 	FILE *fp;
 	int i;
-	fp = fopen(name, "rb");
+	fp = fopen(reinterpret_cast<const char*>(name), "rb");
 	if (fp == NULL)
 		goto err;
 	i = fread(b0, 1, len, fp);

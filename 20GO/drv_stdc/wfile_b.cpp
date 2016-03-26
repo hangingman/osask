@@ -5,7 +5,7 @@ int GOLD_write_b(const UCHAR *name, int len, const UCHAR *p0)
 {
 	int ll = 0;
 	FILE *fp;
-	fp = fopen(name, "wb");
+	fp = fopen(reinterpret_cast<const char*>(name), "wb");
 	if (fp == NULL)
 		goto err;
 	if (len)

@@ -6,7 +6,7 @@ include $(top_builddir)/rules.mk
 #
 # binary & sources
 #
-bin_PROGRAMS	= golib00 sjisconv gas2nask nask naskcnv0
+bin_PROGRAMS	= nask #golib00 sjisconv gas2nask nask naskcnv0
 
 golib00_SOURCES = golib00.cpp
 sjisconv_SOURCES= sjisconv.cpp
