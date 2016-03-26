@@ -68,13 +68,9 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	std::unique_ptr<UCHAR> bp0(new UCHAR());
 	ifdef->bp0 = bp0.get();
 	ifdef->bp1 = ifdef->bp0 + 256;
-	for (i = 0; i < ifdef->expr.size(); i++) {
-	     std::unique_ptr<UCHAR> expr(new UCHAR(EXPR_MAXSIZ));
-	     ifdef->expr[i] = expr.get();
-	}
 
-	std::unique_ptr<UCHAR> labelbuf(new UCHAR(nask_LABELBUFSIZ));
-	std::unique_ptr<UCHAR> labelbuf0(new UCHAR(nask_LABELBUFSIZ));
+	std::unique_ptr<UCHAR> labelbuf(new UCHAR[nask_LABELBUFSIZ]);
+	std::unique_ptr<UCHAR> labelbuf0(new UCHAR[nask_LABELBUFSIZ]);
 	std::array<UCHAR, nask_maxlabels> labelflags;
 	for (i = 0; i < nask_maxlabels; i++)
 		labelflags[i] = 0;

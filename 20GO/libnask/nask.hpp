@@ -19,6 +19,33 @@ static constexpr unsigned int E_LABEL0     = 16;
 static constexpr int nask_L_LABEL0         = 16384; /* externラベルは16300個程度使える */
 static constexpr int nask_maxlabels        = 64 * 1024; /* 64K個(LL:88*64k) */
 
+/* リマークNL(f8) : ラインスタート, 4バイトのレングス, 4バイトのポインタ バイト列を並べる */
+/* リマークADR(e0) : アドレス出力 */
+/* リマークBY(e1) : 1バイト出力 */
+/* リマークWD(e2) : 2バイト出力 */
+/* リマーク3B(e3) : 3バイト出力 */
+/* リマークDW(e4) : 4バイト出力 */
+/* リマーク[BY](e5) : 1バイト出力[]つき */
+/* リマーク[WD](e6) : 2バイト出力[]つき */
+/* リマーク[3B](e7) : 3バイト出力[]つき */
+/* リマーク[DW](e8) : 4バイト出力[]つき */
+
+constexpr UINT REM_ADDR      = 0xe0;
+constexpr UINT REM_BYTE      = 0xe1; /* 廃止 */
+constexpr UINT REM_WORD      = 0xe2; /* 廃止 */
+constexpr UINT REM_DWRD      = 0xe4; /* 廃止 */
+constexpr UINT REM_ADDR_ERR  = 0xe5;
+constexpr UINT REM_RANGE_ERR = 0xe8;
+constexpr UINT REM_3B	     = 0xf1;
+constexpr UINT REM_4B	     = 0xf2;
+constexpr UINT REM_8B	     = 0xf6;
+constexpr UINT SHORT_DB0     = 0x30;
+constexpr UINT SHORT_DB1     = 0x31;
+constexpr UINT SHORT_DB2     = 0x32;
+constexpr UINT SHORT_DB4     = 0x34;
+constexpr UINT EXPR_MAXSIZ   = 2048;
+constexpr UINT EXPR_MAXLEN   = 1000;
+
 static void setdec(unsigned int i, int n, UCHAR *s);
 static void sethex0(unsigned int i, int n, UCHAR *s);
 
@@ -181,9 +208,14 @@ struct STR_STATUS {
 struct STR_IFDEFBUF {
 	/* 条件付き定義用バッファ構造体 */
 	UCHAR *bp, *bp0, *bp1; /* range-error用バッファ */
-	std::array<UCHAR, 12> vb; /* bit0-4:バイト数, bit7:exprフラグ, bit5-6:レンジチェック */
-	std::array<int, 12> dat;
-	std::array<UCHAR*, 12> expr;
+
+	/* bit0-4:バイト数, bit7:exprフラグ, bit5-6:レンジチェック */
+	std::unique_ptr<UCHAR []> vb{ new UCHAR[12]() };
+	std::unique_ptr<int []> dat{ new int[12]() };
+	std::unique_ptr<UCHAR* []> expr{ new UCHAR*[12] };
+
+	// Proper way to create unique_ptr that holds an allocated array
+	// http://stackoverflow.com/a/21377382/2565527
 };
 
 static UCHAR *labelbuf0, *labelbuf;
@@ -219,30 +251,3 @@ UCHAR *LL_skip_expr(UCHAR *p);
 UCHAR *LL_skipcode(UCHAR *p);
 
 #define	defnumconst(ifdef, imm, virbyte, typecode) ifdef->vb[(virbyte) & 0x07] = typecode; ifdef->dat[(virbyte) & 0x07] = imm
-
-/* リマークNL(f8) : ラインスタート, 4バイトのレングス, 4バイトのポインタ バイト列を並べる */
-/* リマークADR(e0) : アドレス出力 */
-/* リマークBY(e1) : 1バイト出力 */
-/* リマークWD(e2) : 2バイト出力 */
-/* リマーク3B(e3) : 3バイト出力 */
-/* リマークDW(e4) : 4バイト出力 */
-/* リマーク[BY](e5) : 1バイト出力[]つき */
-/* リマーク[WD](e6) : 2バイト出力[]つき */
-/* リマーク[3B](e7) : 3バイト出力[]つき */
-/* リマーク[DW](e8) : 4バイト出力[]つき */
-
-constexpr UINT REM_ADDR      = 0xe0;
-constexpr UINT REM_BYTE      = 0xe1; /* 廃止 */
-constexpr UINT REM_WORD      = 0xe2; /* 廃止 */
-constexpr UINT REM_DWRD      = 0xe4; /* 廃止 */
-constexpr UINT REM_ADDR_ERR  = 0xe5;
-constexpr UINT REM_RANGE_ERR = 0xe8;
-constexpr UINT REM_3B	     = 0xf1;
-constexpr UINT REM_4B	     = 0xf2;
-constexpr UINT REM_8B	     = 0xf6;
-constexpr UINT SHORT_DB0     = 0x30;
-constexpr UINT SHORT_DB1     = 0x31;
-constexpr UINT SHORT_DB2     = 0x32;
-constexpr UINT SHORT_DB4     = 0x34;
-constexpr UINT EXPR_MAXSIZ   = 2048;
-constexpr UINT EXPR_MAXLEN   = 1000;
