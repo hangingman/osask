@@ -11,12 +11,12 @@ void errmsgout_s_NL(const char* msg, const char* s);
 
 void errmsgout_s_NL(const char* msg, const UCHAR* s)
 {
-	errmsgout_s_NL(reinterpret_cast<const UCHAR*>(msg), s);
+	return errmsgout_s_NL(reinterpret_cast<const UCHAR*>(msg), s);
 }
 
 void errmsgout(const char* s)
 {
-	errmsgout(reinterpret_cast<const char*>(s));
+	return errmsgout(reinterpret_cast<const UCHAR*>(s));
 }
 
 void errmsgout(const UCHAR *s)
@@ -29,8 +29,7 @@ void errmsgout(const UCHAR *s)
 		flag++;
 	}
 	if (l > 0) {
-		GO_memcpy(stream->p, s, l);
-		stream->p += l;
+		std::cerr << s << std::endl;
 	}
 	if (flag) {
 		GOL_sysabort(3 /* GO_TERM_ERROVER */);
@@ -56,7 +55,7 @@ int main1(int argc, UCHAR **argv, UCHAR *src0)
 	dest0 = tmp0 + MAX_TMPSIZ;
 	list0 = dest0 + MAX_BINSIZ;
 	if (argc < 2 || argc > 4) {
-		errmsgout("usage : >nask source [object/binary] [list]" NL);
+		errmsgout("usage : >nask source [object/binary] [list]");
 		return 16;
 	}
 	len = GOLD_getsize(argv[1]);
