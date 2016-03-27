@@ -7,12 +7,12 @@
 
 int addcr(unsigned char *p0, unsigned char **pname)
 {
-	static char namebuf0[MAXNAMELEN];
+	static unsigned char namebuf0[MAXNAMELEN];
 	unsigned char *s, *t = namebuf0, *p1, *name = *pname, c, flag;
 	FILE *fp;
 	while ((*t++ = *name++) > ' ');
 	t[-1] = '\0';
-	fp = fopen(namebuf0, "rb");
+	fp = fopen((char*)namebuf0, "rb");
 	if (fp == NULL)
 		goto error;
 	p1 = p0 + fread(p0, 1, MAXBUFSIZ / 2, fp);
@@ -48,13 +48,13 @@ int addcr(unsigned char *p0, unsigned char **pname)
 	if (flag == 0)
 		fprintf(stdout, "addcr:skip -- \"%s\".\n", namebuf0);
 	else {
-		fp = fopen(namebuf0, "wb");
+		fp = fopen((char*)namebuf0, "wb");
 		if (fp == NULL)
 			goto error;
 		if (fwrite(p0 + MAXBUFSIZ / 2, 1, t - (p0 + MAXBUFSIZ / 2), fp) != t - (p0 + MAXBUFSIZ / 2))
 			goto error2;
 		fclose(fp);
-		fprintf(stdout, "addcr:add %6d[bytes] -- \"%s\".\n", t - s - MAXBUFSIZ / 2, namebuf0);
+		fprintf(stdout, "addcr:add %6ld[bytes] -- \"%s\".\n", t - s - MAXBUFSIZ / 2, namebuf0);
 	}
 	*pname = name;
 	return 0;
@@ -77,12 +77,12 @@ const int main(const int argc, char **argv)
 	if (p0 == NULL)
 		goto error;
 	for (i = 1; i < argc; i++) {
-		name = argv[i];
+		name = (unsigned char*) argv[i];
 		if (*name != '@') {
 			if (addcr(p0, &name))
 				goto error;
 		} else {
-			fp = fopen(lname = name + 1, "rb");
+			fp = fopen((char*)(lname = name + 1), "rb");
 			list1 = list0 + fread(list0, 1, MAXLISTSIZ, fp);
 			fclose(fp);
 			if (list1 - list0 >= MAXLISTSIZ - 1)

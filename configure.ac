@@ -81,8 +81,9 @@ AC_CONFIG_FILES([Makefile])
 # Generate common Go Tools Makefiles
 #
 AC_CONFIG_FILES([20GO/Makefile
+		 20GO/omake/Makefile
+		 20GO/libgo/Makefile
    		 20GO/libnask/Makefile
-                 20GO/libgo/Makefile
                  20GO/toolstdc/Makefile
                  28GO/Makefile
                  28GO/28GO_K/Makefile
@@ -97,9 +98,9 @@ dnl		 20GO/w32clibc/Makefile])
 # 28GO support, default is disable
 #
 AC_ARG_ENABLE([28go],
-    AS_HELP_STRING([--enable-28go], 
+    AS_HELP_STRING([--enable-28go],
     		   [Enable feature latest go tools]))
-    AS_IF([test "x$enable_28go" = "xyes"], 
+    AS_IF([test "x$enable_28go" = "xyes"],
     	  [AC_DEFINE(USE_OSASK_28GO, 1, [when building feature latest go tools])
 ])
 
@@ -127,7 +128,7 @@ AC_ARG_ENABLE([28go],
 # 28GO/bim2bin/dtk5s0d/Makefile
 # 28GO/bim2bin/dtk5s0r/Makefile
 
-#  
+#
 # Generate developed Go Tools Makefiles
 #
 if test "x$enable_28go" = "xyes"; then
