@@ -54,7 +54,8 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	struct INST_TABLE *itp;
 	struct STR_TERM *expr;
 	static int tbl_o16o32[4] = { 0, 0x10000000 /* O16(暗黙) */, 0, 0x20000000 /* O32(暗黙) */ };
-	struct STR_SECTION *sectable, *section;
+	std::unique_ptr<STR_SECTION[]> sectable(new STR_SECTION[MAX_SECTIONS * sizeof (struct STR_SECTION)]);
+	struct STR_SECTION* section;
 	nextlabelid = nask_L_LABEL0;
 
 	std::unique_ptr<STR_STATUS> status(new STR_STATUS());
@@ -79,7 +80,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		sectable[i].align1 = 1;
 		sectable[i].dollar_label2 = 0xffffffff;
 	}
-	decode->sectable = section = sectable;
+	decode->sectable = section = sectable.get();
 	section->name[0] = '.';
 	section->name[1] = '.';
 	section->name[2] = '\0';
