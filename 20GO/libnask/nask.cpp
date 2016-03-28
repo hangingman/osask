@@ -48,8 +48,11 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 /* dest1を返す(NULLならあふれた) */
 {
 	int i, j, k, prefix_def, tmret;
-	UCHAR buf[2 * 8]; /* bufは適当にmallocした方がいいかも */
+
+	// bufをunique_ptrで初期化しておき、bpはそのポインタとして使用する
+	std::unique_ptr<UCHAR[]> buf(new UCHAR[2 * 8]);
 	nask32bitInt* bp;
+	
 	UCHAR *src, c, *s, *dest00 = dest0;
 	struct INST_TABLE *itp;
 	struct STR_TERM *expr;
@@ -118,7 +121,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		}
 		status->expr_status.dollar_label0 = status->expr_status.dollar_label1;
 		status->expr_status.dollar_label1 = 0xffffffff;
-		bp = ucharToNask32bitIntPtr(buf);
+		bp = ucharToNask32bitIntPtr(buf.get());
 		ifdef->vb[8] = 0; /* for TIMES */
 		src = decoder(status.get(), src0, decode.get());
 		/* ラインスタート出力 */

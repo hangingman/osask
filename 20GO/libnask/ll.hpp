@@ -20,9 +20,9 @@ typedef union {
 
 // See also: http://en.cppreference.com/w/cpp/string/byte/memcpy
 static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
-	nask32bitInt* t;
+	std::unique_ptr<nask32bitInt> t(new nask32bitInt[sizeof uchar / 4]);
 	std::memcpy(t->byte, uchar, sizeof t->byte);
-	return t;
+	return t.get();
 };
 
 constexpr unsigned int INVALID_DELTA = 0x40000000;
