@@ -2,13 +2,14 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.67])
-AC_INIT([osask], [4.7.0], [newserver002@gmail.com])
+AC_INIT([osask], [4.7.1], [idiotpanzer@gmail.com])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([-Wno-portability])
 AC_CONFIG_SRCDIR([OSASK/winman0.c])
 AC_CONFIG_HEADERS([config.h])
 AC_USE_SYSTEM_EXTENSIONS
 AC_CONFIG_MACRO_DIR([m4])
+AM_SILENT_RULES([yes])
 
 # Checks for programs.
 AC_PROG_CXX
@@ -88,11 +89,6 @@ AC_CONFIG_FILES([20GO/Makefile
                  28GO/Makefile
                  28GO/28GO_K/Makefile
                  28GO/aska/Makefile])
-dnl              20GO/gcc/Makefile
-dnl              20GO/intl/Makefile
-dnl              20GO/libiberty/Makefile
-dnl              20GO/drv_stdc/Makefile
-dnl		 20GO/w32clibc/Makefile])
 
 #
 # 28GO support, default is disable
