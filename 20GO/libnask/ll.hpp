@@ -1,7 +1,12 @@
+#ifndef LL_HPP_
+#define LL_HPP_
+
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <array>
+#include <sstream>
 
 #if (DEBUG)
 	#include "go.hpp"
@@ -24,6 +29,30 @@ static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
 	std::memcpy(t->byte, uchar, sizeof t->byte);
 	return t.get();
 };
+
+/** For debug log. Usage ./configure CXXFLAGS=-DDEBUG_BUILD; make */
+#if defined(DEBUG) && defined(__GNUC__)
+#  define LOG_DEBUG(fmt, ...) printf("%s(): " fmt, __func__, ## __VA_ARGS__)
+#else
+#  define LOG_DEBUG(x, ...) do {} while (0)
+#endif
+
+/** Always trace log */
+#define LOG_INFO(fmt, ...) printf("%s(): " fmt, __func__, ## __VA_ARGS__)
+
+static std::string dump_argv(char** argv) {
+
+	std::stringstream buf;
+	buf << '{';
+
+	while( *argv != NULL ){
+		buf << *argv;
+		buf << ", ";
+		argv++;
+        }
+	buf << '}';
+	return buf.str();
+}
 
 constexpr unsigned int INVALID_DELTA = 0x40000000;
 constexpr size_t       MAXSIGMAS     = 4;
@@ -183,3 +212,5 @@ void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr);
 
 /* ↑こういうややこしいことはやらない */
 /* スキップコマンドを作って対処する */
+
+#endif /* LL_HPP_ */

@@ -47,6 +47,7 @@ UCHAR* putimm(int i, UCHAR *p)
 UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 /* dest1を返す(NULLならあふれた) */
 {
+	LOG_DEBUG("nask src: %s\n", src0);
 	int i, j, k, prefix_def, tmret;
 
 	// bufをunique_ptrで初期化しておき、bpはそのポインタとして使用する
@@ -5104,15 +5105,14 @@ skip_single_plus:
 	return s;
 }
 
-/*
-これとは別に、idから各種属性を求めることもできる。
-defined-flag, public-flag, external-flag, const-flag, opt-flag, define-ptr, external-base
-所属セクションに関する情報はない。値は値である。
-COFFの場合、optが1ならdefine-ptrがセクション番号をあらわす。
-external-baseが-1なら、[]は付かない。
-
-*/
-
+/**
+ * これとは別に、idから各種属性を求めることもできる。
+ * defined-flag, public-flag, external-flag, const-flag,
+ * opt-flag, define-ptr, external-base
+ * 所属セクションに関する情報はない。値は値である。
+ * COFFの場合、optが1ならdefine-ptrがセクション番号をあらわす。
+ * external-baseが-1なら、[]は付かない。
+ */
 static struct STR_TERM *skip_expr(struct STR_TERM *expr)
 {
 	if (expr++->term_type == 1 /* operator */) {
