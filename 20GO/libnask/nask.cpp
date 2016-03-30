@@ -135,9 +135,9 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			dest0 = NULL;
 		if (dest0 == NULL)
 			goto overrun;
+
 		dest0[0] = 0xf7; /* line start */
 		put4b(src - src0, &dest0[1]);
-		#warning "Test code is required..."
 		do {
 			int temp = *src0;
 			put4b(temp, &dest0[5]);
@@ -211,9 +211,12 @@ err:
 		c = 0; /* mod nnn r/m なし */
 		prefix_def = status->bits; /* デフォルト状態 */
 		if ((itp = decode->instr) != 0) {
+		     // FIXME: もう少し簡潔に書けるはず
 			switch (itp->param[0]) {
+
 			case NO_PARAM:
 				/* プリフィックス */
+				LOG_DEBUG("itp-param: NO_PARAM\n");
 				j = itp->param[1];
 				if (j & OPE16)
 					decode->prefix |= 0x10000000; /* O16(暗黙) */
@@ -230,6 +233,7 @@ err:
 				break;
 
 			case OPE_M:
+				LOG_DEBUG("itp-param: OPE_M\n");
 			ope_m:
 				if ((i = decode->gparam[0]) & 0xe0) /* regでもmemでもない || rangeがついたらエラー */
 					goto err4; /* データタイプエラー */
@@ -245,6 +249,7 @@ err:
 				goto ope_mr_check0;
 
 			case OPE_MR:
+				LOG_DEBUG("itp-param: OPE_MR\n");
 				if ((j = decode->gparam[0]) & 0xe0) /* regでもmemでもない || rangeがついたらエラー */
 					goto err4;
 				decode->flag = 0;
@@ -266,6 +271,7 @@ err:
 				goto ope_mr2;
 
 			case OPE_RM:
+				LOG_DEBUG("itp-param: NO_RM\n");
 				if (decode->gparam[0] & 0x1f0) /* regではない || rangeがついたらエラー || use $もエラー */
 					goto err4;
 				if (decode->gvalue[0] >= 24) /* regだがreg8/reg16/reg32ではない */
@@ -440,6 +446,7 @@ err:
 				goto setc;
 
 			case OPE_RET: /* RET, RETF, RETN */
+				LOG_DEBUG("itp-param: OPE_RET\n");
 				bp->byte[0] = SHORT_DB1; /* 0x31 */
 			//	c = 0; /* mod nnn r/m なし */
 				if (decode->flag == 0) {
@@ -481,6 +488,7 @@ err:
 				break;
 
 			case OPE_AAMD: /* AAM, AAD */
+				LOG_DEBUG("itp-param: OPE_AAMD\n");
 				if (decode->flag == 0) {
 					defnumconst(ifdef, itp->param[2], 0x74, 0x01 /* UCHAR, const */);
 				} else if (decode->flag == 1) {
@@ -500,6 +508,7 @@ err:
 				break;
 
 			case OPE_INT: /* INT */
+				LOG_DEBUG("itp-param: OPE_INT\n");
 				if ((decode->gparam[0] & 0xf0) != 0x20)
 					goto err2; /* immではない || rangeがついていた */
 				if ((decode->gparam[0] & 0x0f) == 1)
@@ -529,6 +538,7 @@ err:
 				break;
 
 			case OPE_PUSH: /* PUSH, POP, INC, DEC */
+				LOG_DEBUG("itp-param: OPE_PUSH\n");
 				if (decode->gparam[0] & 0xc0)
 					goto err2; /* rangeがついていた */
 			//	c = 0; /* mod nnn r/m なし */
@@ -632,6 +642,7 @@ err:
 				goto err2;
 
 			case OPE_MOV: /* MOV */
+				LOG_DEBUG("itp-param: OPE_MOV\n");
 				if (decode->gparam[0] & 0xc0)
 					goto err4; /* rangeがついている, data type error */
 				if (decode->gparam[1] & 0xc0)
@@ -756,6 +767,7 @@ err:
 				goto err;
 
 			case OPE_ADD: /* ADD */
+				LOG_DEBUG("itp-param: OPE_ADD\n");
 				itp->param[3] &= 0x38;
 				if (decode->gparam[0] & 0xc0)
 					goto err4; /* rangeがついている, data type error */
@@ -871,6 +883,7 @@ err:
 				goto ope_mr2;
 
 			case OPE_XCHG: /* XCHG */
+				LOG_DEBUG("itp-param: OPE_XCHG\n");
 				/* メモリを第1オペランドへ。EAXを第2オペランドへ */
 				/* そして、reg16/reg32, eAXなら特別形式 */
 				/* それ以外はMR型 */
@@ -914,6 +927,7 @@ err:
 				goto ope_mr2;
 
 			case OPE_INOUT: /* IN, OUT */
+				LOG_DEBUG("itp-param: OPE_INOUT\n");
 				j = 0;
 				if ((c = itp->param[1]) == 0xe6 /* OUT */)
 					j++; /* j = 1; */
@@ -947,6 +961,7 @@ err:
 				goto outbp;
 
 			case OPE_IMUL:
+				LOG_DEBUG("itp-param: OPE_IMUL\n");
 				/* mem/reg			1111011w   mod-101-r/m */
 				/* reg,mem/reg		00001111   10101111   mod-reg-r/m */
 				/* reg,mem/reg,imm	011010s1   mod-reg-r/m   imm */
@@ -1084,6 +1099,7 @@ err:
 				goto setc;
 
 			case OPE_MOVZX:
+				LOG_DEBUG("itp-param: OPE_MOVZX\n");
 				if (decode->gparam[0] & 0xf9) /* regでない || rangeがついたらエラー || reg8 */
 					goto err4; /* data type error */
 				if (decode->gvalue[0] >= 24)
@@ -1111,6 +1127,7 @@ err:
 				goto setc;
 
 			case OPE_SHLD: /* mem/reg, reg, imm8|CL */
+				LOG_DEBUG("itp-param: OPE_SHLD\n");
 				if ((j = decode->gparam[0]) & 0xe0) /* regでもmemでもない || rangeがついたらエラー */
 					goto err4; /* data type error */
 				decode->gp_mem = j;
@@ -1156,6 +1173,7 @@ err:
 				goto setc;
 
 			case OPE_LOOP:
+				LOG_DEBUG("itp-param: OPE_LOOP\n");
 				if (itp->param[2]) {
 					if (decode->flag != 1)
 						goto err2; /* parameter error */
@@ -1194,6 +1212,7 @@ err:
 				goto outbp;
 
 			case OPE_JCC:
+				LOG_DEBUG("itp-param: OPE_JCC\n");
 				if ((decode->gparam[0] & 0x30) != 0x20) /* immではない */
 					goto err4;
 				i = 0x7;
@@ -1248,6 +1267,7 @@ err:
 				goto err3; /* data size error */
 
 			case OPE_BT: /* mem/reg, imm8|reg */
+				LOG_DEBUG("itp-param: OPE_BT\n");
 				/* 0x0f 0xba mod-TTT-r/m imm8 */
 				/* 0x0f 10-TTT-011 mod-reg-r/m */
 				/* NASMやMASMではmem,immのときにアドレス調整をしないのでそれに合わせた */
@@ -1300,6 +1320,7 @@ err:
 				goto setc;
 
 			case OPE_ENTER: /* imm16, imm8 */
+				LOG_DEBUG("itp-param: OPE_ENTER\n");
 				/* 11001000  imm16  imm8 */
 				if ((decode->gparam[0] & 0xf0) != 0x20)
 					goto err4; /* data type error */
@@ -1323,6 +1344,7 @@ err:
 				goto outbp;
 
 			case OPE_ALIGN: /* ALIGN, ALIGNB */
+				LOG_DEBUG("itp-param: OPE_ALIGN\n");
 				if ((decode->gparam[0] & 0x02f0) != 0x0020)
 					goto err2; /* 定数式ではないならエラー */
 				ifdef->vb[8] = 0x84;
@@ -1366,6 +1388,7 @@ err:
 				goto outbp;
 
 			case OPE_FPU:
+				LOG_DEBUG("itp-param: OPE_FPU\n");
 				if (decode->flag == 0)
 					goto err2; /* パラメータエラー */
 				if (decode->flag == 1) {
@@ -1437,6 +1460,7 @@ err:
 				goto setc;
 
 			case OPE_FPUP:
+				LOG_DEBUG("itp-param: OPE_FPUP\n");
 				if (decode->flag == 2 && decode->gparam[1] == 0x900a /* ST0 */)
 					decode->flag = 1;
 				if (decode->flag != 1)
@@ -1455,6 +1479,7 @@ err:
 				goto outbp;
 
 			case OPE_FSTSW:
+				LOG_DEBUG("itp-param: OPE_FSTSW\n");
 				if (decode->gparam[0] != 0x1002 /* AX */)
 					goto ope_m;
 				bp->byte[0] = SHORT_DB1; /* 0x31 */
@@ -1470,6 +1495,7 @@ err:
 				goto outbp;
 
 			case OPE_ORG:
+				LOG_DEBUG("itp-param: OPE_ORG\n");
 				if ((decode->gparam[0] & 0xf0) != 0x20)
 					goto err4; /* data type error */
 				//FIXME
@@ -1486,6 +1512,7 @@ err:
 				goto equ_put_expr;
 
 			case OPE_FXCH:
+				LOG_DEBUG("itp-param: OPE_FXCH\n");
 				if (decode->flag == 0) {
 					decode->gparam[0] = 0x920a /* ST1 */;
 					decode->flag = 1;
@@ -1512,6 +1539,7 @@ err:
 				goto outbp;
 
 			case OPE_RESB:
+				LOG_DEBUG("itp-param: OPE_RESB\n");
 				if ((decode->gparam[0] & 0xff) != 0x2f)
 					goto err4; /* data type error */
 				if (ifdef->vb[8]) {
@@ -1523,6 +1551,7 @@ err:
 					bp += 2;
 					goto outbp;
 				}
+				// "i"にRESBの対象となるバイト数を設定
 				if ((i = itp->param[1]) > 7)
 					goto err4; /* data type error */
 				bp->byte[0] = 0x59; /* TIMES microcode */
@@ -1530,7 +1559,9 @@ err:
 				put4b(i, &bp->byte[2]); /* len */
 				bp->byte[6] = 0x30 | itp->param[1];
 				bp += 7;
-				do {
+
+				LOG_DEBUG("RESB: try to reserve %d byte\n", i);
+				do { // "i"の数値分"0x00"で埋める
 					(*bp++).integer = 0x00;
 				} while (--i);
 				ifdef->vb[8] = 0x84;
@@ -1543,6 +1574,7 @@ err:
 				goto outbp;
 
 			case OPE_EQU:
+				LOG_DEBUG("itp-param: OPE_EQU\n");
 				if (decode->label == NULL)
 					goto err2; /* パラメータエラー */
 				if ((decode->gparam[0] & 0xf0) != 0x20)
@@ -1564,6 +1596,7 @@ err:
 				goto skip_equ;
 
 			case OPE_JMP:
+				LOG_DEBUG("itp-param: OPE_JMP\n");
 				/* JMP:  (r/m) near:FF /4, far:FF /5, (imm) near:E9, far:EA, short:EB */
 				/* CALL: (r/m) near:FF /2, far:FF /3, (imm) near:E8, far:9A */
 				/* itp->param[1] : r/m-near */
@@ -1708,6 +1741,7 @@ err:
 				goto outbp;
 
 			case OPE_GLOBAL: /* GLOBAL, EXTERN */
+				LOG_DEBUG("itp-param: OPE_GLOBAL\n");
 				s = decode->param;
 				if (!(s < status->src1 && *s != '\n' && *s != ';'))
 					goto err2;
@@ -1783,6 +1817,7 @@ err:
 				goto skip_equ;
 
 			case OPE_TIMES: /* virtual byte 0x80を使う */
+				LOG_DEBUG("itp-param: OPE_TIMES\n");
 				if (ifdef->vb[8]) {
 		err6:
 					decode->error = 6; /* TIMES error */
@@ -1816,6 +1851,7 @@ err:
 				goto times_skip;
 
 			case OPE_DB:
+				LOG_DEBUG("itp-param: OPE_DB\n");
 				s = decode->param;
 				if (!(s < status->src1 && *s != '\n' && *s != ';'))
 					goto err2;
@@ -3636,16 +3672,16 @@ error1:
 	goto skipline;
 }
 
-/* "label: hoge" はラベルを登録するが、エラー1 */
-/* "label  hoge" もラベルを登録するが、エラー1 */
-/* "hoge"はラベルを登録せずにエラー1 */
-
+// "label: hoge" はラベルを登録するが、エラー1
+// "label	 hoge" もラベルを登録するが、エラー1
+// "hoge"はラベルを登録せずにエラー1
 void put4b(UINT i, UCHAR *p)
 {
 	p[0] =  i        & 0xff;
 	p[1] = (i >>  8) & 0xff;
 	p[2] = (i >> 16) & 0xff;
 	p[3] = (i >> 24) & 0xff;
+	LOG_DEBUG("returned p[0-3]: 0x%02x, 0x%02x, 0x%02x, 0x%02x\n", p[0], p[1], p[2], p[3]);
 	return;
 }
 
@@ -5072,9 +5108,13 @@ fin:
 	return s;
 }
 
+//
+//
+//
 UCHAR *put_expr(UCHAR *s, struct STR_TERM **pexpr)
 {
-	static char ll_ope_list[] = {
+     LOG_DEBUG("in");
+	static const char ll_ope_list[] = {
 		0x10 * 0, 0x11, 0x12, 0, /* s+, s-, s~, null */
 		0x13, 0x14, 0x15, 0x17, /* +, -, *, /u */
 		0x18, 0x19, 0x1a, 0, /* %u, /s, %s, null */
