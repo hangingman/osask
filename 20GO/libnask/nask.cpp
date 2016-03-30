@@ -44,16 +44,18 @@ UCHAR* putimm(int i, UCHAR *p)
      return p;
 }
 
+//
+// dest1を返す(NULLはエラー)
+//
 UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
-/* dest1を返す(NULLならあふれた) */
 {
-	LOG_DEBUG("nask src: %s\n", src0);
+	LOG_DEBUG("nask assembly source ===\n%s\n===\n", src0);
 	int i, j, k, prefix_def, tmret;
 
 	// bufをunique_ptrで初期化しておき、bpはそのポインタとして使用する
 	std::unique_ptr<UCHAR[]> buf(new UCHAR[2 * 8]);
 	nask32bitInt* bp;
-	
+
 	UCHAR *src, c, *s, *dest00 = dest0;
 	struct INST_TABLE *itp;
 	struct STR_TERM *expr;
@@ -116,6 +118,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 
 	status->expr_status.dollar_label2 = 0xffffffff;
 	while (src0 < src1) {
+		LOG_DEBUG("processing assembly source: because of 'src0 < src1' \n");
 		if (status->expr_status.dollar_label2 == 0xffffffff) {
 			status->expr_status.dollar_label2 = nextlabelid++;
 			status->expr_status.dollar_label1 = status->expr_status.dollar_label2;
@@ -123,6 +126,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		status->expr_status.dollar_label0 = status->expr_status.dollar_label1;
 		status->expr_status.dollar_label1 = 0xffffffff;
 		bp = ucharToNask32bitIntPtr(buf.get());
+		LOG_DEBUG("buffered pointer bp: %x\n", &bp);
 		ifdef->vb[8] = 0; /* for TIMES */
 		src = decoder(status.get(), src0, decode.get());
 		/* ラインスタート出力 */
@@ -3318,6 +3322,7 @@ static std::array<const UCHAR*, 3> format_type = {
 //
 UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
 {
+	LOG_DEBUG("in\n");
 	int i, j, k;
 	struct INST_TABLE *itp;
 	UCHAR instruct[OPCLENMAX], *p, **pq, *q, c, cc;
@@ -3329,10 +3334,13 @@ UCHAR *decoder(struct STR_STATUS *status, UCHAR *src, struct STR_DECODE *decode)
 
 setting:
 	src = skipspace(src, status->src1);
-	if (src >= status->src1)
+	if (src >= status->src1) {
+		LOG_DEBUG("src >= status->src1: goto fin\n");
 		goto fin;
+	}
 	if (*src == '[') {
 		/* BITS指定など */
+		LOG_DEBUG("*src == '[': supposed to specify BITS\n");
 		src++;
 		if ((p = setinstruct(skipspace(src, status->src1), status->src1, instruct)) != NULL) {
 			for (itp = setting_table; itp->opecode[0]; itp++) {
@@ -3492,6 +3500,7 @@ setting:
 		goto error1;
 	}
 	if (*src == ';') {
+		LOG_DEBUG("*src == ';': semi-colon is used for comments\n");
 		c = 1;
 		if (++src + 5 < status->src1) {
 			c = 0;
@@ -3512,26 +3521,45 @@ fin:
 			src++;
 		return src;
 	}
-	if (*src == '\n')
+	if (*src == '\n') {
+		LOG_DEBUG("*src == '\n': empty line\n");
 		goto fin; /* 空行 */
-	if (*src == '#')
+	}
+	if (*src == '#') {
+		LOG_DEBUG("*src == '#': sharp is used for comments\n");
 		goto skipline; /* I.Tak.さんの要望 [OSASK 5543] */
-
+	}
 	/* 一般形式 */
 research:
+	LOG_DEBUG("research: normal format assembly\n");
 	if ((p = setinstruct(src, status->src1, instruct)) != 0) {
+		// "instruction" as INST_TABLE
 		for (itp = instruction; itp->opecode[0]; itp++) {
 			c = 0;
-			for (i = 0; i < OPCLENMAX; i++)
+			for (i = 0; i < OPCLENMAX; i++) {
 				c |= itp->opecode[i] ^ instruct[i];
+			}
 			if (c == 0 && (itp->support & status->support) != 0) {
 				/* ニーモニック発見 */
+				LOG_DEBUG("found mnemonic! opcode: %s\n", itp[0]);
+#ifdef DEBUG
+				for (UCHAR elem : itp->param) {
+					if (elem != 0x00) {
+						LOG_DEBUG("found mnemonic! param: 0x%02x\n", elem);
+					} else {
+						break;
+					}
+				}
+#endif /* DEBUG */
 				decode->instr = itp;
 				decode->param = p;
+
 				/* 簡易判定 */
 				if (status->expr_status.dollar_label0 == 0xffffffff) {
-					if (itp->param[0] == OPE_ALIGN)
+					if (itp->param[0] == OPE_ALIGN) {
+						LOG_DEBUG("need_dollar0");
 						goto need_dollar0;
+					}
 					for (q = p; q < status->src1 && *q != '\n'; q++) {
 						if (*q == '$') {
 			need_dollar0:
@@ -3545,6 +3573,7 @@ research:
 				//	src = skipspace(p, status->src1);
 					src = p;
 					if (c == PREFIX) {
+						LOG_DEBUG("PREFIX: %s", c);
 						decode->instr = NULL;
 						decode->prefix |= 1 << itp->param[1];
 					//	src = p;
@@ -3555,6 +3584,7 @@ research:
 					if (c < 0x40) {
 						/* 通常命令, パラメータは最大で3つ */
 						i = 0;
+						LOG_DEBUG("found mnemonic!\n==>opcode: %s\n", itp[0]);
 						if (src < status->src1 && *src != '\n' && *src != ';') {
 							/* 何かが続いている */
 							for (;;) {
@@ -3592,6 +3622,7 @@ research:
 		}
 	}
 	if (decode->label == NULL) {
+		LOG_DEBUG("found label: %s", src);
 		decode->label = src; /* ラベル発見 */
 		while (*src > ' ' && src < status->src1)
 			src++;
