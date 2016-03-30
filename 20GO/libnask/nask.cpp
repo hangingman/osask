@@ -3529,6 +3529,7 @@ fin:
 		LOG_DEBUG("*src == '#': sharp is used for comments\n");
 		goto skipline; /* I.Tak.さんの要望 [OSASK 5543] */
 	}
+
 	/* 一般形式 */
 research:
 	LOG_DEBUG("research: normal format assembly\n");
@@ -3564,19 +3565,17 @@ research:
 						if (*q == '$') {
 			need_dollar0:
 							status->expr_status.dollar_label0 = nextlabelid++;
-					//		decode->dollar = 1;
 							break;
 						}
 					}
 				}
+				LOG_DEBUG("itp's first parameter: 0x%02x\n", itp->param[0]);
 				if ((c = itp->param[0]) != 0) {
-				//	src = skipspace(p, status->src1);
 					src = p;
 					if (c == PREFIX) {
 						LOG_DEBUG("PREFIX: %s", c);
 						decode->instr = NULL;
 						decode->prefix |= 1 << itp->param[1];
-					//	src = p;
 						if (src < status->src1 && *src != '\n' && *src != ';')
 							goto research; /* 何かが続いていれば、さらに検索 */
 						goto skipline;
@@ -3584,7 +3583,6 @@ research:
 					if (c < 0x40) {
 						/* 通常命令, パラメータは最大で3つ */
 						i = 0;
-						LOG_DEBUG("found mnemonic!\n==>opcode: %s\n", itp[0]);
 						if (src < status->src1 && *src != '\n' && *src != ';') {
 							/* 何かが続いている */
 							for (;;) {
@@ -3626,12 +3624,10 @@ research:
 		decode->label = src; /* ラベル発見 */
 		while (*src > ' ' && src < status->src1)
 			src++;
-	//	c = src[-1];
+
 		src = skipspace(src, status->src1);
 		if (src >= status->src1 || *src == '\n' || *src == ';') {
-		//	if (c == ':')
 				goto skipline; /* ラベル定義 */
-		//	goto error1;
 		}
 		goto research;
 	}
