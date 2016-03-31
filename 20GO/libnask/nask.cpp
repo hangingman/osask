@@ -1570,7 +1570,8 @@ err:
 					expr->term_type = 0; /* constant */
 					expr->value = decode->gvalue[0];
 				}
-				ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
+				//FIXME
+				//ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
 				goto outbp;
 
 			case OPE_EQU:
@@ -2129,7 +2130,7 @@ skip_end:
 		// 	*s++ = *src++;
 		//} while (src < bp);
 	} while (src < src1);
-	free(src1 - i);
+	//free(src1 - i);
 	for (j = 0; j < MAX_SECTIONS; j++) {
 		if (sectable[j].name[0] == '\0')
 			break;
@@ -2176,12 +2177,14 @@ skip_end:
 	dest0 += 11;
 
 overrun:
-	free(locallabelbuf0);
-	free(status->expression);
-	free(status->mem_expr);
-	free(ifdef->bp0);
-	for (i = 0; i < 9; i++)
-		free(ifdef->expr[i]);
+	//free(locallabelbuf0);
+	//free(status->expression);
+	//free(status->mem_expr);
+	//free(ifdef->bp0);
+	//for (i = 0; i < 9; i++)
+	// 	free(ifdef->expr[i]);
+
+	LOG_DEBUG("dest0: %s\n", *dest0);
 	return dest0;
 }
 
@@ -5113,7 +5116,7 @@ fin:
 //
 UCHAR *put_expr(UCHAR *s, struct STR_TERM **pexpr)
 {
-     LOG_DEBUG("in");
+	LOG_DEBUG("in: %s", s);
 	static const char ll_ope_list[] = {
 		0x10 * 0, 0x11, 0x12, 0, /* s+, s-, s~, null */
 		0x13, 0x14, 0x15, 0x17, /* +, -, *, /u */
