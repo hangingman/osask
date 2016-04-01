@@ -244,7 +244,7 @@ void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 	return;
 }
 
-void enable_label(std::shared_ptr<STR_LABEL>& label)
+void enable_label(STR_LABEL* label)
 {
 	std::unique_ptr<STR_VALUE> value;
 	UCHAR *t;
@@ -303,7 +303,7 @@ void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 				value->flags |= VFLG_SLFREF;
 				goto fin;
 			}
-			enable_label(label);
+			enable_label(label.get());
 		}
 		*value = label->value;
 		goto fin;
@@ -698,7 +698,9 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	signed int times_count;
 	UCHAR *s, *times_src0, *times_dest0, c, len, range;
 
-	std::shared_ptr<STR_LABEL> label0(new STR_LABEL());
+	std::unique_ptr<STR_LABEL[]> label0(new STR_LABEL[nask_maxlabels * sizeof (struct STR_LABEL)]);
+	STR_LABEL* label = label0.get();
+
 	std::shared_ptr<STR_SUBSECTION> subsect0(new STR_SUBSECTION());
 	std::unique_ptr<STR_VALUE> value(new STR_VALUE());
 	std::unique_ptr<STR_VALUE> labelvalue(new STR_VALUE());
@@ -708,9 +710,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 //	lc = 0;
 //	min = max = 0; /* 次に生成するのは、variable0[l0 + lc] */
 
-	std::shared_ptr<STR_LABEL> label = label0;
-	auto label_it = label.get();
-	for (unsolved = nask_maxlabels; unsolved > 0; label_it++, unsolved--) {
+	for (unsolved = nask_maxlabels; unsolved > 0; label++, unsolved--) {
 		label->value.flags = 0; /* enableを消すため */
 		label->define = NULL;
 	}
@@ -729,7 +729,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			// This was written as raw pointer:
 			// => label = &label0[value->min];
 			// http://www.cplusplus.com/reference/memory/shared_ptr/reset/
-			label.reset(&label0.get()[value->min]);
+			label = &label0.get()[value->min];
 			label->define = src0;
 			src0 = skip_expr(src0);
 			continue;
@@ -745,18 +745,20 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			subsect->sect0 = src0;
 			src0++;
 			calc_value(value, &src0);
-			label.reset(&label0.get()[value->min]);
-			label->define = src0;
+			label = &label0.get()[value->min];
+			// FIXME
+			//label->define = src0;
 			addsigma(labelvalue, sigma);
-			label->value = *labelvalue;
-			label->value.flags |= VFLG_ENABLE;
+			// FIXME
+			//label->value = *labelvalue;
+			//label->value.flags |= VFLG_ENABLE;
 			continue;
 		}
 		if (c == 0x2c) {
 			/* externラベル宣言 */
 			src0++;
 			calc_value(value, &src0);
-			label.reset(&label0.get()[value->min]);
+			label = &label0.get()[value->min];
 			init_value(&label->value);
 		//	label->define = NULL;
 			label->value.flags |= VFLG_EXTERN | VFLG_ENABLE;
@@ -819,7 +821,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			if (c == 0x2d) {
 				/* EQU */
 				calc_value(value, &src0);
-				label.reset(&label0.get()[value->min]);
+				label = &label0.get()[value->min];
 				if ((label->value.flags & VFLG_ENABLE) == 0)
 					enable_label(label);
 				*value = label->value;
@@ -840,7 +842,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 				dest0[0] = 0xf6; /* REM_8B */
 				dest0[1] = *src0++;
 				c = *src0++;
-				label.reset(&(label0.get())[get_id(c - 8, &src0, 0)]);
+				label = &(label0.get())[get_id(c - 8, &src0, 0)];
 				if ((label->value.flags & VFLG_ENABLE) == 0)
 					enable_label(label);
 				*value = label->value;
