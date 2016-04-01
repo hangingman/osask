@@ -6,6 +6,8 @@
 
 Makefile.in
 .dirstamp
+*.log
+*.trs
 
 # http://www.gnu.org/software/autoconf
 

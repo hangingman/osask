@@ -17,10 +17,11 @@ nask_CXXFLAGS		= -I$(top_builddir)/20GO/include -I$(top_builddir)/20GO/libnask
 nask_LDADD		= $(top_builddir)/20GO/libnask/libnask.la $(top_builddir)/20GO/libgo/libgo.la
 
 # test libnask
-check_PROGRAMS		= nasktest
-nasktest_SOURCES	= nasktest.cpp
-nasktest_LDADD		= libnask.la
+check_PROGRAMS		= nask_unit_test
+nask_unit_test_SOURCES	= nask_unit_test.cpp
+nask_unit_test_CXXFLAGS	= -I$(top_builddir)/20GO/include
+nask_unit_test_LDADD	= libnask.la
 
 #TESTS_ENVIRONMENT	= ./nasktest
-TESTS = nasktest
+TESTS = nask_unit_test nask_functional_test.sh
 #XFAIL_TESTS = data2 data5
