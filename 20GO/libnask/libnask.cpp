@@ -2296,593 +2296,584 @@ fin:
 
 #define MAX_LISTLEN		32
 
+//
+// dest1を返すNULLならエラー
+// listがあふれても続行
+//
 UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1)
-/* dest1を返す(NULLならあふれた) */
-/* listがあふれても続行 */
 {
-// 	int len, linecount = 0, srcl, i, addr, secno, file_len, g_symbols = 0, e_symbols = 0;
-// 	struct STR_OUTPUT_SECTION *sectable = malloc(MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION));
-// 	UCHAR *srcp, *file_p, *string0, *dest = dest0;
-// 	UCHAR *lbuf0 = malloc(1024), *lbuf;
-// 	UCHAR *ebuf0 = malloc(32), *ebuf; /* エラーバッファ */
-//
-// 	UCHAR c, status, adrflag, cc, format, file_aux;
-// 	/* 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み */
-//
-// 	/* アライン情報検索 */
-// 	srcp = src0;
-// 	secno = 0;
-// 	for (i = 0; i < MAX_SECTIONS; i++) {
-// 		sectable[i].relocs = 0;
-// 		sectable[i].flags = 0; /* invalid */
-// 	}
-// 	do {
-// 		if (srcp[0] == REM_4B) {
-// 			if (srcp[1] == 0)
-// 				sectable[srcp[2]].align = srcp[3]; /* set section align */
-// 			if (srcp[1] == 1)
-// 				sectable[srcp[2]].flags = srcp[3]; /* set section flags */
-// 		}
-// 		if (srcp[0] == REM_3B) {
-// 			if (srcp[1] == 1) {
-// 				/* start section */
-// 				secno = srcp[2];
-// 			}
-// 			if (srcp[1] == 2) {
-// 				/* set format */
-// 				format = srcp[2];
-// 			}
-// 		}
-// 		if (srcp[0] == REM_8B) {
-// 			if (srcp[1] == 0) { /* file */
-// 				file_len = srcp[2];
-// 				file_p = (UCHAR *) get4b(&srcp[4]);
-// 				file_aux = (file_len + (1 + 17)) / 18;
-// 			}
-// 			if (srcp[1] == 1)
-// 				g_symbols++; /* GLOBAL */
-// 			if (srcp[1] == 2) { /* EXTERN */
-// 				e_symbols++;
-// 				/* 番号とCOFFシンボル番号との対応表を作る...必要はない */
-// 				/* EXTERNシンボルは、ラベル番号から定数を引くだけでCOFFシンボル番号になる */
-// 			}
-// 		}
-// 		if (0x2e <= srcp[0] && srcp[0] <= 0x2f) {
-// 			/* need relocation */
-// 			sectable[secno].relocs++;
-// 		}
-// 		srcp = LL_skipcode(srcp);
-// 	} while (srcp < src1);
-//
-// 	/* バイナリー出力 */
-// 	if (format == 1) { /* WCOFF */
-// 		static UCHAR header[140] = {
-// 			/* file header */
-// 			0x4c, 0x01, /* signature */
-// 			0x03, 0x00, /* sections == 3 */
-// 			0, 0, 0, 0, /* time & date */
-// 			0, 0, 0, 0, /* +0x08: symboltable */
-// 			0, 0, 0, 0, /* +0x0c: sizeof (symboltable) / 18 */
-// 			0x00, 0x00, /* no optional header */
-// 			0x00, 0x00, /* flags */
-//
-// 			/* section header (.text) */
-// 			'.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
-// 			0, 0, 0, 0, /* paddr (section_text - section_text) */
-// 			0, 0, 0, 0, /* vaddr == 0 */
-// 			0, 0, 0, 0, /* +0x24: sizeof (section_text) */
-// 			0, 0, 0, 0, /* +0x28: section_text */
-// 			0, 0, 0, 0, /* +0x2c: reloctab_text */
-// 			0, 0, 0, 0, /* line number == 0 */
-// 			0, 0, /* +0x34: sizeof (reloctab_text) / 10 */
-// 			0, 0, /* sizeof (line_number) == 0 */
-// 			0x20, 0x00, 0x10, 0x60, /* +0x38: flags, default_align = 1 */
-//
-// 			/* section header (.data) */
-// 			'.', 'd', 'a', 't', 'a', 0, 0, 0, /* name */
-// 			0, 0, 0, 0, /* paddr (section_data - section_text) */
-// 			0, 0, 0, 0, /* vaddr == 0 */
-// 			0, 0, 0, 0, /* +0x4c: sizeof (section_data) */
-// 			0, 0, 0, 0, /* +0x50: section_data */
-// 			0, 0, 0, 0, /* +0x54: reloctab_data */
-// 			0, 0, 0, 0, /* line number == 0 */
-// 			0, 0, /* +0x5c: sizeof (reloctab_data) / 10 */
-// 			0, 0, /* sizeof (line_number) == 0 */
-// 			0x40, 0x00, 0x10, 0xc0, /* +0x60: flags, default_align = 1 */
-//
-// 			/* section header (.bss) */
-// 			'.', 'b', 's', 's', 0, 0, 0, 0, /* name */
-// 			0, 0, 0, 0, /* paddr (section_bss - section_text) */
-// 			0, 0, 0, 0, /* vaddr == 0 */
-// 			0, 0, 0, 0, /* +0x74: sizeof (section_bss) */
-// 			0, 0, 0, 0, /* section_bss == 0 */
-// 			0, 0, 0, 0, /* reloctab_bss == 0 */
-// 			0, 0, 0, 0, /* line number == 0 */
-// 			0, 0, /* sizeof (reloctab_data) / 10 == 0 */
-// 			0, 0, /* sizeof (line_number) == 0 */
-// 			0x80, 0x00, 0x10, 0xc0 /* +0x88: flags, default_align = 1 */
-// 		};
-// 		if (dest + sizeof (header) > dest1) {
-// 			dest = NULL;
-// 			goto error;
-// 		}
-// 		for (i = 0; i < sizeof (header); i++)
-// 			dest[i] = header[i];
-// 		dest += sizeof (header);
-// 	}
-// 	srcp = src0;
-// 	secno = 0;
-// 	do {
-// 		c = *srcp;
-// 		if (SHORT_DB1 <= c && c <= SHORT_DB4) {
-// 			srcp++;
-// 			c -= SHORT_DB0;
-// 			if (dest + 8 > dest1) {
-// 				dest = NULL;
-// 				goto error;
-// 			}
-// 			if (format == 0 /* BIN */)
-// 				goto dest_out_skip;
-// 			if (format == 1 && 1 <= sectable[secno].flags && sectable[secno].flags <= 2) {
-//dest_out_skip:
-// 				do {
-// 					*dest++ = *srcp++;
-// 				} while (--c);
-// 				continue;
-// 			}
-// 			srcp += c; /* bss or absolute */
-// 			continue;
-// 		}
-// 		if (c == REM_3B && srcp[1] == 1) {
-// 			/* start section */
-// 			if (format == 1) { /* WCOFF */
-// 				if (1 <= sectable[secno].flags && sectable[secno].flags <= 3)
-// 					put4b(dest - sectable[secno].d0, &dest0[sectable[secno].flags * 40 - 4]);
-// 			}
-// 			sectable[secno = srcp[2]].p = srcp;
-// 			sectable[secno].d0 = dest;
-// 			if (format == 0) { /* BIN */
-// 				if (sectable[secno].align > 0) {
-// 					i = 1 << (sectable[secno].align);
-// 					while (((int) dest) & (i - 1)) {
-// 						if (dest >= dest1) {
-// 							dest = NULL;
-// 							goto error;
-// 						}
-// 						*dest++ = '\0';
-// 					}
-// 				}
-// 			}
-// 			if (format == 1) { /* WCOFF */
-// 				if (1 <= sectable[secno].flags && sectable[secno].flags <= 3) {
-// 					put4b(dest - dest0, &dest0[sectable[secno].flags * 40]);
-// 					dest0[sectable[secno].flags * 40 + 18] = sectable[secno].align << 4;
-// 				}
-// 			}
-// 		}
-// 		srcp = LL_skipcode(srcp);
-// 	} while (srcp < src1);
-// 	if (format == 1) { /* WCOFF */
-// 		static UCHAR common_symbols0[18 * 1 - 1] = {
-// 			'.', 'f', 'i', 'l', 'e', 0, 0, 0, /* name */
-// 			0, 0, 0, 0, /* value */
-// 			0xfe, 0xff, /* debugging symbol */
-// 			0, 0, /* T_NULL */
-// 			103 /* , 0 */ /* file name, numaux = 0 */
-// 		};
-// 		static UCHAR common_symbols1[18 * 6] = {
-// 			'.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
-// 			0, 0, 0, 0, /* value */
-// 			0x01, 0x00, /* section 1 */
-// 			0, 0, /* T_NULL */
-// 			3, 1, /* private symbol, numaux = 1 */
-// 			0, 0, 0, 0, /* +0x12: sizeof (section_text) */
-// 			0, 0, /* +0x16: sizeof (reloctab_text) / 10 */
-// 			0, 0, /* sizeof (line_number) == 0 */
-// 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-//
-// 			'.', 'd', 'a', 't', 'a', 0, 0, 0, /* name */
-// 			0, 0, 0, 0, /* value */
-// 			0x02, 0x00, /* section 2 */
-// 			0, 0, /* T_NULL */
-// 			3, 1, /* private symbol, numaux = 1 */
-// 			0, 0, 0, 0, /* +0x36: sizeof (section_text) */
-// 			0, 0, /* +0x3a: sizeof (reloctab_text) / 10 */
-// 			0, 0, /* sizeof (line_number) == 0 */
-// 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-//
-// 			'.', 'b', 's', 's', 0, 0, 0, 0, /* name */
-// 			0, 0, 0, 0, /* value */
-// 			0x03, 0x00, /* section 3 */
-// 			0, 0, /* T_NULL */
-// 			3, 1, /* private symbol, numaux = 1 */
-// 			0, 0, 0, 0, /* +0x5a: sizeof (section_bss) */
-// 			0, 0, /* sizeof (reloctab_text) / 10 == 0 */
-// 			0, 0, /* sizeof (line_number) == 0 */
-// 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-// 		};
-// 		/* 最後のセクションのサイズ書き込み */
-// 		if (1 <= sectable[secno].flags && sectable[secno].flags <= 3)
-// 			put4b(dest - sectable[secno].d0, &dest0[sectable[secno].flags * 40 - 4]);
-//
-// 		/* relocation tables (allocate only) */
-// 		/* relocation情報を持つセクションは2つしかない */
-// 		for (i = 0; i < MAX_SECTIONS; i++) {
-// 			if (1 <= sectable[i].flags && sectable[i].flags <= 2) {
-// 				sectable[i].reloc_p = dest;
-// 				put4b(dest - dest0, &dest0[sectable[i].flags * 40 + 4]); /* reloctab */
-// 				dest0[sectable[i].flags * 40 + 12] = sectable[i].relocs & 0xff;
-// 				dest0[sectable[i].flags * 40 + 13] = (sectable[i].relocs >> 8) & 0xff;
-// 				dest += sectable[i].relocs * 10;
-// 			}
-// 		}
-// 		if (dest > dest1) {
-// 			dest = NULL;
-// 			goto error;
-// 		}
-//
-// 		/* symbol table */
-// 		put4b(dest - dest0, &dest0[0x08]);
-// 		put4b(i = file_aux + 7 + e_symbols + g_symbols, &dest0[0x0c]);
-// 		if (dest + i * 18 > dest1) {
-// 			dest = NULL;
-// 			goto error;
-// 		}
-// 		for (i = 0; i < sizeof (common_symbols0); i++)
-// 			dest[i] = common_symbols0[i];
-// 		dest[17] = file_aux;
-// 		for (i = 0; i < 18; i++)
-// 			dest[file_aux * 18 + i] = '\0';
-// 		for (i = 0; i < file_len; i++)
-// 			dest[18 + i] = file_p[i];
-// 		dest += file_aux * 18 + 18;
-// 		for (i = 0; i < sizeof (common_symbols1); i++)
-// 			dest[i] = common_symbols1[i];
-// 		put4b(get4b(&dest0[0x24]), &dest[0x12]);
-// 		put4b(get4b(&dest0[0x34]), &dest[0x16]);
-// 		put4b(get4b(&dest0[0x4c]), &dest[0x36]);
-// 		put4b(get4b(&dest0[0x5c]), &dest[0x3a]);
-// 		put4b(get4b(&dest0[0x74]), &dest[0x5a]);
-// 		file_p = dest + sizeof (common_symbols1);
-// 		dest = file_p + (e_symbols + g_symbols) * 18;
-// 		string0 = dest;
-// 		dest += 4;
-// 		/* 以下のループでリロケーションとシンボルテーブルをうめる */
-// 		srcp = src0;
-// 		secno = 0;
-// 		addr = 0;
-// 		g_symbols = e_symbols * 18;
-// 		do {
-// 			c = *srcp;
-// 			if (SHORT_DB1 <= c && c <= SHORT_DB4) {
-// 				srcp++;
-// 				c -= SHORT_DB0;
-// 				srcp += c;
-// 				addr += c;
-// 				continue;
-// 			}
-// 			if (c == REM_3B && srcp[1] == 1) {
-// 				/* start section */
-// 				secno = srcp[2];
-// 				addr = 0;
-// 			}
-// 			if (srcp[0] == REM_8B) {
-// 				if (1 <= srcp[1] && srcp[1] <= 2) {
-// 					len = srcp[2] | srcp[3] << 8;
-// 					lbuf = (UCHAR *) get4b(&srcp[4]);
-// 					ebuf = file_p + ((srcp[10] | srcp[11] << 8) - E_LABEL0) * 18; /* EXTERN */
-// 					if (srcp[1] == 1) { /* GLOBAL */
-// 						ebuf = file_p + g_symbols;
-// 						g_symbols += 18;
-// 					}
-// 					for (i = 0; i < 18; i++)
-// 						ebuf[i] = '\0';
-// 					ebuf[16] = 2; /* GLOBAL or EXTERN */
-// 					if (len <= 8) {
-// 						for (i = 0; i < len; i++)
-// 							ebuf[i] = lbuf[i];
-// 					} else {
-// 						put4b(dest - string0, &ebuf[4]);
-// 						if (dest + len + 1 > dest1) {
-// 							dest = NULL;
-// 							goto error;
-// 						}
-// 						do {
-// 							*dest++ = *lbuf++;
-// 						} while (--len);
-// 						*dest++ = '\0';
-// 					}
-// 					if (srcp[1] == 1) { /* GLOBAL */
-// 						ebuf[ 8] = srcp[12];
-// 						ebuf[ 9] = srcp[13];
-// 						ebuf[10] = srcp[14];
-// 						ebuf[11] = srcp[15];
-// 						ebuf[12] = srcp[10];
-// 						ebuf[13] = srcp[11];
-// 					}
-// 				}
-// 			}
-// 			/* リロケーション */
-// 			if (0x2e <= srcp[0] && srcp[0] <= 0x2f &&
-// 				1 <= sectable[secno].flags && sectable[secno].flags <= 2) {
-// 				/* 0x2e : 絶対補正要求, 0x2f : 相対補正要求 */
-// 				put4b(addr, sectable[secno].reloc_p);
-// 				i = srcp[2] | srcp[3] << 8;
-// 				/* .text == file_aux + 1 */
-// 				/* .data == file_aux + 3 */
-// 				/* .bss  == file_aux + 5 */
-// 				/* ext0 == file_aux + 7 */
-// 				if (i >= E_LABEL0)
-// 					i += 7 - E_LABEL0;
-// 				else
-// 					i = i * 2 - 1;
-// 				put4b(i + file_aux, sectable[secno].reloc_p + 4);
-// 				sectable[secno].reloc_p[8] = 0x06; /* absolute */
-// 				sectable[secno].reloc_p[9] = 0;
-// 				if (srcp[0] == 0x2f) {
-// 					sectable[secno].reloc_p[8] = 0x14; /* relative */
-// 					i = get4b(&dest0[sectable[secno].flags * 40]) + addr;
-// 					#if (DEBUG)
-// 						if (i < 0 || i + 4 > dest - lbuf) {
-// 							fprintf(stderr, "output:relative relocation error(1)! i = 0x%08X\n", i);
-// 							goto skip_relative_relocation;
-// 						}
-// 					#endif
-// 					put4b(get4b(&dest0[i]) + addr + 4, &dest0[i]);
-// 				}
-//skip_relative_relocation:
-// 				sectable[secno].reloc_p += 10;
-// 			}
-// 			srcp = LL_skipcode(srcp);
-// 		} while (srcp < src1);
-// 		put4b(dest - string0, string0);
-// 	}
-//
-// 	/* リスト出力 */
-// 	status = 0;
-// 	secno = 0;
-// 	addr = 0;
-// 	ebuf = ebuf0;
-// 	for (;;) {
-// 		lbuf = lbuf0;
-// 		c = *src0;
-// 		if (c == REM_3B && src0[1] == 0) {
-// 			sectable[secno].p = src0;
-// 			sectable[secno].addr = addr;
-// 			secno = src0[2];
-// 			src0 = sectable[secno].p;
-// 			addr = sectable[secno].addr;
-// 		}
-//
-// 		if (c == 0xf7) {	/* switchで書いたら、lcc-win32が死んでしまった */
-// 			/* line start */
-// 			if (status == 1) {
-// 				len = -9;
-// 				status = 2;
-// 			}
-// 			if (status == 2) {
-// 				/* (MAX_LISTLEN - len)個のスペースを出力 */
-// 				if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
-// 					*list0 = '\0';
-// 					list0 = NULL;
-// 				}
-// 				if (list0) {
-// 					do {
-// 						*list0++ = ' ';
-// 						len++;
-// 					} while (len < MAX_LISTLEN);
-// 					while (srcl--)
-// 						*list0++ = *srcp++;
-// 				}
-// 			}
-// 			if (status == 3)
-// 				*lbuf++ = '\n';
-// 			if ((len = ebuf - ebuf0) != 0) {
-// 				/* エラー出力 */
-// 				static const char *errmsg[] = {
-// 					"      >> [ERROR #001] syntax error.\n",
-// 					"      >> [ERROR #002] parameter error.\n",
-// 					"      >> [ERROR #003] data size error.\n",
-// 					"      >> [ERROR #004] data type error.\n",
-// 					"      >> [ERROR #005] addressing error.\n",
-// 					"      >> [ERROR #006] TIMES error.\n",
-// 					"      >> [ERROR #007] label definition error.\n",
-// 					"      >> [ERROR #008] data range error.\n",
-// 					"      >> [ERROR #009] expression error.\n",	/* 不定値エラー(delta != 0) */
-// 					"      >> [ERROR #010] expression error.\n",
-// 					"      >> [ERROR #011] expression error.\n",
-// 					"      >> [ERROR #012] expression error.\n" /* 未定義ラベル参照 */
-// 				};
-// 				nask_errors += len;
-// 				for (i = 0; i < len; i++) {
-// 					ebuf = errmsg[ebuf0[i] - 0xe1];
-// 					while ((*lbuf++ = *ebuf++) != '\n');
-// 				}
-// 				ebuf = ebuf0;
-// 			}
-// 			srcl = get4b(&src0[1]);
-// 			srcp = (UCHAR *) get4b(&src0[5]);
-// 			if (srcl) {
-// 				setdec(++linecount, 6, &lbuf[0]);
-// 				lbuf[6] = ' ';
-// 				lbuf += 7;
-// 			}
-// 			len = 0;
-// 			src0 += 9;
-// 			status = 1;
-// 			adrflag = 0;
-// 		} else if (c == 0x5a) {
-// 			/* ORG */
-// 			addr = get4b(&src0[1]);
-// 			src0 += 5;
-// 		} else if (c == 0x68) {
-// 			src0 += 2; /* 読み飛ばす */
-// 		} else if (c == REM_ADDR) {
-// 			status = 2;
-// 			sethex0(addr, 8, &lbuf[0]);
-// 			lbuf[8] = ' ';
-// 			lbuf += 9;
-// 			src0++;
-// 			adrflag = 1;
-// 		} else if (SHORT_DB1 <= c && c <= SHORT_DB4) {
-// 			if (status == 1) {
-// 				for (i = 0; i < 9; i++)
-// 					*lbuf++ = ' ';
-// 				status = 2;
-// 			}
-// 			if (len + 1 + (c - 0x30) * 2 > MAX_LISTLEN) {
-// 			//	if (status == 1) {
-// 			//		len = -9;
-// 			//		status = 2;
-// 			//	}
-// 				if (status == 2) {
-// 					/* (MAX_LISTLEN - len)個のスペースを出力 */
-// 					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
-// 						*list0 = '\0';
-// 						list0 = NULL;
-// 					}
-// 					if (list0) {
-// 						do {
-// 							*list0++ = ' ';
-// 							len++;
-// 						} while (len < MAX_LISTLEN);
-// 						while (srcl--)
-// 							*list0++ = *srcp++;
-// 					}
-// 				} else
-// 					*lbuf++ = '\n';
-// 				for (i = 0; i < 7 + 9; i++)
-// 					lbuf[i] = ' ';
-// 				if (adrflag)
-// 					sethex0(addr, 8, &lbuf[7]);
-// 				lbuf += 9 + 7;
-// 				status = 3;
-// 				len = 0;
-// 			}
-// 			src0++;
-// 			for (i = c - SHORT_DB1 /* 0x31 */; i >= 0; i--) {
-// 				sethex0(src0[i], 2, &lbuf[0]);
-// 				lbuf += 2;
-// 				len += 2;
-// 				addr++;
-// 			}
-// 			src0 += c - SHORT_DB0; /* - 0x30 */
-// 			*lbuf++ = ' ';
-// 			len++;
-// 		} else if (0x2e <= c && c <= 0x2f && 1 <= sectable[secno].flags && sectable[secno].flags <= 2) { /* reloc data */
-// 			if (status == 1) {
-// 				for (i = 0; i < 9; i++)
-// 					*lbuf++ = ' ';
-// 				status = 2;
-// 			}
-// 			if (len + 11 > MAX_LISTLEN) {
-// 			//	if (status == 1) {
-// 			//		len = -9;
-// 			//		status = 2;
-// 			//	}
-// 				if (status == 2) {
-// 					/* (MAX_LISTLEN - len)個のスペースを出力 */
-// 					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
-// 						*list0 = '\0';
-// 						list0 = NULL;
-// 					}
-// 					if (list0) {
-// 						do {
-// 							*list0++ = ' ';
-// 							len++;
-// 						} while (len < MAX_LISTLEN);
-// 						while (srcl--)
-// 							*list0++ = *srcp++;
-// 					}
-// 				} else
-// 					*lbuf++ = '\n';
-// 				for (i = 0; i < 7 + 9; i++)
-// 					lbuf[i] = ' ';
-// 				if (adrflag)
-// 					sethex0(addr, 8, &lbuf[7]);
-// 				lbuf += 9 + 7;
-// 				status = 3;
-// 				len = 0;
-// 			}
-// 			src0 += 9;
-// 			i = get4b(&dest0[sectable[secno].flags * 40]) + addr;
-// 			lbuf[0] = '[';
-// 			sethex0(get4b(&dest0[i]), 8, &lbuf[1]);
-// 			lbuf[9] = ']';
-// 			lbuf[10] = ' ';
-// 			lbuf += 11;
-// 			len += 11;
-// 			addr += 4;
-// 		} else if (c == 0x0c) {
-// 			/* EQU (1) */
-// 			/* 必ず status == 1 */
-// 			lbuf[0] = ' ';
-// 			lbuf[1] = '=';
-// 			lbuf[2] = ' ';
-// 			sethex0(get4b(&src0[1]), 8, &lbuf[3]);
-// 			lbuf[11] = ' ';
-// 			len = -9 + 12;
-// 			lbuf += 12;
-// 			src0 += 5;
-// 			status = 2;
-// 		} else if (c == 0x0d) {
-// 			/* EQU (2) */
-// 			/* 必ず status == 1 */
-// 			lbuf[0] = ' ';
-// 			lbuf[1] = '=';
-// 			lbuf[2] = ' ';
-// 			lbuf[3] = '[';
-// 			sethex0(get4b(&src0[1]), 8, &lbuf[4]);
-// 			lbuf[12] = ']';
-// 			lbuf[13] = ' ';
-// 			len = -9 + 14;
-// 			lbuf += 14;
-// 			src0 += 5;
-// 			status = 2;
-// 		} else if (0xe1 <= c && c <= 0xec) {
-// 			/* エラーコード */
-// 			*ebuf++ = c;
-// 			src0++;
-// 		} else if (c == 0x30 /* SHORT_DB0 */) {
-// 			src0++; /* 読み飛ばす */
-// 		} else if (0xf0 <= c && c <= 0xf7) {
-// 			src0 += c - (0xf0 - 2);
-// 		} else if (c == 0x2c) {
-// 			src0 += 4;
-// 		} else {
-// 			#if (DEBUG)
-// 				fprintf(stderr, "output:%02X\n", c);
-// 			#endif
-// 			src0++;
-// 		}
-// 		i = lbuf - lbuf0;
-// 		if (list0 + i >= list1) {
-// 			*list0 = '\0';
-// 			list0 = NULL;
-// 		}
-// 		if (list0) {
-// 			lbuf = lbuf0;
-// 			while (i--)
-// 				*list0++ = *lbuf++;
-// 		}
-// 		if (c == 0xf7) {
-// 			cc = 0;
-// 			for (i = -8; i < 0; i++)
-// 				cc |= src0[i];
-// 			if (cc == 0)
-// 				break;
-// 		}
-// 	}
-//error:
-// 	list1[1] = 1; /* over */
-// 	if (list0) {
-// 		*list0 = '\0';
-// 		list1[1] = 0; /* enough */
-// 	}
-// 	free(lbuf0);
-// 	free(ebuf0);
-// 	free(sectable);
-	UCHAR* dest;
+	int len, linecount = 0, srcl, i, addr, secno, file_len, g_symbols = 0, e_symbols = 0;
+
+	std::unique_ptr<STR_OUTPUT_SECTION[]> sectable(new STR_OUTPUT_SECTION[MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION)]);
+	UCHAR *srcp, *file_p, *string0, *dest = dest0;
+	std::unique_ptr<UCHAR[]> lbuf0(new UCHAR[1024]);
+	UCHAR *lbuf = lbuf0.get();
+	std::unique_ptr<UCHAR[]> ebuf0(new UCHAR[32]);
+	UCHAR *ebuf = ebuf0.get(); /* エラーバッファ */
+
+	UCHAR c, status, adrflag, cc, format, file_aux;
+	/* 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み */
+
+	/* アライン情報検索 */
+	srcp = src0;
+	secno = 0;
+	for (i = 0; i < MAX_SECTIONS; i++) {
+		sectable[i].relocs = 0;
+		sectable[i].flags = 0; /* invalid */
+	}
+	do {
+		if (srcp[0] == REM_4B) {
+			if (srcp[1] == 0)
+				sectable[srcp[2]].align = srcp[3]; /* set section align */
+			if (srcp[1] == 1)
+				sectable[srcp[2]].flags = srcp[3]; /* set section flags */
+		}
+		if (srcp[0] == REM_3B) {
+			if (srcp[1] == 1) {
+				/* start section */
+				secno = srcp[2];
+			}
+			if (srcp[1] == 2) {
+				/* set format */
+				format = srcp[2];
+			}
+		}
+		if (srcp[0] == REM_8B) {
+			if (srcp[1] == 0) { /* file */
+				file_len = srcp[2];
+				file_p = (UCHAR *) get4b(&srcp[4]);
+				file_aux = (file_len + (1 + 17)) / 18;
+			}
+			if (srcp[1] == 1)
+				g_symbols++; /* GLOBAL */
+			if (srcp[1] == 2) { /* EXTERN */
+				e_symbols++;
+				/* 番号とCOFFシンボル番号との対応表を作る...必要はない */
+				/* EXTERNシンボルは、ラベル番号から定数を引くだけでCOFFシンボル番号になる */
+			}
+		}
+		if (0x2e <= srcp[0] && srcp[0] <= 0x2f) {
+			/* need relocation */
+			sectable[secno].relocs++;
+		}
+		srcp = LL_skipcode(srcp);
+	} while (srcp < src1);
+
+	/* バイナリー出力 */
+	if (format == 1) { /* WCOFF */
+		static UCHAR header[140] = {
+			/* file header */
+			0x4c, 0x01, /* signature */
+			0x03, 0x00, /* sections == 3 */
+			0, 0, 0, 0, /* time & date */
+			0, 0, 0, 0, /* +0x08: symboltable */
+			0, 0, 0, 0, /* +0x0c: sizeof (symboltable) / 18 */
+			0x00, 0x00, /* no optional header */
+			0x00, 0x00, /* flags */
+
+			/* section header (.text) */
+			'.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
+			0, 0, 0, 0, /* paddr (section_text - section_text) */
+			0, 0, 0, 0, /* vaddr == 0 */
+			0, 0, 0, 0, /* +0x24: sizeof (section_text) */
+			0, 0, 0, 0, /* +0x28: section_text */
+			0, 0, 0, 0, /* +0x2c: reloctab_text */
+			0, 0, 0, 0, /* line number == 0 */
+			0, 0, /* +0x34: sizeof (reloctab_text) / 10 */
+			0, 0, /* sizeof (line_number) == 0 */
+			0x20, 0x00, 0x10, 0x60, /* +0x38: flags, default_align = 1 */
+
+			/* section header (.data) */
+			'.', 'd', 'a', 't', 'a', 0, 0, 0, /* name */
+			0, 0, 0, 0, /* paddr (section_data - section_text) */
+			0, 0, 0, 0, /* vaddr == 0 */
+			0, 0, 0, 0, /* +0x4c: sizeof (section_data) */
+			0, 0, 0, 0, /* +0x50: section_data */
+			0, 0, 0, 0, /* +0x54: reloctab_data */
+			0, 0, 0, 0, /* line number == 0 */
+			0, 0, /* +0x5c: sizeof (reloctab_data) / 10 */
+			0, 0, /* sizeof (line_number) == 0 */
+			0x40, 0x00, 0x10, 0xc0, /* +0x60: flags, default_align = 1 */
+
+			/* section header (.bss) */
+			'.', 'b', 's', 's', 0, 0, 0, 0, /* name */
+			0, 0, 0, 0, /* paddr (section_bss - section_text) */
+			0, 0, 0, 0, /* vaddr == 0 */
+			0, 0, 0, 0, /* +0x74: sizeof (section_bss) */
+			0, 0, 0, 0, /* section_bss == 0 */
+			0, 0, 0, 0, /* reloctab_bss == 0 */
+			0, 0, 0, 0, /* line number == 0 */
+			0, 0, /* sizeof (reloctab_data) / 10 == 0 */
+			0, 0, /* sizeof (line_number) == 0 */
+			0x80, 0x00, 0x10, 0xc0 /* +0x88: flags, default_align = 1 */
+		};
+		if (dest + sizeof (header) > dest1) {
+			dest = NULL;
+			goto error;
+		}
+		for (i = 0; i < sizeof (header); i++)
+			dest[i] = header[i];
+		dest += sizeof (header);
+	}
+	srcp = src0;
+	secno = 0;
+	do {
+		c = *srcp;
+		if (SHORT_DB1 <= c && c <= SHORT_DB4) {
+			srcp++;
+			c -= SHORT_DB0;
+			if (dest + 8 > dest1) {
+				dest = NULL;
+				goto error;
+			}
+			if (format == 0 /* BIN */)
+				goto dest_out_skip;
+			if (format == 1 && 1 <= sectable[secno].flags && sectable[secno].flags <= 2) {
+dest_out_skip:
+				do {
+					*dest++ = *srcp++;
+				} while (--c);
+				continue;
+			}
+			srcp += c; /* bss or absolute */
+			continue;
+		}
+		if (c == REM_3B && srcp[1] == 1) {
+			/* start section */
+			if (format == 1) { /* WCOFF */
+				if (1 <= sectable[secno].flags && sectable[secno].flags <= 3)
+					put4b(dest - sectable[secno].d0, &dest0[sectable[secno].flags * 40 - 4]);
+			}
+			sectable[secno = srcp[2]].p = srcp;
+			sectable[secno].d0 = dest;
+			if (format == 0) { /* BIN */
+				if (sectable[secno].align > 0) {
+					i = 1 << (sectable[secno].align);
+
+					// FIXME: it should be used nask32bitInt
+					//while (((int) dest) & (i - 1)) {
+					// 	if (dest >= dest1) {
+					// 		dest = NULL;
+					// 		goto error;
+					// 	}
+					// 	*dest++ = '\0';
+					//}
+				}
+			}
+			if (format == 1) { /* WCOFF */
+				if (1 <= sectable[secno].flags && sectable[secno].flags <= 3) {
+					put4b(dest - dest0, &dest0[sectable[secno].flags * 40]);
+					dest0[sectable[secno].flags * 40 + 18] = sectable[secno].align << 4;
+				}
+			}
+		}
+		srcp = LL_skipcode(srcp);
+	} while (srcp < src1);
+	if (format == 1) { /* WCOFF */
+		static UCHAR common_symbols0[18 * 1 - 1] = {
+			'.', 'f', 'i', 'l', 'e', 0, 0, 0, /* name */
+			0, 0, 0, 0, /* value */
+			0xfe, 0xff, /* debugging symbol */
+			0, 0, /* T_NULL */
+			103 /* , 0 */ /* file name, numaux = 0 */
+		};
+		static UCHAR common_symbols1[18 * 6] = {
+			'.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
+			0, 0, 0, 0, /* value */
+			0x01, 0x00, /* section 1 */
+			0, 0, /* T_NULL */
+			3, 1, /* private symbol, numaux = 1 */
+			0, 0, 0, 0, /* +0x12: sizeof (section_text) */
+			0, 0, /* +0x16: sizeof (reloctab_text) / 10 */
+			0, 0, /* sizeof (line_number) == 0 */
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+
+			'.', 'd', 'a', 't', 'a', 0, 0, 0, /* name */
+			0, 0, 0, 0, /* value */
+			0x02, 0x00, /* section 2 */
+			0, 0, /* T_NULL */
+			3, 1, /* private symbol, numaux = 1 */
+			0, 0, 0, 0, /* +0x36: sizeof (section_text) */
+			0, 0, /* +0x3a: sizeof (reloctab_text) / 10 */
+			0, 0, /* sizeof (line_number) == 0 */
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+
+			'.', 'b', 's', 's', 0, 0, 0, 0, /* name */
+			0, 0, 0, 0, /* value */
+			0x03, 0x00, /* section 3 */
+			0, 0, /* T_NULL */
+			3, 1, /* private symbol, numaux = 1 */
+			0, 0, 0, 0, /* +0x5a: sizeof (section_bss) */
+			0, 0, /* sizeof (reloctab_text) / 10 == 0 */
+			0, 0, /* sizeof (line_number) == 0 */
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+		};
+		/* 最後のセクションのサイズ書き込み */
+		if (1 <= sectable[secno].flags && sectable[secno].flags <= 3)
+			put4b(dest - sectable[secno].d0, &dest0[sectable[secno].flags * 40 - 4]);
+
+		/* relocation tables (allocate only) */
+		/* relocation情報を持つセクションは2つしかない */
+		for (i = 0; i < MAX_SECTIONS; i++) {
+			if (1 <= sectable[i].flags && sectable[i].flags <= 2) {
+				sectable[i].reloc_p = dest;
+				put4b(dest - dest0, &dest0[sectable[i].flags * 40 + 4]); /* reloctab */
+				dest0[sectable[i].flags * 40 + 12] = sectable[i].relocs & 0xff;
+				dest0[sectable[i].flags * 40 + 13] = (sectable[i].relocs >> 8) & 0xff;
+				dest += sectable[i].relocs * 10;
+			}
+		}
+		if (dest > dest1) {
+			dest = NULL;
+			goto error;
+		}
+
+		/* symbol table */
+		put4b(dest - dest0, &dest0[0x08]);
+		put4b(i = file_aux + 7 + e_symbols + g_symbols, &dest0[0x0c]);
+		if (dest + i * 18 > dest1) {
+			dest = NULL;
+			goto error;
+		}
+		for (i = 0; i < sizeof (common_symbols0); i++)
+			dest[i] = common_symbols0[i];
+		dest[17] = file_aux;
+		for (i = 0; i < 18; i++)
+			dest[file_aux * 18 + i] = '\0';
+		for (i = 0; i < file_len; i++)
+			dest[18 + i] = file_p[i];
+		dest += file_aux * 18 + 18;
+		for (i = 0; i < sizeof (common_symbols1); i++)
+			dest[i] = common_symbols1[i];
+		put4b(get4b(&dest0[0x24]), &dest[0x12]);
+		put4b(get4b(&dest0[0x34]), &dest[0x16]);
+		put4b(get4b(&dest0[0x4c]), &dest[0x36]);
+		put4b(get4b(&dest0[0x5c]), &dest[0x3a]);
+		put4b(get4b(&dest0[0x74]), &dest[0x5a]);
+		file_p = dest + sizeof (common_symbols1);
+		dest = file_p + (e_symbols + g_symbols) * 18;
+		string0 = dest;
+		dest += 4;
+		/* 以下のループでリロケーションとシンボルテーブルをうめる */
+		srcp = src0;
+		secno = 0;
+		addr = 0;
+		g_symbols = e_symbols * 18;
+		do {
+			c = *srcp;
+			if (SHORT_DB1 <= c && c <= SHORT_DB4) {
+				srcp++;
+				c -= SHORT_DB0;
+				srcp += c;
+				addr += c;
+				continue;
+			}
+			if (c == REM_3B && srcp[1] == 1) {
+				/* start section */
+				secno = srcp[2];
+				addr = 0;
+			}
+			if (srcp[0] == REM_8B) {
+				if (1 <= srcp[1] && srcp[1] <= 2) {
+					len = srcp[2] | srcp[3] << 8;
+					lbuf = (UCHAR *) get4b(&srcp[4]);
+					ebuf = file_p + ((srcp[10] | srcp[11] << 8) - E_LABEL0) * 18; /* EXTERN */
+					if (srcp[1] == 1) { /* GLOBAL */
+						ebuf = file_p + g_symbols;
+						g_symbols += 18;
+					}
+					for (i = 0; i < 18; i++)
+						ebuf[i] = '\0';
+					ebuf[16] = 2; /* GLOBAL or EXTERN */
+					if (len <= 8) {
+						for (i = 0; i < len; i++)
+							ebuf[i] = lbuf[i];
+					} else {
+						put4b(dest - string0, &ebuf[4]);
+						if (dest + len + 1 > dest1) {
+							dest = NULL;
+							goto error;
+						}
+						do {
+							*dest++ = *lbuf++;
+						} while (--len);
+						*dest++ = '\0';
+					}
+					if (srcp[1] == 1) { /* GLOBAL */
+						ebuf[ 8] = srcp[12];
+						ebuf[ 9] = srcp[13];
+						ebuf[10] = srcp[14];
+						ebuf[11] = srcp[15];
+						ebuf[12] = srcp[10];
+						ebuf[13] = srcp[11];
+					}
+				}
+			}
+			/* リロケーション */
+			if (0x2e <= srcp[0] && srcp[0] <= 0x2f &&
+				1 <= sectable[secno].flags && sectable[secno].flags <= 2) {
+				/* 0x2e : 絶対補正要求, 0x2f : 相対補正要求 */
+				put4b(addr, sectable[secno].reloc_p);
+				i = srcp[2] | srcp[3] << 8;
+				/* .text == file_aux + 1 */
+				/* .data == file_aux + 3 */
+				/* .bss	 == file_aux + 5 */
+				/* ext0 == file_aux + 7 */
+				if (i >= E_LABEL0)
+					i += 7 - E_LABEL0;
+				else
+					i = i * 2 - 1;
+				put4b(i + file_aux, sectable[secno].reloc_p + 4);
+				sectable[secno].reloc_p[8] = 0x06; /* absolute */
+				sectable[secno].reloc_p[9] = 0;
+				if (srcp[0] == 0x2f) {
+					sectable[secno].reloc_p[8] = 0x14; /* relative */
+					i = get4b(&dest0[sectable[secno].flags * 40]) + addr;
+					#if (DEBUG)
+						if (i < 0 || i + 4 > dest - lbuf) {
+							fprintf(stderr, "output:relative relocation error(1)! i = 0x%08X\n", i);
+							goto skip_relative_relocation;
+						}
+					#endif
+					put4b(get4b(&dest0[i]) + addr + 4, &dest0[i]);
+				}
+skip_relative_relocation:
+				sectable[secno].reloc_p += 10;
+			}
+			srcp = LL_skipcode(srcp);
+		} while (srcp < src1);
+		put4b(dest - string0, string0);
+	}
+
+	/* リスト出力 */
+	status = 0;
+	secno = 0;
+	addr = 0;
+	ebuf = ebuf0.get();
+	for (;;) {
+		lbuf = lbuf0.get();
+		c = *src0;
+		if (c == REM_3B && src0[1] == 0) {
+			sectable[secno].p = src0;
+			sectable[secno].addr = addr;
+			secno = src0[2];
+			src0 = sectable[secno].p;
+			addr = sectable[secno].addr;
+		}
+
+		if (c == 0xf7) {	/* switchで書いたら、lcc-win32が死んでしまった */
+			/* line start */
+			if (status == 1) {
+				len = -9;
+				status = 2;
+			}
+			if (status == 2) {
+				/* (MAX_LISTLEN - len)個のスペースを出力 */
+				if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
+					*list0 = '\0';
+					list0 = NULL;
+				}
+				if (list0) {
+					do {
+						*list0++ = ' ';
+						len++;
+					} while (len < MAX_LISTLEN);
+					while (srcl--)
+						*list0++ = *srcp++;
+				}
+			}
+			if (status == 3)
+				*lbuf++ = '\n';
+			if ((len = ebuf - ebuf0.get()) != 0) {
+				/* エラー出力 */
+				nask_errors += len;
+
+				// FIXME: error message types are not match
+				//for (i = 0; i < len; i++) {
+				// 	ebuf = reinterpret_cast<UCHAR*>(ERRMSG[ebuf0[i] - 0xe1]);
+				// 	while ((*lbuf++ = *ebuf++) != '\n');
+				//}
+				ebuf = ebuf0.get();
+			}
+			srcl = get4b(&src0[1]);
+			srcp = (UCHAR *) get4b(&src0[5]);
+			if (srcl) {
+				setdec(++linecount, 6, &lbuf[0]);
+				lbuf[6] = ' ';
+				lbuf += 7;
+			}
+			len = 0;
+			src0 += 9;
+			status = 1;
+			adrflag = 0;
+		} else if (c == 0x5a) {
+			/* ORG */
+			addr = get4b(&src0[1]);
+			src0 += 5;
+		} else if (c == 0x68) {
+			src0 += 2; /* 読み飛ばす */
+		} else if (c == REM_ADDR) {
+			status = 2;
+			sethex0(addr, 8, &lbuf[0]);
+			lbuf[8] = ' ';
+			lbuf += 9;
+			src0++;
+			adrflag = 1;
+		} else if (SHORT_DB1 <= c && c <= SHORT_DB4) {
+			if (status == 1) {
+				for (i = 0; i < 9; i++)
+					*lbuf++ = ' ';
+				status = 2;
+			}
+			if (len + 1 + (c - 0x30) * 2 > MAX_LISTLEN) {
+			//	if (status == 1) {
+			//		len = -9;
+			//		status = 2;
+			//	}
+				if (status == 2) {
+					/* (MAX_LISTLEN - len)個のスペースを出力 */
+					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
+						*list0 = '\0';
+						list0 = NULL;
+					}
+					if (list0) {
+						do {
+							*list0++ = ' ';
+							len++;
+						} while (len < MAX_LISTLEN);
+						while (srcl--)
+							*list0++ = *srcp++;
+					}
+				} else
+					*lbuf++ = '\n';
+				for (i = 0; i < 7 + 9; i++)
+					lbuf[i] = ' ';
+				if (adrflag)
+					sethex0(addr, 8, &lbuf[7]);
+				lbuf += 9 + 7;
+				status = 3;
+				len = 0;
+			}
+			src0++;
+			for (i = c - SHORT_DB1 /* 0x31 */; i >= 0; i--) {
+				sethex0(src0[i], 2, &lbuf[0]);
+				lbuf += 2;
+				len += 2;
+				addr++;
+			}
+			src0 += c - SHORT_DB0; /* - 0x30 */
+			*lbuf++ = ' ';
+			len++;
+		} else if (0x2e <= c && c <= 0x2f && 1 <= sectable[secno].flags && sectable[secno].flags <= 2) { /* reloc data */
+			if (status == 1) {
+				for (i = 0; i < 9; i++)
+					*lbuf++ = ' ';
+				status = 2;
+			}
+			if (len + 11 > MAX_LISTLEN) {
+			//	if (status == 1) {
+			//		len = -9;
+			//		status = 2;
+			//	}
+				if (status == 2) {
+					/* (MAX_LISTLEN - len)個のスペースを出力 */
+					if (list0 + (MAX_LISTLEN - len + srcl) >= list1) {
+						*list0 = '\0';
+						list0 = NULL;
+					}
+					if (list0) {
+						do {
+							*list0++ = ' ';
+							len++;
+						} while (len < MAX_LISTLEN);
+						while (srcl--)
+							*list0++ = *srcp++;
+					}
+				} else
+					*lbuf++ = '\n';
+				for (i = 0; i < 7 + 9; i++)
+					lbuf[i] = ' ';
+				if (adrflag)
+					sethex0(addr, 8, &lbuf[7]);
+				lbuf += 9 + 7;
+				status = 3;
+				len = 0;
+			}
+			src0 += 9;
+			i = get4b(&dest0[sectable[secno].flags * 40]) + addr;
+			lbuf[0] = '[';
+			sethex0(get4b(&dest0[i]), 8, &lbuf[1]);
+			lbuf[9] = ']';
+			lbuf[10] = ' ';
+			lbuf += 11;
+			len += 11;
+			addr += 4;
+		} else if (c == 0x0c) {
+			/* EQU (1) */
+			/* 必ず status == 1 */
+			lbuf[0] = ' ';
+			lbuf[1] = '=';
+			lbuf[2] = ' ';
+			sethex0(get4b(&src0[1]), 8, &lbuf[3]);
+			lbuf[11] = ' ';
+			len = -9 + 12;
+			lbuf += 12;
+			src0 += 5;
+			status = 2;
+		} else if (c == 0x0d) {
+			/* EQU (2) */
+			/* 必ず status == 1 */
+			lbuf[0] = ' ';
+			lbuf[1] = '=';
+			lbuf[2] = ' ';
+			lbuf[3] = '[';
+			sethex0(get4b(&src0[1]), 8, &lbuf[4]);
+			lbuf[12] = ']';
+			lbuf[13] = ' ';
+			len = -9 + 14;
+			lbuf += 14;
+			src0 += 5;
+			status = 2;
+		} else if (0xe1 <= c && c <= 0xec) {
+			/* エラーコード */
+			*ebuf++ = c;
+			src0++;
+		} else if (c == 0x30 /* SHORT_DB0 */) {
+			src0++; /* 読み飛ばす */
+		} else if (0xf0 <= c && c <= 0xf7) {
+			src0 += c - (0xf0 - 2);
+		} else if (c == 0x2c) {
+			src0 += 4;
+		} else {
+			#if (DEBUG)
+				fprintf(stderr, "output:%02X\n", c);
+			#endif
+			src0++;
+		}
+		i = lbuf - lbuf0.get();
+		if (list0 + i >= list1) {
+			*list0 = '\0';
+			list0 = NULL;
+		}
+		if (list0) {
+			lbuf = lbuf0.get();
+			while (i--)
+				*list0++ = *lbuf++;
+		}
+		if (c == 0xf7) {
+			cc = 0;
+			for (i = -8; i < 0; i++)
+				cc |= src0[i];
+			if (cc == 0)
+				break;
+		}
+	}
+error:
+	list1[1] = 1; /* over */
+	if (list0) {
+		*list0 = '\0';
+		list1[1] = 0; /* enough */
+	}
 	return dest;
 }
 

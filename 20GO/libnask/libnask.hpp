@@ -220,6 +220,21 @@ struct STR_IFDEFBUF {
 static UCHAR *labelbuf0, *labelbuf;
 static UCHAR *locallabelbuf0 /* 256bytes */, *locallabelbuf;
 static int nextlabelid;
+static const char *ERRMSG[] = {
+	"      >> [ERROR #001] syntax error.\n",
+	"      >> [ERROR #002] parameter error.\n",
+	"      >> [ERROR #003] data size error.\n",
+	"      >> [ERROR #004] data type error.\n",
+	"      >> [ERROR #005] addressing error.\n",
+	"      >> [ERROR #006] TIMES error.\n",
+	"      >> [ERROR #007] label definition error.\n",
+	"      >> [ERROR #008] data range error.\n",
+	"      >> [ERROR #009] expression error.\n",	/* 不定値エラー(delta != 0) */
+	"      >> [ERROR #010] expression error.\n",
+	"      >> [ERROR #011] expression error.\n",
+	"      >> [ERROR #012] expression error.\n" /* 未定義ラベル参照 */
+};
+
 
 UCHAR* skipspace(UCHAR *s, UCHAR *t);
 UCHAR* putimm(int i, UCHAR *p);

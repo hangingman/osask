@@ -146,7 +146,7 @@ int before_nask_process(int argc, UCHAR **argv, UCHAR *src0)
 
 	LOG_DEBUG("call nask...\n");
 	list1 = nask(src0, src1, list0, list0 + MAX_LSTSIZ);
-	LOG_DEBUG("nask result: %s\n", list1);
+	LOG_DEBUG("nask processed list size: %d\n", sizeof list1);
 
 	if (list1 == NULL) {
 over_listbuf:
@@ -154,14 +154,18 @@ over_listbuf:
 		return 19;
 	}
 
+	LOG_DEBUG("call LL...\n");
 	tmp1 = LL(list0, list1, tmp0, tmp0 + MAX_TMPSIZ);
+	LOG_DEBUG("LL processed list size: %d\n", sizeof tmp1);
 	if (tmp1 == NULL) {
 over_tmpbuf:
 		errmsgout("NASK : TMPBUF is not enough" NL);
 		return 19;
 	}
 
+	LOG_DEBUG("call output...\n");
 	dest1 = output(tmp0, tmp1, dest0, dest0 + MAX_BINSIZ, list0, list0 + MAX_LSTSIZ - 2);
+	LOG_DEBUG("output processed list size: %d\n", sizeof dest1);
 	if (dest1 == NULL) {
 		errmsgout("NASK : BINBUF is not enough" NL);
 		return 19;
