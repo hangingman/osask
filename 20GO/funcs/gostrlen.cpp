@@ -1,6 +1,6 @@
-unsigned int GO_strlen(const char *s)
+unsigned int GO_strlen(const UCHAR *s)
 {
-	const char *t = s;
+	const UCHAR *t = s;
 	while (*s)
 		s++;
 	return s - t;

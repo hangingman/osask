@@ -1,10 +1,11 @@
 /* for stdc */
 
-int GOLD_write_b(const char* name, int len, const char* p0)
+int GOLD_write_b(const UCHAR *name, int len, const UCHAR *p0)
+/* バイナリモードでファイルに出力 */
 {
 	int ll = 0;
 	FILE *fp;
-	fp = fopen(name, "wb");
+	fp = fopen(reinterpret_cast<const char*>(name), "wb");
 	if (fp == NULL)
 		goto err;
 	if (len)
@@ -16,4 +17,3 @@ int GOLD_write_b(const char* name, int len, const char* p0)
 err:
 	return 1;
 }
-

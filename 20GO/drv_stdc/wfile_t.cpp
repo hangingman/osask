@@ -1,11 +1,12 @@
 /* for stdc */
 
-int GOLD_write_t(const char* name, int len, const char* p0)
+int GOLD_write_t(const UCHAR *name, int len, const UCHAR *p0)
+/* テキストモードでファイルに出力。もしnameがNULLなら、標準出力へ出力 */
 {
 	int ll = 0;
 	FILE *fp = stdout;
 	if (name) {
-		fp = fopen(name, "w");
+		fp = fopen(reinterpret_cast<const char*>(name), "w");
 		if (fp == NULL)
 			goto err;
 	}
@@ -19,4 +20,3 @@ int GOLD_write_t(const char* name, int len, const char* p0)
 err:
 	return 1;
 }
-

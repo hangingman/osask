@@ -4,61 +4,208 @@
 /* 方針：遅くてもいいから、とりあえず動くこと！ */
 /* アルゴリズムに凝るのは、動くようになってから */
 
-#include "../include/stdlib.h"
+#include <cstdlib>
+#include "ll.hpp"
 
 #if (DEBUG)
 	#include "go.hpp"
-	#include "../include/stdio.h"
+	#include <cstdio>
 #endif
 
-#define	INVALID_DELTA		0x40000000
+UCHAR *LL_skipcode(UCHAR *p)
+{
+	UCHAR c, len;
+retry:
+	c = *p++;
+	if (0x30 <= c && c <= 0x37) {
+		p += c - 0x30; /* 0〜7バイト出力 */
+		goto fin;
+	}
+	if (0x78 <= c && c <= 0x7f)
+		goto fin; /* virtual-byte展開 */
+	if (0x70 <= c && c <= 0x77)
+		goto retry; /* virtual-byte定義 */
+	if (0xe0 <= c && c <= 0xef)
+		goto fin; /* パラメータなし1バイトリマーク */
+	if (0xf0 <= c && c <= 0xf7) {
+		p += c - (0xf0 - 1); /* パラメータ付きリマーク(1〜8) */
+		goto fin;
+	}
+	if (c == 0x0e) {
+		p = LL_skip_expr(p); /* プログラムカウンタラベル定義 */
+		goto fin;
+	}
+	if (c == 0x2d) {
+		p = LL_skip_expr(p); /* equラベル定義 */
+		p = LL_skip_expr(p);
+		goto fin;
+	}
+	if (0x0c <= c && c <= 0x0d) { /* equラベル展開 */
+		p += 4;
+		goto fin;
+	}
+	if (c == 0x0f) {
+		p += p[1] - (0x08 - 3); /* GLOBAL用変換 */
+		goto fin;
+		/* 0x0f 3 0x08 xx */
+	}
+	if (c == 0x2c) { /* externラベル定義 */
+		p = LL_skip_expr(p);
+		goto fin;
+	}
+	if (0x2e <= c && c <= 0x2f) { /* リロケーション情報 */
+		p += 3;
+		goto fin;
+	}
+	if (0x38 <= c && c <= 0x3f) {
+		p = LL_skip_expr(p + 1); /* 1〜8バイトを出力 */
+		goto fin;
+	}
+	if (c == 0x58) {
+		p = LL_skip_expr(p); /* ORG */
+		goto fin;
+	}
+	if (c == 0x5a) { /* ORG処理後 */
+		p += 4;
+		goto fin;
+	}
+	if (c == 0x68) {
+		p++; /* endian */
+		goto fin;
+	}
+	if (0x90 <= c && c <= 0x91) {
+		/* microcode90 */
+		/* microcode91 */
+		len = ((p[2] /* z-bbb-d-aaa */ >> 7) & 0x01) + 2;
+		p = LL_skip_expr(p + 3 /* code, decision, zbbbdaaa */);
+		if (c == 0x91)
+			len *= 2;
+		do {
+			p = LL_skip_mc30(p, NULL, 1);
+		} while (--len);
+		goto fin;
+	}
+	if (0x94 <= c && c <= 0x95) {
+		/* microcode94 */
+		/* microcode95 */
+		p = LL_skip_expr(p + 3);
+		len = *p++; /* len */
+		goto skipmc94_skip;
+		do {
+			p = LL_skip_expr(p);
+skipmc94_skip:
+			p = LL_skip_mc30(p, NULL, 0);
+			p = LL_skip_mc30(p, NULL, 1);
+			if (c == 0x95)
+				p = LL_skip_mc30(p, NULL, 1);
+		} while (--len);
+		goto fin;
+	}
+	if (c == 0x59) {
+		p = LL_skip_expr(p + 4); /* TIMES microcode (prefix) */
+		p = LL_skip_expr(p);
+		goto fin;
+	}
 
-extern int nask_maxlabels;
+	#if (DEBUG)
+		fprintf(stderr, "LL_skipcode error:%02X\n", c);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
+	#endif
 
-#define	MAXSIGMAS				  4
+fin:
+	return p;
+}
 
-struct STR_SIGMA {
-	int scale;
-	unsigned int subsect, terms;
-};
+UCHAR *LL_skip_expr(UCHAR *expr)
+{
+	UCHAR c;
+	c = *expr++;
+	if (c <= 6) {
+		/* 定数 */
+		c >>= 1;
+		expr += c + 1;
+		goto fin;
+	}
+	if (c == 0x07)
+		goto fin;
+	if (c <= 0x0b) {
+		/* ラベル引用 */
+		expr += c - 7; /* c - 8 + 1 */
+		goto fin;
+	}
+	#if (DEBUG)
+		if (c < 0x10)
+			goto dberr;
+	#endif
+	if (c < 0x20) {
+		expr = LL_skip_expr(expr);
+		if (c <= 0x12)
+			goto fin; /* 単項演算子 */
+		expr = LL_skip_expr(expr);
+		goto fin; /* 二項演算子 */
+	}
 
-struct STR_VALUE {
-	int min;
-	unsigned int delta, flags;
-	int scale[2];
-	unsigned int label[2];
-	struct STR_SIGMA sigma[MAXSIGMAS];
-};
+	#if (DEBUG)
+		if (c < 0x80)
+			goto dberr;
+	#endif
+	if (c == 0x80) {
+		/* subsect size sum */
+		expr = LL_skip_expr(expr);
+		expr = LL_skip_expr(expr);
+		goto fin;
+	}
+	#if (DEBUG)
+dberr:
+		fprintf(stderr, "LL_skip_expr:%02x\n", c);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
+	#endif
 
-#define	VFLG_ERROR			0x01	/* エラー */
-#define	VFLG_SLFREF			0x02	/* 自己参照エラー */
-#define	VFLG_UNDEF			0x04	/* 未定義エラー */
-#define	VFLG_EXTERN			0x10	/* 外部ラベル */
-#define	VFLG_CALC			0x20	/* 計算中 */
-#define	VFLG_ENABLE			0x40	/* STR_LABELで有効なことを示す */
+fin:
+	return expr;
+}
 
-struct STR_LABEL {
-	struct STR_VALUE value;
-	char *define; /* これがNULLだと、extlabel */
-};
+UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag)
+{
+	static char mc98_width[] = { 1, 1, 2, 2, 4, 4, 1 };
+	UCHAR c;
 
-struct STR_SUBSECTION {
-	unsigned int min, delta, unsolved; /* unsolved == 0 なら最適化の必要なし */
-	char *sect0, *sect1;
-};
+	c = *s++;
+	#if (DEBUG)
+		if (c < 0x30)
+		goto dberr;
+	#endif
+	if (c < 0x38) {
+		s += (c &= 0x07);
+		goto fin;
+	}
+	if (c < 0x3c) {
+		c -= 0x37;
+		s = LL_skip_expr(s + 1 /* レンジを読み飛ばす */);
+		goto fin;
+	}
+	#if (DEBUG)
+		if (c < 0x98)
+			goto dberr;
+	#endif
+	if (c < 0x9f) {
+		c = mc98_width[c & 0x07];
+		if (flag)
+			s = LL_skip_expr(s);
+		goto fin;
+	}
+	#if (DEBUG)
+dberr:
+		fprintf(stderr, "LL_skip_mc30:%02x\n", c);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
+	#endif
+fin:
+	if (bytes)
+		*bytes = c;
+	return s;
+}
 
-static struct STR_LABEL* label0;
-static struct STR_SUBSECTION* subsect0;
-
-unsigned int solve_subsection(struct STR_SUBSECTION *subsect, char force);
-char *skip_mc30(char *s, char *bytes, char flag);
-void calcsigma(struct STR_VALUE *value);
-void addsigma(struct STR_VALUE *value, struct STR_SIGMA sigma);
-char *LL_skip_expr(char *p);
-char *LL_skip_mc30(char *s, char *bytes, char flag);
-char *LL_skipcode(char *p);
-
-void init_value(struct STR_VALUE *value)
+void init_value(STR_VALUE* value)
 {
 	int i;
 	value->min = value->delta = value->scale[0] = value->scale[1] = 0;
@@ -72,14 +219,14 @@ void init_value(struct STR_VALUE *value)
 	return;
 }
 
-unsigned int get_id(int len, char **ps, int i)
+unsigned int get_id(int len, UCHAR **ps, int i)
 /* len = 0〜3 */
 {
-	union UINT_char {
+	union UINT_UCHAR {
 		unsigned int i;
-		char c[4];
+		UCHAR c[4];
 	} u;
-	char *s = *ps;
+	UCHAR *s = *ps;
 	u.i = i;
 	i = 0;
 	do {
@@ -89,9 +236,7 @@ unsigned int get_id(int len, char **ps, int i)
 	return u.i;
 }
 
-void calc_value0(struct STR_VALUE *value, char **pexpr);
-
-void calc_value(struct STR_VALUE *value, char **pexpr)
+void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 {
 	calc_value0(value, pexpr);
 	if (value->sigma[0].scale)
@@ -99,36 +244,44 @@ void calc_value(struct STR_VALUE *value, char **pexpr)
 	return;
 }
 
-void enable_label(struct STR_LABEL *label)
+void enable_label(STR_LABEL* label)
 {
-	struct STR_VALUE value;
-	char *t;
+	std::unique_ptr<STR_VALUE> value;
+	UCHAR *t;
 
+//	if (label->value.flags & VFLG_CALC) {
+//		label->value.flags |= VFLG_SLFREF;
+//		return;
+//	}
+//	init_value(&value);
+//	value.label[0] = label - label0; /* for EXTERN */
+//	value.scale[0] = 1;
+//	value.flags |= label->value.flags & VFLG_EXTERN;
 	if ((t = label->define) != NULL) {
 		label->value.flags |= VFLG_CALC;
-		calc_value0(&value, &t);
-		if (value.flags & VFLG_SLFREF) {
-			init_value(&value);
-			value.flags |= VFLG_SLFREF;
+		calc_value0(value, &t);
+		if (value->flags & VFLG_SLFREF) {
+			init_value(value.get());
+			value->flags |= VFLG_SLFREF;
 		}
 	} else /* if ((label->value.flags & VFLG_EXTERN) == 0) */ {
 		/* EXTERNの時はすぐにENABLEになるので、ここに来るはずない */
-		init_value(&value);
-		value.flags |= VFLG_UNDEF;
+		init_value(value.get());
+		value->flags |= VFLG_UNDEF;
 	}
 	label->value = value;
 	label->value.flags |= VFLG_ENABLE;
 	return;
 }
 
-void calc_value0(struct STR_VALUE *value, char **pexpr)
+void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 {
-	char *expr = *pexpr, c, *t;
+	UCHAR *expr = *pexpr, c, *t;
 	int i, j, k;
-	struct STR_VALUE tmp, tmp2;
+	std::unique_ptr<STR_VALUE> tmp, tmp2;
 	struct STR_SUBSECTION *subsect;
 	c = *expr++;
-	init_value(value);
+	init_value(value.get());
 	if (c <= 6) {
 		/* 定数 */
 		i = 0;
@@ -144,14 +297,13 @@ void calc_value0(struct STR_VALUE *value, char **pexpr)
 	}
 	if (c <= 0x0b) {
 		/* ラベル引用 */
-		struct STR_LABEL *label;
-		label = &label0[i = get_id(c - 8, &expr, 0)];
+	     	std::shared_ptr<STR_LABEL> label(&label0[i = get_id(c - 8, &expr, 0)]);
 		if ((label->value.flags & VFLG_ENABLE) == 0) {
 			if (label->value.flags & VFLG_CALC) {
 				value->flags |= VFLG_SLFREF;
 				goto fin;
 			}
-			enable_label(label);
+			enable_label(label.get());
 		}
 		*value = label->value;
 		goto fin;
@@ -181,8 +333,9 @@ void calc_value0(struct STR_VALUE *value, char **pexpr)
 			value->min = - (int) (value->min + value->delta) - 1;
 			goto minus2;
 		}
-		calc_value0(&tmp, &expr);
-		value->flags |= tmp.flags;
+
+		calc_value0(tmp, &expr);
+		value->flags |= tmp->flags;
 		if (c == 0x13) {
 			/* 二項演算子 + */
 add2:
@@ -191,12 +344,12 @@ add2:
 					break;
 			}
 			for (j = 0; j < 2; j++) {
-				if (tmp.scale[j] == 0)
+				if (tmp->scale[j] == 0)
 					break;
 				for (k = 0; k < i; k++) {
-					if (value->label[k] == tmp.label[j]) {
+					if (value->label[k] == tmp->label[j]) {
 						/* 同類項検出 */
-						if ((value->scale[k] += tmp.scale[j]) == 0) {
+						if ((value->scale[k] += tmp->scale[j]) == 0) {
 							/* 項の消滅 */
 							i--;
 							value->label[k] = 0xffffffff;
@@ -215,79 +368,81 @@ add2:
 					value->flags |= VFLG_ERROR;
 					goto fin;
 				}
-				value->scale[i] = tmp.scale[j];
-				value->label[i] = tmp.label[j];
+				value->scale[i] = tmp->scale[j];
+				value->label[i] = tmp->label[j];
 				i++;
 next_product:
 				;
 			}
 			for (j = 0; j < MAXSIGMAS; j++) {
-				if (tmp.sigma[j].scale == 0)
+				if (tmp->sigma[j].scale == 0)
 					break;
-				addsigma(value, tmp.sigma[j]);
+				addsigma(value, tmp->sigma[j]);
 			}
-			value->min += tmp.min;
-			value->delta += tmp.delta;
+			value->min += tmp->min;
+			value->delta += tmp->delta;
 			goto fin;
 		}
 		if (c == 0x14) {
 			/* 二項演算子 - */
-			tmp.min = - (int) (tmp.min + tmp.delta);
-			tmp.scale[0] *= -1;
- 			tmp.scale[1] *= -1;
+			tmp->min = - (int) (tmp->min + tmp->delta);
+			tmp->scale[0] *= -1;
+ 			tmp->scale[1] *= -1;
 			for (i = 0; i < MAXSIGMAS; i++)
-				tmp.sigma[i].scale *= -1;
+				tmp->sigma[i].scale *= -1;
 			goto add2;
 		}
 		if (c == 0x15) { /* "*" */
 			if (value->scale[0])
 				goto no_exchange;
-			if (tmp.scale[0])
+			if (tmp->scale[0])
 				goto exchange;
 		}
 		if (c == 0x15 || 0x1d <= c && c <= 0x1f) { /* "*", "&", "|", "^" */
 			if (value->delta)
 				goto no_exchange;
-			if (tmp.delta)
+			if (tmp->delta)
 				goto exchange;
 			if (value->sigma[0].scale)
 				goto no_exchange;
-			if (tmp.sigma[0].scale) {
+			if (tmp->sigma[0].scale) {
 		exchange:
 				/* 項の交換 */
 				/* 不定値を1項目に持ってくるために交換 */
-				tmp.flags = value->flags;
-				tmp2 = *value;
-				*value = tmp;
-				tmp = tmp2;
+				tmp->flags = value->flags;
+				//tmp2 = *value;
+				//*value = tmp;
+				//tmp = tmp2;
+				// FIXME: 要テスト
+				std::swap(tmp, value);
 			}
 		}
 	no_exchange:
-		calcsigma(&tmp);
-		if (tmp.delta) {
+		calcsigma(tmp);
+		if (tmp->delta) {
 			/* 不定値を使うために、値がまだ決定できない */
 			value->flags |= VFLG_ERROR;
 			goto fin;
 		}
 		if (c == 0x15) {
 			/* 二項演算子 * (signed) */
-			if (tmp.scale[0]) {
+			if (tmp->scale[0]) {
 	error:
 				/* 両方ともlabelを含んでいればエラー */
 				value->flags |= VFLG_ERROR;
 				goto fin;
 			}
 multiply2:
-			if (tmp.min == 0) {
-				init_value(value);
+			if (tmp->min == 0) {
+				init_value(value.get());
 				goto fin;
 			}
-			value->scale[0] *= tmp.min;
-			value->scale[1] *= tmp.min;
+			value->scale[0] *= tmp->min;
+			value->scale[1] *= tmp->min;
 			for (i = 0; i < MAXSIGMAS; i++)
-				value->sigma[i].scale *= tmp.min;
-			i = (signed int) value->min * (signed int) tmp.min;
-			j = (signed int) (value->min + value->delta) * (signed int) tmp.min;
+				value->sigma[i].scale *= tmp->min;
+			i = (signed int) value->min * (signed int) tmp->min;
+			j = (signed int) (value->min + value->delta) * (signed int) tmp->min;
 minmax:
 			value->min = i;
 			value->delta = j - i;
@@ -300,44 +455,44 @@ minmax:
 		/* これ以降はtmp側のlabelはキャンセルされる */
 		if (c == 0x16) {
 			/* 二項演算子 << */
-			tmp.min = 1 << tmp.min;
+			tmp->min = 1 << tmp->min;
 			goto multiply2;
 		}
 		if (c == 0x17) {
 			/* 二項演算子 / (unsigned) */
 divu2:
-			if (tmp.min == 0)
+			if (tmp->min == 0)
 				goto error;
 divu_ij:
-			i = (unsigned int) value->min / (unsigned int) tmp.min;
-			j = (unsigned int) (value->min + value->delta) / (unsigned int) tmp.min;
+			i = (unsigned int) value->min / (unsigned int) tmp->min;
+			j = (unsigned int) (value->min + value->delta) / (unsigned int) tmp->min;
 			for (k = 0; k < MAXSIGMAS; k++) {
-				if (value->sigma[k].scale % tmp.min) {
+				if (value->sigma[k].scale % tmp->min) {
 					calcsigma(value);
 					goto divu_ij;
 				}
 			}
 divall:
-			if (value->scale[0] % tmp.min)
+			if (value->scale[0] % tmp->min)
 				goto error;
-			if (value->scale[1] % tmp.min)
+			if (value->scale[1] % tmp->min)
 				goto error;
-			value->scale[0] /= tmp.min;
-			value->scale[1] /= tmp.min;
+			value->scale[0] /= tmp->min;
+			value->scale[1] /= tmp->min;
 			for (k = 0; k < MAXSIGMAS; k++)
-				value->sigma[k].scale /= tmp.min;
+				value->sigma[k].scale /= tmp->min;
 			goto minmax;
 		}
 		if (c == 0x19) {
 			/* 二項演算子 / (signed) */
 divs2:
-			if (tmp.min == 0)
+			if (tmp->min == 0)
 				goto error;
 divs_ij:
-			i = (signed int) value->min / (signed int) tmp.min;
-			j = (signed int) (value->min + value->delta) / (signed int) tmp.min;
+			i = (signed int) value->min / (signed int) tmp->min;
+			j = (signed int) (value->min + value->delta) / (signed int) tmp->min;
 			for (k = 0; k < MAXSIGMAS; k++) {
-				if (value->sigma[k].scale % tmp.min) {
+				if (value->sigma[k].scale % tmp->min) {
 					calcsigma(value);
 					goto divs_ij;
 				}
@@ -346,40 +501,40 @@ divs_ij:
 		}
 		if (c == 0x1b) {
 			/* 二項演算子 >> (unsigned) */
-			tmp.min = 1 << tmp.min;
+			tmp->min = 1 << tmp->min;
 			goto divu2;
 		}
 		if (c == 0x1c) {
 			/* 二項演算子 >> (signed) */
-			tmp.min = 1 << tmp.min;
+			tmp->min = 1 << tmp->min;
 			goto divs2;
 		}
 		value->scale[0] = value->scale[1] = 0; /* 自動キャンセル */
 		calcsigma(value);
 		if (c == 0x18) {
 			/* 二項演算子 % (unsigned) */
-			if (tmp.min == 0)
+			if (tmp->min == 0)
 				goto error;
-			value->min = (unsigned int) value->min % (unsigned int) tmp.min;
+			value->min = (unsigned int) value->min % (unsigned int) tmp->min;
 			if (value->delta) {
 				value->min = 0;
-				value->delta = tmp.min - 1;
+				value->delta = tmp->min - 1;
 			}
 			goto fin;
 		}
 		if (c == 0x1a) {
 			/* 二項演算子 % (signed) */
-			if (tmp.min == 0)
+			if (tmp->min == 0)
 				goto error;
-			value->min = (signed int) value->min % (signed int) tmp.min;
+			value->min = (signed int) value->min % (signed int) tmp->min;
 			if (value->delta) {
-				value->delta = tmp.min - 1;
+				value->delta = tmp->min - 1;
 				if (value->min >= 0) {
 					value->min = 0;
 				} else if ((signed int) (value->min + value->delta) <= 0) {
-					value->min = 1 - tmp.min;
+					value->min = 1 - tmp->min;
 				} else {
-					value->min = 1 - tmp.min;
+					value->min = 1 - tmp->min;
 					value->delta *= 2;
 				}
 			}
@@ -387,30 +542,30 @@ divs_ij:
 		}
 		if (c == 0x1d) {
 			/* 二項演算子 & (unsigned) */
-			if (tmp.min == -1)
+			if (tmp->min == -1)
 				goto fin; /* 素通り */
 			if (value->delta == 0) {
-				value->min &= tmp.min;
+				value->min &= tmp->min;
 				goto fin;
 			}
-			if (tmp.min & 0x80000000)
+			if (tmp->min & 0x80000000)
 				goto error; /* 手が付けられない */
 			/* 本当はもっと細かくできるが、面倒なのでやってない */
 			value->min = 0;
-			value->delta = tmp.min;
+			value->delta = tmp->min;
 			goto fin;
 		}
 		if (c == 0x1e) {
 			/* 二項演算子 | (unsigned) */
-			if (tmp.min == 0)
+			if (tmp->min == 0)
 				goto fin; /* 素通り */
 			if (value->delta == 0) {
-				value->min |= tmp.min;
+				value->min |= tmp->min;
 				goto fin;
 			}
-			if (tmp.min & 0x80000000)
+			if (tmp->min & 0x80000000)
 				goto error; /* 手が付けられない */
-			value->delta += tmp.min;
+			value->delta += tmp->min;
 			if ((value->delta & 0x80000000) == 0)
 				goto fin;
 			value->delta = 0;
@@ -418,17 +573,17 @@ divs_ij:
 		}
 	//	if (c == 0x1f) {
 			/* 二項演算子 ^ (unsigned) */
-			if (tmp.min == 0)
+			if (tmp->min == 0)
 				goto fin; /* 素通り */
 			if (value->delta == 0) {
-				value->min ^= tmp.min;
+				value->min ^= tmp->min;
 				goto fin;
 			}
-			if (tmp.min & 0x80000000)
+			if (tmp->min & 0x80000000)
 				goto error; /* 手が付けられない */
-			if ((signed int) value->min > (signed int) 0 && value->min >= tmp.min) {
-				value->min -= tmp.min;
-				value->delta += tmp.min;
+			if ((signed int) value->min > (signed int) 0 && value->min >= tmp->min) {
+				value->min -= tmp->min;
+				value->delta += tmp->min;
 				goto fin;
 			}
 			goto error; /* 手が付けられない */
@@ -443,9 +598,9 @@ divs_ij:
 		/* subsect size sum */
 		/* sumは、deltaが2GBならエラーにしてしまう(面倒なので) */
 		calc_value(&tmp, &expr);
-		i = tmp.min;
+		i = tmp->min;
 		calc_value(&tmp, &expr);
-		subsect = subsect0 + tmp.min;
+		subsect = subsect0 + tmp->min;
 		do {
 			value->min += subsect->min;
 			value->delta += subsect->delta;
@@ -458,7 +613,7 @@ divs_ij:
 	#if (DEBUG)
 dberr:
 		fprintf(stderr, "calc_value:%02x\n", c);
-		GOL_sysabort(GO_TERM_BUGTRAP);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
 	#endif
 
 fin:
@@ -466,112 +621,21 @@ fin:
 	return;
 }
 
-static char *skip_expr(char *expr)
+static UCHAR *skip_expr(UCHAR *expr)
 {
 	return LL_skip_expr(expr);
 }
 
-
-
-
-
-/* ラベルの定義方法:
-	一般式
-	80 variable-sum, 0000bbaa(aa:項数-1, bb:最初の番号),
-	84〜87 sum, i - 1, expr, expr, ...
-
-  ・80〜8f:LLが内部処理用に使う
-	80〜83:variable参照(1〜4バイト)
-	88〜8f:sum(variable), (1〜4, 1〜4) : 最初は項数-1, 次は最初の番号
-		{ "|>", 12, 18 }, { "&>", 12, 17 },
-		{ "<<", 12, 16 }, { ">>", 12, 17 },
-		{ "//", 14,  9 }, { "%%", 14, 10 },
-		{ "+",  13,  4 }, { "-",  13,  5 },
-		{ "*",  14,  6 }, { "/",  14,  7 },
-		{ "%",  14,  8 }, { "^",   7, 14 },
-		{ "&",   8, 12 }, { "|",   6, 13 },
-		{ "",    0,  0 }
-
-	s+
-	s-
-	s~
-
-	+, -, *, <<, /u, %u, /s, %s
-	>>u, >>s, &, |, ^
-
-*/
-
-
-
-
-
-
-#if 0
-
-	< 文法 >
-
-最初はヘッダ。
-・ヘッダサイズ(DW) = 12
-・バージョンコード(DW)
-・ラベル総数(DW)
-
-
-  ・38:式の値をDBにして設置
-  ・39:式の値をDWにして設置
-  ・3a:式の値を3バイトで設置
-  ・3b:式の値をDDにして設置
-  以下、・3fまである。
-  ・40〜47:ブロックコマンド。if文などの後続文をブロック化する(2〜9)。
-  ・48:バイトブロック（ブロック長がバイトで後続）。
-  ・49:ワードブロック。
-  ・4a:バイトブロック。
-  ・4b:ダブルワードブロック。
-  ・4c:排他的if開始。
-  ・4d:選択的if開始。
-  ・4e:選択的バウンダリーif開始。変数設定の直後、バウンダリー値が続く。
-  ・4f:endif。
-  排他的ifは、endifが来るまでいくつも並べられる。endifが来るまで、
-  全てelse-ifとして扱われる。最後にelseを作りたければ、条件を定数1にせよ。
-  ・ターミネーターはラベル定義で0xffffffff。
-
-  ・58:ORG
-
-  ・60:アライン。バイトの埋め方は個別に設定する。・・・これは排他的ifでも記述できる。
-
-  ・70〜77:可変長バイト宣言(文法上では40〜4bが後続することを許すが、サポートしていない。許されるのは30〜3f)
-  ・78〜7f:可変長バイト参照
-
-  ・80〜8f:LLが内部処理用に使う
-	80〜83:variable参照(1〜4バイト)
-	88〜8f:sum(variable), (1〜4, 1〜4) : 最初は項数-1, 次は最初の番号
-
-
-  if文中では、可変長バイト宣言しかできない。
-
-	ORGについて。本来引数は式であってよいが、このバージョンでは定数式を仮定している。
-
-
-
-
-#endif
-
-/* ibuf, obufの基礎構造 */
-/* シグネチャー8バイト, 総長4バイト, リザーブ4バイト */
-/* メインデータレングス4B, メインデータスタート4B */
-
-/* ↑こういうややこしいことはやらない */
-/* スキップコマンドを作って対処する */
-
-static char table98typlen[] = { 0x38, 0x38, 0x39, 0x39, 0x3b, 0x3b, 0x38 };
-static char table98range [] = { 0x00, 0x02, 0x00, 0x03, 0x00, 0x03, 0x03 };
-
-struct STR_LL_VB {
-	char *expr, typlen, range;
-};
-
-char *LL_define_VB(struct STR_LL_VB *virtualbyte, char *s)
+template <class T>
+void manually_increment(std::shared_ptr<T>& ptr)
 {
-	char c;
+     auto ptr_it = ptr.get();
+     ptr_it++;
+}
+
+UCHAR *LL_define_VB(struct STR_LL_VB *virtualbyte, UCHAR *s)
+{
+	UCHAR c;
 	virtualbyte->typlen = c = *s++;
 	#if (DEBUG)
 		if (c < 0x30)
@@ -602,18 +666,18 @@ fin:
 	#if (DEBUG)
 dberr0:
 		fprintf(stderr, "LL_define_VB:%02x\n", c);
-		GOL_sysabort(GO_TERM_BUGTRAP);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
 		return NULL;
 	#endif
 }
 
-char *lccbug_LL_mc90_func(char *src0, struct STR_LL_VB *vbb, struct STR_LL_VB *vbc, char len, char c)
+UCHAR *lccbug_LL_mc90_func(UCHAR *src0, struct STR_LL_VB *vbb, struct STR_LL_VB *vbc, char len, char c)
 {
 	do {
 		if (c != 0) {
-			src0 = skip_mc30(src0, nullptr, 1);
+			src0 = skip_mc30(src0, NULL, 1);
 			if (vbc)
-				src0 = skip_mc30(src0, nullptr, 1);
+				src0 = skip_mc30(src0, NULL, 1);
 		} else {
 			src0 = LL_define_VB(vbb, src0);
 			if (vbc)
@@ -624,57 +688,48 @@ char *lccbug_LL_mc90_func(char *src0, struct STR_LL_VB *vbb, struct STR_LL_VB *v
 	return src0;
 }
 
-char *LL(char *src0, char *src1, char *dest0, char *dest1)
+UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 /* なおsrcに書き込みをするので要注意 */
 /* 新dest1を返す */
 {
-	struct STR_SUBSECTION *subsect1, *subsect;
+	struct STR_SUBSECTION *subsect1;
 	unsigned int l0, min, max, unsolved, unsolved0;
-	struct STR_LABEL *label;
-	struct STR_VALUE *value, *labelvalue;
 	struct STR_LL_VB virtualbyte[8], *vba, *vbb, *vbc;
 	signed int times_count;
-	char *s, *times_src0, *times_dest0, c, len, range;
+	UCHAR *s, *times_src0, *times_dest0, c, len, range;
 
-	label0 = reinterpret_cast<struct STR_LABEL*>(
-		malloc(nask_maxlabels * sizeof (struct STR_LABEL))
-		);
+	std::unique_ptr<STR_LABEL[]> label0(new STR_LABEL[nask_maxlabels * sizeof (struct STR_LABEL)]);
+	STR_LABEL* label = label0.get();
 
-	subsect0 = reinterpret_cast<struct STR_SUBSECTION*>(
-		malloc(nask_maxlabels /* == MAXSUBSETCS */ * sizeof (struct STR_SUBSECTION))
-		);
-
-	value = reinterpret_cast<struct STR_VALUE*>(
-		malloc(sizeof (struct STR_VALUE))
-		);
-
-	labelvalue = reinterpret_cast<struct STR_VALUE*>(
-		malloc(sizeof (struct STR_VALUE))
-		);
+	std::shared_ptr<STR_SUBSECTION> subsect0(new STR_SUBSECTION());
+	std::unique_ptr<STR_VALUE> value(new STR_VALUE());
+	std::unique_ptr<STR_VALUE> labelvalue(new STR_VALUE());
 
 	/* ラベル式を登録する */
 //	l0 = 0; /* 現在のアドレスはl0からlc個の和 */
 //	lc = 0;
 //	min = max = 0; /* 次に生成するのは、variable0[l0 + lc] */
 
-	label = label0;
 	for (unsolved = nask_maxlabels; unsolved > 0; label++, unsolved--) {
 		label->value.flags = 0; /* enableを消すため */
-		label->define = nullptr;
+		label->define = NULL;
 	}
 
 	/* 切り分ける */
 	/* ラベルを検出する */
-	subsect = subsect0;
+	std::shared_ptr<STR_SUBSECTION> subsect = subsect0;
 	subsect->sect0 = src0;
-	init_value(labelvalue); /* ラベル保持 */
+	init_value(labelvalue.get()); /* ラベル保持 */
 	while (src0 < src1) {
 		c = *src0;
 		if (c == 0x2d) {
 			/* EQU */
 			src0++;
 			calc_value(value, &src0);
-			label = &label0[value->min];
+			// This was written as raw pointer:
+			// => label = &label0[value->min];
+			// http://www.cplusplus.com/reference/memory/shared_ptr/reset/
+			label = &label0.get()[value->min];
 			label->define = src0;
 			src0 = skip_expr(src0);
 			continue;
@@ -683,25 +738,27 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 			/* ラベル定義 */
 			struct STR_SIGMA sigma;
 			sigma.scale = 1;
-			sigma.subsect = subsect - subsect0;
+			sigma.subsect = subsect.get() - subsect0.get();
 			sigma.terms = 1;
 			subsect->sect1 = src0;
-			subsect++;
+			manually_increment(subsect);
 			subsect->sect0 = src0;
 			src0++;
 			calc_value(value, &src0);
-			label = &label0[value->min];
-			label->define = src0;
+			label = &label0.get()[value->min];
+			// FIXME
+			//label->define = src0;
 			addsigma(labelvalue, sigma);
-			label->value = *labelvalue;
-			label->value.flags |= VFLG_ENABLE;
+			// FIXME
+			//label->value = *labelvalue;
+			//label->value.flags |= VFLG_ENABLE;
 			continue;
 		}
 		if (c == 0x2c) {
 			/* externラベル宣言 */
 			src0++;
 			calc_value(value, &src0);
-			label = &label0[value->min];
+			label = &label0.get()[value->min];
 			init_value(&label->value);
 		//	label->define = NULL;
 			label->value.flags |= VFLG_EXTERN | VFLG_ENABLE;
@@ -712,7 +769,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 		if (c == 0x58) {
 			/* ORG */
 			subsect->sect1 = src0;
-			subsect++;
+			manually_increment(subsect);
 			subsect->sect0 = src0;
 			src0++;
 			calc_value(labelvalue, &src0);
@@ -721,9 +778,10 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 		src0 = LL_skipcode(src0);
 	}
 	subsect->sect1 = src1;
-	subsect1 = subsect + 1;
+	subsect1 = subsect.get() + 1;
+	auto subsect_ptr = subsect.get();
 
-	for (subsect = subsect0; subsect < subsect1; subsect++) {
+	for (subsect = subsect0; subsect_ptr < subsect1; subsect_ptr++) {
 		subsect->min = 0;
 		subsect->delta = INVALID_DELTA;
 		subsect->unsolved = 1;
@@ -732,14 +790,14 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 	c = 0;
 	unsolved0 = 0x7fffffff;
 	do {
-		for (subsect = subsect0; subsect < subsect1; subsect++) {
+		for (subsect = subsect0; subsect_ptr < subsect1; subsect_ptr++) {
 			if (subsect->unsolved)
-				solve_subsection(subsect, len);
+				solve_subsection(subsect.get(), len);
 		}
 		unsolved = 0;
-		for (subsect = subsect1 - 1; subsect >= subsect0; subsect--) {
+		for (subsect_ptr = subsect1 - 1; subsect_ptr >= subsect0.get(); subsect_ptr--) {
 			if (subsect->unsolved)
-				unsolved += solve_subsection(subsect, len);
+				unsolved += solve_subsection(subsect.get(), len);
 		}
 		c++;
 		if (unsolved0 > unsolved) {
@@ -752,18 +810,18 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 		}
 	} while (unsolved);
 
-	for (subsect = subsect0; subsect < subsect1; subsect++) {
+	for (subsect = subsect0; subsect_ptr < subsect1; subsect_ptr++) {
 		times_count = 0;
 		for (src0 = subsect->sect0; src0 < subsect->sect1; ) {
 			c = *src0++;
 			if (dest0 + 64 >= dest1) {
 	error:
-				return nullptr; /* buffer overrun */
+				return NULL; /* buffer overrun */
 			}
 			if (c == 0x2d) {
 				/* EQU */
 				calc_value(value, &src0);
-				label = &label0[value->min];
+				label = &label0.get()[value->min];
 				if ((label->value.flags & VFLG_ENABLE) == 0)
 					enable_label(label);
 				*value = label->value;
@@ -784,7 +842,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 				dest0[0] = 0xf6; /* REM_8B */
 				dest0[1] = *src0++;
 				c = *src0++;
-				label = &label0[get_id(c - 8, &src0, 0)];
+				label = &(label0.get())[get_id(c - 8, &src0, 0)];
 				if ((label->value.flags & VFLG_ENABLE) == 0)
 					enable_label(label);
 				*value = label->value;
@@ -997,7 +1055,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 				vbb = &virtualbyte[(len >> 4) & 0x07];
 				vbc = vbb + 1;
 				if (c == 0x90)
-					vbc = nullptr;
+					vbc = NULL;
 				vba->typlen = 0x37 + (src0[1] & 0x0f);
 				vba->range = 0x03; /* non-overflow */
 				if (vba->typlen == 1)
@@ -1011,9 +1069,9 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 #if 0
 				do {
 					if (c != 0) {
-						src0 = skip_mc30(src0, nullptr, 1);
+						src0 = skip_mc30(src0, NULL, 1);
 						if (vbc)
-							src0 = skip_mc30(src0, nullptr, 1);
+							src0 = skip_mc30(src0, NULL, 1);
 					} else {
 						src0 = LL_define_VB(vbb, src0);
 						if (vbc)
@@ -1036,7 +1094,7 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 				vbb = &virtualbyte[(len >> 4) & 0x07];
 				vbc = vbb + 1;
 				if (c == 0x94)
-					vbc = nullptr;
+					vbc = NULL;
 				vba->expr = src0 + 3;
 				c = src0[0] & 0x0f;
 				src0 = skip_expr(vba->expr);
@@ -1057,14 +1115,14 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 						}
 						src0 = LL_define_VB(vbb, src0);
 					} else {
-						src0 = skip_mc30(src0, nullptr, 0);
-						src0 = skip_mc30(src0, nullptr, 1);
+						src0 = skip_mc30(src0, NULL, 0);
+						src0 = skip_mc30(src0, NULL, 1);
 					}
 					if (vbc) {
 						if (c == 0)
 							src0 = LL_define_VB(vbc, src0);
 						else
-							src0 = skip_mc30(src0, nullptr, 1);
+							src0 = skip_mc30(src0, NULL, 1);
 					}
 				} while (--len);
 				continue;
@@ -1096,21 +1154,16 @@ char *LL(char *src0, char *src1, char *dest0, char *dest1)
 			#if (DEBUG)
 	dberr0:
 				fprintf(stderr, "LL:%02x\n", c);
-				GOL_sysabort(GO_TERM_BUGTRAP);
+				//GOL_sysabort(GO_TERM_BUGTRAP);
 			#endif
 		}
 	}
-
-	free(label0);
-	free(subsect0);
-	free(value);
-	free(labelvalue);
 
 	return dest0;
 }
 
 
-char* skip_mc30(char *s, char *bytes, char flag)
+UCHAR *skip_mc30(UCHAR *s, UCHAR *bytes, char flag)
 {
 	return LL_skip_mc30(s, bytes, flag);
 }
@@ -1124,8 +1177,8 @@ unsigned int solve_subsection(struct STR_SUBSECTION *subsect, char force)
 	} vb[8], *vba, *vbb, *vbc;
 	unsigned int unsolved = 0, min = 0, delta = 0;
 	int i;
-	struct STR_VALUE value, tmp;
-	char *s, *t, c, d, e, f, g, h;
+	std::unique_ptr<STR_VALUE> value, tmp;
+	UCHAR *s, *t, c, d, e, f, g, h;
 
 	for (s = subsect->sect0; s < subsect->sect1; ) {
 		c = *s++;
@@ -1172,18 +1225,18 @@ skipmc30:
 			t = s;
 			i = s[0] | s[1] << 8 | s[2] << 16 | s[3] << 24;
 			s += 4;
-			calc_value(&value, &s); /* len */
+			calc_value(value, &s); /* len */
 			/* lenにエラーはないという前提(プログラムカウンタを含まない定数式) */
 			if ((unsigned int) i < 0xfffffff0) {
-				min += (i - 1) * value.min; /* iは繰り返し回数 */
+				min += (i - 1) * value->min; /* iは繰り返し回数 */
 				s = skip_expr(s);
 				continue;
 			}
-			i = value.min;
-			calc_value(&value, &s); /* 繰り返し回数 */
-			if (value.flags & (VFLG_SLFREF | VFLG_UNDEF)) /* 自己参照エラー */
+			i = value->min;
+			calc_value(value, &s); /* 繰り返し回数 */
+			if (value->flags & (VFLG_SLFREF | VFLG_UNDEF)) /* 自己参照エラー */
 				goto mc59_force;
-			if (value.flags & VFLG_ERROR) {
+			if (value->flags & VFLG_ERROR) {
 				/* ラベル値一般エラー */
 				if (force >= 2)
 					goto mc59_force;
@@ -1191,16 +1244,16 @@ skipmc30:
 				unsolved++;
 				continue;
 			}
-			min += i * (value.min - 1);
-			if (value.delta == 0) {
-				t[0] = value.min         & 0xff;
-				t[1] = (value.min >>  8) & 0xff;
-				t[2] = (value.min >> 16) & 0xff;
-				t[3] = (value.min >> 24) & 0xff;
+			min += i * (value->min - 1);
+			if (value->delta == 0) {
+				t[0] = value->min         & 0xff;
+				t[1] = (value->min >>  8) & 0xff;
+				t[2] = (value->min >> 16) & 0xff;
+				t[3] = (value->min >> 24) & 0xff;
 				continue;
 			}
 			if (force < 2) {
-				delta += i * value.delta;
+				delta += i * value->delta;
 				unsolved++;
 				continue;
 			}
@@ -1223,7 +1276,7 @@ skipmc30:
 		if (c < 0x78) {
 			/* 0x70〜0x77:virtual byte定義 */
 			vba = &vb[c & 0x07];
-			s = skip_mc30(s, reinterpret_cast<char*>(&vba->min), 1);
+			s = skip_mc30(s, reinterpret_cast<UCHAR*>(&vba->min), 1);
 			vba->max = vba->min;
 			continue;
 		}
@@ -1250,7 +1303,7 @@ skipmc30:
 			vbb = &vb[(c >> 4) & 0x07];
 			vbc = vbb + 1;
 			if (d == 0x90)
-				vbc = nullptr;
+				vbc = NULL;
 			if (((e = s[0]) & 0x0f) != 0x0f) {
 				/* 既に解決済み */
 				d = s[1];
@@ -1267,29 +1320,29 @@ skipmc30:
 					d *= 2;
 				}
 				do {
-					s = skip_mc30(s, nullptr, 1);
+					s = skip_mc30(s, NULL, 1);
 				} while (--d);
 				continue;
 			}
 			t = s;
 			s += 3;
-			calc_value(&value, &s);
+			calc_value(value, &s);
 			d = 1 | 2 | 4; /* unknown */
-			if ((value.flags & VFLG_ERROR) == 0) {
-				i = value.min + value.delta; /* max */
-				if (value.scale[0])
+			if ((value->flags & VFLG_ERROR) == 0) {
+				i = value->min + value->delta; /* max */
+				if (value->scale[0])
 					d = 1; /* word(dword) */
-				else if (value.min == 0 && i == 0)
+				else if (value->min == 0 && i == 0)
 					d = 4; /* zero */
-				else if (-128 <= value.min && i <= 127) {
+				else if (-128 <= value->min && i <= 127) {
 					d = 2; /* byte */
-					if (value.min <= 0 && 0 <= i)
+					if (value->min <= 0 && 0 <= i)
 						d = 2 | 4; /* byte | zero */
 				} else {
 					d = 1; /* word(dword) */
-					if (value.min <= 127 && -128 <= i) {
+					if (value->min <= 127 && -128 <= i) {
 						d = 1 | 2; /* word | byte */
-						if (value.min <= 0 && 0 <= i)
+						if (value->min <= 0 && 0 <= i)
 							d = 1 | 2 | 4; /* word | byte | zero */
 					}
 				}
@@ -1370,7 +1423,7 @@ skipmc30:
 			vbb = &vb[(c >> 4) & 0x07];
 			vbc = vbb + 1;
 			if (d == 0x94)
-				vbc = nullptr;
+				vbc = NULL;
 			if (((g = s[0]) & 0x0f) != 0x0f) {
 				/* 既に解決済み */
 				d = s[1];
@@ -1380,49 +1433,51 @@ skipmc30:
 				vbb->min = vbb->max = (d >> 4) & 0x0f;
 				if (vbc)
 					vbc->min = vbc->max = (g >> 4) & 0x0f;
-				s = skip_mc30(s, nullptr, 0);
-				s = skip_mc30(s, nullptr, 1);
+				s = skip_mc30(s, NULL, 0);
+				s = skip_mc30(s, NULL, 1);
 				if (vbc)
-					s = skip_mc30(s, nullptr, 1);
+					s = skip_mc30(s, NULL, 1);
 				while (--e) {
 					s = skip_expr(s);
-					s = skip_mc30(s, nullptr, 0);
-					s = skip_mc30(s, nullptr, 1);
+					s = skip_mc30(s, NULL, 0);
+					s = skip_mc30(s, NULL, 1);
 					if (vbc)
-						s = skip_mc30(s, nullptr, 1);
+						s = skip_mc30(s, NULL, 1);
 				}
 				continue;
 			}
 			t = s;
 			s += 3;
-			calc_value(&value, &s);
+
+			calc_value(value, &s);
 			c = *s++; /* len */
-			s = skip_mc30(s, reinterpret_cast<char*>(&vba->min), 0);
-			s = skip_mc30(s, reinterpret_cast<char*>(&vbb->min), 1);
+			s = skip_mc30(s, reinterpret_cast<UCHAR*>(&vba->min), 0);
+			s = skip_mc30(s, reinterpret_cast<UCHAR*>(&vbb->min), 1);
 			vba->max = vba->min;
 			vbb->max = vbb->min;
 			if (vbc) {
-				s = skip_mc30(s, reinterpret_cast<char*>(&vbc->min), 1);
+				s = skip_mc30(s, reinterpret_cast<UCHAR*>(&vbc->min), 1);
 				vbc->max = vbc->min;
 			}
 			f = 0;
 			if (force == 0) {
-				if (value.delta != 0 || (value.flags & VFLG_ERROR) != 0)
+				if (value->delta != 0 || (value->flags & VFLG_ERROR) != 0)
 					f = 0xff;
 				for (g = 1; g < c; g++) {
 					/* どうやって等しいことを見極めるのか？ */
 					/* 面倒なので、全てが確定するまで、decideしない */
-					calc_value(&tmp, &s);
-					if (tmp.delta != 0 || (tmp.flags & VFLG_ERROR) != 0)
+
+					calc_value(tmp, &s);
+					if (tmp->delta != 0 || (tmp->flags & VFLG_ERROR) != 0)
 						f = 0xff;
 					s = skip_mc30(s, &d, 0);
 					s = skip_mc30(s, &e, 1);
 					if (vbc)
 						s = skip_mc30(s, &h, 1);
 					if (f != 0xff) {
-						if ((value.min ^ tmp.min |
-							value.scale[0] ^ tmp.scale[0] | value.label[0] ^ tmp.label[0] |
-							value.scale[1] ^ tmp.scale[1] | value.label[1] ^ tmp.label[1]) == 0) {
+						if ((value->min ^ tmp->min |
+							value->scale[0] ^ tmp->scale[0] | value->label[0] ^ tmp->label[0] |
+							value->scale[1] ^ tmp->scale[1] | value->label[1] ^ tmp->label[1]) == 0) {
 							vba->min = vba->max = d;
 							vbb->min = vbb->max = e;
 							if (vbc)
@@ -1476,7 +1531,7 @@ skipmc30:
 		#if (DEBUG)
 dberr0:
 			fprintf(stderr, "solve_subsect:%02X\n", c);
-			GOL_sysabort(GO_TERM_BUGTRAP);
+			//GOL_sysabort(GO_TERM_BUGTRAP);
 		#endif
 
 
@@ -1488,16 +1543,13 @@ dberr0:
   94も似たような形式に変更(aの自動定義はない)。
   [94] [式] [ba] [case] [def0] [def1] [case] [def0] [def1] ...
   また以下を定義
-  [98] = [38 00 08 00] char
+  [98] = [38 00 08 00] UCHAR
   [99] = [38 02 08 00] SCHAR
   [9a] = [39 00 08 00] USHORT
   [9b] = [39 03 08 00] non-overflow SHORT
   [9c] = [3b 00 08 00] UINT
   [9d] = [3b 03 08 00] non-overflow INT
   [9e] = [38 03 08 00] non-overflow CHAR
-
-
-
 
   ・70〜77:可変長バイト宣言(文法上では40〜4bが後続することを許すが、サポートしていない。許されるのは30〜3f)
   ・78〜7f:可変長バイト参照
@@ -1523,7 +1575,7 @@ dberr0:
 	return unsolved;
 }
 
-void calcsigma(struct STR_VALUE *value)
+void calcsigma(std::unique_ptr<STR_VALUE>& value)
 /* sigmaを全て展開してしまう */
 {
 	int i, j, s, t, min;
@@ -1565,7 +1617,7 @@ void calcsigma(struct STR_VALUE *value)
 	return;
 }
 
-void addsigma(struct STR_VALUE *value, struct STR_SIGMA sigma)
+void addsigma(std::unique_ptr<STR_VALUE>& value, struct STR_SIGMA sigma)
 {
 	int i, j;
 retry:
@@ -1580,7 +1632,7 @@ retry:
 			sigma.terms -= value->sigma[i].terms;
 			sigma.subsect += value->sigma[i].terms;
 			if ((value->sigma[i].scale += sigma.scale) == 0) {
-	delete_case:
+	del:
 				for (j = i; j <= MAXSIGMAS - 2; j++)
 					value->sigma[j] = value->sigma[j + 1];
 				value->sigma[MAXSIGMAS - 1].scale = 0;
@@ -1594,7 +1646,7 @@ retry:
 						if (value->sigma[i - 1].scale == value->sigma[i].scale) {
 							if (value->sigma[i - 1].subsect + value->sigma[i - 1].terms == value->sigma[i].subsect) {
 								value->sigma[i - 1].terms += value->sigma[i].terms;
-								goto delete_case;
+								goto del;
 							}
 						}
 					}
@@ -1651,7 +1703,7 @@ retry:
 		goto add;
 	}
 	if (value->sigma[MAXSIGMAS - 1].scale != 0) {
-		calcsigma(value);
+	     	calcsigma(value);
 		goto retry;
 	}
 	for (j = MAXSIGMAS - 2; i <= j; j--)

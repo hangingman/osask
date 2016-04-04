@@ -9,7 +9,12 @@
 //=============================================================================
 // return the length of D
 //=============================================================================
-size_t GO_strlen (const char *d)
+size_t GO_strlen(const UCHAR* d)
+{
+	return GO_strlen(reinterpret_cast<const char*>(d));
+}
+
+size_t GO_strlen(const char* d)
 {
 	const char *tmp = d;
 

@@ -6,6 +6,8 @@
 
 Makefile.in
 .dirstamp
+*.log
+*.trs
 
 # http://www.gnu.org/software/autoconf
 
@@ -28,6 +30,7 @@ config.*
 *.Plo
 Makefile
 libtool
+test-driver
 
 **/*/autom4te.cache
 **/*/autoscan.log
@@ -80,8 +83,9 @@ stamp-h
 
 # osask
 aska
-nask
-naskcnv0
 gas2nask
 golib00
 sjisconv
+nask
+naskcnv0
+addcr

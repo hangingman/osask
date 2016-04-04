@@ -8,7 +8,7 @@
 
 unsigned long GO_strtoul0(const char **ps, int base, char *errflag);
 
-static char *setdec(char *s, UINT ui)
+static UCHAR *setdec(UCHAR *s, UINT ui)
 {
 	do {
 		*--s = (ui % 10) + '0';
@@ -18,8 +18,8 @@ static char *setdec(char *s, UINT ui)
 
 int GO_vsprintf(char *s, const char *format, va_list arg)
 {
-	char c, *t = s, *p, flag_left, flag_zero /* , flag_sign, flag_space */;
-	char temp[32] /* ”š—p */, *q;
+	UCHAR c, *t = s, *p, flag_left, flag_zero /* , flag_sign, flag_space */;
+	UCHAR temp[32] /* ”š—p */, *q;
 	temp[31] = '\0';
 	int field_min, field_max, i;
 	long l;
@@ -32,7 +32,7 @@ put1char:
 			*t++ = c;
 			if (c)
 				continue;
-			return t - (char *) s - 1;
+			return t - (UCHAR *) s - 1;
 		}
 		flag_left = flag_zero = /* flag_sign = flag_space = flag_another = */ 0;
 		c = *format++;

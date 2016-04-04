@@ -12,8 +12,8 @@
 void* GO_memcpy (void *d, const void *s, size_t sz)
 {
 	void *tmp = d;
-	char *dp = (char*)d;
-	char *sp = (char*)s;
+	char *dp = reinterpret_cast<char*>(d);
+	const char *sp = reinterpret_cast<const char*>(s);
 
 	while (sz--)
 		*dp++ = *sp++;

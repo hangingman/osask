@@ -1,17 +1,17 @@
 /* それぞれのgas2naskにインクルードされる */
 /*		Copyright(C) 2003 H.Kawai   (KL-01) */
 
-static char *checkparam(char *p);
-static void convparam(char *p, int i);
+static UCHAR *checkparam(UCHAR *p);
+static void convparam(UCHAR *p, int i);
 
-static char *skipspace(char *p)
+static UCHAR *skipspace(UCHAR *p)
 {
 	while (*p <= ' ' && *p != '\n')
 		p++;
 	return p;
 }
 
-static char *getparam(char *p)
+static UCHAR *getparam(UCHAR *p)
 {
 	if (*p != '\n') {
 		do {
@@ -21,7 +21,7 @@ static char *getparam(char *p)
 	return p;
 }
 
-static char *seek_token_end(char *s)
+static UCHAR *seek_token_end(UCHAR *s)
 {
 	while (*s != ':' && *s != '+' && *s > ' ' && *s != '(' && *s != '#' && *s != '*' && *s != '$'
 			&& *s != ')' && *s != 0x22 && *s != ',' && *s != ';' && *s != '-')
@@ -29,11 +29,11 @@ static char *seek_token_end(char *s)
 	return s;
 }
 
-static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct STR_FLAGS flags)
+static UCHAR *convmain(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, struct STR_FLAGS flags)
 {
-	char *p, *q, *r, *s, *t;
-	char intext = 0, c, flag, flag1, flag2;
-	static char no_params[][16] = {
+	UCHAR *p, *q, *r, *s, *t;
+	UCHAR intext = 0, c, flag, flag1, flag2;
+	static UCHAR no_params[][16] = {
 		"cld     CLD",
 		"cltd    CDQ",
 		"cmpsb   CMPSB",
@@ -62,7 +62,7 @@ static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct S
 		"stosl   STOSD",
 		"\0"
 	};
-	static char one_param[][16] = {
+	static UCHAR one_param[][16] = {
 		"0call    CALL",
 		"1decb    DEC",
 		"4decl    DEC",
@@ -153,7 +153,7 @@ static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct S
 		"1setp    SETP",
 		"\0"
 	};
-	static char one_shifts[][16] = {
+	static UCHAR one_shifts[][16] = {
 		"1salb    SAL",
 		"4sall    SAL",
 		"2salw    SAL",
@@ -165,7 +165,7 @@ static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct S
 		"2shrw    SHR",
 		"\0"
 	};
-	static char two_params[][16] = {
+	static UCHAR two_params[][16] = {
 		"1addb    ADD",
 		"4addl    ADD",
 		"2addw    ADD",
@@ -227,13 +227,13 @@ static char *convmain(char *src0, char *src1, char *dest0, char *dest1, struct S
 		"\0"
 	};
 
-	static char three_params[][16] = {
+	static UCHAR three_params[][16] = {
 		"4imull   IMUL",
 		"2imulw   IMUL",
 		"\0"
 	};
 
-	static char fdivfsub[][16] = {
+	static UCHAR fdivfsub[][16] = {
 		"1fdiv    FDIV",
 		"0fdivr   FDIV",
 		"1fsub    FSUB",
@@ -856,7 +856,7 @@ err:
 	return NULL;
 }
 
-static char *checkparam(char *p)
+static UCHAR *checkparam(UCHAR *p)
 {
 	p = skipspace(p);
 	if (*p == '%') { /* reg */
@@ -956,9 +956,9 @@ fin:
 	return p;
 }
 
-static void convparam(char *p, int i)
+static void convparam(UCHAR *p, int i)
 {
-	char c, *q;
+	UCHAR c, *q;
 retry:
 	p = skipspace(p);
 	if (*p == '%') { /* reg */
