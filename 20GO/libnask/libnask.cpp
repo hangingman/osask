@@ -2293,9 +2293,6 @@ fin:
 	return dest0;
 }
 
-
-#define MAX_LISTLEN		32
-
 //
 // dest1を返すNULLならエラー
 // listがあふれても続行
@@ -2678,8 +2675,9 @@ skip_relative_relocation:
 						*list0++ = ' ';
 						len++;
 					} while (len < MAX_LISTLEN);
-					while (srcl--)
-						*list0++ = *srcp++;
+					// FIXME
+					//while (srcl--)
+					// 	*list0++ = *srcp++;
 				}
 			}
 			if (status == 3)
