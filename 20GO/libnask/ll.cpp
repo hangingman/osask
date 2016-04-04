@@ -109,7 +109,7 @@ skipmc94_skip:
 
 	#if (DEBUG)
 		fprintf(stderr, "LL_skipcode error:%02X\n", c);
-		GOL_sysabort(GO_TERM_BUGTRAP);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
 	#endif
 
 fin:
@@ -158,7 +158,7 @@ UCHAR *LL_skip_expr(UCHAR *expr)
 	#if (DEBUG)
 dberr:
 		fprintf(stderr, "LL_skip_expr:%02x\n", c);
-		GOL_sysabort(GO_TERM_BUGTRAP);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
 	#endif
 
 fin:
@@ -197,7 +197,7 @@ UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag)
 	#if (DEBUG)
 dberr:
 		fprintf(stderr, "LL_skip_mc30:%02x\n", c);
-		GOL_sysabort(GO_TERM_BUGTRAP);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
 	#endif
 fin:
 	if (bytes)
@@ -613,7 +613,7 @@ divs_ij:
 	#if (DEBUG)
 dberr:
 		fprintf(stderr, "calc_value:%02x\n", c);
-		GOL_sysabort(GO_TERM_BUGTRAP);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
 	#endif
 
 fin:
@@ -666,7 +666,7 @@ fin:
 	#if (DEBUG)
 dberr0:
 		fprintf(stderr, "LL_define_VB:%02x\n", c);
-		GOL_sysabort(GO_TERM_BUGTRAP);
+		//GOL_sysabort(GO_TERM_BUGTRAP);
 		return NULL;
 	#endif
 }
@@ -1154,7 +1154,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			#if (DEBUG)
 	dberr0:
 				fprintf(stderr, "LL:%02x\n", c);
-				GOL_sysabort(GO_TERM_BUGTRAP);
+				//GOL_sysabort(GO_TERM_BUGTRAP);
 			#endif
 		}
 	}
@@ -1531,7 +1531,7 @@ skipmc30:
 		#if (DEBUG)
 dberr0:
 			fprintf(stderr, "solve_subsect:%02X\n", c);
-			GOL_sysabort(GO_TERM_BUGTRAP);
+			//GOL_sysabort(GO_TERM_BUGTRAP);
 		#endif
 
 

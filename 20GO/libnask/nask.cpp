@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include "ll.hpp"
+#include "libnask.hpp"
 #include "go_string.hpp"
 #include "../drv_stdc/others.hpp"
 
@@ -32,7 +33,6 @@ int GOL_retcode;
 UCHAR *GOL_work0;
 UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
 UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
-UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1);
 int before_nask_process(int argc, UCHAR **argv, UCHAR *src0);
 int nask_main(int argc, UCHAR **argv);
 void *GOL_memmaninit(struct GOL_STR_MEMMAN *man, size_t size, void *p);
@@ -113,13 +113,12 @@ void errmsgout_s_NL(const UCHAR *msg, const UCHAR *s)
 	return;
 }
 
-int nask_errors = 0;
-
 int before_nask_process(int argc, UCHAR **argv, UCHAR *src0)
 {
 	UCHAR *src1, *dest0, *dest1;
 	UCHAR *tmp0, *tmp1, *list0, *list1;
 	int len;
+	int nask_errors = 0;
 
 	tmp0 = src0 + MAX_SRCSIZ;
 	dest0 = tmp0 + MAX_TMPSIZ;
@@ -164,7 +163,7 @@ over_tmpbuf:
 	}
 
 	LOG_DEBUG("call output...\n");
-	dest1 = output(tmp0, tmp1, dest0, dest0 + MAX_BINSIZ, list0, list0 + MAX_LSTSIZ - 2);
+	dest1 = output(tmp0, tmp1, dest0, dest0 + MAX_BINSIZ, list0, list0 + MAX_LSTSIZ - 2, nask_errors);
 	LOG_DEBUG("output processed list size: %d\n", sizeof dest1);
 	if (dest1 == NULL) {
 		errmsgout("NASK : BINBUF is not enough" NL);
