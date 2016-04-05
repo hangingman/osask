@@ -1,0 +1,57 @@
+# Created by https://www.gitignore.io/api/autotools,c++
+
+### Autotools ###
+# http://www.gnu.org/software/automake
+
+Makefile.in
+.dirstamp
+*.log
+*.trs
+autom4te.*
+config.*
+m4
+Makefile
+libtool
+test-driver
+missing
+stamp-*
+ltmain.sh
+depcomp
+configure
+compile
+install-sh
+*.m4
+
+### C++ ###
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Osask
+20GO
+28GO
