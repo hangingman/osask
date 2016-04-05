@@ -2309,49 +2309,79 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 	UCHAR *ebuf = ebuf0.get(); /* エラーバッファ */
 
 	UCHAR c, status, adrflag, cc, format, file_aux;
-	/* 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み */
+	// 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み
 
-	/* アライン情報検索 */
+	// FIXME: アライン情報検索処理として関数を分けたほうがよい
 	srcp = src0;
 	secno = 0;
 	for (i = 0; i < MAX_SECTIONS; i++) {
 		sectable[i].relocs = 0;
 		sectable[i].flags = 0; /* invalid */
 	}
+
+	// See: データ型のアラインメントとは何か，なぜ必要なのか？
+	//      http://www5d.biglobe.ne.jp/~noocyte/Programming/Alignment.html
+	//
+	// ここからはfunction naskで処理したalignmentのデータを処理していく
+	// Quoted from: http://d.hatena.ne.jp/suu-g/20080510/1210408956
+	//
+	// "データを配置するとなると、今度はデータ境界を気にしなければならなくなる。
+	// charなら1byteごとにアクセスできるから問題になることはなかなかないけど、
+	// 32bit longは4byteごとでのアクセス以外では処理できず、Bus Error(SIGBUS)が発生する。
+	// そのような問題を避けるために、データを配置する位置をデータ境界に揃える必要が出てくる。
+	// それを行ってくれるのが .align ディレクティブだ。"
+	//
+	// naskはどうやら"各セクションのアラインをソース中のALIGN文から自動設定。"するらしい。
+	// See: http://community.osdev.info/index.php?GO%2Fnask
 	do {
 		LOG_DEBUG("srcp[0]: 0x%02x \n", srcp[0]);
 		if (srcp[0] == REM_4B) {
-			if (srcp[1] == 0)
+			LOG_DEBUG("srcp[0] matched REM_4B \n");
+			LOG_DEBUG("srcp[1]: %d \n", srcp[1]);
+			if (srcp[1] == 0) {
+				LOG_DEBUG("srcp[1]: %s \n", "set section align");
 				sectable[srcp[2]].align = srcp[3]; /* set section align */
-			if (srcp[1] == 1)
+			} else if (srcp[1] == 1) {
+				LOG_DEBUG("srcp[1]: %s \n", "set section flags");
 				sectable[srcp[2]].flags = srcp[3]; /* set section flags */
+			} else {
+				LOG_DEBUG("srcp[1]: %s a compiled align setting is not correct\n");
+			}
 		}
 		if (srcp[0] == REM_3B) {
+			LOG_DEBUG("srcp[0] matched REM_3B \n");
 			if (srcp[1] == 1) {
-				/* start section */
-				secno = srcp[2];
-			}
-			if (srcp[1] == 2) {
-				/* set format */
-				format = srcp[2];
+				LOG_DEBUG("srcp[2]: %s \n", "start section");
+				secno = srcp[2]; /* start section */
+			} else if (srcp[1] == 2) {
+				LOG_DEBUG("srcp[2]: %s \n", "set format");
+				format = srcp[2]; /* set format */
+			} else {
+				LOG_DEBUG("srcp[2]: %s a compiled align setting is not correct\n");
 			}
 		}
 		if (srcp[0] == REM_8B) {
+			LOG_DEBUG("srcp[0] matched REM_8B \n");
 			if (srcp[1] == 0) { /* file */
+				LOG_DEBUG("srcp[1]: %s \n", "file");
 				file_len = srcp[2];
 				file_p = (UCHAR *) get4b(&srcp[4]);
 				file_aux = (file_len + (1 + 17)) / 18;
-			}
-			if (srcp[1] == 1)
+			} else if (srcp[1] == 1) {
+				LOG_DEBUG("srcp[1]: %s \n", "GLOBAL");
 				g_symbols++; /* GLOBAL */
-			if (srcp[1] == 2) { /* EXTERN */
+			} else if (srcp[1] == 2) { /* EXTERN */
+				LOG_DEBUG("srcp[1]: %s \n", "EXTERN");
 				e_symbols++;
 				/* 番号とCOFFシンボル番号との対応表を作る...必要はない */
 				/* EXTERNシンボルは、ラベル番号から定数を引くだけでCOFFシンボル番号になる */
+			} else {
+				LOG_DEBUG("srcp[2]: %s a compiled align setting is not correct\n");
 			}
 		}
 		if (0x2e <= srcp[0] && srcp[0] <= 0x2f) {
 			/* need relocation */
+			LOG_DEBUG("0x2e <= srcp[0] <= 0x2f, need relocation \n");
 			sectable[secno].relocs++;
 		}
 		srcp = LL_skipcode(srcp);
@@ -2359,6 +2389,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 
 	/* バイナリー出力 */
 	if (format == 1) { /* WCOFF */
+		LOG_DEBUG("srcp[0]: 0x%02x \n", srcp[0]);
 		if (dest + sizeof (libnask::header) > dest1) {
 			dest = NULL;
 			goto error;
