@@ -326,6 +326,8 @@ namespace libnask {
      };
 }
 
+UCHAR check_alignments(std::unique_ptr<STR_OUTPUT_SECTION[]>& sectable,
+		       UCHAR *src1, UCHAR *srcp, UCHAR *file_p, int file_len, int g_symbols, int e_symbols, UCHAR file_aux);
 
 UCHAR* skipspace(UCHAR *s, UCHAR *t);
 UCHAR* putimm(int i, UCHAR *p);
@@ -355,5 +357,6 @@ struct STR_TERM *rel_expr(struct STR_TERM *expr, struct STR_DEC_EXPR_STATUS *sta
 UCHAR *LL_skip_expr(UCHAR *p);
 UCHAR *LL_skipcode(UCHAR *p);
 UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1, int nask_errors);
+UCHAR *output_error(UCHAR *list0, UCHAR *list1, UCHAR *dest);
 
 #define	defnumconst(ifdef, imm, virbyte, typecode) ifdef->vb[(virbyte) & 0x07] = typecode; ifdef->dat[(virbyte) & 0x07] = imm

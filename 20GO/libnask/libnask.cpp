@@ -2294,31 +2294,12 @@ fin:
 }
 
 //
-// dest1を返すNULLならエラー
-// listがあふれても続行
+// アライン情報検索処理
 //
-UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1, int nask_errors)
+UCHAR check_alignments(std::unique_ptr<STR_OUTPUT_SECTION[]>& sectable,
+		  UCHAR *src1, UCHAR *srcp, UCHAR *file_p, int file_len,
+		  int g_symbols, int e_symbols, UCHAR file_aux)
 {
-	int len, linecount = 0, srcl, i, addr, secno, file_len, g_symbols = 0, e_symbols = 0;
-
-	std::unique_ptr<STR_OUTPUT_SECTION[]> sectable(new STR_OUTPUT_SECTION[MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION)]);
-	UCHAR *srcp, *file_p, *string0, *dest = dest0;
-	std::unique_ptr<UCHAR[]> lbuf0(new UCHAR[1024]);
-	UCHAR *lbuf = lbuf0.get();
-	std::unique_ptr<UCHAR[]> ebuf0(new UCHAR[32]);
-	UCHAR *ebuf = ebuf0.get(); /* エラーバッファ */
-
-	UCHAR c, status, adrflag, cc, format, file_aux;
-	// 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み
-
-	// FIXME: アライン情報検索処理として関数を分けたほうがよい
-	srcp = src0;
-	secno = 0;
-	for (i = 0; i < MAX_SECTIONS; i++) {
-		sectable[i].relocs = 0;
-		sectable[i].flags = 0; /* invalid */
-	}
-
 	// See: データ型のアラインメントとは何か，なぜ必要なのか？
 	//      http://www5d.biglobe.ne.jp/~noocyte/Programming/Alignment.html
 	//
@@ -2333,6 +2314,9 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 	//
 	// naskはどうやら"各セクションのアラインをソース中のALIGN文から自動設定。"するらしい。
 	// See: http://community.osdev.info/index.php?GO%2Fnask
+	int secno = 0;
+	UCHAR format = 0;
+
 	do {
 		LOG_DEBUG("srcp[0]: 0x%02x \n", srcp[0]);
 		if (srcp[0] == REM_4B) {
@@ -2387,19 +2371,61 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 		srcp = LL_skipcode(srcp);
 	} while (srcp < src1);
 
+	return format;
+}
+
+//
+// outputで例外発生時の処理
+//
+UCHAR *output_error(UCHAR *list0, UCHAR *list1, UCHAR *dest)
+{
+	list1[1] = 1; /* over */
+	if (list0) {
+		*list0 = '\0';
+		list1[1] = 0; /* enough */
+	}
+	return dest;
+}
+
+//
+// dest1を返すNULLならエラー
+// listがあふれても続行
+//
+UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1, int nask_errors)
+{
+	int len, linecount = 0, srcl, i, addr, file_len, g_symbols = 0, e_symbols = 0;
+
+	std::unique_ptr<STR_OUTPUT_SECTION[]> sectable(new STR_OUTPUT_SECTION[MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION)]);
+	UCHAR *srcp, *file_p, *string0, *dest = dest0;
+	std::unique_ptr<UCHAR[]> lbuf0(new UCHAR[1024]);
+	UCHAR *lbuf = lbuf0.get();
+	std::unique_ptr<UCHAR[]> ebuf0(new UCHAR[32]);
+	UCHAR *ebuf = ebuf0.get(); /* エラーバッファ */
+
+	UCHAR c, status, adrflag, cc, file_aux;
+	// 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み
+	srcp = src0;
+	for (i = 0; i < MAX_SECTIONS; i++) {
+		sectable[i].relocs = 0;
+		sectable[i].flags = 0; /* invalid */
+	}
+
+	// アライン情報検索
+	const UCHAR format = check_alignments(sectable, src1, srcp, file_p, file_len, g_symbols, e_symbols, file_aux);
+
 	/* バイナリー出力 */
 	if (format == 1) { /* WCOFF */
 		LOG_DEBUG("srcp[0]: 0x%02x \n", srcp[0]);
 		if (dest + sizeof (libnask::header) > dest1) {
 			dest = NULL;
-			goto error;
+			output_error(list0, list1, dest);
 		}
 		for (i = 0; i < sizeof (libnask::header); i++)
 			dest[i] = libnask::header[i];
 		dest += sizeof (libnask::header);
 	}
 	srcp = src0;
-	secno = 0;
+	int secno = 0; // 再代入されてる
 	do {
 		c = *srcp;
 		if (SHORT_DB1 <= c && c <= SHORT_DB4) {
@@ -2407,7 +2433,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 			c -= SHORT_DB0;
 			if (dest + 8 > dest1) {
 				dest = NULL;
-				goto error;
+				output_error(list0, list1, dest);
 			}
 			if (format == 0 /* BIN */)
 				goto dest_out_skip;
@@ -2437,7 +2463,7 @@ dest_out_skip:
 					//while (((int) dest) & (i - 1)) {
 					// 	if (dest >= dest1) {
 					// 		dest = NULL;
-					// 		goto error;
+					// 		output_error(list0, list1, dest);
 					// 	}
 					// 	*dest++ = '\0';
 					//}
@@ -2470,7 +2496,7 @@ dest_out_skip:
 		}
 		if (dest > dest1) {
 			dest = NULL;
-			goto error;
+			output_error(list0, list1, dest);
 		}
 
 		/* symbol table */
@@ -2478,7 +2504,7 @@ dest_out_skip:
 		put4b(i = file_aux + 7 + e_symbols + g_symbols, &dest0[0x0c]);
 		if (dest + i * 18 > dest1) {
 			dest = NULL;
-			goto error;
+			output_error(list0, list1, dest);
 		}
 		for (i = 0; i < sizeof (libnask::common_symbols0); i++)
 			dest[i] = libnask::common_symbols0[i];
@@ -2537,7 +2563,7 @@ dest_out_skip:
 						put4b(dest - string0, &ebuf[4]);
 						if (dest + len + 1 > dest1) {
 							dest = NULL;
-							goto error;
+							output_error(list0, list1, dest);
 						}
 						do {
 							*dest++ = *lbuf++;
@@ -2814,12 +2840,8 @@ skip_relative_relocation:
 				break;
 		}
 	}
-error:
-	list1[1] = 1; /* over */
-	if (list0) {
-		*list0 = '\0';
-		list1[1] = 0; /* enough */
-	}
+
+	// finally, finished !
 	return dest;
 }
 
