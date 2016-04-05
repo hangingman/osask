@@ -236,6 +236,96 @@ static const char *ERRMSG[] = {
 	"      >> [ERROR #012] expression error.\n" /* 未定義ラベル参照 */
 };
 
+namespace libnask {
+
+     static constexpr UCHAR header[140] = {
+	/* file header */
+	  0x4c, 0x01, /* signature */
+	  0x03, 0x00, /* sections == 3 */
+	  0, 0, 0, 0, /* time & date */
+	  0, 0, 0, 0, /* +0x08: symboltable */
+	  0, 0, 0, 0, /* +0x0c: sizeof (symboltable) / 18 */
+	  0x00, 0x00, /* no optional header */
+	  0x00, 0x00, /* flags */
+
+	/* section header (.text) */
+	  '.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
+	  0, 0, 0, 0, /* paddr (section_text - section_text) */
+	  0, 0, 0, 0, /* vaddr == 0 */
+	  0, 0, 0, 0, /* +0x24: sizeof (section_text) */
+	  0, 0, 0, 0, /* +0x28: section_text */
+	  0, 0, 0, 0, /* +0x2c: reloctab_text */
+	  0, 0, 0, 0, /* line number == 0 */
+	  0, 0, /* +0x34: sizeof (reloctab_text) / 10 */
+	  0, 0, /* sizeof (line_number) == 0 */
+	  0x20, 0x00, 0x10, 0x60, /* +0x38: flags, default_align = 1 */
+
+	/* section header (.data) */
+	  '.', 'd', 'a', 't', 'a', 0, 0, 0, /* name */
+	  0, 0, 0, 0, /* paddr (section_data - section_text) */
+	  0, 0, 0, 0, /* vaddr == 0 */
+	  0, 0, 0, 0, /* +0x4c: sizeof (section_data) */
+	  0, 0, 0, 0, /* +0x50: section_data */
+	  0, 0, 0, 0, /* +0x54: reloctab_data */
+	  0, 0, 0, 0, /* line number == 0 */
+	  0, 0, /* +0x5c: sizeof (reloctab_data) / 10 */
+	  0, 0, /* sizeof (line_number) == 0 */
+	  0x40, 0x00, 0x10, 0xc0, /* +0x60: flags, default_align = 1 */
+
+	/* section header (.bss) */
+	  '.', 'b', 's', 's', 0, 0, 0, 0, /* name */
+	  0, 0, 0, 0, /* paddr (section_bss - section_text) */
+	  0, 0, 0, 0, /* vaddr == 0 */
+	  0, 0, 0, 0, /* +0x74: sizeof (section_bss) */
+	  0, 0, 0, 0, /* section_bss == 0 */
+	  0, 0, 0, 0, /* reloctab_bss == 0 */
+	  0, 0, 0, 0, /* line number == 0 */
+	  0, 0, /* sizeof (reloctab_data) / 10 == 0 */
+	  0, 0, /* sizeof (line_number) == 0 */
+	  0x80, 0x00, 0x10, 0xc0 /* +0x88: flags, default_align = 1 */
+     };
+
+     static constexpr UCHAR common_symbols0[18 * 1 - 1] = {
+	  '.', 'f', 'i', 'l', 'e', 0, 0, 0, /* name */
+	  0, 0, 0, 0, /* value */
+	  0xfe, 0xff, /* debugging symbol */
+	  0, 0, /* T_NULL */
+	  103 /* , 0 */ /* file name, numaux = 0 */
+     };
+
+     static constexpr UCHAR common_symbols1[18 * 6] = {
+	  '.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
+	  0, 0, 0, 0, /* value */
+	  0x01, 0x00, /* section 1 */
+	  0, 0, /* T_NULL */
+	  3, 1, /* private symbol, numaux = 1 */
+	  0, 0, 0, 0, /* +0x12: sizeof (section_text) */
+	  0, 0, /* +0x16: sizeof (reloctab_text) / 10 */
+	  0, 0, /* sizeof (line_number) == 0 */
+	  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+
+	  '.', 'd', 'a', 't', 'a', 0, 0, 0, /* name */
+	  0, 0, 0, 0, /* value */
+	  0x02, 0x00, /* section 2 */
+	  0, 0, /* T_NULL */
+	  3, 1, /* private symbol, numaux = 1 */
+	  0, 0, 0, 0, /* +0x36: sizeof (section_text) */
+	  0, 0, /* +0x3a: sizeof (reloctab_text) / 10 */
+	  0, 0, /* sizeof (line_number) == 0 */
+	  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+
+	  '.', 'b', 's', 's', 0, 0, 0, 0, /* name */
+	  0, 0, 0, 0, /* value */
+	  0x03, 0x00, /* section 3 */
+	  0, 0, /* T_NULL */
+	  3, 1, /* private symbol, numaux = 1 */
+	  0, 0, 0, 0, /* +0x5a: sizeof (section_bss) */
+	  0, 0, /* sizeof (reloctab_text) / 10 == 0 */
+	  0, 0, /* sizeof (line_number) == 0 */
+	  0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+     };
+}
+
 
 UCHAR* skipspace(UCHAR *s, UCHAR *t);
 UCHAR* putimm(int i, UCHAR *p);
