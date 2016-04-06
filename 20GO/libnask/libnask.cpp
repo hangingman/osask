@@ -347,6 +347,8 @@ err:
 			//	}
 				j = itp->param[2] & 0x07;
 				for (i = 0; i < j; i++) {
+					LOG_DEBUG("bp->byte[0]: 0x%02x, bp->byte[1]: 0x%02x\n",
+						  SHORT_DB1, itp->param[3 + i]);
 					bp->byte[0] = SHORT_DB1; /* 0x31 */
 					bp->byte[1] = itp->param[3 + i];
 					bp += 2;
@@ -1862,27 +1864,28 @@ err:
 					/* アドレス出力マークも出力 */
 					/* 必要ならエラーも出力する */
 				// FIXME
-				//if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
-				// 	goto overrun;
+				if ((dest0 = flush_bp(bp->integer - *(buf.get()), buf.get(), dest0, dest1, ifdef)) == NULL)
+				 	goto overrun;
 				for (;;) {
 					s = skipspace(s, status->src1);
 					if (s < status->src1) {
 						c = *s;
+						LOG_DEBUG("[OPE_DB] c: 0x%02x \n", c);
 						if (c != 0x22 && c != 0x27)
 							goto ope_db_expr;
-						//bp = s; FIXME
-						//do {
-						// 	bp++;
-						// 	if (bp >= status->src1)
-						// 		goto ope_db_expr;
-						// 	if (*bp == '\n')
-						// 		goto ope_db_expr;
-						//} while (*bp != c);
-						//bp = skipspace(bp + 1, status->src1);
-						//if (bp < status->src1) {
-						// 	if (*bp != ',' && *bp != '\n' && *bp != ';')
-						// 		goto ope_db_expr;
-						//}
+						bp = ucharToNask32bitIntPtr(s);
+						do {
+							bp++;
+							if (bp >= ucharToNask32bitIntPtr(status->src1))
+								goto ope_db_expr;
+							if ((*bp).integer == '\n')
+								goto ope_db_expr;
+						} while ((*bp).integer != c);
+						//bp = skipspace(bp + 1, ucharToNask32bitIntPtr(status->src1));
+						if (bp < ucharToNask32bitIntPtr(status->src1)) {
+							if ((*bp).integer != ',' && (*bp).integer != '\n' && (*bp).integer != ';')
+								goto ope_db_expr;
+						}
 						/* 文字列検出 */
 						s++;
 						k = 0;
@@ -1906,7 +1909,7 @@ err:
 								*dest0++ = 0x00;
 							} while (++k < itp->param[1]);
 						}
-						//s = bp; FIXME
+						bp = ucharToNask32bitIntPtr(s);
 						goto ope_db_skip;
 					}
 			ope_db_expr:
@@ -1929,6 +1932,7 @@ err:
 						*dest0++ = (c &= 0x1f) | 0x30;
 						do {
 							*dest0++ = k & 0xff;
+							LOG_DEBUG("*dest0: 0x%02x \n", *dest0);
 							k >>= 8;
 						} while (--c);
 					} else {
@@ -1940,9 +1944,10 @@ err:
 						dest0[0] = (c & 0x1f) + 0x37; /* 38〜3b */
 						dest0[1] = (c >> 5) & 0x03;
 						dest0 += 2;
-						//do { FIXME
-						// 	*dest0++ = *bp++;
-						//} while (--k);
+						do {
+							*dest0++ = (*bp++).integer;
+							LOG_DEBUG("*dest0: 0x%02x \n", *dest0);
+						} while (--k);
 					}
 			ope_db_skip:
 					if (s >= status->src1)
@@ -2318,7 +2323,7 @@ UCHAR check_alignments(std::unique_ptr<STR_OUTPUT_SECTION[]>& sectable,
 	UCHAR format = 0;
 
 	do {
-		LOG_DEBUG("srcp[0]: 0x%02x \n", srcp[0]);
+		LOG_DEBUG("srcp: 0x%02x \n", *srcp);
 		if (srcp[0] == REM_4B) {
 			LOG_DEBUG("srcp[0] matched REM_4B \n");
 			LOG_DEBUG("srcp[1]: %d \n", srcp[1]);

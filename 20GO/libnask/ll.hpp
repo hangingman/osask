@@ -17,7 +17,6 @@ typedef unsigned int  UINT;
 
 // on 64 bit sizeof(char*) is 8 and sizeof(int) is 4
 // on 32 bit sizeof(char*) is 4 and sizeof(int) is 4
-// Suck
 typedef union {
 	UINT integer;
 	UCHAR byte[4];
