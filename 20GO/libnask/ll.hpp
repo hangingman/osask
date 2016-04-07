@@ -17,7 +17,6 @@ typedef unsigned int  UINT;
 
 // on 64 bit sizeof(char*) is 8 and sizeof(int) is 4
 // on 32 bit sizeof(char*) is 4 and sizeof(int) is 4
-// Suck
 typedef union {
 	UINT integer;
 	UCHAR byte[4];
@@ -39,6 +38,22 @@ static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
 
 /** Always trace log */
 #define LOG_INFO(fmt, ...) printf("%s(): " fmt, __func__, ## __VA_ARGS__)
+
+#include  <iomanip>
+
+template <class T>
+static std::string dump_ptr(const char* name, T* src) {
+
+	std::stringstream buf;
+	buf << "[ ";
+	while( *src != 0x00 ) {
+		buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
+		buf << ", ";
+		src++;
+        }
+	buf << "]";
+	return buf.str();
+}
 
 static std::string dump_argv(char** argv) {
 

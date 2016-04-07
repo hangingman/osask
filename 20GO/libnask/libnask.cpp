@@ -347,6 +347,8 @@ err:
 			//	}
 				j = itp->param[2] & 0x07;
 				for (i = 0; i < j; i++) {
+					LOG_DEBUG("bp->byte[0]: 0x%02x, bp->byte[1]: 0x%02x\n",
+						  SHORT_DB1, itp->param[3 + i]);
 					bp->byte[0] = SHORT_DB1; /* 0x31 */
 					bp->byte[1] = itp->param[3 + i];
 					bp += 2;
@@ -1862,27 +1864,28 @@ err:
 					/* アドレス出力マークも出力 */
 					/* 必要ならエラーも出力する */
 				// FIXME
-				//if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
-				// 	goto overrun;
+				if ((dest0 = flush_bp(bp->integer - *(buf.get()), buf.get(), dest0, dest1, ifdef)) == NULL)
+				 	goto overrun;
 				for (;;) {
 					s = skipspace(s, status->src1);
 					if (s < status->src1) {
 						c = *s;
+						LOG_DEBUG("[OPE_DB] c: 0x%02x \n", c);
 						if (c != 0x22 && c != 0x27)
 							goto ope_db_expr;
-						//bp = s; FIXME
-						//do {
-						// 	bp++;
-						// 	if (bp >= status->src1)
-						// 		goto ope_db_expr;
-						// 	if (*bp == '\n')
-						// 		goto ope_db_expr;
-						//} while (*bp != c);
-						//bp = skipspace(bp + 1, status->src1);
-						//if (bp < status->src1) {
-						// 	if (*bp != ',' && *bp != '\n' && *bp != ';')
-						// 		goto ope_db_expr;
-						//}
+						bp = ucharToNask32bitIntPtr(s);
+						do {
+							bp++;
+							if (bp >= ucharToNask32bitIntPtr(status->src1))
+								goto ope_db_expr;
+							if ((*bp).integer == '\n')
+								goto ope_db_expr;
+						} while ((*bp).integer != c);
+						//bp = skipspace(bp + 1, ucharToNask32bitIntPtr(status->src1));
+						if (bp < ucharToNask32bitIntPtr(status->src1)) {
+							if ((*bp).integer != ',' && (*bp).integer != '\n' && (*bp).integer != ';')
+								goto ope_db_expr;
+						}
 						/* 文字列検出 */
 						s++;
 						k = 0;
@@ -1906,7 +1909,7 @@ err:
 								*dest0++ = 0x00;
 							} while (++k < itp->param[1]);
 						}
-						//s = bp; FIXME
+						bp = ucharToNask32bitIntPtr(s);
 						goto ope_db_skip;
 					}
 			ope_db_expr:
@@ -1929,6 +1932,7 @@ err:
 						*dest0++ = (c &= 0x1f) | 0x30;
 						do {
 							*dest0++ = k & 0xff;
+							LOG_DEBUG("*dest0: 0x%02x \n", *dest0);
 							k >>= 8;
 						} while (--c);
 					} else {
@@ -1940,9 +1944,10 @@ err:
 						dest0[0] = (c & 0x1f) + 0x37; /* 38〜3b */
 						dest0[1] = (c >> 5) & 0x03;
 						dest0 += 2;
-						//do { FIXME
-						// 	*dest0++ = *bp++;
-						//} while (--k);
+						do {
+							*dest0++ = (*bp++).integer;
+							LOG_DEBUG("*dest0: 0x%02x \n", *dest0);
+						} while (--k);
 					}
 			ope_db_skip:
 					if (s >= status->src1)
@@ -2294,12 +2299,106 @@ fin:
 }
 
 //
+// アライン情報検索処理
+//
+UCHAR check_alignments(std::unique_ptr<STR_OUTPUT_SECTION[]>& sectable,
+		  UCHAR *src1, UCHAR *srcp, UCHAR *file_p, int file_len,
+		  int g_symbols, int e_symbols, UCHAR file_aux)
+{
+	// See: データ型のアラインメントとは何か，なぜ必要なのか？
+	//      http://www5d.biglobe.ne.jp/~noocyte/Programming/Alignment.html
+	//
+	// ここからはfunction naskで処理したalignmentのデータを処理していく
+	// Quoted from: http://d.hatena.ne.jp/suu-g/20080510/1210408956
+	//
+	// "データを配置するとなると、今度はデータ境界を気にしなければならなくなる。
+	// charなら1byteごとにアクセスできるから問題になることはなかなかないけど、
+	// 32bit longは4byteごとでのアクセス以外では処理できず、Bus Error(SIGBUS)が発生する。
+	// そのような問題を避けるために、データを配置する位置をデータ境界に揃える必要が出てくる。
+	// それを行ってくれるのが .align ディレクティブだ。"
+	//
+	// naskはどうやら"各セクションのアラインをソース中のALIGN文から自動設定。"するらしい。
+	// See: http://community.osdev.info/index.php?GO%2Fnask
+	int secno = 0;
+	UCHAR format = 0;
+
+	do {
+		LOG_DEBUG("srcp: 0x%02x \n", *srcp);
+		if (srcp[0] == REM_4B) {
+			LOG_DEBUG("srcp[0] matched REM_4B \n");
+			LOG_DEBUG("srcp[1]: %d \n", srcp[1]);
+			if (srcp[1] == 0) {
+				LOG_DEBUG("srcp[1]: %s \n", "set section align");
+				sectable[srcp[2]].align = srcp[3]; /* set section align */
+			} else if (srcp[1] == 1) {
+				LOG_DEBUG("srcp[1]: %s \n", "set section flags");
+				sectable[srcp[2]].flags = srcp[3]; /* set section flags */
+			} else {
+				LOG_DEBUG("srcp[1]: %s a compiled align setting is not correct\n");
+			}
+		}
+		if (srcp[0] == REM_3B) {
+			LOG_DEBUG("srcp[0] matched REM_3B \n");
+			if (srcp[1] == 1) {
+				LOG_DEBUG("srcp[2]: %s \n", "start section");
+				secno = srcp[2]; /* start section */
+			} else if (srcp[1] == 2) {
+				LOG_DEBUG("srcp[2]: %s \n", "set format");
+				format = srcp[2]; /* set format */
+			} else {
+				LOG_DEBUG("srcp[2]: %s a compiled align setting is not correct\n");
+			}
+		}
+		if (srcp[0] == REM_8B) {
+			LOG_DEBUG("srcp[0] matched REM_8B \n");
+			if (srcp[1] == 0) { /* file */
+				LOG_DEBUG("srcp[1]: %s \n", "file");
+				file_len = srcp[2];
+				file_p = (UCHAR *) get4b(&srcp[4]);
+				file_aux = (file_len + (1 + 17)) / 18;
+			} else if (srcp[1] == 1) {
+				LOG_DEBUG("srcp[1]: %s \n", "GLOBAL");
+				g_symbols++; /* GLOBAL */
+			} else if (srcp[1] == 2) { /* EXTERN */
+				LOG_DEBUG("srcp[1]: %s \n", "EXTERN");
+				e_symbols++;
+				/* 番号とCOFFシンボル番号との対応表を作る...必要はない */
+				/* EXTERNシンボルは、ラベル番号から定数を引くだけでCOFFシンボル番号になる */
+			} else {
+				LOG_DEBUG("srcp[2]: %s a compiled align setting is not correct\n");
+			}
+		}
+		if (0x2e <= srcp[0] && srcp[0] <= 0x2f) {
+			/* need relocation */
+			LOG_DEBUG("0x2e <= srcp[0] <= 0x2f, need relocation \n");
+			sectable[secno].relocs++;
+		}
+		srcp = LL_skipcode(srcp);
+	} while (srcp < src1);
+
+	return format;
+}
+
+//
+// outputで例外発生時の処理
+//
+UCHAR *output_error(UCHAR *list0, UCHAR *list1, UCHAR *dest)
+{
+	list1[1] = 1; /* over */
+	if (list0) {
+		*list0 = '\0';
+		list1[1] = 0; /* enough */
+	}
+	return dest;
+}
+
+//
 // dest1を返すNULLならエラー
 // listがあふれても続行
 //
 UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0, UCHAR *list1, int nask_errors)
 {
-	int len, linecount = 0, srcl, i, addr, secno, file_len, g_symbols = 0, e_symbols = 0;
+	int len, linecount = 0, srcl, i, addr, file_len, g_symbols = 0, e_symbols = 0;
 
 	std::unique_ptr<STR_OUTPUT_SECTION[]> sectable(new STR_OUTPUT_SECTION[MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION)]);
 	UCHAR *srcp, *file_p, *string0, *dest = dest0;
@@ -2308,112 +2407,30 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 	std::unique_ptr<UCHAR[]> ebuf0(new UCHAR[32]);
 	UCHAR *ebuf = ebuf0.get(); /* エラーバッファ */
 
-	UCHAR c, status, adrflag, cc, format, file_aux;
-	/* 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み */
-
-	/* アライン情報検索 */
+	UCHAR c, status, adrflag, cc, file_aux;
+	// 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み
 	srcp = src0;
-	secno = 0;
 	for (i = 0; i < MAX_SECTIONS; i++) {
 		sectable[i].relocs = 0;
 		sectable[i].flags = 0; /* invalid */
 	}
-	do {
-		if (srcp[0] == REM_4B) {
-			if (srcp[1] == 0)
-				sectable[srcp[2]].align = srcp[3]; /* set section align */
-			if (srcp[1] == 1)
-				sectable[srcp[2]].flags = srcp[3]; /* set section flags */
-		}
-		if (srcp[0] == REM_3B) {
-			if (srcp[1] == 1) {
-				/* start section */
-				secno = srcp[2];
-			}
-			if (srcp[1] == 2) {
-				/* set format */
-				format = srcp[2];
-			}
-		}
-		if (srcp[0] == REM_8B) {
-			if (srcp[1] == 0) { /* file */
-				file_len = srcp[2];
-				file_p = (UCHAR *) get4b(&srcp[4]);
-				file_aux = (file_len + (1 + 17)) / 18;
-			}
-			if (srcp[1] == 1)
-				g_symbols++; /* GLOBAL */
-			if (srcp[1] == 2) { /* EXTERN */
-				e_symbols++;
-				/* 番号とCOFFシンボル番号との対応表を作る...必要はない */
-				/* EXTERNシンボルは、ラベル番号から定数を引くだけでCOFFシンボル番号になる */
-			}
-		}
-		if (0x2e <= srcp[0] && srcp[0] <= 0x2f) {
-			/* need relocation */
-			sectable[secno].relocs++;
-		}
-		srcp = LL_skipcode(srcp);
-	} while (srcp < src1);
+
+	// アライン情報検索
+	const UCHAR format = check_alignments(sectable, src1, srcp, file_p, file_len, g_symbols, e_symbols, file_aux);
 
 	/* バイナリー出力 */
 	if (format == 1) { /* WCOFF */
-		static UCHAR header[140] = {
-			/* file header */
-			0x4c, 0x01, /* signature */
-			0x03, 0x00, /* sections == 3 */
-			0, 0, 0, 0, /* time & date */
-			0, 0, 0, 0, /* +0x08: symboltable */
-			0, 0, 0, 0, /* +0x0c: sizeof (symboltable) / 18 */
-			0x00, 0x00, /* no optional header */
-			0x00, 0x00, /* flags */
-
-			/* section header (.text) */
-			'.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
-			0, 0, 0, 0, /* paddr (section_text - section_text) */
-			0, 0, 0, 0, /* vaddr == 0 */
-			0, 0, 0, 0, /* +0x24: sizeof (section_text) */
-			0, 0, 0, 0, /* +0x28: section_text */
-			0, 0, 0, 0, /* +0x2c: reloctab_text */
-			0, 0, 0, 0, /* line number == 0 */
-			0, 0, /* +0x34: sizeof (reloctab_text) / 10 */
-			0, 0, /* sizeof (line_number) == 0 */
-			0x20, 0x00, 0x10, 0x60, /* +0x38: flags, default_align = 1 */
-
-			/* section header (.data) */
-			'.', 'd', 'a', 't', 'a', 0, 0, 0, /* name */
-			0, 0, 0, 0, /* paddr (section_data - section_text) */
-			0, 0, 0, 0, /* vaddr == 0 */
-			0, 0, 0, 0, /* +0x4c: sizeof (section_data) */
-			0, 0, 0, 0, /* +0x50: section_data */
-			0, 0, 0, 0, /* +0x54: reloctab_data */
-			0, 0, 0, 0, /* line number == 0 */
-			0, 0, /* +0x5c: sizeof (reloctab_data) / 10 */
-			0, 0, /* sizeof (line_number) == 0 */
-			0x40, 0x00, 0x10, 0xc0, /* +0x60: flags, default_align = 1 */
-
-			/* section header (.bss) */
-			'.', 'b', 's', 's', 0, 0, 0, 0, /* name */
-			0, 0, 0, 0, /* paddr (section_bss - section_text) */
-			0, 0, 0, 0, /* vaddr == 0 */
-			0, 0, 0, 0, /* +0x74: sizeof (section_bss) */
-			0, 0, 0, 0, /* section_bss == 0 */
-			0, 0, 0, 0, /* reloctab_bss == 0 */
-			0, 0, 0, 0, /* line number == 0 */
-			0, 0, /* sizeof (reloctab_data) / 10 == 0 */
-			0, 0, /* sizeof (line_number) == 0 */
-			0x80, 0x00, 0x10, 0xc0 /* +0x88: flags, default_align = 1 */
-		};
-		if (dest + sizeof (header) > dest1) {
+		LOG_DEBUG("srcp[0]: 0x%02x \n", srcp[0]);
+		if (dest + sizeof (libnask::header) > dest1) {
 			dest = NULL;
-			goto error;
+			output_error(list0, list1, dest);
 		}
-		for (i = 0; i < sizeof (header); i++)
-			dest[i] = header[i];
-		dest += sizeof (header);
+		for (i = 0; i < sizeof (libnask::header); i++)
+			dest[i] = libnask::header[i];
+		dest += sizeof (libnask::header);
 	}
 	srcp = src0;
-	secno = 0;
+	int secno = 0; // 再代入されてる
 	do {
 		c = *srcp;
 		if (SHORT_DB1 <= c && c <= SHORT_DB4) {
@@ -2421,13 +2438,15 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 			c -= SHORT_DB0;
 			if (dest + 8 > dest1) {
 				dest = NULL;
-				goto error;
+				output_error(list0, list1, dest);
 			}
-			if (format == 0 /* BIN */)
+			if (format == 0 /* BIN <-- これ正しいの？ */)
 				goto dest_out_skip;
 			if (format == 1 && 1 <= sectable[secno].flags && sectable[secno].flags <= 2) {
 dest_out_skip:
 				do {
+					// ここで *srcp の中身がlist0に書き込まれる
+					// 多分大抵の場合それがバイナリで.imgファイルに入る
 					*dest++ = *srcp++;
 				} while (--c);
 				continue;
@@ -2451,7 +2470,7 @@ dest_out_skip:
 					//while (((int) dest) & (i - 1)) {
 					// 	if (dest >= dest1) {
 					// 		dest = NULL;
-					// 		goto error;
+					// 		output_error(list0, list1, dest);
 					// 	}
 					// 	*dest++ = '\0';
 					//}
@@ -2467,44 +2486,6 @@ dest_out_skip:
 		srcp = LL_skipcode(srcp);
 	} while (srcp < src1);
 	if (format == 1) { /* WCOFF */
-		static UCHAR common_symbols0[18 * 1 - 1] = {
-			'.', 'f', 'i', 'l', 'e', 0, 0, 0, /* name */
-			0, 0, 0, 0, /* value */
-			0xfe, 0xff, /* debugging symbol */
-			0, 0, /* T_NULL */
-			103 /* , 0 */ /* file name, numaux = 0 */
-		};
-		static UCHAR common_symbols1[18 * 6] = {
-			'.', 't', 'e', 'x', 't', 0, 0, 0, /* name */
-			0, 0, 0, 0, /* value */
-			0x01, 0x00, /* section 1 */
-			0, 0, /* T_NULL */
-			3, 1, /* private symbol, numaux = 1 */
-			0, 0, 0, 0, /* +0x12: sizeof (section_text) */
-			0, 0, /* +0x16: sizeof (reloctab_text) / 10 */
-			0, 0, /* sizeof (line_number) == 0 */
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-			'.', 'd', 'a', 't', 'a', 0, 0, 0, /* name */
-			0, 0, 0, 0, /* value */
-			0x02, 0x00, /* section 2 */
-			0, 0, /* T_NULL */
-			3, 1, /* private symbol, numaux = 1 */
-			0, 0, 0, 0, /* +0x36: sizeof (section_text) */
-			0, 0, /* +0x3a: sizeof (reloctab_text) / 10 */
-			0, 0, /* sizeof (line_number) == 0 */
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-			'.', 'b', 's', 's', 0, 0, 0, 0, /* name */
-			0, 0, 0, 0, /* value */
-			0x03, 0x00, /* section 3 */
-			0, 0, /* T_NULL */
-			3, 1, /* private symbol, numaux = 1 */
-			0, 0, 0, 0, /* +0x5a: sizeof (section_bss) */
-			0, 0, /* sizeof (reloctab_text) / 10 == 0 */
-			0, 0, /* sizeof (line_number) == 0 */
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-		};
 		/* 最後のセクションのサイズ書き込み */
 		if (1 <= sectable[secno].flags && sectable[secno].flags <= 3)
 			put4b(dest - sectable[secno].d0, &dest0[sectable[secno].flags * 40 - 4]);
@@ -2522,7 +2503,7 @@ dest_out_skip:
 		}
 		if (dest > dest1) {
 			dest = NULL;
-			goto error;
+			output_error(list0, list1, dest);
 		}
 
 		/* symbol table */
@@ -2530,24 +2511,24 @@ dest_out_skip:
 		put4b(i = file_aux + 7 + e_symbols + g_symbols, &dest0[0x0c]);
 		if (dest + i * 18 > dest1) {
 			dest = NULL;
-			goto error;
+			output_error(list0, list1, dest);
 		}
-		for (i = 0; i < sizeof (common_symbols0); i++)
-			dest[i] = common_symbols0[i];
+		for (i = 0; i < sizeof (libnask::common_symbols0); i++)
+			dest[i] = libnask::common_symbols0[i];
 		dest[17] = file_aux;
 		for (i = 0; i < 18; i++)
 			dest[file_aux * 18 + i] = '\0';
 		for (i = 0; i < file_len; i++)
 			dest[18 + i] = file_p[i];
 		dest += file_aux * 18 + 18;
-		for (i = 0; i < sizeof (common_symbols1); i++)
-			dest[i] = common_symbols1[i];
+		for (i = 0; i < sizeof (libnask::common_symbols1); i++)
+			dest[i] = libnask::common_symbols1[i];
 		put4b(get4b(&dest0[0x24]), &dest[0x12]);
 		put4b(get4b(&dest0[0x34]), &dest[0x16]);
 		put4b(get4b(&dest0[0x4c]), &dest[0x36]);
 		put4b(get4b(&dest0[0x5c]), &dest[0x3a]);
 		put4b(get4b(&dest0[0x74]), &dest[0x5a]);
-		file_p = dest + sizeof (common_symbols1);
+		file_p = dest + sizeof (libnask::common_symbols1);
 		dest = file_p + (e_symbols + g_symbols) * 18;
 		string0 = dest;
 		dest += 4;
@@ -2589,7 +2570,7 @@ dest_out_skip:
 						put4b(dest - string0, &ebuf[4]);
 						if (dest + len + 1 > dest1) {
 							dest = NULL;
-							goto error;
+							output_error(list0, list1, dest);
 						}
 						do {
 							*dest++ = *lbuf++;
@@ -2866,12 +2847,8 @@ skip_relative_relocation:
 				break;
 		}
 	}
-error:
-	list1[1] = 1; /* over */
-	if (list0) {
-		*list0 = '\0';
-		list1[1] = 0; /* enough */
-	}
+
+	// finally, finished !
 	return dest;
 }
 
