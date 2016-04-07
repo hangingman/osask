@@ -1,4 +1,4 @@
-# Osask  ver.4.7.1 [![Build Status](https://travis-ci.org/Hiroyuki-Nagata/osask.svg?branch=master)](https://travis-ci.org/Hiroyuki-Nagata/osask)
+# Osask  ver.4.7.2 [![Build Status](https://travis-ci.org/Hiroyuki-Nagata/osask.svg?branch=master)](https://travis-ci.org/Hiroyuki-Nagata/osask)
 
 ## Work with
 * i386 based PC/AT machine

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.67])
-AC_INIT([osask], [4.7.1], [idiotpanzer@gmail.com])
+AC_INIT([osask], [4.7.2], [idiotpanzer@gmail.com])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([-Wno-portability])
 AC_CONFIG_SRCDIR([OSASK/winman0.c])
