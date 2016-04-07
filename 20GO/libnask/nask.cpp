@@ -145,7 +145,7 @@ int before_nask_process(int argc, UCHAR **argv, UCHAR *src0)
 
 	LOG_DEBUG("call nask...\n");
 	list1 = nask(src0, src1, list0, list0 + MAX_LSTSIZ);
-	LOG_DEBUG("nask processed list size: %d\n", sizeof list1);
+	LOG_DEBUG("nask loaded src: %s\n", dump_ptr("src0", src0).c_str());
 
 	if (list1 == NULL) {
 over_listbuf:
@@ -155,7 +155,8 @@ over_listbuf:
 
 	LOG_DEBUG("call LL...\n");
 	tmp1 = LL(list0, list1, tmp0, tmp0 + MAX_TMPSIZ);
-	LOG_DEBUG("LL processed list size: %d\n", sizeof tmp1);
+	LOG_DEBUG("LL loaded tmp0: %s\n", dump_ptr("tmp0", tmp0).c_str());
+
 	if (tmp1 == NULL) {
 over_tmpbuf:
 		errmsgout("NASK : TMPBUF is not enough" NL);
@@ -163,8 +164,12 @@ over_tmpbuf:
 	}
 
 	LOG_DEBUG("call output...\n");
+	LOG_DEBUG("output loaded dest0: %s\n", dump_ptr("dest0", dest0).c_str());
 	dest1 = output(tmp0, tmp1, dest0, dest0 + MAX_BINSIZ, list0, list0 + MAX_LSTSIZ - 2, nask_errors);
-	LOG_DEBUG("output processed list size: %d\n", sizeof dest1);
+	// FIXME: output modified dest0 is always twice as much as correct dest0
+	LOG_DEBUG("output modified dest0: %s\n", dump_ptr("dest0", dest0).c_str());
+	LOG_DEBUG("output generated dest1: %s\n", dump_ptr("dest1", dest1).c_str());
+
 	if (dest1 == NULL) {
 		errmsgout("NASK : BINBUF is not enough" NL);
 		return 19;
@@ -181,8 +186,9 @@ over_tmpbuf:
 		}
 	}
 	if (argc >= 3) {
-		if (dest1 < dest0)
+		if (dest1 < dest0) {
 			dest1 = dest0;
+		}
 		if (GOLD_write_b(argv[2], dest1 - dest0, dest0)) {
 			errmsgout("NASK : object/binary output error" NL);
 			return 21;

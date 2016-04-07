@@ -39,6 +39,22 @@ static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
 /** Always trace log */
 #define LOG_INFO(fmt, ...) printf("%s(): " fmt, __func__, ## __VA_ARGS__)
 
+#include  <iomanip>
+
+template <class T>
+static std::string dump_ptr(const char* name, T* src) {
+
+	std::stringstream buf;
+	buf << "[ ";
+	while( *src != 0x00 ) {
+		buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
+		buf << ", ";
+		src++;
+        }
+	buf << "]";
+	return buf.str();
+}
+
 static std::string dump_argv(char** argv) {
 
 	std::stringstream buf;
