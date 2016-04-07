@@ -2440,11 +2440,13 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 				dest = NULL;
 				output_error(list0, list1, dest);
 			}
-			if (format == 0 /* BIN */)
+			if (format == 0 /* BIN <-- これ正しいの？ */)
 				goto dest_out_skip;
 			if (format == 1 && 1 <= sectable[secno].flags && sectable[secno].flags <= 2) {
 dest_out_skip:
 				do {
+					// ここで *srcp の中身がlist0に書き込まれる
+					// 多分大抵の場合それがバイナリで.imgファイルに入る
 					*dest++ = *srcp++;
 				} while (--c);
 				continue;
