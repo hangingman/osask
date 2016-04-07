@@ -810,7 +810,8 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		}
 	} while (unsolved);
 
-	for (subsect = subsect0; subsect_ptr < subsect1; subsect_ptr++) {
+	for (subsect = subsect0; subsect_ptr < subsect1 - 1; subsect_ptr++) {
+		LOG_DEBUG("sebsect++ ! \n");
 		times_count = 0;
 		for (src0 = subsect->sect0; src0 < subsect->sect1; ) {
 			c = *src0++;
