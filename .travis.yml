@@ -36,9 +36,9 @@ before_script:
   - ./bootstrap
 
 script:
-  - if [ "${CXX}" = 'g++-5' ]; then ./configure && make; fi
+  - if [ "${CXX}" = 'g++-5' ]; then ./configure --disable-silent-rules && make; fi
   # clang
-  - if [ "${CXX}" = 'clang++-3.8' ]; then ./configure && make; fi
+  - if [ "${CXX}" = 'clang++-3.8' ]; then ./configure --disable-silent-rules && make; fi
   # mingw32
   - if [ "${MINGW32}" = '1' ]; then ./cross-i686-w64-mingw32.sh; fi
   # mingw64
