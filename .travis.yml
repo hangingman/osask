@@ -1,55 +1,53 @@
 language: cpp
 
-os:
-  - linux
+compiler:
+  - clang
+  - gcc
+
+addons:
+  apt: &apt-global
+    sources: &apt-common-sources
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise-3.8
+      - llvm-toolchain-precise
+    packages: &apt-common-packages
+      - clang-3.8
+      - g++-5
+      - gcc-5
+      - gnulib
 
 before_install:
-  # g++4.8.1
-  # clang 3.4
-  - if [ "$CXX" == "g++" -a "${MINGW}" != '1' ]; then sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; fi
-  - if [ "$CXX" == "clang++" ]; then sudo add-apt-repository -y ppa:h-rayflood/llvm; fi
-  - sudo apt-get update -qq
 
 install:
-  - sudo apt-get install -qq gnulib
-  # g++4.8.1
-  - if [ "$CXX" = "g++" -a "${MINGW}" != '1' ]; then sudo apt-get install -qq g++-4.8; fi
-  - if [ "$CXX" = "g++" -a "${MINGW}" != '1' ]; then export CXX="g++-4.8"; fi
-
-  # i686-w64-mingw32-g++
-  - if [ "${MINGW}" = '1' ]; then export CXX=i686-w64-mingw32-g++; fi
-  # x86_64-w64-mingw32-g++
-  #- if [ "$CXX" == "x86_64-w64-mingw32-g++" ]; then sudo apt-get -qq install binutils-mingw-w64-x86_64 g++-mingw-w64-x86_64; fi
-
-  # clang 3.4
-  - if [ "$CXX" == "clang++" -a "${MINGW}" != '1' ]; then sudo apt-get install --allow-unauthenticated -qq clang-3.4; fi
-  - if [ "$CXX" == "clang++" -a "${MINGW}" != '1' ]; then export CXX="clang++-3.4"; fi
 
 before_script:
+  # g++
+  - if [ "${CXX}" = 'g++' ]; then export CXX=g++-5; fi
+  # clang
+  - if [ "${CXX}" = 'clang++' ]; then export CXX=clang++-3.8; fi
+  # mingw
+  - if [ "${MINGW}" = '1' ]; then export CXX=i686-w64-mingw32-g++; fi
   - autoreconf -i -I/usr/share/gnulib/m4 -I `pwd`/m4
 
 script:
-  - if [ "$CXX" == "i686-w64-mingw32-g++" ]; then ./cross-i686-w64-mingw32.sh; fi
-  #- if [ "$CXX" == "x86_64-w64-mingw32-g++" ]; then ./cross-x86_64-w64-mingw32.sh; fi
-  - if [ "$CXX" == "clang++" ]; then ./configure && make; fi
-  - if [ "$CXX" == "g++" ]; then ./configure && make; fi
-
-branches:
-  only:
-    - master
-
-notifications:
-  email:
-    - idiotpanzer@gmail.com
+  - if [ "${CXX}" = 'g++' ]; then ./configure && make; fi
+  # clang
+  - if [ "${CXX}" = 'clang++' ]; then ./configure && make; fi
+  # mingw
+  - if [ "${MINGW}" = '1' ]; then ./cross-i686-w64-mingw32.sh; fi
 
 matrix:
   include:
-    # Linux
     - compiler: clang++
+      env:
     - compiler: g++
-    # MinGW
-    - compiler: g++
+      env:
+    - compiler: gcc
       env: MINGW=1
+      before_install:
+        - sudo apt-get -qq update
+      install:
+        - sudo apt-get -qq -y install wine
       addons:
         apt:
           sources: *apt-common-sources
