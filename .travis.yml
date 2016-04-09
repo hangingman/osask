@@ -1,39 +1,73 @@
+sudo: required
+
+dist: trusty
+
 language: cpp
 
-os:
-  - linux
+cache: apt
 
-compiler:
-  - g++
-  - clang++
+addons:
+  apt: &apt-global
+    sources: &apt-common-sources
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise-3.8
+      - llvm-toolchain-precise
+    packages: &apt-common-packages
+      - clang-3.8
+      - g++-5
+      - gcc-5
+      - automake
+      - autoconf
+      - libtool
 
 before_install:
-  # g++4.8.1
-  - if [ "$CXX" == "g++" ]; then sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; fi
-  # clang 3.4
-  - if [ "$CXX" == "clang++" ]; then sudo add-apt-repository -y ppa:h-rayflood/llvm; fi
-  - sudo apt-get update -qq
 
 install:
-  - sudo apt-get install -qq gnulib
-  # g++4.8.1
-  - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq g++-4.8; fi
-  - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8"; fi
-
-  # clang 3.4
-  - if [ "$CXX" == "clang++" ]; then sudo apt-get install --allow-unauthenticated -qq clang-3.4; fi
-  - if [ "$CXX" == "clang++" ]; then export CXX="clang++-3.4"; fi
 
 before_script:
-  - autoreconf -i -I/usr/share/gnulib/m4 -I `pwd`/m4
+  # g++
+  - if [ "${CXX}" = 'g++' ]; then export CXX=g++-5; fi
+  # clang
+  - if [ "${CXX}" = 'clang++' ]; then export CXX=clang++-3.8; fi
+  # mingw32
+  - if [ "${MINGW32}" = '1' ]; then export CXX=i686-w64-mingw32-g++; fi
+  # mingw64
+  - if [ "${MINGW64}" = '1' ]; then export CXX=x86_64-w64-mingw32-g++; fi
+  - ./bootstrap
 
 script:
-  - ./configure && make
+  - if [ "${CXX}" = 'g++-5' ]; then ./configure && make; fi
+  # clang
+  - if [ "${CXX}" = 'clang++-3.8' ]; then ./configure && make; fi
+  # mingw32
+  - if [ "${MINGW32}" = '1' ]; then ./cross-i686-w64-mingw32.sh; fi
+  # mingw64
+  #- if [ "${MINGW64}" = '1' ]; then ./cross-x86_64-w64-mingw32.sh; fi
 
-branches:
-  only:
-    - master
-
-notifications:
-  email:
-    - idiotpanzer@gmail.com
+matrix:
+  include:
+    - compiler: clang++
+      env:
+    - compiler: g++
+      env:
+    - compiler: gcc
+      env: MINGW32=1
+      addons:
+        apt:
+          sources: *apt-common-sources
+          packages:
+            - *apt-common-packages
+            - binutils-mingw-w64-i686
+            - gcc-mingw-w64-i686
+            - g++-mingw-w64-i686
+    #- compiler: gcc
+    #  env: MINGW64=1
+    #  addons:
+    #    apt:
+    #      sources: *apt-common-sources
+    #      packages:
+    #        - *apt-common-packages
+    #        - binutils-mingw-w64-x86_64
+    #        - gcc-mingw-w64-x86_64
+    #        - g++-mingw-w64-x86_64
+    # These packages are not permitted to install by Travis :<

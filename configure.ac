@@ -23,7 +23,6 @@ AC_FUNC_ALLOCA
 AC_CHECK_HEADERS([limits.h malloc.h stddef.h stdlib.h string.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_CHECK_HEADER_STDBOOL
 AC_C_INLINE
 AC_TYPE_INT32_T
 AC_FUNC_OBSTACK
