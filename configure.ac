@@ -84,6 +84,7 @@ AC_CONFIG_FILES([20GO/Makefile
 		 20GO/omake/Makefile
 		 20GO/libgo/Makefile
    		 20GO/libnask/Makefile
+		 20GO/libnask/data/Makefile
                  20GO/toolstdc/Makefile
                  28GO/Makefile
                  28GO/28GO_K/Makefile
