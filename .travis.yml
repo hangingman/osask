@@ -14,7 +14,9 @@ addons:
       - clang-3.8
       - g++-5
       - gcc-5
-      - gnulib
+      - automake
+      - autoconf
+      - libtool
 
 before_install:
 
@@ -27,7 +29,7 @@ before_script:
   - if [ "${CXX}" = 'clang++' ]; then export CXX=clang++-3.8; fi
   # mingw
   - if [ "${MINGW}" = '1' ]; then export CXX=i686-w64-mingw32-g++; fi
-  - autoreconf -i -I/usr/share/gnulib/m4 -I `pwd`/m4
+  - ./bootstrap
 
 script:
   - if [ "${CXX}" = 'g++' ]; then ./configure && make; fi
