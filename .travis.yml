@@ -23,16 +23,20 @@ before_script:
   - if [ "${CXX}" = 'g++' ]; then export CXX=g++-5; fi
   # clang
   - if [ "${CXX}" = 'clang++' ]; then export CXX=clang++-3.8; fi
-  # mingw
-  - if [ "${MINGW}" = '1' ]; then export CXX=i686-w64-mingw32-g++; fi
+  # mingw32
+  - if [ "${MINGW32}" = '1' ]; then export CXX=i686-w64-mingw32-g++; fi
+  # mingw64
+  - if [ "${MINGW64}" = '1' ]; then export CXX=x86_64-w64-mingw32-g++; fi
   - ./bootstrap
 
 script:
-  - if [ "${CXX}" = 'g++' ]; then ./configure && make; fi
+  - if [ "${CXX}" = 'g++-5' ]; then ./configure && make; fi
   # clang
-  - if [ "${CXX}" = 'clang++' ]; then ./configure && make; fi
-  # mingw
-  - if [ "${MINGW}" = '1' ]; then ./cross-i686-w64-mingw32.sh; fi
+  - if [ "${CXX}" = 'clang++-3.8' ]; then ./configure && make; fi
+  # mingw32
+  - if [ "${MINGW32}" = '1' ]; then ./cross-i686-w64-mingw32.sh; fi
+  # mingw64
+  - if [ "${MINGW64}" = '1' ]; then ./cross-x86_64-w64-mingw32.sh; fi
 
 matrix:
   include:
@@ -41,11 +45,7 @@ matrix:
     - compiler: g++
       env:
     - compiler: gcc
-      env: MINGW=1
-      before_install:
-        - sudo apt-get -qq update
-      install:
-        - sudo apt-get -qq -y install wine
+      env: MINGW32=1
       addons:
         apt:
           sources: *apt-common-sources
@@ -54,3 +54,13 @@ matrix:
             - binutils-mingw-w64-i686
             - gcc-mingw-w64-i686
             - g++-mingw-w64-i686
+    - compiler: gcc
+      env: MINGW64=1
+      addons:
+        apt:
+          sources: *apt-common-sources
+          packages:
+            - *apt-common-packages
+            - binutils-mingw-w64-x86_64
+            - gcc-mingw-w64-x86_64
+            - g++-mingw-w64-x86_64
