@@ -32,9 +32,15 @@ static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
 
 /** For debug log. Usage ./configure CXXFLAGS=-DDEBUG_BUILD; make */
 #if defined(DEBUG) && defined(__GNUC__)
-#  define LOG_DEBUG(fmt, ...) printf("%s(): " fmt, __func__, ## __VA_ARGS__)
+#  define LOG_DEBUG(fmt, ...) printf("%s:%d %s(): " fmt, __FILE__, __LINE__, __func__, ## __VA_ARGS__)
 #else
 #  define LOG_DEBUG(x, ...) do {} while (0)
+#endif
+
+#if defined(TRACE) && defined(__GNUC__)
+#  define LOG_TRACE(fmt, ...) printf("%s:%d %s(): " fmt, __FILE__, __LINE__, __func__, ## __VA_ARGS__)
+#else
+#  define LOG_TRACE(x, ...) do {} while (0)
 #endif
 
 /** Always trace log */

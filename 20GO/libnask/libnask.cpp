@@ -3550,11 +3550,10 @@ research:
 			}
 			if (c == 0 && (itp->support & status->support) != 0) {
 				/* ニーモニック発見 */
-				LOG_DEBUG("found mnemonic! opcode: %s\n", itp[0]);
 #ifdef DEBUG
 				for (UCHAR elem : itp->param) {
 					if (elem != 0x00) {
-						LOG_DEBUG("found mnemonic! param: 0x%02x\n", elem);
+						LOG_DEBUG("found mnemonic! param: 0x%02x \n", elem);
 					} else {
 						break;
 					}
@@ -3596,8 +3595,11 @@ research:
 							/* 何かが続いている */
 							for (;;) {
 								decode->prm_p[i] = src;
-								j = getparam(&src, status->src1, &decode->gvalue[i], status->expression,
-									status->mem_expr, &status->ofsexpr, &status->expr_status);
+								j = getparam(&src, status->src1, &decode->gvalue[i],
+									     status->expression,    // STR_TERM
+									     status->mem_expr,	    // STR_TERM
+									     &status->ofsexpr,	    // STR_OFSEXPR
+									     &status->expr_status); // STR_DEC_EXPR_STATUS
 								LOG_DEBUG("NORMAL code result: %s \n", dump_bit(j).c_str());
 
 								if (j == 0)
@@ -4047,23 +4049,25 @@ fin:
 	return expr;
 }
 
-/*
-
-ラベルが混ざったら不明
-4つのコンディション
-一つのint、2つの係数
-これを計算することで、ベース、スケールドインデックス、dispが求められる。
-
-ラベル計算時：最大と最小を出す。レジスタは0扱いで消去。
-
-*/
-
-void init_ofsexpr(struct STR_OFSEXPR *ofsexpr)
+//
+// 4つのコンディション、一つのint、2つの係数
+// これを計算することで、ベース、スケールドインデックス、dispが求められる。
+//
+// ラベルが混ざったら不明
+// ラベル計算時：最大と最小を出す。レジスタは0扱いで消去。
+//
+void init_ofsexpr(struct STR_OFSEXPR* ofsexpr)
 {
-	ofsexpr->scale[0] = ofsexpr->scale[1] = ofsexpr->disp = 0;
+	ofsexpr->scale[0] = 0;
+	ofsexpr->scale[1] = 0;
+	ofsexpr->disp = 0;
 //	ofsexpr->extlabel = 0;
-	ofsexpr->reg[0] = ofsexpr->reg[1] = 0xff;
-	ofsexpr->dispflag = ofsexpr->err = 0;
+	ofsexpr->reg[0] = 0xff;
+	ofsexpr->reg[1] = 0xff;
+	ofsexpr->dispflag = 0;
+	ofsexpr->err = 0;
+	LOG_DEBUG("finished to init ofexpr: \n%s\n", ofsexpr->to_string().c_str());
+
 	return;
 }
 
@@ -4078,10 +4082,12 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 	*pexpr = ++expr;
 	switch (j) {
 	case 0: /* constant number */
+		LOG_DEBUG("expr->term_type:%d, expr->value:%d, constant number \n", j, i);
 		init_ofsexpr(ofsexpr);
 		ofsexpr->disp = i;
 		return;
 	case 1: /* operator */
+		LOG_DEBUG("expr->term_type == %d, operator \n", j);
 		calc_ofsexpr(ofsexpr, pexpr, nosplit);
 		if (i >= 4) {
 			calc_ofsexpr(&tmp, pexpr, nosplit);
@@ -4298,8 +4304,11 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 //  	bit9-15:(reg):レジスタ番号
 //  	bit9:(imm):extlabelか式の解釈に失敗したので*pは無効
 //
-int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr,
-	struct STR_OFSEXPR *ofsexpr, struct STR_DEC_EXPR_STATUS *status)
+int getparam(UCHAR **ps, UCHAR *s1, int *p,
+	     struct STR_TERM*            expression,
+	     struct STR_TERM*            mem_expr,
+	     struct STR_OFSEXPR*         ofsexpr,
+	     struct STR_DEC_EXPR_STATUS* status)
 {
 	LOG_DEBUG("%s\n", dump_ptr("**ps", *ps).c_str());
 	struct STR_TERM *pe, *expr;
@@ -4310,11 +4319,11 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 	status->glabel_len = 0;
 	status->glabel = NULL;
 */
-	status->datawidth = -1; /* -1(default), 1(byte), 2(word), 4(dword) */
-	status->seg_override = -1; /* -1(default), 0〜5 */
-	status->range = -1; /* -1(default), 0(short), 1(near), 2(far) */
-	status->nosplit = 0; /* 0(default), 1(nosplit) */
-	status->use_dollar = 0; /* 0(no use), 1(use) */
+	status->datawidth = -1;    // -1(default), 1(byte), 2(word), 4(dword)
+	status->seg_override = -1; // -1(default), 0〜5
+	status->range = -1;	   // -1(default), 0(short), 1(near), 2(far)
+	status->nosplit = 0;	   //  0(default), 1(nosplit)
+	status->use_dollar = 0;	   //  0(no use) , 1(use)
 	status->to_flag = 0;
 
 	expression[0].term_type = -1;
@@ -4324,9 +4333,9 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 	if (status->nosplit)
 		goto err;
 	if (pe == NULL && expression[0].term_type == -1 && s < s1 && *s == '[') {
-		/* メモリ検出 */
-		/* datawidthとrangeを控える */
-		/* seg_overrideは共通 */
+		// メモリ検出
+		// datawidthとrangeを控える
+		// seg_overrideは共通
 		if (mem_expr == NULL)
 			goto err;
 		ret = (status->range + 1) << 6 | (status->datawidth & 0x0f) | 0x10;
@@ -4366,6 +4375,7 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 	if (ofsexpr->reg[0] == 0xff) {
 		/* 定数 */
 		i = ofsexpr->disp;
+		LOG_TRACE("i:%d, ofsexpr->disp:%d \n", i, ofsexpr->disp);
 	//	if (status->datawidth == -1) {
 	//		ret &= 0xf0;
 	//		if (-128 <= i && i <= 127)
@@ -4378,6 +4388,8 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct 
 			ret |= status->datawidth & 0x0f;
 	//	}
 		ret |= 0x20;
+		LOG_DEBUG("ret: 0x%02x \n", ret);
+
 		if (ofsexpr->dispflag != 0 /* || ofsexpr->extlabel != 0 */)
 			rethigh |= 0x02;
 		goto fin;

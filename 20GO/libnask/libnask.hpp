@@ -177,6 +177,20 @@ struct STR_OFSEXPR {
 	int scale[2], disp;
 	unsigned char reg[2], dispflag; /* 0xffのとき、unknown, regが127以下なら、スケール無し */
 	unsigned char err;
+#ifdef DEBUG // debug-code
+	std::string to_string() {
+		std::stringstream buf;
+		buf << "scale[0]: " << scale[0] << std::endl;
+		buf << "scale[1]: " << scale[1] << std::endl;
+		buf << "disp    : " << disp     << std::endl;
+		buf << std::setfill('0') << std::setw(2) << std::hex;
+		buf << "reg[0]  : 0x" << static_cast<UINT>(reg[0]   ) << std::endl;
+		buf << "reg[1]  : 0x" << static_cast<UINT>(reg[1]   ) << std::endl;
+		buf << "dispflag: 0x" << static_cast<UINT>(dispflag ) << std::endl;
+		buf << "err	: 0x" << static_cast<UINT>(err      ) << std::endl;
+		return buf.str();
+	}
+#endif
 };
 
 struct STR_DEC_EXPR_STATUS {
