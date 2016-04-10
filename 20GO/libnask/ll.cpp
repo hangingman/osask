@@ -698,9 +698,15 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	signed int times_count;
 	UCHAR *s, *times_src0, *times_dest0, c, len, range;
 
-	std::unique_ptr<STR_LABEL[]> label0(new STR_LABEL[nask_maxlabels * sizeof (struct STR_LABEL)]);
-	STR_LABEL* label = label0.get();
+	std::array<STR_LABEL, nask_maxlabels> label0;
+	STR_LABEL labels;
+	STR_VALUE labels_value;
+	labels_value.flags = 0;
+	labels.value = labels_value;  // enableを消す
+	labels.define = nullptr;      // C++らしく
+	std::fill(std::begin(label0), std::end(label0), labels);
 
+	STR_LABEL* label = label0.data();
 	std::shared_ptr<STR_SUBSECTION> subsect0(new STR_SUBSECTION());
 	std::unique_ptr<STR_VALUE> value(new STR_VALUE());
 	std::unique_ptr<STR_VALUE> labelvalue(new STR_VALUE());
@@ -710,10 +716,14 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 //	lc = 0;
 //	min = max = 0; /* 次に生成するのは、variable0[l0 + lc] */
 
-	for (unsolved = nask_maxlabels; unsolved > 0; label++, unsolved--) {
-		label->value.flags = 0; /* enableを消すため */
-		label->define = NULL;
+#if defined(DEBUG) && defined(TRACE) // ここまでデバッグログは出す必要ないと思うので
+	for (unsolved = nask_maxlabels; unsolved >= 0; unsolved--) {
+	     LOG_DEBUG("Check [%d], flags: %d, define: %d \n",
+		       unsolved,
+		       label0[unsolved].value.flags,
+		       label0[unsolved].define);
 	}
+#endif
 
 	/* 切り分ける */
 	/* ラベルを検出する */
@@ -729,7 +739,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			// This was written as raw pointer:
 			// => label = &label0[value->min];
 			// http://www.cplusplus.com/reference/memory/shared_ptr/reset/
-			label = &label0.get()[value->min];
+			label = &label0[value->min];
 			label->define = src0;
 			src0 = skip_expr(src0);
 			continue;
@@ -745,7 +755,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			subsect->sect0 = src0;
 			src0++;
 			calc_value(value, &src0);
-			label = &label0.get()[value->min];
+			label = &label0[value->min];
 			// FIXME
 			//label->define = src0;
 			addsigma(labelvalue, sigma);
@@ -758,7 +768,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			/* externラベル宣言 */
 			src0++;
 			calc_value(value, &src0);
-			label = &label0.get()[value->min];
+			label = &label0[value->min];
 			init_value(&label->value);
 		//	label->define = NULL;
 			label->value.flags |= VFLG_EXTERN | VFLG_ENABLE;
@@ -822,7 +832,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			if (c == 0x2d) {
 				/* EQU */
 				calc_value(value, &src0);
-				label = &label0.get()[value->min];
+				label = &label0[value->min];
 				if ((label->value.flags & VFLG_ENABLE) == 0)
 					enable_label(label);
 				*value = label->value;
@@ -843,7 +853,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 				dest0[0] = 0xf6; /* REM_8B */
 				dest0[1] = *src0++;
 				c = *src0++;
-				label = &(label0.get())[get_id(c - 8, &src0, 0)];
+				label = &(label0)[get_id(c - 8, &src0, 0)];
 				if ((label->value.flags & VFLG_ENABLE) == 0)
 					enable_label(label);
 				*value = label->value;

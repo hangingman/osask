@@ -107,20 +107,20 @@ struct STR_VALUE {
 		this->label = value->label;
 		this->sigma = value->sigma;
 		return *this;
-     	}
-	STR_VALUE& assign_sigma(size_t index, std::unique_ptr<STR_SIGMA>& value) {
-		this->sigma[index] = value;
-		return *this;
 	}
+	//STR_VALUE& assign_sigma(size_t index, std::unique_ptr<STR_SIGMA>& value) {
+	// 	this->sigma[index] = value;
+	// 	return *this;
+	//}
 };
 
 struct STR_LABEL {
 	struct STR_VALUE value;
 	UCHAR *define; /* これがNULLだと、extlabel */
-	STR_LABEL& assign_value(std::unique_ptr<STR_VALUE>& value) {
-		this->value = value;
-		return *this;
-	}
+	//STR_LABEL& assign_value(std::unique_ptr<STR_VALUE>& value) {
+	// 	this->value = value;
+	// 	return *this;
+	//}
 };
 
 struct STR_SUBSECTION {

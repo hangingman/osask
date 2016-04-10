@@ -166,7 +166,6 @@ over_tmpbuf:
 	LOG_DEBUG("call output...\n");
 	LOG_DEBUG("output loaded dest0: %s\n", dump_ptr("dest0", dest0).c_str());
 	dest1 = output(tmp0, tmp1, dest0, dest0 + MAX_BINSIZ, list0, list0 + MAX_LSTSIZ - 2, nask_errors);
-	// FIXME: output modified dest0 is always twice as much as correct dest0
 	LOG_DEBUG("output modified dest0: %s\n", dump_ptr("dest0", dest0).c_str());
 	LOG_DEBUG("output generated dest1: %s\n", dump_ptr("dest1", dest1).c_str());
 
