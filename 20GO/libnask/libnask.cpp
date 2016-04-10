@@ -2135,7 +2135,7 @@ skip_end:
 		// 	*s++ = *src++;
 		//} while (src < bp);
 	} while (src < src1);
-	//free(src1 - i);
+
 	for (j = 0; j < MAX_SECTIONS; j++) {
 		if (sectable[j].name[0] == '\0')
 			break;
@@ -2182,12 +2182,6 @@ skip_end:
 	dest0 += 11;
 
 overrun:
-	//free(locallabelbuf0);
-	//free(status->expression);
-	//free(status->mem_expr);
-	//free(ifdef->bp0);
-	//for (i = 0; i < 9; i++)
-	// 	free(ifdef->expr[i]);
 
 	LOG_DEBUG("dest0: %s\n", *dest0);
 	return dest0;
