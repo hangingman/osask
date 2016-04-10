@@ -2295,7 +2295,7 @@ fin:
 //
 // アライン情報検索処理
 //
-UCHAR check_alignments(std::unique_ptr<STR_OUTPUT_SECTION[]>& sectable,
+UCHAR check_alignments(std::array<STR_OUTPUT_SECTION, MAX_SECTIONS>& sectable,
 		  UCHAR *src1, UCHAR *srcp, UCHAR *file_p, int file_len,
 		  int g_symbols, int e_symbols, UCHAR file_aux)
 {
@@ -2394,20 +2394,22 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 {
 	int len, linecount = 0, srcl, i, addr, file_len, g_symbols = 0, e_symbols = 0;
 
-	std::unique_ptr<STR_OUTPUT_SECTION[]> sectable(new STR_OUTPUT_SECTION[MAX_SECTIONS * sizeof (struct STR_OUTPUT_SECTION)]);
 	UCHAR *srcp, *file_p, *string0, *dest = dest0;
-	std::unique_ptr<UCHAR[]> lbuf0(new UCHAR[1024]);
-	UCHAR *lbuf = lbuf0.get();
-	std::unique_ptr<UCHAR[]> ebuf0(new UCHAR[32]);
-	UCHAR *ebuf = ebuf0.get(); /* エラーバッファ */
+
+	std::array<STR_OUTPUT_SECTION, MAX_SECTIONS> sectable;
+	STR_OUTPUT_SECTION sectables;
+	sectables.relocs = 0;
+	sectables.flags = 0;  /* invalid */
+	std::fill(std::begin(sectable), std::end(sectable), sectables);
+
+	std::array<UCHAR, 1024> lbuf0;
+	UCHAR *lbuf = lbuf0.data();
+	std::array<UCHAR, 32> ebuf0;
+	UCHAR *ebuf = ebuf0.data(); /* エラーバッファ */
 
 	UCHAR c, status, adrflag, cc, file_aux;
 	// 0:最初, 1:アドレス出力前, 2:アドレス出力後(バイト列出力中), 3:バイト列出力中&ソース出力済み
 	srcp = src0;
-	for (i = 0; i < MAX_SECTIONS; i++) {
-		sectable[i].relocs = 0;
-		sectable[i].flags = 0; /* invalid */
-	}
 
 	// アライン情報検索
 	const UCHAR format = check_alignments(sectable, src1, srcp, file_p, file_len, g_symbols, e_symbols, file_aux);
@@ -2621,9 +2623,9 @@ skip_relative_relocation:
 	status = 0;
 	secno = 0;
 	addr = 0;
-	ebuf = ebuf0.get();
+	ebuf = ebuf0.data();
 	for (;;) {
-		lbuf = lbuf0.get();
+		lbuf = lbuf0.data();
 		c = *src0;
 		if (c == REM_3B && src0[1] == 0) {
 			sectable[secno].p = src0;
@@ -2657,7 +2659,7 @@ skip_relative_relocation:
 			}
 			if (status == 3)
 				*lbuf++ = '\n';
-			if ((len = ebuf - ebuf0.get()) != 0) {
+			if ((len = ebuf - ebuf0.data()) != 0) {
 				/* エラー出力 */
 				nask_errors += len;
 
@@ -2666,7 +2668,7 @@ skip_relative_relocation:
 				// 	ebuf = reinterpret_cast<UCHAR*>(ERRMSG[ebuf0[i] - 0xe1]);
 				// 	while ((*lbuf++ = *ebuf++) != '\n');
 				//}
-				ebuf = ebuf0.get();
+				ebuf = ebuf0.data();
 			}
 			srcl = get4b(&src0[1]);
 			srcp = (UCHAR *) get4b(&src0[5]);
@@ -2823,13 +2825,13 @@ skip_relative_relocation:
 			#endif
 			src0++;
 		}
-		i = lbuf - lbuf0.get();
+		i = lbuf - lbuf0.data();
 		if (list0 + i >= list1) {
 			*list0 = '\0';
 			list0 = NULL;
 		}
 		if (list0) {
-			lbuf = lbuf0.get();
+			lbuf = lbuf0.data();
 			while (i--)
 				*list0++ = *lbuf++;
 		}
