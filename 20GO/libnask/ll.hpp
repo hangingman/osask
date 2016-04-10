@@ -7,6 +7,7 @@
 #include <memory>
 #include <array>
 #include <sstream>
+#include <bitset>
 
 #if (DEBUG)
 	#include "go.hpp"
@@ -45,13 +46,74 @@ template <class T>
 static std::string dump_ptr(const char* name, T* src) {
 
 	std::stringstream buf;
-	buf << "[ ";
+	buf << name;
+	buf << " = [ ";
 	while( *src != 0x00 ) {
 		buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
 		buf << ", ";
 		src++;
         }
 	buf << "]";
+	return buf.str();
+}
+
+template <class T>
+static std::string dump_bit(T src) {
+
+	std::stringstream buf;
+	buf << static_cast<std::bitset<8> >(src);
+	return buf.str();
+}
+
+static std::string dump_getparam(std::string& bit) {
+
+	std::stringstream buf;
+	std::string data_width = bit.substr(0,3);
+	std::string data_type  = bit.substr(3,2);
+	std::string data_range = bit.substr(5,2);
+	std::string use_dollar = bit.substr(7,1);
+
+	buf << bit << std::endl;
+	buf << "datawidth:\t" << std::bitset<12>(data_width).to_ulong() << "byte" << std::endl;
+	int tp = std::bitset<8>(data_type).to_ulong();
+	int rg = std::bitset<8>(data_range).to_ulong();
+
+	switch (tp) {
+	case 0:
+		buf << "type:\t\treg" << std::endl;
+		break;
+	case 1:
+		buf << "type:\t\tmem" << std::endl;
+		break;
+	case 2:
+		buf << "type:\t\timm" << std::endl;
+		break;
+	}
+
+	switch (rg) {
+	case 0:
+		buf << "range:\t\tdefault" << std::endl;
+		break;
+	case 1:
+		buf << "range:\t\tshort" << std::endl;
+		break;
+	case 2:
+		buf << "range:\t\tnear" << std::endl;
+		break;
+	case 3:
+		buf << "range:\t\tfar" << std::endl;
+		break;
+	}
+
+	switch (std::bitset<4>(use_dollar).to_ulong()) {
+		case 0:
+			buf << "use_dollar:\tfalse" << std::endl;
+			break;
+		case 1:
+			buf << "use_dollar:\ttrue" << std::endl;
+			break;
+	}
+
 	return buf.str();
 }
 

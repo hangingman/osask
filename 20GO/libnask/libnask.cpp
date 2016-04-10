@@ -210,6 +210,8 @@ err:
 		}
 		c = 0; /* mod nnn r/m なし */
 		prefix_def = status->bits; /* デフォルト状態 */
+
+		LOG_DEBUG("itp-param: start\n");
 		if ((itp = decode->instr) != 0) {
 		     // FIXME: もう少し簡潔に書けるはず
 			switch (itp->param[0]) {
@@ -1554,8 +1556,13 @@ err:
 					goto outbp;
 				}
 				// "i"にRESBの対象となるバイト数を設定
-				if ((i = itp->param[1]) > 7)
+				if ((i = itp->param[1]) > 7) {
+					LOG_DEBUG("ERROR RESB: 0x%02x \n", itp->param[1]);
 					goto err4; /* data type error */
+				} else {
+					LOG_DEBUG("RESB: 0x%02x \n", itp->param[1]);
+				}
+
 				bp->byte[0] = 0x59; /* TIMES microcode */
 				bp->byte[1] = 0x06; /* len [正定数(4バイト)] */
 				put4b(i, &bp->byte[2]); /* len */
@@ -3574,7 +3581,7 @@ research:
 				if ((c = itp->param[0]) != 0) {
 					src = p;
 					if (c == PREFIX) {
-						LOG_DEBUG("PREFIX: %s", c);
+						LOG_DEBUG("PREFIX code: 0x%02x \n", c);
 						decode->instr = NULL;
 						decode->prefix |= 1 << itp->param[1];
 						if (src < status->src1 && *src != '\n' && *src != ';')
@@ -3583,6 +3590,7 @@ research:
 					}
 					if (c < 0x40) {
 						/* 通常命令, パラメータは最大で3つ */
+						LOG_DEBUG("NORMAL code: 0x%02x \n", c);
 						i = 0;
 						if (src < status->src1 && *src != '\n' && *src != ';') {
 							/* 何かが続いている */
@@ -3590,8 +3598,12 @@ research:
 								decode->prm_p[i] = src;
 								j = getparam(&src, status->src1, &decode->gvalue[i], status->expression,
 									status->mem_expr, &status->ofsexpr, &status->expr_status);
+								LOG_DEBUG("NORMAL code result: %s \n", dump_bit(j).c_str());
+
 								if (j == 0)
 									goto error2;
+
+								LOG_DEBUG("       code: 0x%02x \n", j);
 								decode->gparam[i++] = j;
 								if (src >= status->src1)
 									break;
@@ -4272,21 +4284,24 @@ void calc_ofsexpr(struct STR_OFSEXPR *ofsexpr, struct STR_TERM **pexpr, char nos
 	return;
 }
 
+//
+// オペコードに続く文字列の解釈をして返す
+// 返値について
+//  	bit0-3:datawidth(バイト数, 15は不定)
+//  	bit4-5:type (0:reg, 1:mem, 2:imm)
+//  	bit6-7:range (0:default, 1:short, 2:near, 3:far)
+//  	bit8:use_dollar
+//  	オール0はエラーを意味する
+//  	bit9-11:(mem):dispのdatawidth (1:byte, 2:word, 4:dword, 7:default)
+//  	bit12-14:(mem):seg (7:default, 0〜5:seg)
+//  	bit15:(mem):nosplit
+//  	bit9-15:(reg):レジスタ番号
+//  	bit9:(imm):extlabelか式の解釈に失敗したので*pは無効
+//
 int getparam(UCHAR **ps, UCHAR *s1, int *p, struct STR_TERM *expression, struct STR_TERM *mem_expr,
 	struct STR_OFSEXPR *ofsexpr, struct STR_DEC_EXPR_STATUS *status)
-/* 返値について
-	bit0-3:datawidth(バイト数, 15は不定)
-	bit4-5:type (0:reg, 1:mem, 2:imm)
-	bit6-7:range (0:default, 1:short, 2:near, 3:far)
-	bit8:use_dollar
-	オール0はエラーを意味する
-	bit9-11:(mem):dispのdatawidth (1:byte, 2:word, 4:dword, 7:default)
-	bit12-14:(mem):seg (7:default, 0〜5:seg)
-	bit15:(mem):nosplit
-	bit9-15:(reg):レジスタ番号
-	bit9:(imm):extlabelか式の解釈に失敗したので*pは無効
-*/
 {
+	LOG_DEBUG("%s\n", dump_ptr("**ps", *ps).c_str());
 	struct STR_TERM *pe, *expr;
 	int i;
 	UCHAR ret, ret2, rethigh, *s = *ps;
@@ -4411,7 +4426,11 @@ fin:
 	}
 	*p = i;
 	*ps = s;
-	return ret | rethigh << 8;
+
+	int v = ret | rethigh << 8;
+	std::string bit = dump_bit(v);
+	LOG_DEBUG("%s", dump_getparam(bit).c_str());
+	return v;
 }
 
 int testmem(struct STR_OFSEXPR *ofsexpr, int gparam, struct STR_STATUS *status, int *prefix)
