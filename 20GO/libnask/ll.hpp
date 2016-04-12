@@ -84,8 +84,9 @@ static std::string dump_ptr(const char* name, nask32bitInt* src) {
 
 	std::stringstream buf;
 	buf << name;
-	//buf << " = [ ";
-	//while( (*src).integer != 0x00 ) {
+	buf << " = [ ";
+	//while( (*src).byte[0] != 0x00 ) {
+	for(int i = 0; i < 8; i++) {
 		buf << "0x";
 		buf << std::setfill('0') << std::setw(2) << std::hex
 		    << static_cast<UINT>((*src).byte[0])
@@ -100,8 +101,8 @@ static std::string dump_ptr(const char* name, nask32bitInt* src) {
 		    << static_cast<UINT>((*src).byte[3])
 		    << ", ";
 		src++;
-	//}
-	//buf << "]";
+	}
+	buf << "]";
 	return buf.str();
 }
 

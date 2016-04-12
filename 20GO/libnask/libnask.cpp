@@ -53,8 +53,10 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	int i, j, k, prefix_def, tmret;
 
 	// bufをunique_ptrで初期化しておき、bpはそのポインタとして使用する
-	std::unique_ptr<UCHAR[]> buf(new UCHAR[2 * 8]);
-	nask32bitInt* bp;
+	//std::unique_ptr<UCHAR[]> buf(new UCHAR[2 * 8]);
+	//std::array<UCHAR, 2*8> buf = { 0 };
+	std::array<nask32bitInt, 16> buf = { 0 };
+	nask32bitInt* bp = buf.data();
 
 	UCHAR *src, c, *s, *dest00 = dest0;
 	struct INST_TABLE *itp;
@@ -125,8 +127,7 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		}
 		status->expr_status.dollar_label0 = status->expr_status.dollar_label1;
 		status->expr_status.dollar_label1 = 0xffffffff;
-		bp = ucharToNask32bitIntPtr(buf.get());
-		LOG_DEBUG("buffered pointer bp: %x\n", &bp);
+		LOG_DEBUG("buffered pointer bp: %s \n", dump_ptr("bp ", bp).c_str());
 		ifdef->vb[8] = 0; /* for TIMES */
 		src = decoder(status.get(), src0, decode.get());
 		/* ラインスタート出力 */
@@ -202,7 +203,7 @@ times_skip:
 		if (decode->error) {
 err:
 			/* エラー出力 */
-			buf[0] = decode->error | 0xe0;
+			buf[0].integer = decode->error | 0xe0;
 			// FIXME
 			//bp = buf + 1;
 			c = 0; /* mod nnn r/m なし */
@@ -439,7 +440,6 @@ err:
 					bp->byte[1] = 0x78; /* mod nnn r/m */
 					bp->byte[2] = 0x79; /* sib */
 					bp->byte[3] = 0x7a; /* disp */
-					#warning "Check it later, bp should be incremented"
 					bp++;
 					//bp->byte[4] = 0x7d; /* imm8 || none */
 					bp->byte[0] = 0x7d; /* imm8 || none */
@@ -1544,6 +1544,7 @@ err:
 
 			case OPE_RESB:
 				LOG_DEBUG("itp-param: OPE_RESB\n");
+				LOG_DEBUG("buffered pointer bp: %s \n", dump_ptr("bp ", bp).c_str());
 				if ((decode->gparam[0] & 0xff) != 0x2f)
 					goto err4; /* data type error */
 				if (ifdef->vb[8]) {
@@ -1565,12 +1566,14 @@ err:
 
 				bp->byte[0] = 0x59; /* TIMES microcode */
 				bp->byte[1] = 0x06; /* len [正定数(4バイト)] */
-				put4b(i, &bp->byte[2]); /* len */
-				bp->byte[6] = 0x30 | itp->param[1];
+				LOG_DEBUG("buffered pointer bp: %s \n", dump_ptr("bp ", bp).c_str());
+				put4b(i, bp, 2);    /* len */
+				(bp+1)->byte[2] = 0x30 | itp->param[1];
+				LOG_DEBUG("buffered pointer bp: %s \n", dump_ptr("bp ", bp).c_str());
+
 				bp += 7;
-
-
 				LOG_DEBUG("RESB: try to reserve %d byte\n", i);
+
 				do { // "i"の数値分"0x00"で埋める
 					(*bp++).integer = 0x00;
 				} while (--i);
@@ -1580,6 +1583,7 @@ err:
 					expr->term_type = 0; /* constant */
 					expr->value = decode->gvalue[0];
 				}
+
 				//FIXME
 				//ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
 				goto outbp;
@@ -1872,7 +1876,7 @@ err:
 					/* アドレス出力マークも出力 */
 					/* 必要ならエラーも出力する */
 				// FIXME
-				if ((dest0 = flush_bp(bp->integer - *(buf.get()), buf.get(), dest0, dest1, ifdef)) == NULL)
+				if ((dest0 = flush_bp(bp - buf.data(), buf.data(), dest0, dest1, ifdef)) == NULL)
 				 	goto overrun;
 				for (;;) {
 					s = skipspace(s, status->src1);
@@ -2012,8 +2016,7 @@ flush_ifdefbuf:
 			dest0[j] = ifdef->bp0[j];
 		dest0 += i;
 
-		// FIXME
-		if ((dest0 = flush_bp(bp - ucharToNask32bitIntPtr(buf.get()), buf.get(), dest0, dest1, ifdef)) == NULL)
+		if ((dest0 = flush_bp(bp - buf.data(), buf.data(), dest0, dest1, ifdef)) == NULL)
 		 	goto overrun;
 
 		if (itp != NULL && itp->param[0] == 0xe7) {
@@ -2195,7 +2198,7 @@ overrun:
 	return dest0;
 }
 
-UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, std::unique_ptr<STR_IFDEFBUF>& ifdef)
+UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::unique_ptr<STR_IFDEFBUF>& ifdef)
 {
 	int j, k;
 	UCHAR *s, c;
@@ -2204,17 +2207,17 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, std::unique_ptr
 	if (dest0 == NULL)
 		goto fin;
 	for (j = 0; j < len; ) {
-		c = buf[j++];
+		c = buf[j++].integer;
 		if (c == 0x2d || c == 0x0e) {
 			/* label define */
 			dest0[0] = c;
-			dest0[1] = c = buf[j];
-			dest0[2] = buf[j + 1];
+			dest0[1] = c = buf[j].integer;
+			dest0[2] = buf[j + 1].integer;
 			j += 2;
 			dest0 += 3;
 			while (c) {
 				c -= 2;
-				*dest0++ = buf[j++];
+				*dest0++ = buf[j++].integer;
 			}
 			continue;
 		}
@@ -2225,13 +2228,13 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, std::unique_ptr
 			*dest0++ = c;
 			c -= 0x30;
 			do {
-				*dest0++ = buf[j++];
+				*dest0++ = buf[j++].integer;
 			} while (--c);
 			continue;
 		}
 		if (c == 0x59) {
 			/* TIMES microcode */
-			LOG_DEBUG("TIMES microcode");
+			LOG_DEBUG("TIMES microcode \n");
 			dest0[0] = 0x59;
 			s = ifdef->expr[8];
 			k = ifdef->dat[8];
@@ -2243,7 +2246,7 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, std::unique_ptr
 			dest0 += 5;
 			c = 5; /* len出力 */
 			do {
-				*dest0++ = buf[j++];
+				*dest0++ = buf[j++].integer;
 			} while (--c);
 			do {
 				*dest0++ = *s++;
@@ -3681,6 +3684,46 @@ void put4b(UINT i, UCHAR *p)
 	p[2] = (i >> 16) & 0xff;
 	p[3] = (i >> 24) & 0xff;
 	LOG_DEBUG("returned p[0-3]: 0x%02x, 0x%02x, 0x%02x, 0x%02x\n", p[0], p[1], p[2], p[3]);
+	return;
+}
+
+// nask32bitInt
+void put4b(UINT i, nask32bitInt* p, size_t from)
+{
+
+	     switch (from) {
+	case 0:
+	     p->byte[0] = i	    & 0xff;
+	     p->byte[1] = (i >>  8) & 0xff;
+	     p->byte[2] = (i >> 16) & 0xff;
+	     p->byte[3] = (i >> 24) & 0xff;
+	     LOG_DEBUG("put4b from index[0] \n");
+	     break;
+	case 1:
+	     p->byte[1] = i	        & 0xff;
+	     p->byte[2] = (i >>	8)      & 0xff;
+	     p->byte[3] = (i >> 16)     & 0xff;
+	     (++p)->byte[0] = (i >> 24) & 0xff;
+	     LOG_DEBUG("put4b from index[1] \n");
+	     break;
+	case 2:
+	     p->byte[2]     = i	        & 0xff;
+	     p->byte[3]     = (i >>  8) & 0xff;
+	     (++p)->byte[0] = (i >> 16) & 0xff;
+	     p->byte[1]     = (i >> 24) & 0xff;
+	     LOG_DEBUG("put4b from index[2] \n");
+	     break;
+	case 3:
+	     p->byte[3]     = i	        & 0xff;
+	     (++p)->byte[0] = (i >> 8)  & 0xff;
+	     p->byte[1]     = (i >> 16) & 0xff;
+	     p->byte[2]     = (i >> 24) & 0xff;
+	     LOG_DEBUG("put4b from index[3] \n");
+	     break;
+	default:
+	     break;
+	}
+
 	return;
 }
 
