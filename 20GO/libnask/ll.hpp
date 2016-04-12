@@ -48,6 +48,23 @@ static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
 
 #include  <iomanip>
 
+template <class T, size_t dim>
+static void append_buf(std::array<T, dim>& arr, std::stringstream& buf) {
+	for (int i = 0; i < dim; i++) {
+		buf << "0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex;
+		buf << static_cast<UINT>(arr[i]);
+		if (i+1 != dim) { buf << ',' << ' '; }
+	}
+}
+
+template <class T, size_t dim>
+static void append_buf_pretty(const char* name, std::array<T, dim>& arr, std::stringstream& buf) {
+	buf << name << ": [ ";
+	append_buf(arr, buf);
+	buf << " ]" << std::endl;
+}
+
 template <class T>
 static std::string dump_ptr(const char* name, T* src) {
 
@@ -60,6 +77,31 @@ static std::string dump_ptr(const char* name, T* src) {
 		src++;
         }
 	buf << "]";
+	return buf.str();
+}
+
+static std::string dump_ptr(const char* name, nask32bitInt* src) {
+
+	std::stringstream buf;
+	buf << name;
+	//buf << " = [ ";
+	//while( (*src).integer != 0x00 ) {
+		buf << "0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex
+		    << static_cast<UINT>((*src).byte[0])
+		    << ", 0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex
+		    << static_cast<UINT>((*src).byte[1])
+		    << ", 0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex
+		    << static_cast<UINT>((*src).byte[2])
+		    << ", 0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex
+		    << static_cast<UINT>((*src).byte[3])
+		    << ", ";
+		src++;
+	//}
+	//buf << "]";
 	return buf.str();
 }
 

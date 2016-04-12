@@ -1569,6 +1569,7 @@ err:
 				bp->byte[6] = 0x30 | itp->param[1];
 				bp += 7;
 
+
 				LOG_DEBUG("RESB: try to reserve %d byte\n", i);
 				do { // "i"の数値分"0x00"で埋める
 					(*bp++).integer = 0x00;
@@ -2012,8 +2013,8 @@ flush_ifdefbuf:
 		dest0 += i;
 
 		// FIXME
-		// if ((dest0 = flush_bp(bp - buf, buf, dest0, dest1, ifdef)) == NULL)
-		// 	goto overrun;
+		if ((dest0 = flush_bp(bp - ucharToNask32bitIntPtr(buf.get()), buf.get(), dest0, dest1, ifdef)) == NULL)
+		 	goto overrun;
 
 		if (itp != NULL && itp->param[0] == 0xe7) {
 			/* section */
@@ -2137,10 +2138,10 @@ skip_end:
 			continue;
 		}
 		// FIXME
-		//bp = LL_skipcode(src);
-		//do {
-		// 	*s++ = *src++;
-		//} while (src < bp);
+		bp = ucharToNask32bitIntPtr(LL_skipcode(src));
+		do {
+			*s++ = *src++;
+		} while (ucharToNask32bitIntPtr(src) < bp);
 	} while (src < src1);
 
 	for (j = 0; j < MAX_SECTIONS; j++) {
@@ -2230,6 +2231,7 @@ UCHAR *flush_bp(int len, UCHAR *buf, UCHAR *dest0, UCHAR *dest1, std::unique_ptr
 		}
 		if (c == 0x59) {
 			/* TIMES microcode */
+			LOG_DEBUG("TIMES microcode");
 			dest0[0] = 0x59;
 			s = ifdef->expr[8];
 			k = ifdef->dat[8];
@@ -2972,7 +2974,7 @@ static struct INST_TABLE instruction[] = {
 	{ "CMPSB",		SUP_8086,	NO_PARAM, 1 | DEF_DS, 0xa6 },
 	{ "CMPSD",		SUP_i386,	NO_PARAM, 1 | OPE32 | DEF_DS, 0xa7 },
 	{ "CMPSW",		SUP_8086,	NO_PARAM, 1 | OPE16 | DEF_DS, 0xa7 },
-	{ "CMPXCHG",	SUP_i486,	OPE_MR, 0x87, 0x12, 0x0f, 0xb0 }, /* bwd,s w0 */
+	{ "CMPXCHG",		SUP_i486,	OPE_MR, 0x87, 0x12, 0x0f, 0xb0 }, /* bwd,s w0 */
 	{ "CS",			SUP_8086,	PREFIX,	0x06 },
 	{ "CWD",		SUP_8086,	NO_PARAM, 1 | OPE16, 0x99 },
 	{ "CWDE",		SUP_i386,	NO_PARAM, 1 | OPE32, 0x98 },
@@ -3003,7 +3005,7 @@ static struct INST_TABLE instruction[] = {
 	{ "FCOMP",		SUP_8086,	OPE_FPU, 0, 0, 0x98 /* D8 /3 */, 0x9c /* DC /3 */, 0, 0x98 /* D8 /3 */, 0 },
 	{ "FCOMPP",		SUP_8086,	NO_PARAM, 2, 0xde, 0xd9 },
 	{ "FCOS",		SUP_i386,	NO_PARAM, 2, 0xd9, 0xff },
-	{ "FDECSTP",	SUP_8086,	NO_PARAM, 2, 0xd9, 0xf6 },
+	{ "FDECSTP",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xf6 },
 	{ "FDISI",		SUP_8086,	NO_PARAM, 3, 0x9b, 0xdb, 0xe1 },
 	{ "FDIV",		SUP_8086,	OPE_FPU, 0, 0, 0xb0 /* D8 /6 */, 0xb4 /* DC /6 */, 0, 0xb0 /* D8 /6 */, 0xbc /* DC /7 */ },
 	{ "FDIVP",		SUP_8086,	OPE_FPUP, 0x3e /* DE /7 */ },
@@ -3018,7 +3020,7 @@ static struct INST_TABLE instruction[] = {
 	{ "FIDIVR",		SUP_8086,	OPE_FPU, 0, 0xbe /* DE /7 */, 0xba /* DA /7 */ },
 	{ "FILD",		SUP_8086,	OPE_FPU, 0, 0x87 /* DF /0 */, 0x83 /* DB /0 */, 0xaf /* DF /5 */ },
 	{ "FIMUL",		SUP_8086,	OPE_FPU, 0, 0x8e /* DE /1 */, 0x8a /* DA /1 */ },
-	{ "FINCSTP",	SUP_8086,	NO_PARAM, 2, 0xd9, 0xf7 },
+	{ "FINCSTP",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xf7 },
 	{ "FINIT",		SUP_8086,	NO_PARAM, 3, 0x9b, 0xdb, 0xe3 },
 	{ "FIST",		SUP_8086,	OPE_FPU, 0, 0x97 /* DF /2 */, 0x93 /* DB /2 */ },
 	{ "FISTP",		SUP_8086,	OPE_FPU, 0, 0x9f /* DF /3 */, 0x9b /* DB /3 */, 0xbf /* DF /7 */ },
@@ -3043,20 +3045,20 @@ static struct INST_TABLE instruction[] = {
 	{ "FNOP",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xd0 },
 	{ "FNSAVE",		SUP_8086,	OPE_M, 0x68, 0x61, 0xdd }, /* s no-w no-o16/o32 no-reg */
 	{ "FNSTCW",		SUP_8086,	OPE_M, 0x7a, 0x61, 0xd9 }, /* ws no-w no-o16/o32 no-reg */
-	{ "FNSTENV",	SUP_8086,	OPE_M, 0x68, 0x61, 0xd9 }, /* s no-w no-o16/o32 no-reg */
+	{ "FNSTENV",		SUP_8086,	OPE_M, 0x68, 0x61, 0xd9 }, /* s no-w no-o16/o32 no-reg */
 	{ "FNSTSW",		SUP_8086,	OPE_FSTSW, 0x0a, 0x61, 0xdd, 0, 0xdf, 0xe0 }, /* ws no-w no-o16/o32 no-reg */
 	{ "FPATAN",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xf3 },
 	{ "FPTAN",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xf2 },
 	{ "FPREM",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xf8 },
 	{ "FPREM1",		SUP_i386,	NO_PARAM, 2, 0xd9, 0xf5 },
-	{ "FRNDINT",	SUP_8086,	NO_PARAM, 2, 0xd9, 0xfc },
+	{ "FRNDINT",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xfc },
 	{ "FRSTOR",		SUP_8086,	OPE_M, 0x48, 0x61, 0xdd }, /* s no-w no-o16/o32 no-reg */
 	{ "FS",			SUP_i386,	PREFIX, 0x09 },
 	{ "FSAVE",		SUP_8086,	OPE_M, 0x68, 0x62, 0x9b, 0xdd }, /* s no-w no-o16/o32 no-reg */
 	{ "FSCALE",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xfd },
 	{ "FSETPM",		SUP_80286P,	NO_PARAM, 2, 0xdb, 0xe4 },
 	{ "FSIN",		SUP_i386,	NO_PARAM, 2, 0xd9, 0xfe },
-	{ "FSINCOS",	SUP_i386,	NO_PARAM, 2, 0xd9, 0xfb },
+	{ "FSINCOS",		SUP_i386,	NO_PARAM, 2, 0xd9, 0xfb },
 	{ "FSQRT",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xfa },
 	{ "FST",		SUP_8086,	OPE_FPU, 8, 0, 0x91 /* D9 /2 */, 0x95 /* DD /2 */, 0, 0x95 /* DD /2 */ },
 	{ "FSTCW",		SUP_8086,	OPE_M, 0x7a, 0x62, 0x9b, 0xd9 }, /* ws no-w no-o16/o32 no-reg */
@@ -3070,12 +3072,12 @@ static struct INST_TABLE instruction[] = {
 	{ "FTST",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xe4 },
 	{ "FUCOM",		SUP_i386,	OPE_FPU, 0, 0, 0, 0, 0, 0xa5 /* DD /4 */ },
 	{ "FUCOMP",		SUP_i386,	OPE_FPU, 0, 0, 0, 0, 0, 0xad /* DD /5 */ },
-	{ "FUCOMPP",	SUP_i386,	NO_PARAM, 2, 0xda, 0xe9 },
+	{ "FUCOMPP",		SUP_i386,	NO_PARAM, 2, 0xda, 0xe9 },
 	{ "FXAM",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xe5 },
 	{ "FXCH",		SUP_8086,	OPE_FXCH },
-	{ "FXTRACT",	SUP_8086,	NO_PARAM, 2, 0xd9, 0xf4 },
+	{ "FXTRACT",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xf4 },
 	{ "FYL2X",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xf1 },
-	{ "FYL2XP1",	SUP_8086,	NO_PARAM, 2, 0xd9, 0xf9 },
+	{ "FYL2XP1",		SUP_8086,	NO_PARAM, 2, 0xd9, 0xf9 },
 	{ "GLOBAL",		SUP_8086,	OPE_GLOBAL, 1 },
 	{ "GS",			SUP_i386,	PREFIX, 0x0a },
 	{ "HLT",		SUP_8086,	NO_PARAM, 1, 0xf4 },
@@ -3269,21 +3271,28 @@ static struct INST_TABLE instruction[] = {
 /* このテーブルは必ず大文字で */
 
 static struct INST_TABLE setting_table[] = {
-	{ "BITS",		SUP_8086, 0xe0 }, /* セクションが切り替わると連動する(セクション外でやるとデフォルト) */
+	{ "BITS",	SUP_8086, 0xe0 }, /* セクションが切り替わると連動する(セクション外でやるとデフォルト) */
 	{ "INSTRSET",	SUP_8086, 0xe1 },
 	{ "OPTIMIZE",	SUP_8086, 0xe2 }, /* 0:最適化なし, 1:最適化あり */
-	{ "FORMAT",		SUP_8086, 0xe3 }, /* BIN, COFF */
+	{ "FORMAT",	SUP_8086, 0xe3 }, /* BIN, COFF */
 	{ "PADDING",	SUP_8086, 0xe4 }, /* set, len, byte, byte, byte,... */
-	{ "PADSET",		SUP_8086, 0xe5 }, /* セクションが切り替わると連動する(セクション外でやるとデフォルト) */
-	{ "OPTION",		SUP_8086, 0xe6 },
+	{ "PADSET",	SUP_8086, 0xe5 }, /* セクションが切り替わると連動する(セクション外でやるとデフォルト) */
+	{ "OPTION",	SUP_8086, 0xe6 },
 	{ "SECTION",	SUP_8086, 0xe7 },
 	{ "ABSOLUTE",	SUP_8086, 0xe8 },
-	{ "FILE",		SUP_8086, 0xe9 },
+	{ "FILE",	SUP_8086, 0xe9 },
 	{ "", 0, 0 }
 };
 
+//
+// アセンブラ命令をセットする
+//
 UCHAR *setinstruct(UCHAR *s, UCHAR *t, UCHAR *inst)
 {
+	LOG_DEBUG("\ns:%s\nt:%s\ninst:%s\n",
+		  dump_ptr("s", s).c_str(),
+		  dump_ptr("t", t).c_str(),
+		  dump_ptr("inst", inst).c_str());
 	UCHAR c, *i1 = inst + OPCLENMAX;
 	while (s < t) {
 		c = *s;
@@ -3298,7 +3307,11 @@ UCHAR *setinstruct(UCHAR *s, UCHAR *t, UCHAR *inst)
 	}
 	while (inst < i1)
 		*inst++ = '\0';
-	return skipspace(s, t);
+
+	UCHAR* v = skipspace(s, t);
+	LOG_DEBUG("\nreturn:%s\n",
+		  dump_ptr("v", v).c_str());
+	return v;
 }
 
 static unsigned char *cpu_name[] = {
@@ -3481,6 +3494,8 @@ setting:
 						}
 						if (decode->sectable[i].align0 == -1 && c != 0xff)
 							decode->sectable[i].align0 = c;
+
+						// FIXME:
 						decode->instr = itp;
 						itp->param[1] = i;
 						if (cc)
@@ -3550,17 +3565,22 @@ research:
 			}
 			if (c == 0 && (itp->support & status->support) != 0) {
 				/* ニーモニック発見 */
-#ifdef DEBUG
-				for (UCHAR elem : itp->param) {
-					if (elem != 0x00) {
-						LOG_DEBUG("found mnemonic! param: 0x%02x \n", elem);
-					} else {
-						break;
-					}
-				}
-#endif /* DEBUG */
+//#ifdef DEBUG
+// 				for (UCHAR elem : itp->param) {
+// 					if (elem != 0x00) {
+// 						LOG_DEBUG("found mnemonic! param: 0x%02x \n", elem);
+// 					} else {
+// 						break;
+// 					}
+// 				}
+//#endif /* DEBUG */
 				decode->instr = itp;
 				decode->param = p;
+				LOG_DEBUG("\np: %s\ndecode->param:%s\n",
+					  dump_ptr("", p).c_str(),
+					  dump_ptr("", decode->param).c_str());
+
+				LOG_DEBUG("finished to set decode: \n%s\n", decode->to_string().c_str());
 
 				/* 簡易判定 */
 				if (status->expr_status.dollar_label0 == 0xffffffff) {

@@ -19,12 +19,12 @@ static constexpr unsigned int E_LABEL0     = 16;
 static constexpr int nask_L_LABEL0         = 16384; /* externラベルは16300個程度使える */
 static constexpr unsigned int MAX_LISTLEN  = 32;
 
-// リマークNL(f8) : ラインスタート, 4バイトのレングス, 4バイトのポインタ バイト列を並べる
-// リマークADR(e0) : アドレス出力
-// リマークBY(e1) : 1バイト出力
-// リマークWD(e2) : 2バイト出力
-// リマーク3B(e3) : 3バイト出力
-// リマークDW(e4) : 4バイト出力
+// リマークNL(f8)   : ラインスタート, 4バイトのレングス, 4バイトのポインタ バイト列を並べる
+// リマークADR(e0)  : アドレス出力
+// リマークBY(e1)   : 1バイト出力
+// リマークWD(e2)   : 2バイト出力
+// リマーク3B(e3)   : 3バイト出力
+// リマークDW(e4)   : 4バイト出力
 // リマーク[BY](e5) : 1バイト出力[]つき
 // リマーク[WD](e6) : 2バイト出力[]つき
 // リマーク[3B](e7) : 3バイト出力[]つき
@@ -62,6 +62,15 @@ struct INST_TABLE {
 	std::array<UCHAR, OPCLENMAX> opecode;
 	UINT support;
 	std::array<UCHAR, 8> param;
+#ifdef DEBUG // debug-code
+	std::string to_string() {
+		std::stringstream buf;
+		append_buf_pretty("opecode", opecode, buf);
+		buf << "support: " << support << std::endl;
+		append_buf_pretty("param", param, buf);
+		return buf.str();
+	}
+#endif
 };
 
 struct STR_SECTION {
@@ -165,6 +174,24 @@ struct STR_DECODE {
 	int gp_mem, gp_reg;
 	struct STR_SECTION* sectable;
 	UCHAR error, flag /* , dollar */;
+#ifdef DEBUG // debug-code
+	std::string to_string() {
+		std::stringstream buf;
+		buf << "instr: {" << std::endl;
+		buf << instr->to_string() << std::endl;
+		buf << " }" << std::endl;
+		append_buf_pretty("prm_t", prm_t, buf);
+		buf << "prefix: " << prefix << std::endl;
+		append_buf_pretty("gparam", gparam, buf);
+		append_buf_pretty("gvalue", gvalue, buf);
+		buf << "gp_mem: " << gp_mem << std::endl;
+		buf << "gp_reg: " << gp_reg << std::endl;
+		buf << std::setfill('0') << std::setw(2) << std::hex;
+		buf << "error:0x" << static_cast<UINT>(error) << std::endl;
+		buf << "flag:0x"  << static_cast<UINT>(flag) << std::endl;
+		return buf.str();
+	}
+#endif
 };
 /* flagのbit0はmem/regがregかどうかをあらわす */
 

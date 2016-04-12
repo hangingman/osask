@@ -102,6 +102,7 @@ skipmc94_skip:
 		goto fin;
 	}
 	if (c == 0x59) {
+		LOG_DEBUG("TIMES microcode");
 		p = LL_skip_expr(p + 4); /* TIMES microcode (prefix) */
 		p = LL_skip_expr(p);
 		goto fin;
@@ -1010,6 +1011,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			}
 			if (c == 0x59) {
 				/* TIMES */
+		     		LOG_DEBUG("TIMES microcode");
 				times_dest0 = dest0;
 				times_src0 = src0;
 				src0 += 4;
@@ -1233,6 +1235,7 @@ skipmc30:
 		}
 		if (c == 0x59) {
 			/* TIMES */
+			LOG_DEBUG("TIMES microcode");
 			t = s;
 			i = s[0] | s[1] << 8 | s[2] << 16 | s[3] << 24;
 			s += 4;
