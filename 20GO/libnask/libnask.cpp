@@ -1584,7 +1584,7 @@ err:
 					expr->value = decode->gvalue[0];
 				}
 
-				//FIXME
+				// ifdef->dat[8] は flush_bp の中で評価される
 				//ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
 				goto outbp;
 
@@ -2200,108 +2200,122 @@ overrun:
 
 UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::unique_ptr<STR_IFDEFBUF>& ifdef)
 {
-	int j, k;
-	UCHAR *s, c;
-	if (dest0 + len > dest1)
-		dest0 = NULL;
-	if (dest0 == NULL)
-		goto fin;
-	for (j = 0; j < len; ) {
-		c = buf[j++].integer;
-		if (c == 0x2d || c == 0x0e) {
-			/* label define */
-			dest0[0] = c;
-			dest0[1] = c = buf[j].integer;
-			dest0[2] = buf[j + 1].integer;
-			j += 2;
-			dest0 += 3;
-			while (c) {
-				c -= 2;
-				*dest0++ = buf[j++].integer;
-			}
-			continue;
-		}
+     int j, k;
+     UCHAR *s, c;
+     if (dest0 + len > dest1)
+	  dest0 = NULL;
+     if (dest0 == NULL)
+	  goto fin;
+     for (j = 0; j < len; ) {
+	  for (k = 0; k < 4; k++) { // buf内部のUCHARを探索
+	       c = buf[j++].byte[k];
+	       if (c == 0x2d || c == 0x0e) {
+		    /* label define */
+		    dest0[0] = c;
+		    dest0[1] = c = buf[j].integer;
+		    dest0[2] = buf[j + 1].integer;
+		    j += 2;
+		    dest0 += 3;
+		    while (c) {
+			 c -= 2;
+			 *dest0++ = buf[j++].integer;
+		    }
+		    continue;
+	       }
+	       if (0x31 <= c && c <= 0x37) {
+		    *dest0++ = c;
+		    c -= 0x30;
+		    do {
+			 *dest0++ = buf[j++].integer;
+		    } while (--c);
+		    continue;
+	       }
+	       if (c == 0x59) {
+		    /* TIMES microcode */
+		    LOG_DEBUG("TIMES microcode \n");
+		    dest0[0] = 0x59;
+		    s = ifdef->expr[8];
+		    k = ifdef->dat[8];
+		    if (dest0 + len + k + 4 > dest1)
+			 dest0 = NULL;
+		    if (dest0 == NULL)
+			 goto fin;
+		    put4b(-1, dest0 + 1); /* 長さ不定 */
+		    LOG_DEBUG("dest0 %s \n", dump_ptr("dest0", dest0, 5).c_str());
+		    dest0 += 5; // 5Byte埋めたので5Byte進める
 
-	//	if (c == 0x30)
-	//		continue;
-		if (0x31 <= c && c <= 0x37) {
-			*dest0++ = c;
-			c -= 0x30;
-			do {
-				*dest0++ = buf[j++].integer;
-			} while (--c);
-			continue;
-		}
-		if (c == 0x59) {
-			/* TIMES microcode */
-			LOG_DEBUG("TIMES microcode \n");
-			dest0[0] = 0x59;
-			s = ifdef->expr[8];
-			k = ifdef->dat[8];
-			if (dest0 + len + k + 4 > dest1)
-				dest0 = NULL;
-			if (dest0 == NULL)
-				goto fin;
-			put4b(-1, dest0 + 1); /* 長さ不定 */
-			dest0 += 5;
-			c = 5; /* len出力 */
-			do {
-				*dest0++ = buf[j++].integer;
-			} while (--c);
-			do {
-				*dest0++ = *s++;
-			} while (--k);
-			continue;
-		}
-		if (0x78 <= c && c <= 0x7f) {
-			c &= 0x07;
-			k = ifdef->dat[c];
-			s = ifdef->expr[c];
-			if (ifdef->vb[c] == 0x7f) {
-				*dest0++ = c | 0x78;
-				continue;
-			}
-			c = ifdef->vb[c];
-			if ((c & 0x1f) == 0x00)
-				continue;
-			if ((c & 0x80) == 0 /* const */) {
-				if (dest0 + len + (c & 0x1f) > dest1)
-					dest0 = NULL;
-				if (dest0 == NULL)
-					goto fin;
-				*dest0++ = (c &= 0x1f) | 0x30;
-				do {
-					*dest0++ = k & 0xff;
-					k >>= 8;
-				} while (--c);
-				continue;
-			}
-			/* expr */
-			if (dest0 + len + k > dest1)
-				dest0 = NULL;
-			if (dest0 == NULL)
-				goto fin;
-			dest0[0] = (c & 0x1f) + 0x37; /* 38〜3b */
-			dest0[1] = (c >> 5) & 0x03;
-			dest0 += 2;
-			do {
-				*dest0++ = *s++;
-			} while (--k);
-			continue;
-		}
-		if (0xe0 <= c && c <= 0xef) {
-			/* 1バイトリマーク */
-			*dest0++ = c;
-			continue;
-		}
-		#if (DEBUG)
-			/* error */
-			fprintf(stderr, "flush_bp:%02X\n", c);
-			break;
-		#endif
-	}
+		    c = 5; /* len出力 */
+		    int current = j++;
+		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   0, buf[current  ].byte[0]);
+		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   1, buf[current  ].byte[1]);
+		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   2, buf[current  ].byte[2]);
+		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   3, buf[current  ].byte[3]);
+		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current+1, 3, buf[current+1].byte[0]);
+
+		    // また5Byte埋める
+		    *dest0++ = buf[current  ].byte[0];
+		    *dest0++ = buf[current  ].byte[1];
+		    *dest0++ = buf[current  ].byte[2];
+		    *dest0++ = buf[current  ].byte[3];
+		    *dest0++ = buf[current+1].byte[0];
+		    // 入ったか確認
+		    LOG_DEBUG("dest0 %s \n", dump_ptr("dest0", dest0 - 5, 5).c_str());
+
+		    //do {
+		    // 	 *dest0++ = *s++;
+		    //} while (--k);
+		    continue;
+	       }
+	       if (0x78 <= c && c <= 0x7f) {
+		    c &= 0x07;
+		    k = ifdef->dat[c];
+		    s = ifdef->expr[c];
+		    if (ifdef->vb[c] == 0x7f) {
+			 *dest0++ = c | 0x78;
+			 continue;
+		    }
+		    c = ifdef->vb[c];
+		    if ((c & 0x1f) == 0x00)
+			 continue;
+		    if ((c & 0x80) == 0 /* const */) {
+			 if (dest0 + len + (c & 0x1f) > dest1)
+			      dest0 = NULL;
+			 if (dest0 == NULL)
+			      goto fin;
+			 *dest0++ = (c &= 0x1f) | 0x30;
+			 do {
+			      *dest0++ = k & 0xff;
+			      k >>= 8;
+			 } while (--c);
+			 continue;
+		    }
+		    /* expr */
+		    if (dest0 + len + k > dest1)
+			 dest0 = NULL;
+		    if (dest0 == NULL)
+			 goto fin;
+		    dest0[0] = (c & 0x1f) + 0x37; /* 38〜3b */
+		    dest0[1] = (c >> 5) & 0x03;
+		    dest0 += 2;
+		    do {
+			 *dest0++ = *s++;
+		    } while (--k);
+		    continue;
+	       }
+	       if (0xe0 <= c && c <= 0xef) {
+		    /* 1バイトリマーク */
+		    *dest0++ = c;
+		    continue;
+	       }
+#if (DEBUG)
+	       /* error */
+	       fprintf(stderr, "flush_bp:%02X\n", c);
+	       break;
+#endif
+	  }
+     }
 fin:
-	return dest0;
+     return dest0;
 }
 
 //

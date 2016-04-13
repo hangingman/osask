@@ -66,16 +66,25 @@ static void append_buf_pretty(const char* name, std::array<T, dim>& arr, std::st
 }
 
 template <class T>
-static std::string dump_ptr(const char* name, T* src) {
+static std::string dump_ptr(const char* name, T* src, size_t len = 0) {
 
 	std::stringstream buf;
 	buf << name;
 	buf << " = [ ";
-	while( *src != 0x00 ) {
-		buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
-		buf << ", ";
-		src++;
-        }
+	if (len == 0) {
+		while( *src != 0x00 ) {
+			buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
+			buf << ", ";
+			src++;
+        	}
+	} else {
+		for( int i = 0; i < len; i++ ) {
+			buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
+			buf << ", ";
+			src++;
+        	}
+	}
+
 	buf << "]";
 	return buf.str();
 }
