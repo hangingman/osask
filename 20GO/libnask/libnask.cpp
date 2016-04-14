@@ -35,13 +35,89 @@ UCHAR* putimm(int i, UCHAR *p)
      p[0] = c;
      p[1] = i & 0xff;
      c >>= 1;
+     LOG_DEBUG("c: %d \np[0]: 0x%02x \np[1]: 0x%02x \n", c, p[0], p[1]);
+
      p += 2;
      while (c) {
 	  i >>= 8;
 	  c--;
 	  *p++ = i & 0xff;
+	  LOG_DEBUG("p[%d]: 0x%02x", c, *p);
      }
+
      return p;
+}
+
+//
+// 演算子の評価
+//
+UCHAR* libnask::put_expr(UCHAR *s, struct STR_TERM **pexpr)
+{
+     LOG_DEBUG("s: 0x%02x \n", s);
+
+     struct STR_TERM *expr = *pexpr;
+     int i, j;
+     UCHAR c;
+
+//skip_single_plus:
+     j = expr->term_type;
+     i = expr->value;
+     expr++;
+     switch (j) {
+     case 0: {
+	  // constant number
+	  LOG_DEBUG("expr->term_type: constant number \n");
+	  s = putimm(i, s);
+	  break;
+     }
+     case 1: {
+	  // operator
+	  LOG_DEBUG("expr->term_type: operator \n");
+          //if (i == 0)
+          //	goto skip_single_plus; /* 単項 + */
+	  *s++ = ll_ope_list[i];
+	  s = libnask::put_expr(s, &expr);
+	  if (i >= 4)
+	       s = libnask::put_expr(s, &expr); /* 二項演算子 */
+	  break;
+     }
+     case 2: {
+	  // register
+	  LOG_DEBUG("expr->term_type: register \n");
+     	  s[0] = 0x00; /* const 0 */
+     	  s[1] = 0x00;
+     	  s += 2;
+     	  break;
+     }
+     case 3: {
+	  // label
+	  LOG_DEBUG("expr->term_type: label \n");
+     	  c = 0x0b;
+     	  if (i <= 0xff)
+     	       c = 0x08;
+     	  else if (i <= 0xffff)
+     	       c = 0x09;
+     	  else if (i <= 0xffffff)
+     	       c = 0x0a;
+     	  s[0] = c;
+     	  s[1] = i & 0xff;
+     	  s += 2;
+     	  c &= 0x03;
+     	  while (c) {
+     	       i >>= 8;
+     	       c--;
+     	       *s++ = i & 0xff;
+     	  }
+     	  break;
+     }
+     default: {
+	  LOG_DEBUG("expr->term_type: ? \n");
+	  break;
+     }
+     }
+
+     *pexpr = expr;
+     return s;
 }
 
 //
@@ -53,8 +129,6 @@ UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	int i, j, k, prefix_def, tmret;
 
 	// bufをunique_ptrで初期化しておき、bpはそのポインタとして使用する
-	//std::unique_ptr<UCHAR[]> buf(new UCHAR[2 * 8]);
-	//std::array<UCHAR, 2*8> buf = { 0 };
 	std::array<nask32bitInt, 16> buf = { 0 };
 	nask32bitInt* bp = buf.data();
 
@@ -1373,7 +1447,7 @@ err:
 				expr[7].value = decode->gvalue[0];
 				expr[8].term_type = 0; /* constant */
 				expr[8].value = decode->gvalue[0];
-				ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
+				ifdef->dat[8] = libnask::put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
 				bp->byte[0] = 0x59; /* TIMES microcode */
 				bp->byte[1] = 0x06; /* len [正定数(4バイト)] */
 				put4b(1, &bp->byte[2]); /* len = 1 */
@@ -1543,6 +1617,7 @@ err:
 				goto outbp;
 
 			case OPE_RESB:
+			{
 				LOG_DEBUG("itp-param: OPE_RESB\n");
 				LOG_DEBUG("buffered pointer bp: %s \n", dump_ptr("bp ", bp).c_str());
 				if ((decode->gparam[0] & 0xff) != 0x2f)
@@ -1571,7 +1646,7 @@ err:
 				(bp+1)->byte[2] = 0x30 | itp->param[1];
 				LOG_DEBUG("buffered pointer bp: %s \n", dump_ptr("bp ", bp).c_str());
 
-				bp += 7;
+				bp += 7; // 7Byte埋めたので7Byte進める
 				LOG_DEBUG("RESB: try to reserve %d byte\n", i);
 
 				do { // "i"の数値分"0x00"で埋める
@@ -1585,8 +1660,10 @@ err:
 				}
 
 				// ifdef->dat[8] は flush_bp の中で評価される
-				//ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
+				UCHAR* t = libnask::put_expr(ifdef->expr[8], &expr);
+				ifdef->dat[8] = t - ifdef->expr[8];
 				goto outbp;
+			}
 
 			case OPE_EQU:
 				LOG_DEBUG("itp-param: OPE_EQU\n");
@@ -1607,7 +1684,7 @@ err:
 					expr->term_type = 0; /* constant */
 					expr->value = decode->gvalue[0];
 				}
-				dest0 = put_expr(dest0, &expr);
+				dest0 = libnask::put_expr(dest0, &expr);
 				goto skip_equ;
 
 			case OPE_JMP:
@@ -1854,7 +1931,7 @@ err:
 					expr->term_type = 0; /* constant */
 					expr->value = i;
 				}
-				ifdef->dat[8] = put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
+				ifdef->dat[8] = libnask::put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
 				bp->byte[0] = 0x59; /* TIMES microcode */
 				bp->byte[1] = 0x06; /* len [正定数(4バイト)] */
 				put4b(1, &bp->byte[2]); /* len = 1 */
@@ -1985,6 +2062,7 @@ err:
 			}
 		}
 outbp:
+		LOG_DEBUG("outbp: try to output buffered pointer \n");
 		if (c & 0x01) { /* mod nnn r/m あり */
 
 		 	// FIXME
@@ -2200,15 +2278,15 @@ overrun:
 
 UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::unique_ptr<STR_IFDEFBUF>& ifdef)
 {
-     int j, k;
+     int j, k, l;
      UCHAR *s, c;
      if (dest0 + len > dest1)
 	  dest0 = NULL;
      if (dest0 == NULL)
 	  goto fin;
      for (j = 0; j < len; ) {
-	  for (k = 0; k < 4; k++) { // buf内部のUCHARを探索
-	       c = buf[j++].byte[k];
+	  for (l = 0; l < 4; l++) { // buf内部のUCHARを探索
+	       c = buf[j++].byte[l];
 	       if (c == 0x2d || c == 0x0e) {
 		    /* label define */
 		    dest0[0] = c;
@@ -2232,10 +2310,12 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 	       }
 	       if (c == 0x59) {
 		    /* TIMES microcode */
-		    LOG_DEBUG("TIMES microcode \n");
 		    dest0[0] = 0x59;
 		    s = ifdef->expr[8];
 		    k = ifdef->dat[8];
+		    LOG_DEBUG("TIMES microcode!\nifdef->expr[8]: 0x%02x\nifdef->dat[8]: 0x%02x\n",
+			      s, k);
+
 		    if (dest0 + len + k + 4 > dest1)
 			 dest0 = NULL;
 		    if (dest0 == NULL)
@@ -2250,7 +2330,7 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   1, buf[current  ].byte[1]);
 		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   2, buf[current  ].byte[2]);
 		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   3, buf[current  ].byte[3]);
-		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current+1, 3, buf[current+1].byte[0]);
+		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current+1, 0, buf[current+1].byte[0]);
 
 		    // また5Byte埋める
 		    *dest0++ = buf[current  ].byte[0];
@@ -4855,7 +4935,7 @@ err2:
 		bp[1] = 0x0f; /* 未決定 */
 		bp[2] = 0x00;
 		bp[3] = vbc;
-		bp = put_expr(bp + 4, &expr0);
+		bp = libnask::put_expr(bp + 4, &expr0);
 		idx = 3;
 		def++;
 		ifdef->vb[vba] = 0x7f;
@@ -4942,7 +5022,7 @@ err2:
 		bp[1] = 0x0f; /* 未決定 */
 		bp[2] = 0x00;
 		bp[3] = vbc;
-		bp = put_expr(bp + 4, &expr0);
+		bp = libnask::put_expr(bp + 4, &expr0);
 		idx = 3;
 		def++;
 		ifdef->vb[vba] = 0x7f;
@@ -5085,7 +5165,7 @@ int defnumexpr(std::unique_ptr<STR_IFDEFBUF>& ifdef, struct STR_TERM *expr, UCHA
 	//	}
 		ifdef->vb[vb] |= 0x80;
 		expr = expr0;
-		ifdef->dat[vb] = put_expr(ifdef->expr[vb], &expr) - ifdef->expr[vb];
+		ifdef->dat[vb] = libnask::put_expr(ifdef->expr[vb], &expr) - ifdef->expr[vb];
 		return 0;
 	}
 	ifdef->dat[vb] = ofsexpr.disp;
@@ -5181,69 +5261,6 @@ fin:
 	return s;
 }
 
-//
-//
-//
-UCHAR *put_expr(UCHAR *s, struct STR_TERM **pexpr)
-{
-	LOG_DEBUG("in: %s", s);
-	static const char ll_ope_list[] = {
-		0x10 * 0, 0x11, 0x12, 0, /* s+, s-, s~, null */
-		0x13, 0x14, 0x15, 0x17, /* +, -, *, /u */
-		0x18, 0x19, 0x1a, 0, /* %u, /s, %s, null */
-		0x1d, 0x1e, 0x1f, 0, /* &, |, ^, null */
-		0x16, 0x1b, 0x1c, 0, /* <<, &>, |>, null */
-	};
-	struct STR_TERM *expr = *pexpr;
-	int i, j;
-	UCHAR c;
-
-skip_single_plus:
-	j = expr->term_type;
-	i = expr->value;
-	expr++;
-	switch (j) {
-	case 0: /* constant number */
-		s = putimm(i, s);
-		break;
-
-	case 1: /* operator */
-		if (i == 0)
-			goto skip_single_plus; /* 単項 + */
-		*s++ = ll_ope_list[i];
-		s = put_expr(s, &expr);
-		if (i >= 4)
-			s = put_expr(s, &expr); /* 二項演算子 */
-		break;
-
-	case 2: /* register */
-		s[0] = 0x00; /* const 0 */
-		s[1] = 0x00;
-		s += 2;
-		break;
-
-	case 3: /* label */
-		c = 0x0b;
-		if (i <= 0xff)
-			c = 0x08;
-		else if (i <= 0xffff)
-			c = 0x09;
-		else if (i <= 0xffffff)
-			c = 0x0a;
-		s[0] = c;
-		s[1] = i & 0xff;
-		s += 2;
-		c &= 0x03;
-		while (c) {
-			i >>= 8;
-			c--;
-			*s++ = i & 0xff;
-		}
-	//	break;
-	}
-	*pexpr = expr;
-	return s;
-}
 
 /**
  * これとは別に、idから各種属性を求めることもできる。

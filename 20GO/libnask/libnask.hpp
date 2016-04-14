@@ -247,16 +247,44 @@ struct STR_STATUS {
 };
 
 struct STR_IFDEFBUF {
-	/* 条件付き定義用バッファ構造体 */
-	UCHAR *bp, *bp0, *bp1; /* range-error用バッファ */
+     /* 条件付き定義用バッファ構造体 */
+     UCHAR *bp, *bp0, *bp1; /* range-error用バッファ */
 
-	/* bit0-4:バイト数, bit7:exprフラグ, bit5-6:レンジチェック */
-	std::unique_ptr<UCHAR []> vb{ new UCHAR[12]() };
-	std::unique_ptr<int []> dat{ new int[12]() };
-	std::unique_ptr<UCHAR* []> expr{ new UCHAR*[12] };
+     /* bit0-4:バイト数, bit7:exprフラグ, bit5-6:レンジチェック */
+     std::array<UCHAR, 12> vb;
+     std::array<int, 12> dat;
 
-	// Proper way to create unique_ptr that holds an allocated array
-	// http://stackoverflow.com/a/21377382/2565527
+     /* exprの内容物 */
+     static constexpr size_t IFDEF_EXPR_MAXLEN = 32;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr1;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr2;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr3;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr4;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr5;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr6;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr7;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr8;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr9;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr10;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr11;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr12;
+
+     std::array<UCHAR*, 12> expr = {
+	  {
+	       expr1.data(), expr2.data(),
+	       expr3.data(), expr4.data(),
+	       expr5.data(), expr6.data(),
+	       expr7.data(), expr8.data(),
+	       expr9.data(), expr10.data(),
+	       expr11.data(), expr12.data()
+	  }
+     };
+
+     // Proper way to create unique_ptr that holds an allocated array
+     // http://stackoverflow.com/a/21377382/2565527
+
+     // std::array initializer
+     // http://d.hatena.ne.jp/nagoya313/20100401/1270137582
 };
 
 static UCHAR *labelbuf0, *labelbuf;
@@ -278,6 +306,16 @@ static const char *ERRMSG[] = {
 };
 
 namespace libnask {
+
+     UCHAR *put_expr(UCHAR *s, struct STR_TERM **pexpr);
+
+     static constexpr char ll_ope_list[] = {
+	  0x10 * 0, 0x11, 0x12, 0, /* s+, s-, s~, null */
+	  0x13, 0x14, 0x15, 0x17,  /* +, -, *, /u      */
+	  0x18, 0x19, 0x1a, 0,     /* %u, /s, %s, null */
+	  0x1d, 0x1e, 0x1f, 0,     /* &, |, ^, null    */
+	  0x16, 0x1b, 0x1c, 0,     /* <<, &>, |>, null */
+     };
 
      static constexpr UCHAR header[140] = {
 	/* file header */
@@ -393,7 +431,6 @@ int getconst(UCHAR **ps, struct STR_STATUS *status, int *p);
 int testmem0(struct STR_STATUS *status, int gparam, int *prefix);
 int label2id(int len, UCHAR *label, int extflag);
 UCHAR *id2label(int id);
-UCHAR *put_expr(UCHAR *s, struct STR_TERM **pexpr);
 UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR *dest0, UCHAR *dest1, std::unique_ptr<STR_IFDEFBUF>& ifdef);
 struct STR_TERM *rel_expr(struct STR_TERM *expr, struct STR_DEC_EXPR_STATUS *status);
 UCHAR *LL_skip_expr(UCHAR *p);
