@@ -7,6 +7,7 @@
 #include <memory>
 #include <array>
 #include <sstream>
+#include <bitset>
 
 #if (DEBUG)
 	#include "go.hpp"
@@ -31,9 +32,15 @@ static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
 
 /** For debug log. Usage ./configure CXXFLAGS=-DDEBUG_BUILD; make */
 #if defined(DEBUG) && defined(__GNUC__)
-#  define LOG_DEBUG(fmt, ...) printf("%s(): " fmt, __func__, ## __VA_ARGS__)
+#  define LOG_DEBUG(fmt, ...) printf("%s:%d %s(): " fmt, __FILE__, __LINE__, __func__, ## __VA_ARGS__)
 #else
 #  define LOG_DEBUG(x, ...) do {} while (0)
+#endif
+
+#if defined(TRACE) && defined(__GNUC__)
+#  define LOG_TRACE(fmt, ...) printf("%s:%d %s(): " fmt, __FILE__, __LINE__, __func__, ## __VA_ARGS__)
+#else
+#  define LOG_TRACE(x, ...) do {} while (0)
 #endif
 
 /** Always trace log */
@@ -41,17 +48,130 @@ static nask32bitInt* ucharToNask32bitIntPtr(UCHAR* uchar) {
 
 #include  <iomanip>
 
+template <class T, size_t dim>
+static void append_buf(std::array<T, dim>& arr, std::stringstream& buf) {
+	for (int i = 0; i < dim; i++) {
+		buf << "0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex;
+		buf << static_cast<UINT>(arr[i]);
+		if (i+1 != dim) { buf << ',' << ' '; }
+	}
+}
+
+template <class T, size_t dim>
+static void append_buf_pretty(const char* name, std::array<T, dim>& arr, std::stringstream& buf) {
+	buf << name << ": [ ";
+	append_buf(arr, buf);
+	buf << " ]" << std::endl;
+}
+
 template <class T>
-static std::string dump_ptr(const char* name, T* src) {
+static std::string dump_ptr(const char* name, T* src, size_t len = 0) {
 
 	std::stringstream buf;
-	buf << "[ ";
-	while( *src != 0x00 ) {
-		buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
-		buf << ", ";
-		src++;
-        }
+	buf << name;
+	buf << " = [ ";
+	if (len == 0) {
+		while( *src != 0x00 ) {
+			buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
+			buf << ", ";
+			src++;
+        	}
+	} else {
+		for( int i = 0; i < len; i++ ) {
+			buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
+			buf << ", ";
+			src++;
+        	}
+	}
+
 	buf << "]";
+	return buf.str();
+}
+
+static std::string dump_ptr(const char* name, nask32bitInt* src) {
+
+	std::stringstream buf;
+	buf << name;
+	buf << " = [ ";
+	//while( (*src).byte[0] != 0x00 ) {
+	for(int i = 0; i < 8; i++) {
+		buf << "0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex
+		    << static_cast<UINT>((*src).byte[0])
+		    << ", 0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex
+		    << static_cast<UINT>((*src).byte[1])
+		    << ", 0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex
+		    << static_cast<UINT>((*src).byte[2])
+		    << ", 0x";
+		buf << std::setfill('0') << std::setw(2) << std::hex
+		    << static_cast<UINT>((*src).byte[3])
+		    << ", ";
+		src++;
+	}
+	buf << "]";
+	return buf.str();
+}
+
+template <class T>
+static std::string dump_bit(T src) {
+
+	std::stringstream buf;
+	buf << static_cast<std::bitset<8> >(src);
+	return buf.str();
+}
+
+static std::string dump_getparam(std::string& bit) {
+
+	std::stringstream buf;
+	std::string data_width = bit.substr(0,3);
+	std::string data_type  = bit.substr(3,2);
+	std::string data_range = bit.substr(5,2);
+	std::string use_dollar = bit.substr(7,1);
+
+	buf << bit << std::endl;
+	buf << "datawidth:\t" << std::bitset<12>(data_width).to_ulong() << "byte" << std::endl;
+	int tp = std::bitset<8>(data_type).to_ulong();
+	int rg = std::bitset<8>(data_range).to_ulong();
+
+	switch (tp) {
+	case 0:
+		buf << "type:\t\treg" << std::endl;
+		break;
+	case 1:
+		buf << "type:\t\tmem" << std::endl;
+		break;
+	case 2:
+		buf << "type:\t\timm" << std::endl;
+		break;
+	}
+
+	switch (rg) {
+	case 0:
+		buf << "range:\t\tdefault" << std::endl;
+		break;
+	case 1:
+		buf << "range:\t\tshort" << std::endl;
+		break;
+	case 2:
+		buf << "range:\t\tnear" << std::endl;
+		break;
+	case 3:
+		buf << "range:\t\tfar" << std::endl;
+		break;
+	}
+
+	switch (std::bitset<4>(use_dollar).to_ulong()) {
+		case 0:
+			buf << "use_dollar:\tfalse" << std::endl;
+			break;
+		case 1:
+			buf << "use_dollar:\ttrue" << std::endl;
+			break;
+	}
+
 	return buf.str();
 }
 
@@ -107,20 +227,20 @@ struct STR_VALUE {
 		this->label = value->label;
 		this->sigma = value->sigma;
 		return *this;
-     	}
-	STR_VALUE& assign_sigma(size_t index, std::unique_ptr<STR_SIGMA>& value) {
-		this->sigma[index] = value;
-		return *this;
 	}
+	//STR_VALUE& assign_sigma(size_t index, std::unique_ptr<STR_SIGMA>& value) {
+	// 	this->sigma[index] = value;
+	// 	return *this;
+	//}
 };
 
 struct STR_LABEL {
 	struct STR_VALUE value;
 	UCHAR *define; /* これがNULLだと、extlabel */
-	STR_LABEL& assign_value(std::unique_ptr<STR_VALUE>& value) {
-		this->value = value;
-		return *this;
-	}
+	//STR_LABEL& assign_value(std::unique_ptr<STR_VALUE>& value) {
+	// 	this->value = value;
+	// 	return *this;
+	//}
 };
 
 struct STR_SUBSECTION {

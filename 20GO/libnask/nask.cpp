@@ -8,15 +8,14 @@
 #include "go_string.hpp"
 #include "../drv_stdc/others.hpp"
 
-#define SIZ_STDOUT			(16 * 1024)
-#define SIZ_STDERR			(16 * 1024)
-#define SIZ_WORK			(8 * 1024 * 1024)
-#define SIZ_SYSWRK			(1024 * 1024)
-
-#define	MAX_SRCSIZ		(2 * 1024 * 1024)
-#define	MAX_TMPSIZ		(4 * 1024 * 1024)
-#define	MAX_BINSIZ		(2 * 1024 * 1024)
-#define	MAX_LSTSIZ		(4 * 1024 * 1024)
+static constexpr size_t SIZ_STDOUT = (16 * 1024);
+static constexpr size_t SIZ_STDERR = (16 * 1024);
+static constexpr size_t SIZ_WORK   = (8 * 1024 * 1024);
+static constexpr size_t SIZ_SYSWRK = (1024 * 1024);
+static constexpr size_t MAX_SRCSIZ = (2 * 1024 * 1024);
+static constexpr size_t MAX_TMPSIZ = (4 * 1024 * 1024);
+static constexpr size_t MAX_BINSIZ = (2 * 1024 * 1024);
+static constexpr size_t MAX_LSTSIZ = (4 * 1024 * 1024);
 
 typedef unsigned char UCHAR;
 #define	NL			"\n"
@@ -166,7 +165,6 @@ over_tmpbuf:
 	LOG_DEBUG("call output...\n");
 	LOG_DEBUG("output loaded dest0: %s\n", dump_ptr("dest0", dest0).c_str());
 	dest1 = output(tmp0, tmp1, dest0, dest0 + MAX_BINSIZ, list0, list0 + MAX_LSTSIZ - 2, nask_errors);
-	// FIXME: output modified dest0 is always twice as much as correct dest0
 	LOG_DEBUG("output modified dest0: %s\n", dump_ptr("dest0", dest0).c_str());
 	LOG_DEBUG("output generated dest1: %s\n", dump_ptr("dest1", dest1).c_str());
 

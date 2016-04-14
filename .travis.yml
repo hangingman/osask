@@ -6,6 +6,14 @@ language: cpp
 
 cache: apt
 
+branches:
+  only:
+    - master
+
+notifications:
+  email:
+    - idiotpanzer@gmail.com
+
 addons:
   apt: &apt-global
     sources: &apt-common-sources
