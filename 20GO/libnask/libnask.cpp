@@ -1660,8 +1660,7 @@ err:
 				}
 
 				// ifdef->dat[8] は flush_bp の中で評価される
-				UCHAR* t = libnask::put_expr(ifdef->expr[8], &expr);
-				ifdef->dat[8] = t - ifdef->expr[8];
+				ifdef->dat[8] = libnask::put_expr(ifdef->expr[8], &expr) - ifdef->expr[8];
 				goto outbp;
 			}
 
@@ -2289,6 +2288,7 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 	       c = buf[j++].byte[l];
 	       if (c == 0x2d || c == 0x0e) {
 		    /* label define */
+		    LOG_DEBUG("label define \n");
 		    dest0[0] = c;
 		    dest0[1] = c = buf[j].integer;
 		    dest0[2] = buf[j + 1].integer;
@@ -2301,6 +2301,7 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    continue;
 	       }
 	       if (0x31 <= c && c <= 0x37) {
+		    LOG_DEBUG("0x31 <= c && c <= 0x37 \n");
 		    *dest0++ = c;
 		    c -= 0x30;
 		    do {
@@ -2313,13 +2314,16 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    dest0[0] = 0x59;
 		    s = ifdef->expr[8];
 		    k = ifdef->dat[8];
-		    LOG_DEBUG("TIMES microcode!\nifdef->expr[8]: 0x%02x\nifdef->dat[8]: 0x%02x\n",
+		    LOG_DEBUG("TIMES microcode!      \n"
+			      "ifdef->expr[8]: 0x%02x\n"
+			      "ifdef->dat[8] : %d\n",
 			      s, k);
 
 		    if (dest0 + len + k + 4 > dest1)
 			 dest0 = NULL;
 		    if (dest0 == NULL)
 			 goto fin;
+
 		    put4b(-1, dest0 + 1); /* 長さ不定 */
 		    LOG_DEBUG("dest0 %s \n", dump_ptr("dest0", dest0, 5).c_str());
 		    dest0 += 5; // 5Byte埋めたので5Byte進める
@@ -2341,12 +2345,13 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    // 入ったか確認
 		    LOG_DEBUG("dest0 %s \n", dump_ptr("dest0", dest0 - 5, 5).c_str());
 
-		    //do {
-		    // 	 *dest0++ = *s++;
-		    //} while (--k);
+		    do {
+			 *dest0++ = *s++;
+		    } while (--k);
 		    continue;
 	       }
 	       if (0x78 <= c && c <= 0x7f) {
+		    LOG_DEBUG("0x78 <= c && c <= 0x7f \n");
 		    c &= 0x07;
 		    k = ifdef->dat[c];
 		    s = ifdef->expr[c];
@@ -2383,6 +2388,7 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    continue;
 	       }
 	       if (0xe0 <= c && c <= 0xef) {
+		    LOG_DEBUG("1byte remark \n");
 		    /* 1バイトリマーク */
 		    *dest0++ = c;
 		    continue;
