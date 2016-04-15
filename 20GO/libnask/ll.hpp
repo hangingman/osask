@@ -258,6 +258,7 @@ struct STR_LL_VB {
 	UCHAR *expr, typlen, range;
 };
 
+UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
 UCHAR *LL_skip_expr(UCHAR *p);
 UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
 UCHAR *LL_skipcode(UCHAR *p);

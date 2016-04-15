@@ -14,6 +14,7 @@
 
 UCHAR *LL_skipcode(UCHAR *p)
 {
+	LOG_DEBUG("in: %s \n", dump_ptr("p", p).c_str());
 	UCHAR c, len;
 retry:
 	c = *p++;
@@ -102,7 +103,7 @@ skipmc94_skip:
 		goto fin;
 	}
 	if (c == 0x59) {
-		LOG_DEBUG("TIMES microcode");
+		LOG_DEBUG("TIMES microcode \n");
 		p = LL_skip_expr(p + 4); /* TIMES microcode (prefix) */
 		p = LL_skip_expr(p);
 		goto fin;
@@ -689,9 +690,11 @@ UCHAR *lccbug_LL_mc90_func(UCHAR *src0, struct STR_LL_VB *vbb, struct STR_LL_VB 
 	return src0;
 }
 
+//
+// Lilte-Linker, srcとdestの解析結果を出力する
+// (なおsrcに書き込みをするので要注意)
+//
 UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
-/* なおsrcに書き込みをするので要注意 */
-/* 新dest1を返す */
 {
 	struct STR_SUBSECTION *subsect1;
 	unsigned int l0, min, max, unsolved, unsolved0;
@@ -728,6 +731,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 
 	/* 切り分ける */
 	/* ラベルを検出する */
+	LOG_DEBUG("detect labels \n");
 	std::shared_ptr<STR_SUBSECTION> subsect = subsect0;
 	subsect->sect0 = src0;
 	init_value(labelvalue.get()); /* ラベル保持 */
@@ -735,6 +739,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		c = *src0;
 		if (c == 0x2d) {
 			/* EQU */
+			LOG_DEBUG("detect label: EQU 0x%02x \n", c);
 			src0++;
 			calc_value(value, &src0);
 			// This was written as raw pointer:
@@ -747,6 +752,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 		}
 		if (c == 0x0e) {
 			/* ラベル定義 */
+			LOG_DEBUG("detect label definition: 0x%02x \n", c);
 			struct STR_SIGMA sigma;
 			sigma.scale = 1;
 			sigma.subsect = subsect.get() - subsect0.get();
@@ -757,15 +763,14 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			src0++;
 			calc_value(value, &src0);
 			label = &label0[value->min];
-			// FIXME
-			//label->define = src0;
+			label->define = src0;
 			addsigma(labelvalue, sigma);
-			// FIXME
-			//label->value = *labelvalue;
-			//label->value.flags |= VFLG_ENABLE;
+			label->value = *labelvalue;
+			label->value.flags |= VFLG_ENABLE;
 			continue;
 		}
 		if (c == 0x2c) {
+			LOG_DEBUG("detect label extern: 0x%02x \n", c);
 			/* externラベル宣言 */
 			src0++;
 			calc_value(value, &src0);
@@ -778,6 +783,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			continue;
 		}
 		if (c == 0x58) {
+			LOG_DEBUG("detect label ORG: 0x%02x \n", c);
 			/* ORG */
 			subsect->sect1 = src0;
 			manually_increment(subsect);
@@ -786,6 +792,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			calc_value(labelvalue, &src0);
 			continue;
 		}
+		LOG_DEBUG("skipcode... \n");
 		src0 = LL_skipcode(src0);
 	}
 	subsect->sect1 = src1;
@@ -1181,10 +1188,14 @@ UCHAR *skip_mc30(UCHAR *s, UCHAR *bytes, char flag)
 	return LL_skip_mc30(s, bytes, flag);
 }
 
+//
+// unsolved数を返す
+// subsect->unsolved == 0 なら呼ばないこと
+//
 unsigned int solve_subsection(struct STR_SUBSECTION *subsect, char force)
-/* unsolved数を返す */
-/* subsect->unsolved == 0 なら呼ばないこと */
 {
+	LOG_DEBUG("solve_subsection");
+
 	struct {
 		signed char min, max;
 	} vb[8], *vba, *vbb, *vbc;
@@ -1235,7 +1246,7 @@ skipmc30:
 		}
 		if (c == 0x59) {
 			/* TIMES */
-			LOG_DEBUG("TIMES microcode");
+			LOG_DEBUG("TIMES microcode 0x%02x", c);
 			t = s;
 			i = s[0] | s[1] << 8 | s[2] << 16 | s[3] << 24;
 			s += 4;

@@ -30,7 +30,6 @@ extern struct GOL_STR_MEMMAN GOL_memman, GOL_sysman;
 int GOL_retcode;
 
 UCHAR *GOL_work0;
-UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
 UCHAR *nask(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1);
 int before_nask_process(int argc, UCHAR **argv, UCHAR *src0);
 int nask_main(int argc, UCHAR **argv);
