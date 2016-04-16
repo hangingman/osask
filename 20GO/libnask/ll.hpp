@@ -228,10 +228,18 @@ struct STR_VALUE {
 		this->sigma = value->sigma;
 		return *this;
 	}
-	//STR_VALUE& assign_sigma(size_t index, std::unique_ptr<STR_SIGMA>& value) {
-	// 	this->sigma[index] = value;
-	// 	return *this;
-	//}
+
+#ifdef DEBUG // debug-code
+	std::string to_string() {
+		std::stringstream buf;
+		buf << "min: " << min << std::endl;
+		buf << "delta: " << delta << std::endl;
+		buf << "flags: " << flags << std::endl;
+		append_buf_pretty("scale", scale, buf);
+		append_buf_pretty("label", label, buf);
+		return buf.str();
+	}
+#endif
 };
 
 struct STR_LABEL {

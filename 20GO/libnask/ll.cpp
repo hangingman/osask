@@ -209,6 +209,7 @@ fin:
 
 void init_value(STR_VALUE* value)
 {
+	LOG_DEBUG("in");
 	int i;
 	value->min = value->delta = value->scale[0] = value->scale[1] = 0;
 	value->flags = 0;
@@ -218,6 +219,7 @@ void init_value(STR_VALUE* value)
 		value->sigma[i].subsect = 0;
 		value->sigma[i].terms = 0;
 	}
+	LOG_DEBUG("initilized value: %s", value->to_string().c_str());
 	return;
 }
 
