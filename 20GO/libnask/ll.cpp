@@ -209,7 +209,7 @@ fin:
 
 void init_value(STR_VALUE* value)
 {
-	LOG_DEBUG("in");
+	LOG_DEBUG("in \n");
 	int i;
 	value->min = value->delta = value->scale[0] = value->scale[1] = 0;
 	value->flags = 0;
@@ -219,7 +219,7 @@ void init_value(STR_VALUE* value)
 		value->sigma[i].subsect = 0;
 		value->sigma[i].terms = 0;
 	}
-	LOG_DEBUG("initilized value: %s", value->to_string().c_str());
+	LOG_DEBUG("initilized value: %s \n", value->to_string().c_str());
 	return;
 }
 
@@ -242,44 +242,16 @@ unsigned int get_id(int len, UCHAR **ps, int i)
 
 void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 {
+	LOG_DEBUG("in \n");
 	calc_value0(value, pexpr);
 	if (value->sigma[0].scale)
 		calcsigma(value);
 	return;
 }
 
-void enable_label(STR_LABEL* label)
-{
-	std::unique_ptr<STR_VALUE> value;
-	UCHAR *t;
-
-//	if (label->value.flags & VFLG_CALC) {
-//		label->value.flags |= VFLG_SLFREF;
-//		return;
-//	}
-//	init_value(&value);
-//	value.label[0] = label - label0; /* for EXTERN */
-//	value.scale[0] = 1;
-//	value.flags |= label->value.flags & VFLG_EXTERN;
-	if ((t = label->define) != NULL) {
-		label->value.flags |= VFLG_CALC;
-		calc_value0(value, &t);
-		if (value->flags & VFLG_SLFREF) {
-			init_value(value.get());
-			value->flags |= VFLG_SLFREF;
-		}
-	} else /* if ((label->value.flags & VFLG_EXTERN) == 0) */ {
-		/* EXTERNの時はすぐにENABLEになるので、ここに来るはずない */
-		init_value(value.get());
-		value->flags |= VFLG_UNDEF;
-	}
-	label->value = value;
-	label->value.flags |= VFLG_ENABLE;
-	return;
-}
-
 void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 {
+	LOG_DEBUG("in \n");
 	UCHAR *expr = *pexpr, c, *t;
 	int i, j, k;
 	std::unique_ptr<STR_VALUE> tmp, tmp2;
@@ -622,6 +594,36 @@ dberr:
 
 fin:
 	*pexpr = expr;
+	return;
+}
+
+void enable_label(STR_LABEL* label)
+{
+	std::unique_ptr<STR_VALUE> value;
+	UCHAR *t;
+
+//	if (label->value.flags & VFLG_CALC) {
+//		label->value.flags |= VFLG_SLFREF;
+//		return;
+//	}
+//	init_value(&value);
+//	value.label[0] = label - label0; /* for EXTERN */
+//	value.scale[0] = 1;
+//	value.flags |= label->value.flags & VFLG_EXTERN;
+	if ((t = label->define) != NULL) {
+		label->value.flags |= VFLG_CALC;
+		calc_value0(value, &t);
+		if (value->flags & VFLG_SLFREF) {
+			init_value(value.get());
+			value->flags |= VFLG_SLFREF;
+		}
+	} else /* if ((label->value.flags & VFLG_EXTERN) == 0) */ {
+		/* EXTERNの時はすぐにENABLEになるので、ここに来るはずない */
+		init_value(value.get());
+		value->flags |= VFLG_UNDEF;
+	}
+	label->value = value;
+	label->value.flags |= VFLG_ENABLE;
 	return;
 }
 

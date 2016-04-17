@@ -198,6 +198,14 @@ struct STR_DECODE {
 struct STR_TERM {
 	int term_type;
 	int value;
+#ifdef DEBUG // debug-code
+	std::string to_string() {
+		std::stringstream buf;
+		buf << "term_type: " << term_type << std::endl;
+		buf << "value: " << value << std::endl;
+		return buf.str();
+	}
+#endif
 };
 
 struct STR_OFSEXPR {

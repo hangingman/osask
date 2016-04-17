@@ -18,31 +18,34 @@ UCHAR* putimm(int i, UCHAR *p)
 {
      UCHAR c = 6;
      if (i >= 0) {
-	  if (i <= 0xff)
+	  if (i <= 0xff) {
 	       c = 0x00;
-	  else if (i <= 0xffff)
+	  } else if (i <= 0xffff) {
 	       c = 0x02;
-	  else if (i <= 0xffffff)
+	  } else if (i <= 0xffffff) {
 	       c = 0x04;
+	  }
      } else {
-	  if (i >= -0x100)
+	  if (i >= -0x100) {
 	       c = 0x01;
-	  else if (i >= -0x10000)
+	  } else if (i >= -0x10000) {
 	       c = 0x03;
-	  else if (i >= -0x1000000)
+	  } else if (i >= -0x1000000) {
 	       c = 0x05;
+	  }
      }
+     LOG_DEBUG("c: 0x%02x \n", c);
      p[0] = c;
-     p[1] = i & 0xff;
+     p[1] = i & 0xff; // 10進数→16進数にしてるだけ
      c >>= 1;
-     LOG_DEBUG("c: %d \np[0]: 0x%02x \np[1]: 0x%02x \n", c, p[0], p[1]);
+     LOG_DEBUG("c: 0x%02x \np[0]: 0x%02x \np[1]: 0x%02x \n", c, p[0], p[1]);
 
      p += 2;
      while (c) {
 	  i >>= 8;
 	  c--;
 	  *p++ = i & 0xff;
-	  LOG_DEBUG("p[%d]: 0x%02x", c, *p);
+	  LOG_DEBUG("p[%d]: 0x%02x \n", c, *p);
      }
 
      return p;
@@ -53,9 +56,9 @@ UCHAR* putimm(int i, UCHAR *p)
 //
 UCHAR* libnask::put_expr(UCHAR *s, struct STR_TERM **pexpr)
 {
-     LOG_DEBUG("s: 0x%02x \n", s);
-
      struct STR_TERM *expr = *pexpr;
+     LOG_DEBUG("expr: %s \n", expr->to_string().c_str());
+
      int i, j;
      UCHAR c;
 
@@ -66,7 +69,7 @@ UCHAR* libnask::put_expr(UCHAR *s, struct STR_TERM **pexpr)
      switch (j) {
      case 0: {
 	  // constant number
-	  LOG_DEBUG("expr->term_type: constant number \n");
+	  LOG_DEBUG("expr->term_type: constant number %d \n", i);
 	  s = putimm(i, s);
 	  break;
      }
@@ -1654,6 +1657,7 @@ err:
 				} while (--i);
 				ifdef->vb[8] = 0x84;
 				expr = status->expression;
+				LOG_DEBUG("RESB: expr %s \n", expr->to_string().c_str());
 				if ((decode->gparam[0] & 0x200) == 0) {
 					expr->term_type = 0; /* constant */
 					expr->value = decode->gvalue[0];
@@ -2315,9 +2319,10 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    s = ifdef->expr[8];
 		    k = ifdef->dat[8];
 		    LOG_DEBUG("TIMES microcode!      \n"
-			      "ifdef->expr[8]: 0x%02x\n"
-			      "ifdef->dat[8] : %d\n",
-			      s, k);
+			      "ifdef->expr[8]: %s\n"
+			      "ifdef->dat[8] : %s\n",
+			      dump_array("ifdef->expr[8]", ifdef->expr8).c_str(),
+			      dump_ptr("k", k).c_str());
 
 		    if (dest0 + len + k + 4 > dest1)
 			 dest0 = NULL;
