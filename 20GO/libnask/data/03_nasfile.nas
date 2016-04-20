@@ -1,2 +1,2 @@
-; RESB
-RESB 16
+; TIMES
+TIMES DB 0

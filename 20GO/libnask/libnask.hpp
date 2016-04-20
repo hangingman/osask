@@ -264,27 +264,22 @@ struct STR_IFDEFBUF {
 
      /* exprの内容物 */
      static constexpr size_t IFDEF_EXPR_MAXLEN = 32;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr1;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr2;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr3;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr4;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr5;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr6;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr7;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr8;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr9;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr10;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr11;
-     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr12;
+     std::array<UCHAR, IFDEF_EXPR_MAXLEN> expr_impl;
 
      std::array<UCHAR*, 12> expr = {
 	  {
-	       expr1.data(), expr2.data(),
-	       expr3.data(), expr4.data(),
-	       expr5.data(), expr6.data(),
-	       expr7.data(), expr8.data(),
-	       expr9.data(), expr10.data(),
-	       expr11.data(), expr12.data()
+	       expr_impl.data(),
+	       expr_impl.data() + 1,
+	       expr_impl.data() + 2,
+	       expr_impl.data() + 3,
+	       expr_impl.data() + 4,
+	       expr_impl.data() + 5,
+	       expr_impl.data() + 6,
+	       expr_impl.data() + 7,
+	       expr_impl.data() + 8,
+	       expr_impl.data() + 9,
+	       expr_impl.data() + 10,
+	       expr_impl.data() + 11
 	  }
      };
 
@@ -410,6 +405,48 @@ namespace libnask {
 	  0, 0, /* sizeof (reloctab_text) / 10 == 0 */
 	  0, 0, /* sizeof (line_number) == 0 */
 	  0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+     };
+
+     static const char symbols[] = "\"'+-*/%&|^(){}[]<>,;:";
+     static struct STR_OPELIST {
+	  char str[3], prio, num;
+     } opelist0[] = {
+	  { "|>", 12, 18 }, { "&>", 12, 17 },
+	  { "<<", 12, 16 }, { ">>", 12, 17 },
+	  { "//", 14,  9 }, { "%%", 14, 10 },
+	  { "+",  13,  4 }, { "-",  13,  5 },
+	  { "*",  14,  6 }, { "/",  14,  7 },
+	  { "%",  14,  8 }, { "^",   7, 14 },
+	  { "&",   8, 12 }, { "|",   6, 13 },
+	  { "",    0,  0 }
+     }, opelist1[] = {
+	  { "|>", 12, 18 }, { "&>", 12, 17 },
+	  { "<<", 12, 16 }, { ">>", 12, 18 },
+	  { "//", 14,  7 }, { "%%", 14,  8 },
+	  { "+",  13,  4 }, { "-",  13,  5 },
+	  { "*",  14,  6 }, { "/",  14,  9 },
+	  { "%",  14, 10 }, { "^",   7, 14 },
+	  { "&",   8, 12 }, { "|",   6, 13 },
+	  { "",    0,  0 }
+     };
+
+     static struct STR_KEYWORD {
+	  int support;
+	  char keyword[8][8];
+     } const keywordlist[] = {
+	  SUP_i386,	"EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI",
+	  SUP_8086,	"AX", "CX", "DX", "BX", "SP", "BP", "SI", "DI",
+	  SUP_8086,	"AL", "CL", "DL", "BL", "AH", "CH", "DH", "BH",
+	  SUP_8086,	"ES", "CS", "SS", "DS", "", "", "", "",
+	  SUP_i386,	"FS", "GS", "", "", "", "", "", "",
+	  SUP_i386,	"CR0", "CR1", "CR2", "CR3", "CR4", "CR5", "CR6", "CR7",
+	  SUP_i386,	"DR0", "DR1", "DR2", "DR3", "DR4", "DR5", "DR6", "DR7",
+	  SUP_i386,	"TR0", "TR1", "TR2", "TR3", "TR4", "TR5", "TR6", "DR7",
+	  SUP_8086,	"BYTE", "WORD", "SHORT", "NEAR", "FAR", "NOSPLIT", "$", "$$",
+	  SUP_8086,	"DWORD", "", "", "", "QWORD", "..$", "TWORD", "TO",
+	  SUP_8086,	"ST0", "ST1", "ST2", "ST3", "ST4", "ST5", "ST6", "ST7",	/* 80-87 */
+	  //SUP_MMX,	"MM0", "MM1", "MM2", "MM3", "MM4", "MM5", "MM6", "MM7",	/* 88-95 */
+	  0, 		"", "", "", "", "", "", "", ""
      };
 }
 

@@ -13,9 +13,11 @@ UCHAR* skipspace(UCHAR *s, UCHAR *t)
 
 //
 // IMM(測値)を出力する、最大6バイト出力
+// 返り値は最終的に出力されるバイト数に等しい
 //
 UCHAR* putimm(int i, UCHAR* p)
 {
+     LOG_DEBUG("i: %d 0x%02x \n", i, i);
      UCHAR c = 6;
      if (i >= 0) {
 	  if (i <= 0xff) {
@@ -34,11 +36,11 @@ UCHAR* putimm(int i, UCHAR* p)
 	       c = 0x05;
 	  }
      }
-     LOG_DEBUG("c: 0x%02x \n", c);
+     LOG_DEBUG("p[0]: 0x%02x, p[1]: 0x%02x \n", c, i & 0xff);
      p[0] = c;
      p[1] = i & 0xff; // 10進数→16進数にしてるだけ
      c >>= 1;
-     LOG_DEBUG("c: 0x%02x \np[0]: 0x%02x \np[1]: 0x%02x \n", c, p[0], p[1]);
+     LOG_DEBUG("c: %d \n", c);
      p += 2;
      while (c) {
 	  i >>= 8;
@@ -1920,8 +1922,11 @@ err:
 				s = decode->param;
 				if (!(s < status->src1 && *s != '\n' && *s != ';'))
 					goto err2;
-				j = getparam(&s, status->src1, &i, status->expression,
-					status->mem_expr, &status->ofsexpr, &status->expr_status);
+				j = getparam(&s,status->src1, &i,
+					     status->expression,    // STR_TERM
+					     status->mem_expr,	    // STR_TERM
+					     &status->ofsexpr,	    // STR_OFSEXPR
+					     &status->expr_status); // STR_DEC_EXPR_STATUS
 			//	if (j == 0)
 			//		goto err2;
 				if ((j & 0xf0) != 0x20)
@@ -2066,11 +2071,11 @@ err:
 outbp:
 		LOG_DEBUG("outbp: try to output buffered pointer \n");
 		if (c & 0x01) { /* mod nnn r/m あり */
-
-		 	// FIXME
-		     	//tmret = testmem0(status, decode->gp_mem, &decode->prefix);
+			LOG_DEBUG("outbp: found mod nnn r/m \n");
+		     	tmret = testmem0(status.get(), decode->gp_mem, &decode->prefix);
 			if (tmret == 0) {
 		err5:
+				LOG_DEBUG("outbp: addressing error \n");
 				decode->error = 5; /* addressing error */
 				goto err;
 			}
@@ -2088,12 +2093,16 @@ outbp:
 flush_ifdefbuf:
 		/* ifdefbufを出力 */
 		i = ifdef->bp - ifdef->bp0;
+
+		LOG_DEBUG("flush_ifdefbuf: %d byte...\n", i);
 		if (dest0 + i > dest1)
 			dest0 = NULL;
 		if (dest0 == NULL)
 			goto overrun;
-		for (j = 0; j < i; j++)
+		for (j = 0; j < i; j++) {
+			LOG_DEBUG("set dest0[%d] = 0x%02x \n", j, ifdef->bp0[j]);
 			dest0[j] = ifdef->bp0[j];
+		}
 		dest0 += i;
 
 		if ((dest0 = flush_bp(bp - buf.data(), buf.data(), dest0, dest1, ifdef)) == NULL)
@@ -2317,10 +2326,10 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    dest0[0] = 0x59;
 		    s = ifdef->expr[8];
 		    k = ifdef->dat[8];
-		    LOG_DEBUG("TIMES microcode!      \n"
+		    LOG_DEBUG("TIMES microcode   \n"
 			      "ifdef->expr[8]: %s\n"
 			      "ifdef->dat[8] : %d\n",
-			      dump_array("ifdef->expr[8]", ifdef->expr8).c_str(),
+			      dump_ptr("ifdef->expr[8]", ifdef->expr[8]).c_str(),
 			      k);
 
 		    if (dest0 + len + k + 4 > dest1)
@@ -2346,13 +2355,14 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    *dest0++ = buf[current  ].byte[2];
 		    *dest0++ = buf[current  ].byte[3];
 		    *dest0++ = buf[current+1].byte[0];
-		    // 入ったか確認
-		    LOG_DEBUG("dest0 %s \n", dump_ptr("dest0", dest0 - 5, 5).c_str());
+		    // -5して 入ったか確認
+		    LOG_DEBUG("TIMES microcode: dest0 %s \n", dump_ptr("dest0", dest0 - 5, 5).c_str());
 
 		    do {
 			 *dest0++ = *s++;
 		    } while (--k);
-		    LOG_DEBUG("dest0 %s \n", dump_ptr("dest0", dest0, 2).c_str());
+		    // -2して 入ったか確認
+		    LOG_DEBUG("TIMES microcode: dest0 %s \n", dump_ptr("dest0", dest0 - 2, 2).c_str());
 
 		    continue;
 	       }
@@ -2401,7 +2411,7 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 	       }
 #if (DEBUG)
 	       /* error */
-	       fprintf(stderr, "flush_bp:%02X\n", c);
+	       fprintf(stderr, "flush_bp: 0x%02X\n", c);
 	       break;
 #endif
 	  }
@@ -2534,7 +2544,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 
 	/* バイナリー出力 */
 	if (format == 1) { /* WCOFF */
-		LOG_DEBUG("srcp[0]: 0x%02x \n", srcp[0]);
+		LOG_DEBUG("format: WCOFF \n");
 		if (dest + sizeof (libnask::header) > dest1) {
 			dest = NULL;
 			output_error(list0, list1, dest);
@@ -2542,11 +2552,15 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 		for (i = 0; i < sizeof (libnask::header); i++)
 			dest[i] = libnask::header[i];
 		dest += sizeof (libnask::header);
+	} else {
+		LOG_DEBUG("format: BIN \n");
 	}
+
 	srcp = src0;
 	int secno = 0; // 再代入されてる
 	do {
 		c = *srcp;
+		LOG_DEBUG("%d \n", c);
 		if (SHORT_DB1 <= c && c <= SHORT_DB4) {
 			srcp++;
 			c -= SHORT_DB0;
@@ -2561,6 +2575,7 @@ dest_out_skip:
 				do {
 					// ここで *srcp の中身がlist0に書き込まれる
 					// 多分大抵の場合それがバイナリで.imgファイルに入る
+					LOG_DEBUG("%d \n", c);
 					*dest++ = *srcp++;
 				} while (--c);
 				continue;
@@ -2599,6 +2614,7 @@ dest_out_skip:
 		}
 		srcp = LL_skipcode(srcp);
 	} while (srcp < src1);
+
 	if (format == 1) { /* WCOFF */
 		/* 最後のセクションのサイズ書き込み */
 		if (1 <= sectable[secno].flags && sectable[secno].flags <= 3)
@@ -3838,58 +3854,22 @@ UINT get4b(UCHAR *p)
 	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
 }
 
+//
+// 式解釈
+//
 struct STR_TERM *decode_expr(UCHAR **ps, UCHAR *s1, struct STR_TERM *expr, int *priority, struct STR_DEC_EXPR_STATUS *status)
 {
 	UCHAR *s = *ps, c, d, *t, buf8[8];
 	struct STR_TERM *expr0 = expr, *pterm;
 	int prio0 = 0, prio1, i, j, k;
-	static char symbols[] = "\"'+-*/%&|^(){}[]<>,;:";
-	static struct STR_OPELIST {
-		char str[3], prio, num;
-	} opelist0[] = {
-		{ "|>", 12, 18 }, { "&>", 12, 17 },
-		{ "<<", 12, 16 }, { ">>", 12, 17 },
-		{ "//", 14,  9 }, { "%%", 14, 10 },
-		{ "+",  13,  4 }, { "-",  13,  5 },
-		{ "*",  14,  6 }, { "/",  14,  7 },
-		{ "%",  14,  8 }, { "^",   7, 14 },
-		{ "&",   8, 12 }, { "|",   6, 13 },
-		{ "",    0,  0 }
-	}, opelist1[] = {
-		{ "|>", 12, 18 }, { "&>", 12, 17 },
-		{ "<<", 12, 16 }, { ">>", 12, 18 },
-		{ "//", 14,  7 }, { "%%", 14,  8 },
-		{ "+",  13,  4 }, { "-",  13,  5 },
-		{ "*",  14,  6 }, { "/",  14,  9 },
-		{ "%",  14, 10 }, { "^",   7, 14 },
-		{ "&",   8, 12 }, { "|",   6, 13 },
-		{ "",    0,  0 }
-	};
-	struct STR_OPELIST *popelst, *opelist = opelist0;
-	static struct STR_KEYWORD {
-		int support;
-		char keyword[8][8];
-	} keywordlist[] = {
-		SUP_i386,	"EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI",
-		SUP_8086,	"AX", "CX", "DX", "BX", "SP", "BP", "SI", "DI",
-		SUP_8086,	"AL", "CL", "DL", "BL", "AH", "CH", "DH", "BH",
-		SUP_8086,	"ES", "CS", "SS", "DS", "", "", "", "",
-		SUP_i386,	"FS", "GS", "", "", "", "", "", "",
-		SUP_i386,	"CR0", "CR1", "CR2", "CR3", "CR4", "CR5", "CR6", "CR7",
-		SUP_i386,	"DR0", "DR1", "DR2", "DR3", "DR4", "DR5", "DR6", "DR7",
-		SUP_i386,	"TR0", "TR1", "TR2", "TR3", "TR4", "TR5", "TR6", "DR7",
-		SUP_8086,	"BYTE", "WORD", "SHORT", "NEAR", "FAR", "NOSPLIT", "$", "$$",
-		SUP_8086,	"DWORD", "", "", "", "QWORD", "..$", "TWORD", "TO",
-		SUP_8086,	"ST0", "ST1", "ST2", "ST3", "ST4", "ST5", "ST6", "ST7",	/* 80-87 */
-	//	SUP_MMX,	"MM0", "MM1", "MM2", "MM3", "MM4", "MM5", "MM6", "MM7",	/* 88-95 */
-		0, 			"", "", "", "", "", "", "", ""
-	};
-	struct STR_KEYWORD *pkw;
+
+	struct libnask::STR_OPELIST* popelist;
+	struct libnask::STR_OPELIST* opelist = libnask::opelist0;;
 
 	if (priority)
 		prio0 = *priority;
 	if (status->option & 1)
-		opelist = opelist1;
+		opelist = libnask::opelist1;
 
 single:
 	s = skipspace(s, s1);
@@ -3922,8 +3902,8 @@ single1:
 	}
 
 	/* 第1項 */
-	for (i = 0; (UINT) i < sizeof symbols; i++) {
-		if (c == symbols[i])
+	for (i = 0; (UINT) i < sizeof libnask::symbols; i++) {
+		if (c == libnask::symbols[i])
 			goto symbol;
 	}
 	if (c == 0)
@@ -3934,8 +3914,8 @@ single1:
 	while (s < s1) {
 		if ((c = *s) <= ' ')
 			break;
-		for (i = 0; (UINT) i < sizeof symbols; i++) {
-			if (c == symbols[i])
+		for (i = 0; (UINT) i < sizeof libnask::symbols; i++) {
+			if (c == libnask::symbols[i])
 				goto token_end;
 		}
 		s++;
@@ -3952,7 +3932,7 @@ token_end:
 		buf8[i] = d;
 	}
 	j = 0;
-	for (pkw = keywordlist; pkw->support; pkw++, j += 8) {
+	for (const libnask::STR_KEYWORD* pkw = libnask::keywordlist; pkw->support; pkw++, j += 8) {
 		if ((status->support & pkw->support) == 0)
 			continue;
 		for (i = 0; i < 8; i++) {
@@ -4169,7 +4149,7 @@ search_oper:
 	if (c == 0)
 		goto fin;
 
-	for (popelst = opelist; ; popelst++) {
+	for (struct libnask::STR_OPELIST* popelst = opelist; ; popelst++) {
 		if (popelst->str[0] == '\0') {
 			*ps = s - 1;
 			return expr;
@@ -4183,8 +4163,9 @@ search_oper:
 			}
 		}
 	}
-	prio1 = popelst->prio;
-	c = popelst->num;
+	// FIXME
+	//prio1 = popelst->prio;
+	//c = popelst->num;
 
 new_operator:
 	if (prio0 >= prio1) {
