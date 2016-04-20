@@ -14,7 +14,7 @@ UCHAR* skipspace(UCHAR *s, UCHAR *t)
 //
 // IMM(測値)を出力する、最大6バイト出力
 //
-UCHAR* putimm(int i, UCHAR *p)
+UCHAR* putimm(int i, UCHAR* p)
 {
      UCHAR c = 6;
      if (i >= 0) {
@@ -39,7 +39,6 @@ UCHAR* putimm(int i, UCHAR *p)
      p[1] = i & 0xff; // 10進数→16進数にしてるだけ
      c >>= 1;
      LOG_DEBUG("c: 0x%02x \np[0]: 0x%02x \np[1]: 0x%02x \n", c, p[0], p[1]);
-
      p += 2;
      while (c) {
 	  i >>= 8;
@@ -2320,9 +2319,9 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    k = ifdef->dat[8];
 		    LOG_DEBUG("TIMES microcode!      \n"
 			      "ifdef->expr[8]: %s\n"
-			      "ifdef->dat[8] : %s\n",
+			      "ifdef->dat[8] : %d\n",
 			      dump_array("ifdef->expr[8]", ifdef->expr8).c_str(),
-			      dump_ptr("k", k).c_str());
+			      k);
 
 		    if (dest0 + len + k + 4 > dest1)
 			 dest0 = NULL;
@@ -2353,6 +2352,8 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    do {
 			 *dest0++ = *s++;
 		    } while (--k);
+		    LOG_DEBUG("dest0 %s \n", dump_ptr("dest0", dest0, 2).c_str());
+
 		    continue;
 	       }
 	       if (0x78 <= c && c <= 0x7f) {

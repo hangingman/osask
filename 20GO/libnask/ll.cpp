@@ -1022,7 +1022,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			}
 			if (c == 0x59) {
 				/* TIMES */
-		     		LOG_DEBUG("TIMES microcode");
+		     		LOG_DEBUG("TIMES microcode \n");
 				times_dest0 = dest0;
 				times_src0 = src0;
 				src0 += 4;
@@ -1198,14 +1198,16 @@ UCHAR *skip_mc30(UCHAR *s, UCHAR *bytes, char flag)
 //
 unsigned int solve_subsection(struct STR_SUBSECTION *subsect, char force)
 {
-	LOG_DEBUG("solve_subsection");
+	LOG_DEBUG("solve_subsection \n");
 
 	struct {
 		signed char min, max;
 	} vb[8], *vba, *vbb, *vbc;
 	unsigned int unsolved = 0, min = 0, delta = 0;
 	int i;
-	std::unique_ptr<STR_VALUE> value, tmp;
+	std::unique_ptr<STR_VALUE> value(new STR_VALUE());
+	std::unique_ptr<STR_VALUE> tmp(new STR_VALUE());
+
 	UCHAR *s, *t, c, d, e, f, g, h;
 
 	for (s = subsect->sect0; s < subsect->sect1; ) {
@@ -1250,7 +1252,7 @@ skipmc30:
 		}
 		if (c == 0x59) {
 			/* TIMES */
-			LOG_DEBUG("TIMES microcode 0x%02x", c);
+			LOG_DEBUG("TIMES microcode 0x%02x \n", c);
 			t = s;
 			i = s[0] | s[1] << 8 | s[2] << 16 | s[3] << 24;
 			s += 4;
