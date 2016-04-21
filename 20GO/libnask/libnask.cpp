@@ -4482,6 +4482,7 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p,
 	if (status->nosplit)
 		goto err;
 	if (pe == NULL && expression[0].term_type == -1 && s < s1 && *s == '[') {
+		LOG_DEBUG("detect memory, check datawidth & range \n");
 		// メモリ検出
 		// datawidthとrangeを控える
 		// seg_overrideは共通
@@ -4511,6 +4512,7 @@ int getparam(UCHAR **ps, UCHAR *s1, int *p,
 		goto err;
 
 	/* レジスタか即値 */
+	LOG_DEBUG("it's register/imm \n");
 	expr = expression;
 	calc_ofsexpr(ofsexpr, &expr, 0);
 	if (ofsexpr->err)

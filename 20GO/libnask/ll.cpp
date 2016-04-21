@@ -109,10 +109,8 @@ skipmc94_skip:
 		goto fin;
 	}
 
-	#if (DEBUG)
-		fprintf(stderr, "LL_skipcode error:%02X\n", c);
-		//GOL_sysabort(GO_TERM_BUGTRAP);
-	#endif
+	LOG_DEBUG("LL_skipcode error: 0x%02x \n", c);
+	//GOL_sysabort(GO_TERM_BUGTRAP);
 
 fin:
 	return p;
@@ -157,11 +155,9 @@ UCHAR *LL_skip_expr(UCHAR *expr)
 		expr = LL_skip_expr(expr);
 		goto fin;
 	}
-	#if (DEBUG)
 dberr:
-		fprintf(stderr, "LL_skip_expr:%02x\n", c);
-		//GOL_sysabort(GO_TERM_BUGTRAP);
-	#endif
+	LOG_DEBUG("LL_skip_expr: 0x%02x \n", c);
+	//GOL_sysabort(GO_TERM_BUGTRAP);
 
 fin:
 	return expr;
@@ -240,6 +236,9 @@ unsigned int get_id(int len, UCHAR **ps, int i)
 	return u.i;
 }
 
+//
+//
+//
 void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 {
 	LOG_DEBUG("in \n");
@@ -249,6 +248,9 @@ void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 	return;
 }
 
+//
+// calc_valueから呼び出される
+//
 void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 {
 	UCHAR *expr = *pexpr, c, *t;
@@ -261,6 +263,7 @@ void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 	init_value(value.get());
 	if (c <= 6) {
 		/* 定数 */
+		LOG_DEBUG("constant value 0x%02x \n", c);
 		i = 0;
 		if (c & 0x01)
 			i--;
@@ -269,11 +272,13 @@ void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 	}
 	if (c == 0x07) {
 		/* 定数1 */
+		LOG_DEBUG("constant value 0x%02x \n", c);
 		value->min = 1;
 		goto fin;
 	}
 	if (c <= 0x0b) {
 		/* ラベル引用 */
+		LOG_DEBUG("refering label 0x%02x \n", c);
 	     	std::shared_ptr<STR_LABEL> label(&label0[i = get_id(c - 8, &expr, 0)]);
 		if ((label->value.flags & VFLG_ENABLE) == 0) {
 			if (label->value.flags & VFLG_CALC) {
@@ -291,6 +296,7 @@ void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 	#endif
 	if (c < 0x20) {
 		/* 演算子 */
+		LOG_DEBUG("operators 0x%02x \n", c);
 		calc_value0(value, &expr);
 		if (c == 0x10)
 			goto fin; /* 単項演算子 + */
@@ -587,14 +593,14 @@ divs_ij:
 		goto fin;
 	}
 #endif
-	#if (DEBUG)
+
 dberr:
-		fprintf(stderr, "calc_value:%02x\n", c);
-		//GOL_sysabort(GO_TERM_BUGTRAP);
-	#endif
+	LOG_DEBUG("calc_value: 0x%02x \n", c);
+	//GOL_sysabort(GO_TERM_BUGTRAP);
 
 fin:
 	*pexpr = expr;
+	LOG_DEBUG("finished \n", c);
 	return;
 }
 
@@ -834,10 +840,12 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 	} while (unsolved);
 
 	for (subsect = subsect0; subsect_ptr < subsect1 - 1; subsect_ptr++) {
-		LOG_DEBUG("sebsect++ ! \n");
+		LOG_DEBUG("subsect++ ! \n");
 		times_count = 0;
 		for (src0 = subsect->sect0; src0 < subsect->sect1; ) {
 			c = *src0++;
+
+			LOG_DEBUG("subsect++: 0x%02x \n", c);
 			if (dest0 + 64 >= dest1) {
 	error:
 				return NULL; /* buffer overrun */
@@ -947,6 +955,8 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 						value->delta = dest0 - times_dest0;
 						if (dest0 + value->delta * value->min + 64 >= dest1)
 							goto error; /* 1回分余計に比較しているが、ま、いいか */
+
+						LOG_DEBUG("times processing \n");
 						for (dest0 = times_src0 = times_dest0; value->min > 0; value->min--) {
 							s = times_src0;
 							for (times_count = value->delta; times_count > 0; times_count--)
@@ -1178,11 +1188,9 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 				len = c - 0xef;
 				goto copy;
 			}
-			#if (DEBUG)
 	dberr0:
-				fprintf(stderr, "LL:%02x\n", c);
-				//GOL_sysabort(GO_TERM_BUGTRAP);
-			#endif
+			LOG_DEBUG("LL: cannot interpret binaries 0x%02x \n", c);
+			//GOL_sysabort(GO_TERM_BUGTRAP);
 		}
 	}
 
@@ -1260,6 +1268,7 @@ skipmc30:
 			i = s[0] | s[1] << 8 | s[2] << 16 | s[3] << 24;
 			s += 4;
 			calc_value(value, &s); /* len */
+			LOG_DEBUG("STR_VALUE:len %s \n", value->to_string().c_str());
 			/* lenにエラーはないという前提(プログラムカウンタを含まない定数式) */
 			if ((unsigned int) i < 0xfffffff0) {
 				min += (i - 1) * value->min; /* iは繰り返し回数 */
@@ -1268,6 +1277,8 @@ skipmc30:
 			}
 			i = value->min;
 			calc_value(value, &s); /* 繰り返し回数 */
+			LOG_DEBUG("STR_VALUE:times %s \n", value->to_string().c_str());
+
 			if (value->flags & (VFLG_SLFREF | VFLG_UNDEF)) /* 自己参照エラー */
 				goto mc59_force;
 			if (value->flags & VFLG_ERROR) {
