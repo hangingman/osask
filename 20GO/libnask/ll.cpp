@@ -251,12 +251,13 @@ void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 
 void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 {
-	LOG_DEBUG("in \n");
 	UCHAR *expr = *pexpr, c, *t;
 	int i, j, k;
 	std::unique_ptr<STR_VALUE> tmp, tmp2;
 	struct STR_SUBSECTION *subsect;
 	c = *expr++;
+
+	LOG_DEBUG("in, 0x%02x \n", c);
 	init_value(value.get());
 	if (c <= 6) {
 		/* 定数 */
@@ -1022,7 +1023,6 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 			}
 			if (c == 0x59) {
 				/* TIMES */
-		     		LOG_DEBUG("TIMES microcode \n");
 				times_dest0 = dest0;
 				times_src0 = src0;
 				src0 += 4;
@@ -1030,6 +1030,9 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 				/* lenの部分にエラーはないということになっている(手抜き) */
 				times_count = value->min;
 				src0 = skip_expr(src0);
+
+		     		LOG_DEBUG("TIMES microcode \nvalue: %s \ntimes_count: %d \n",
+					  value->to_string().c_str(), times_count);
 				continue;
 			}
 			if (c == 0x68) {

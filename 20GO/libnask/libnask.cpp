@@ -1656,6 +1656,7 @@ err:
 				do { // "i"の数値分"0x00"で埋める
 					(*bp++).integer = 0x00;
 				} while (--i);
+
 				ifdef->vb[8] = 0x84;
 				expr = status->expression;
 				LOG_DEBUG("RESB: expr %s \n", expr->to_string().c_str());
@@ -2560,7 +2561,7 @@ UCHAR *output(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1, UCHAR *list0
 	int secno = 0; // 再代入されてる
 	do {
 		c = *srcp;
-		LOG_DEBUG("%d \n", c);
+		LOG_DEBUG("0x%02x \n", c);
 		if (SHORT_DB1 <= c && c <= SHORT_DB4) {
 			srcp++;
 			c -= SHORT_DB0;
@@ -2954,9 +2955,7 @@ skip_relative_relocation:
 		} else if (c == 0x2c) {
 			src0 += 4;
 		} else {
-			#if (DEBUG)
-				fprintf(stderr, "output:%02X\n", c);
-			#endif
+			LOG_DEBUG("output: %02x \n", c);
 			src0++;
 		}
 		i = lbuf - lbuf0.data();
