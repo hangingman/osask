@@ -2327,6 +2327,8 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    dest0[0] = 0x59;
 		    s = ifdef->expr[8];
 		    k = ifdef->dat[8];
+		    const int length = k;
+
 		    LOG_DEBUG("TIMES microcode   \n"
 			      "ifdef->expr[8]: %s\n"
 			      "ifdef->dat[8] : %d\n",
@@ -2342,12 +2344,12 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    LOG_DEBUG("dest0 %s \n", dump_ptr("dest0", dest0, 5).c_str());
 		    dest0 += 5; // 5Byte埋めたので5Byte進める
 
-		    c = 5; /* len出力 */
+		    /* len出力 */
 		    int current = j++;
 		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   0, buf[current  ].byte[0]);
 		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   1, buf[current  ].byte[1]);
-		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   2, buf[current  ].byte[2]);
-		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,   3, buf[current  ].byte[3]);
+		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,	2, buf[current	].byte[2]);
+		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current,	3, buf[current	].byte[3]);
 		    LOG_DEBUG("buf[%d].byte[%d]: 0x%02x \n", current+1, 0, buf[current+1].byte[0]);
 
 		    // また5Byte埋める
@@ -2356,14 +2358,20 @@ UCHAR *flush_bp(int len, nask32bitInt* buf, UCHAR* dest0, UCHAR *dest1, std::uni
 		    *dest0++ = buf[current  ].byte[2];
 		    *dest0++ = buf[current  ].byte[3];
 		    *dest0++ = buf[current+1].byte[0];
-		    // -5して 入ったか確認
-		    LOG_DEBUG("TIMES microcode: dest0 %s \n", dump_ptr("dest0", dest0 - 5, 5).c_str());
 
 		    do {
 			 *dest0++ = *s++;
 		    } while (--k);
-		    // -2して 入ったか確認
-		    LOG_DEBUG("TIMES microcode: dest0 %s \n", dump_ptr("dest0", dest0 - 2, 2).c_str());
+		    // - ( 5byte + 6byte + length ) して 入ったか確認
+		    const int processed = 6 + length;
+
+		    LOG_DEBUG("TIMES microcode: dest0\n"
+			      "[---OPECODE---] "
+			      "[-------LENGTH--------] "
+			      "[-------UNKNOWN-------------] "
+			      "[---TIMES---] "
+			      "\n%s \n",
+			      dump_ptr("dest0", dest0 - processed, processed).c_str());
 
 		    continue;
 	       }

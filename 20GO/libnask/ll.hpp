@@ -76,6 +76,7 @@ static std::string dump_ptr(const char* name, T* src, size_t len = 0) {
 	       buf << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*src);
 	       buf << ", ";
 	       src++;
+	       len++;
 	  }
      } else {
 	  for( int i = 0; i < len; i++ ) {
@@ -85,6 +86,8 @@ static std::string dump_ptr(const char* name, T* src, size_t len = 0) {
 	  }
      }
 
+     // 戻しておく
+     src -= len;
      buf << "]";
      return buf.str();
 }
@@ -293,7 +296,7 @@ UCHAR *LL_skip_expr(UCHAR *p);
 UCHAR *LL_skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
 UCHAR *LL_skipcode(UCHAR *p);
 
-unsigned int solve_subsection(struct STR_SUBSECTION *subsect, char force);
+UINT solve_subsection(struct STR_SUBSECTION *subsect, char force);
 UCHAR *skip_mc30(UCHAR *s, UCHAR *bytes, char flag);
 void init_value(STR_VALUE* value);
 void calcsigma(std::unique_ptr<STR_VALUE>& value);
@@ -301,7 +304,7 @@ void addsigma(std::unique_ptr<STR_VALUE>& value, struct STR_SIGMA sigma);
 void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr);
 void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr);
 void enable_label(STR_LABEL* label);
-unsigned int get_id(int len, UCHAR **ps, int i);
+UINT get_id(int len, UCHAR **ps, int i);
 
 /* ラベルの定義方法:
    一般式

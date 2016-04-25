@@ -220,12 +220,14 @@ void init_value(STR_VALUE* value)
 }
 
 //
-// len = 0〜3
+// len には 0〜3 を指定する
+// ps はビッグエンディアンを想定しているようだ
 //
-unsigned int get_id(int len, UCHAR **ps, int i)
+UINT get_id(int len, UCHAR **ps, int i)
 {
 	UCHAR *s = *ps;
 	LOG_DEBUG("get 4byte forwarded values len: %d \n", len);
+	LOG_DEBUG("after 4byte: %s \n", dump_ptr("", s, 4).c_str());
 	nask32bitInt u;
 	u.integer = i;
 	i = 0;
@@ -1037,7 +1039,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 				/* TIMES */
 				times_dest0 = dest0;
 				times_src0 = src0;
-				LOG_DEBUG("0x59 & 6byte => %s \n", dump_ptr("src0", src0 - 5, 10).c_str());
+				LOG_DEBUG("0x59 & 15byte => %s \n", dump_ptr("src0", src0 - 1, 15).c_str());
 				src0 += 4;
 				calc_value(value, &src0); /* len */
 				/* lenの部分にエラーはないということになっている(手抜き) */
