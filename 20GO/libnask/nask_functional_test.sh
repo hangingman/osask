@@ -9,4 +9,4 @@ cd data && md5sum -c 01_nasfile.hash && cd ../
 cd data && md5sum -c 02_nasfile.hash && cd ../
 
 # 3 opecode 'RESB'
-./nask data/03_nasfile.nas data/03_nasfile.img
+#./nask data/03_nasfile.nas data/03_nasfile.img

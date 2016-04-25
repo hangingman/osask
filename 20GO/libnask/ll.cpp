@@ -219,25 +219,27 @@ void init_value(STR_VALUE* value)
 	return;
 }
 
+//
+// len = 0〜3
+//
 unsigned int get_id(int len, UCHAR **ps, int i)
-/* len = 0〜3 */
 {
-	union UINT_UCHAR {
-		unsigned int i;
-		UCHAR c[4];
-	} u;
 	UCHAR *s = *ps;
-	u.i = i;
+	LOG_DEBUG("get 4byte forwarded values len: %d \n", len);
+	nask32bitInt u;
+	u.integer = i;
 	i = 0;
 	do {
-		u.c[i++] = *s++;
+		u.byte[i++] = *s++;
 	} while (--len >= 0);
 	*ps = s;
-	return u.i;
+
+	LOG_DEBUG("loaded value: %d \n", u.integer);
+	return u.integer;
 }
 
 //
-//
+// OPE_CODEの先にある数値を計算する
 //
 void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr)
 {
@@ -1035,6 +1037,7 @@ UCHAR *LL(UCHAR *src0, UCHAR *src1, UCHAR *dest0, UCHAR *dest1)
 				/* TIMES */
 				times_dest0 = dest0;
 				times_src0 = src0;
+				LOG_DEBUG("0x59 & 6byte => %s \n", dump_ptr("src0", src0 - 5, 10).c_str());
 				src0 += 4;
 				calc_value(value, &src0); /* len */
 				/* lenの部分にエラーはないということになっている(手抜き) */

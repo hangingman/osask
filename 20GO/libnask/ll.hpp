@@ -301,6 +301,7 @@ void addsigma(std::unique_ptr<STR_VALUE>& value, struct STR_SIGMA sigma);
 void calc_value(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr);
 void calc_value0(std::unique_ptr<STR_VALUE>& value, UCHAR **pexpr);
 void enable_label(STR_LABEL* label);
+unsigned int get_id(int len, UCHAR **ps, int i);
 
 /* ラベルの定義方法:
    一般式
