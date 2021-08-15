@@ -1,24 +1,3 @@
-# Osask  ver.4.7.2 [![Build Status](https://travis-ci.org/Hiroyuki-Nagata/osask.svg?branch=master)](https://travis-ci.org/Hiroyuki-Nagata/osask)
+# Osask (private modified repository)
 
-## Work with
-* i386 based PC/AT machine
-
-# About
-Radical Dreamers' OS
-
-# Build
-```
-  $ ./bootstrap
-  $ ./configure
-  $ make
-```
-
-# Debug Build
-
-* You can see debug outputs
-
-```
-  $ ./bootstrap
-  $ CXXFLAGS="-DDEBUG=1" ./configure
-  $ make
-```
+- このリポジトリはOsask projectのSVNソースをGitにimportし改造を試みたものです
